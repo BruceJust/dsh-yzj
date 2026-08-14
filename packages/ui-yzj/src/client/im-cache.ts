@@ -135,7 +135,7 @@ export async function resolveSenders(
   return out
 }
 
-/** "2026-08-14 23:03:34.640" → "23:03" today, else "08-14 23:03". */
+/** "2026-08-14 23:03:34.640" → "23:03" today, "昨天 23:03" yesterday, else "08-14 23:03". */
 export function formatMsgTime(text: unknown): string {
   const value = String(text ?? '')
   if (value.length < 16) return value
@@ -143,6 +143,9 @@ export function formatMsgTime(text: unknown): string {
   const pad = (n: number): string => String(n).padStart(2, '0')
   const todayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
   if (value.startsWith(todayKey)) return value.slice(11, 16)
+  const yesterday = new Date(now.getTime() - 86_400_000)
+  const yesterdayKey = `${yesterday.getFullYear()}-${pad(yesterday.getMonth() + 1)}-${pad(yesterday.getDate())}`
+  if (value.startsWith(yesterdayKey)) return `昨天 ${value.slice(11, 16)}`
   return `${value.slice(5, 7)}-${value.slice(8, 10)} ${value.slice(11, 16)}`
 }
 

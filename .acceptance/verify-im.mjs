@@ -51,14 +51,30 @@ const senderText = await dialog.locator('[class*="msgSender"]').allInnerTexts().
 const namedSenders = senderText.filter(text => text !== '消息' && text !== '图文' && text !== '文件' && text !== '系统' && text.trim() !== '')
 ok('sender names resolved', namedSenders.length > 0, `e.g. ${namedSenders.slice(0, 3).join(', ')}`)
 const timeTexts = await dialog.locator('[class*="msgTime"]').allInnerTexts().catch(() => [])
-ok('message times formatted (HH:mm or MM-DD HH:mm)', timeTexts.length > 0 && timeTexts.every(t => /^\d{2}:\d{2}$|^\d{2}-\d{2} \d{2}:\d{2}$/.test(t.trim())), timeTexts.slice(0, 3).join(', '))
+ok('message times formatted (HH:mm / 昨天 HH:mm / MM-DD HH:mm)', timeTexts.length > 0 && timeTexts.every(t => /^\d{2}:\d{2}$|^昨天 \d{2}:\d{2}$|^\d{2}-\d{2} \d{2}:\d{2}$/.test(t.trim())), timeTexts.slice(0, 3).join(', '))
+
+// ---- 2b. the chat header (返回会话) is pinned above the scrollable list ----
+const backBtn = dialog.getByRole('button', { name: '返回会话' })
+const boxBefore = await backBtn.boundingBox().catch(() => null)
+await dialog.locator('div[class*="list"]').last().evaluate(el => { el.scrollTop = el.scrollHeight }).catch(() => {})
+await page.waitForTimeout(300)
+const boxAfter = await backBtn.boundingBox().catch(() => null)
+ok('back button stays pinned while the list scrolls',
+  boxBefore !== null && boxAfter !== null && Math.abs(boxBefore.y - boxAfter.y) < 1,
+  `y ${boxBefore?.y ?? '?'} → ${boxAfter?.y ?? '?'}`)
 // The CLI returns messages oldest-first; the chat must read top-down
 // chronologically (today's HH:mm sorts after any MM-DD day).
 const timeToNum = (t) => {
   const m = t.trim().match(/^(?:(\d{2})-(\d{2}) )?(\d{2}):(\d{2})$/)
-  if (!m) return 0
-  const day = m[1] !== undefined ? Number(m[1]) * 100 + Number(m[2]) : 999
-  return day * 10000 + Number(m[3]) * 100 + Number(m[4])
+  if (m) {
+    const day = m[1] !== undefined ? Number(m[1]) * 100 + Number(m[2]) : 999
+    return day * 10000 + Number(m[3]) * 100 + Number(m[4])
+  }
+  if (t.trim().startsWith('昨天')) {
+    const hm = t.trim().match(/(\d{2}):(\d{2})$/)
+    return hm ? 998 * 10000 + Number(hm[1]) * 100 + Number(hm[2]) : 9980000
+  }
+  return 0
 }
 const ascending = timeTexts.every((t, i) => i === 0 || timeToNum(timeTexts[i - 1]) <= timeToNum(t))
 ok('messages read chronologically (oldest first, NOT reversed)', ascending, timeTexts.slice(0, 6).join(' | '))
@@ -100,13 +116,17 @@ await page.waitForTimeout(800)
 const cachedMessages = await dialog.locator('[class*="msgRow"]').count()
 ok('revisit reuses the cached window (instant render)', cachedMessages > 0, `${cachedMessages} messages`)
 
-// ---- 6. real-IM layout: bubbles, sender avatars, day dividers ----
-const bubbles = await dialog.locator('[class*="bubble"]').count()
-ok('messages render as bubbles', bubbles > 0, `${bubbles} bubbles`)
+// ---- 6. reference-style IM layout: meta lines, avatars, dividers, chips ----
+const metaLines = await dialog.locator('[class*="msgMetaLine"]').count()
+ok('messages render name · time meta lines', metaLines > 0, `${metaLines} lines`)
 const avatars = await dialog.locator('[class*="msgAvatar"]').count()
 ok('sender avatars render', avatars > 0, `${avatars} avatars`)
 const dividers = await dialog.locator('[class*="dayDivider"]').count()
 ok('day dividers separate dates', dividers > 0, `${dividers} dividers`)
+const chips = await dialog.locator('button[class*="groupChip"]').count()
+ok('group chips row enables quick switching', chips > 0, `${chips} chips`)
+const activeChips = await dialog.locator('button[class*="groupChipActive"]').count()
+ok('current group chip is active', activeChips >= 1, `${activeChips} active`)
 const imText = await dialog.innerText().catch(() => '')
 ok('bracket emoticons render as emoji ([握手]/[机智] gone)', !imText.includes('[握手]') && !imText.includes('[机智]'), 'no raw [token] text')
 

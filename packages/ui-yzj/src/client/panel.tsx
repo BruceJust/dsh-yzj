@@ -754,7 +754,17 @@ export function YzjPanel(props: YzjPanelProps) {
   const tab = props.useStore(state => state.tab)
   // Persisted tabs may hold the removed 'me'; fall back to the docs tab.
   const activeTab: YzjTab = tab === 'docs' || tab === 'calendar' || tab === 'chat' ? tab : 'docs'
+  const anchorActive = props.useStore(state => state.anchorMsgId !== '')
   const state = props.useStore(s => s)
+  // Chips row: recent groups, always including the open one.
+  const chipGroups = (() => {
+    const list = state.groups.slice(0, 7)
+    if (state.groupId !== '' && !list.some(group => asString(asRecord(group).groupId) === state.groupId)) {
+      const current = state.groups.find(group => asString(asRecord(group).groupId) === state.groupId)
+      if (current !== undefined) list.push(current)
+    }
+    return list
+  })()
   const panelRef = useRef<HTMLDivElement | null>(null)
   const dragOffset = useRef<{ dx: number; dy: number } | null>(null)
   const anchorRef = useRef<HTMLDivElement | null>(null)
@@ -1344,7 +1354,7 @@ export function YzjPanel(props: YzjPanelProps) {
             </div>
           ) : (
             <>
-              <div className={css.list} ref={listRef}>
+              <div className={css.chatHeader}>
                 <button type="button" className={css.back} onClick={() => {
                   props.actions.setGroupId('')
                   props.actions.setAnchorMsgId('')
@@ -1354,6 +1364,35 @@ export function YzjPanel(props: YzjPanelProps) {
                   <IconChevronLeft14 /> 返回会话
                 </button>
                 <GroupHead groups={state.groups} groupId={state.groupId} />
+              </div>
+              {/* Reference-style group chips: quick switching without going back. */}
+              <div className={css.groupChips} role="tablist" aria-label="会话切换">
+                {chipGroups.map((item, index) => {
+                  const group = asRecord(item)
+                  const id = asString(group.groupId)
+                  const unread = effectiveUnread(id, typeof group.unreadCount === 'number' ? group.unreadCount : 0)
+                  const active = id === state.groupId
+                  return (
+                    <button
+                      key={`c${index}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      className={active ? `${css.groupChip} ${css.groupChipActive}` : css.groupChip}
+                      onClick={() => openGroup(id)}
+                    >
+                      {asString(group.groupName)}
+                      {unread > 0 && <span className={css.chipBadge}>{unread > 99 ? '99+' : unread}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+              {anchorActive && (
+                <div className={css.anchorHint} role="status">
+                  已定位到锚点消息（来自「查看上下文」）
+                </div>
+              )}
+              <div className={css.list} ref={listRef}>
               {state.messages.length === 0 && !state.loading && state.error === '' && <div className={css.empty}>暂无消息</div>}
               {state.messagesMore && (
                 <button type="button" className={css.more} onClick={loadOlderMessages} disabled={state.loading}>
@@ -1383,7 +1422,6 @@ export function YzjPanel(props: YzjPanelProps) {
                       ref={anchored ? anchorRef : undefined}
                       className={[
                         css.msgRow,
-                        mine ? css.msgRowMine : '',
                         isSystem ? css.msgRowSystem : '',
                         anchored ? css.itemAnchored : '',
                       ].filter(Boolean).join(' ')}
@@ -1404,22 +1442,25 @@ export function YzjPanel(props: YzjPanelProps) {
                           <circle cx="3" cy="13" r="1.4" /><circle cx="7" cy="13" r="1.4" />
                         </svg>
                       </span>
-                      {!mine && !isSystem && (
+                      {!isSystem && (
                         <SenderAvatar openId={fromOpenId} fallback={sender === '' ? typeLabelOf(msgType) : sender} />
                       )}
-                      <span className={mine ? `${css.msgStack} ${css.msgStackMine}` : css.msgStack}>
-                        {!mine && !isSystem && (
-                          <span className={css.msgSender}>{sender === '' ? typeLabelOf(msgType) : sender}</span>
+                      <span className={css.msgStack}>
+                        {!isSystem && (
+                          <span className={css.msgMetaLine}>
+                            <span className={css.msgSender}>{sender === '' ? typeLabelOf(msgType) : sender}{mine ? '（我）' : ''}</span>
+                            <span className={css.msgTime}>{sendTime}</span>
+                            {anchored && <span className={css.anchorTag}>锚点</span>}
+                          </span>
                         )}
-                        <span className={mine ? `${css.bubble} ${css.bubbleMine}` : css.bubble}>
+                        <span className={css.msgContent}>
                           <MessageBody
-                      message={message}
-                      onOpenImage={(src) => setLightbox({ src, kind: 'image' })}
-                      onOpenPdf={(src) => setLightbox({ src, kind: 'pdf' })}
-                      inject={props}
-                    />
+                            message={message}
+                            onOpenImage={(src) => setLightbox({ src, kind: 'image' })}
+                            onOpenPdf={(src) => setLightbox({ src, kind: 'pdf' })}
+                            inject={props}
+                          />
                         </span>
-                        <span className={mine ? `${css.msgTime} ${css.msgTimeMine}` : css.msgTime}>{sendTime}</span>
                         {!isSystem && (
                           <button
                             type="button"

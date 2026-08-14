@@ -352,9 +352,9 @@
   border: 1px solid var(--dsw-alias-border-l1);
 }
 
-/* ── Real-IM bubble layout ───────────────────────────────────────────── */
+/* ── Reference-style IM list (prototype overlay.html) ────────────────── */
 
-/* One message row: [avatar] [stack] — flipped for my own messages. */
+/* One message row: [grip] [avatar] [meta + content] — no bubbles. */
 .msgRow {
   position: relative;
   display: flex;
@@ -371,10 +371,6 @@
 
 .msgRow[draggable='true'] {
   cursor: grab;
-}
-
-.msgRowMine {
-  flex-direction: row-reverse;
 }
 
 .msgRowSystem {
@@ -408,39 +404,33 @@
   margin-top: 2px;
 }
 
-/* Sender name + bubble + time column. */
+/* Name · time line + content column. */
 .msgStack {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  max-width: 78%;
+  flex: 1;
   min-width: 0;
 }
 
-.msgStackMine {
-  align-items: flex-end;
-}
-
-/* The bubble itself: others layer-1, mine brand blue with white text. */
-.bubble {
-  padding: 7px 10px;
-  border-radius: 12px;
-  border-top-left-radius: 4px;
-  background: var(--dsw-alias-bg-layer-1);
-  border: 1px solid var(--dsw-alias-border-l1);
+.msgMetaLine {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
+  margin-top: 1px;
 }
 
-.bubbleMine {
-  background: var(--dsw-static-deepseek-500);
-  border-color: var(--dsw-static-deepseek-500);
-  border-top-left-radius: 12px;
-  border-top-right-radius: 4px;
-  color: #ffffff;
-}
-
-.bubbleMine .msgBody {
-  color: #ffffff;
+.msgSender {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .msgTime {
@@ -448,11 +438,88 @@
   font-size: 11px;
   line-height: 14px;
   font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* Content: plain text column (no bubble background). */
+.msgContent {
+  min-width: 0;
   margin-top: 2px;
 }
 
-.msgTimeMine {
-  margin-right: 2px;
+/* 锚点 pill on anchor-jumped messages. */
+.anchorTag {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--dsw-static-deepseek-100);
+  color: var(--dsw-static-deepseek-600);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+/* Anchor hint bar under the chat header (查看上下文 jump). */
+.anchorHint {
+  flex: none;
+  margin: 0 10px;
+  padding: 4px 10px;
+  border: 1px solid var(--dsw-static-deepseek-500);
+  border-radius: 8px;
+  background: var(--dsw-static-deepseek-100);
+  color: var(--dsw-static-deepseek-600);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* Group chips row: quick switching without going back (prototype). */
+.groupChips {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.groupChips::-webkit-scrollbar {
+  display: none;
+}
+
+.groupChip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  transition: border-color 120ms var(--ds-ease-in-out, ease), background-color 120ms var(--ds-ease-in-out, ease), color 120ms var(--ds-ease-in-out, ease);
+}
+
+.groupChip:hover {
+  border-color: var(--dsw-static-deepseek-500);
+  color: var(--dsw-alias-label-primary);
+}
+
+.groupChipActive {
+  border-color: var(--dsw-static-deepseek-500);
+  background: var(--dsw-static-deepseek-100);
+  color: var(--dsw-static-deepseek-600);
+  font-weight: 600;
+}
+
+.chipBadge {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--dsw-static-red-500);
+  color: #ffffff;
+  font-size: 10px;
+  line-height: 14px;
 }
 
 /* Hover-revealed 回复 action on a message row. */
@@ -516,6 +583,21 @@
   min-width: 0;
 }
 
+/* Fixed chat header (back + group identity) above the scrolling list. */
+.chatHeader {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-base);
+}
+
+.chatHeader .groupHead {
+  padding: 2px 6px 6px;
+}
+
 .back {
   display: inline-flex;
   align-items: center;
@@ -528,7 +610,7 @@
   font-size: 12px;
   text-align: left;
   cursor: pointer;
-  align-self: flex-start;
+  flex: none;
   transition: background-color 120ms var(--ds-ease-in-out, ease);
 }
 
