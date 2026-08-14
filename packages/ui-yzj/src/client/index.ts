@@ -111,9 +111,12 @@ export function apply(ctx: ClientContext): void {
     YzjFloatBall,
   ))
 
-  ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register(
+  // Drop band: registered in `conversation.input.dock` (its own row above the
+  // composer card) because `conversation.composer.dock` only renders in the
+  // non-hero phase — a brand-new session would have no drop target at all.
+  ctx.slots.inject('conversation.input.dock', () => ctx.slots.register(
     {
-      name: 'conversation.composer.dock',
+      name: 'conversation.input.dock',
       id: 'yzj-drop-band',
       order: 100,
       inject: (sessionId: string): YzjDropInjected => {

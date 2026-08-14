@@ -25,11 +25,41 @@
 }
 
 /* Quick instructions shown right after a drop. */
+.reminder {
+  margin: 4px 0 0;
+  padding: 6px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: reminderIn 180ms var(--ds-ease-out, ease-out);
+}
+
+@keyframes reminderIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.reminderHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+}
+
 .quickRow {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 4px 0 0;
 }
 
 .quickButton,

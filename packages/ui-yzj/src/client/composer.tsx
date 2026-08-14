@@ -1,10 +1,12 @@
 /**
  * Composer-side Yunzhijia seats:
- * - `conversation.composer.dock`: the drop band under the composer card.
+ * - `conversation.input.dock`: the drop band above the composer card.
  *   Dragging a workspace/doc/group/event/contact/message from the floating
  *   panel here inserts a reference CHIP (not plain text) into the draft via
  *   the scoped insert-reference event; the chip carries context through the
- *   source codec on send.
+ *   source codec on send. Registered here (not `conversation.composer.dock`)
+ *   so the drop target exists in the hero phase too — a brand-new session
+ *   otherwise has nowhere to drop.
  * - The '@' menu itself is provided by input-source.ts (the trigger
  *   pipeline); this package registers no tool-row button.
  */
@@ -29,17 +31,18 @@ export interface YzjDropInjected {
 
 /** Quick instructions offered after a drop (design v1.6 §5.2 req. 4). */
 const QUICK_ACTIONS: readonly { label: string; text: string }[] = [
-  { label: '让 agent 总结', text: '请总结上面引用的云之家内容' },
+  { label: '让 agent 总结', text: '请总结上面引用的云之家内容，给出要点' },
   { label: '起草回复', text: '基于上面引用的内容起草回复' },
   { label: '沉淀知识库', text: '把上面引用的内容整理成文档存入知识库' },
 ]
 
 /**
- * The drop band under the composer card. Idle it is a slim hint; while a
+ * The drop band above the composer card. Idle it is a slim hint; while a
  * yzj drag hovers it expands and invites the drop; right after a drop it
- * offers quick instructions so 拖入 → 指令 collapses into one step.
+ * raises a reminder banner (count + quick instructions) so 拖入 → 指令
+ * collapses into one step.
  */
-export function YzjComposerDock(props: PropsRuntime<'conversation.composer.dock'> & YzjDropInjected) {
+export function YzjComposerDock(props: PropsRuntime<'conversation.input.dock'> & YzjDropInjected) {
   const [armed, setArmed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [dropped, setDropped] = useState(0)
@@ -88,31 +91,37 @@ export function YzjComposerDock(props: PropsRuntime<'conversation.composer.dock'
         }}
       >
         <YzjCloudIcon size={13} />
-        <span>{armed ? '松开以插入云之家卡片' : '把云之家内容拖到这里，以卡片插入上下文'}</span>
+        <span>{armed ? '松开以插入云之家引用' : '把云之家内容拖到这里，以引用插入上下文'}</span>
       </div>
       {dropped > 0 && (
-        <div className={css.quickRow} role="group" aria-label="快捷处理">
-          {QUICK_ACTIONS.map(action => (
+        <div className={css.reminder} role="status">
+          <div className={css.reminderHead}>
+            <YzjCloudIcon size={13} />
+            <span>已引用 {dropped} 条云之家内容，输入指令让 agent 处理，或：</span>
+          </div>
+          <div className={css.quickRow} role="group" aria-label="快捷处理">
+            {QUICK_ACTIONS.map(action => (
+              <button
+                key={action.label}
+                type="button"
+                className={css.quickButton}
+                onClick={() => {
+                  props.insertText(action.text)
+                  setDropped(0)
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
             <button
-              key={action.label}
               type="button"
-              className={css.quickButton}
-              onClick={() => {
-                props.insertText(action.text)
-                setDropped(0)
-              }}
+              className={css.quickDismiss}
+              onClick={() => { setDropped(0) }}
+              aria-label="收起提醒"
             >
-              {action.label}
+              收起
             </button>
-          ))}
-          <button
-            type="button"
-            className={css.quickDismiss}
-            onClick={() => { setDropped(0) }}
-            aria-label="收起快捷操作"
-          >
-            收起
-          </button>
+          </div>
         </div>
       )}
     </div>
