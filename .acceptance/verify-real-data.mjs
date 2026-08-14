@@ -31,9 +31,9 @@ page.on('pageerror', (e) => pageErrors.push(String(e).slice(0, 200)))
 await page.goto('http://127.0.0.1:3090/', { waitUntil: 'domcontentloaded' })
 await page.waitForTimeout(6000)
 
-const toggle = page.getByText('云之家', { exact: true }).first()
-await toggle.waitFor({ state: 'visible', timeout: 20000 })
-await toggle.click()
+const ball = page.getByLabel('云之家悬浮窗')
+await ball.waitFor({ state: 'visible', timeout: 20000 })
+await ball.click()
 const dialog = page.getByRole('dialog', { name: '云之家' })
 await dialog.waitFor({ state: 'visible', timeout: 15000 })
 
@@ -69,7 +69,7 @@ if (groupCount > 0) {
 }
 
 // --- 5. '@' menu: three real candidate groups ---
-await page.getByText('云之家', { exact: true }).first().click() // close panel
+await dialog.getByRole('button', { name: '关闭' }).click()
 await page.waitForTimeout(800)
 const draft = page.locator('textarea').first()
 await draft.click()

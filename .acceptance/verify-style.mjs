@@ -24,7 +24,7 @@ page.on('pageerror', (e) => console.log(`  [pageerror] ${String(e).slice(0, 200)
 
 await page.goto('http://127.0.0.1:3090/', { waitUntil: 'domcontentloaded' })
 await page.waitForTimeout(6000)
-await page.getByText('云之家', { exact: true }).first().click()
+await page.getByLabel('云之家悬浮窗').click()
 const dialog = page.getByRole('dialog', { name: '云之家' })
 await dialog.waitFor({ state: 'visible', timeout: 15000 })
 await page.waitForTimeout(3000)

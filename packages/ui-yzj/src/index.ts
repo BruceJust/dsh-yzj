@@ -11,6 +11,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
 import type {} from '@dsh-yzj/bridge'
 import { applyWriteGate, type YzjWriteRecord } from './write-gate.ts'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'ui-yzj'
@@ -57,6 +60,68 @@ function clampLimit(value: unknown): number | undefined {
 
 /** Hard CLI cap for im `--limit` (verified against yzj-cli 0.x). */
 const CLI_LIMIT_MAX = 20
+
+/* ── file-data proxy (docrest URLs need the CLI's auth) ─────────────── */
+
+/** Largest payload the proxy returns (bytes) — keeps RPC and memory sane. */
+const FILE_DATA_MAX_BYTES = 24 * 1024 * 1024
+const fileDataCache = new Map<string, { dataUrl: string; bytes: number }>()
+const fileDataInflight = new Map<string, Promise<{ dataUrl: string; bytes: number } | undefined>>()
+let fileDataCachedBytes = 0
+
+/** Sniff an image MIME from magic bytes ('' = not a known image). */
+function sniffMime(bytes: Buffer): string {
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png'
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return 'image/gif'
+  if (bytes.length >= 12 && bytes.slice(0, 4).toString('latin1') === 'RIFF' && bytes.slice(8, 12).toString('latin1') === 'WEBP') return 'image/webp'
+  if (bytes.length >= 2 && bytes[0] === 0x42 && bytes[1] === 0x4d) return 'image/bmp'
+  return ''
+}
+
+/** Download one file via the authenticated CLI; data URL or undefined. */
+async function downloadFileData(ctx: Context, fileId: string): Promise<{ dataUrl: string; bytes: number } | undefined> {
+  const dir = await mkdtemp(join(tmpdir(), 'yzj-file-'))
+  const target = join(dir, 'payload.bin')
+  try {
+    const result = await ctx.yzjBridge.run(['file', 'download', '--id', fileId, '--output', target], { timeoutMs: 60_000 })
+    if (!result.ok) return undefined
+    const bytes = await readFile(target)
+    if (bytes.length === 0 || bytes.length > FILE_DATA_MAX_BYTES) return undefined
+    const mime = sniffMime(bytes) === '' ? 'application/octet-stream' : sniffMime(bytes)
+    return { dataUrl: `data:${mime};base64,${bytes.toString('base64')}`, bytes: bytes.length }
+  } catch {
+    return undefined
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
+/** Cached fileId → data URL (bounded by entries and total bytes). */
+function rememberFileData(fileId: string, entry: { dataUrl: string; bytes: number }): void {
+  fileDataCache.set(fileId, entry)
+  fileDataCachedBytes += entry.bytes
+  for (const [key, value] of fileDataCache) {
+    if (fileDataCache.size <= 48 && fileDataCachedBytes <= 96 * 1024 * 1024) break
+    fileDataCache.delete(key)
+    fileDataCachedBytes -= value.bytes
+  }
+}
+
+/** Resolve one file's data URL, deduped per fileId. */
+async function fileDataFor(ctx: Context, fileId: string): Promise<{ dataUrl: string; bytes: number } | undefined> {
+  const cached = fileDataCache.get(fileId)
+  if (cached !== undefined) return cached
+  let pending = fileDataInflight.get(fileId)
+  if (pending === undefined) {
+    pending = downloadFileData(ctx, fileId)
+    fileDataInflight.set(fileId, pending)
+  }
+  const entry = await pending
+  fileDataInflight.delete(fileId)
+  if (entry !== undefined) rememberFileData(fileId, entry)
+  return entry
+}
 
 /** Project a write-gate record into lossless JSON for the browser card. */
 function projectRecord(record: YzjWriteRecord): YzjWriteRecord {
@@ -178,6 +243,13 @@ export function createRpcHandler(ctx: Context, writeGate: YzjWriteGateFace): Con
         const keyword = stringField(payload, 'keyword')
         if (keyword === undefined) return internalError('search endpoint requires a keyword payload')
         return bridgeResult(ctx, 'contact user search', ['contact', 'user', 'search', '--keyword', keyword])
+      }
+      case 'file-data': {
+        const fileId = stringField(payload, 'fileId')
+        if (fileId === undefined) return internalError('file-data endpoint requires a fileId payload')
+        const entry = await fileDataFor(ctx, fileId)
+        if (entry === undefined) return internalError(`file-data failed to download fileId ${fileId}`)
+        return { ok: true, value: entry }
       }
       case 'write-list': {
         const sessionId = stringField(payload, 'sessionId')

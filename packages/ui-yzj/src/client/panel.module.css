@@ -662,3 +662,223 @@
   padding: 8px 12px;
   border-radius: 999px;
 }
+
+/* ── Complete IM: avatars, senders, media, link cards ────────────────── */
+
+/* Group avatar image (32px block, first-letter fallback). */
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex: none;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+/* Right-aligned relative time in a group row. */
+.itemTime {
+  color: var(--dsw-alias-label-caption);
+  font-size: 11px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* Sender name above the message body (falls back to the type label). */
+.msgSender {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Reply quote line above a message body. */
+.msgQuote {
+  display: block;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+  padding: 4px 8px;
+  margin: 0 0 4px;
+  border-left: 2px solid var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-bg-layer-2);
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Inline richText image: bounded, click to enlarge. */
+.msgImage {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  margin-top: 4px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-layer-2);
+  cursor: zoom-in;
+}
+
+.msgBold {
+  font-weight: 600;
+}
+
+/* Proxy-image placeholder / failure states. */
+.msgImageSkeleton,
+.msgImageFail {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.msgImageFail {
+  color: var(--dsw-static-red-400);
+}
+
+/* Centered system row (撤回 / 入群 / 公告). */
+.msgSystem {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* File chip: ext icon + name + size, opens the download URL. */
+.msgFile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  text-decoration: none;
+  margin-top: 2px;
+  min-width: 0;
+  transition: border-color 120ms var(--ds-ease-in-out, ease), background-color 120ms var(--ds-ease-in-out, ease);
+}
+
+.msgFile:hover {
+  border-color: var(--dsw-static-deepseek-500);
+  background: var(--dsw-static-deepseek-100);
+}
+
+.msgFileIcon {
+  font-size: 20px;
+  line-height: 20px;
+  flex: none;
+}
+
+.msgFileMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.msgFileName {
+  font-size: 13px;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msgFileSize {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+/* Link card (light app / survey / interactive card). */
+.linkCard {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  text-decoration: none;
+  margin-top: 2px;
+  min-width: 0;
+  transition: border-color 120ms var(--ds-ease-in-out, ease);
+}
+
+.linkCard:hover {
+  border-color: var(--dsw-static-deepseek-500);
+}
+
+.linkCardThumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex: none;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.linkCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.linkCardTitle {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkCardDesc {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 16px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.linkCardAction {
+  color: var(--dsw-static-deepseek-500);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+/* Image lightbox: dark full-screen overlay, click / Esc to close. */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgb(0 0 0 / 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+
+.lightboxImg {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 8px;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
+}

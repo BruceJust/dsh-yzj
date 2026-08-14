@@ -26,6 +26,8 @@ export interface YzjPanelInject {
   fetchWorkspace: (id: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchEvent: (id: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchContact: (openId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  /** One file's data URL proxied through the authenticated CLI (fileId). */
+  fetchFileData: (fileId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   /** One write-confirmation record for a tool call (undefined when not gated). */
   fetchWrite: (sessionId: string, callId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   /** Settle one pending write-confirmation decision. */
@@ -62,6 +64,7 @@ export function createYzjPanelInject(connection: ConnectionHandle | undefined): 
     fetchWorkspace: (id) => call('workspace-get', { id }),
     fetchEvent: (id) => call('event-get', { id }),
     fetchContact: (openId) => call('contact-get', { openId }),
+    fetchFileData: (fileId) => call('file-data', { fileId }),
     fetchWrite: (sessionId, callId) => call('write-list', { sessionId, callId }),
     decideWrite: (writeId, outcome) => call('write-decide', { writeId, outcome }),
   }

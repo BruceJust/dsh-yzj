@@ -16,6 +16,10 @@ import {
 import type { BakedActions } from '@deepseek-ai/dsh-client-ui-slots'
 import type { YzjPanelActions, YzjPanelState, YzjTab } from './stores.ts'
 import type { YzjPanelInject } from './rpc.ts'
+import {
+  formatListTime, formatMsgTime, formatSize, getGroupWindow,
+  getMessageWindow, putGroupWindow, putMessageWindow, resolveFileData, resolveSenders, senderNameOf,
+} from './im-cache.ts'
 import css from './panel.module.css'
 
 /** The props shares the panel reads. */
@@ -88,6 +92,258 @@ export function YzjCloudIcon({ size = 16 }: { size?: number }) {
         strokeLinejoin="round"
       />
     </svg>
+  )
+}
+
+/** Human-readable label for a raw msgType. */
+function typeLabelOf(msgType: string): string {
+  if (msgType === 'richText') return '图文'
+  if (msgType === 'file') return '文件'
+  if (msgType === 'other') return '系统'
+  return '消息'
+}
+
+/** One-line preview of a message for the group list / drag payload. */
+function messagePreview(message: Record<string, unknown>): string {
+  const content = asString(message.content)
+  const msgType = asString(message.msgType)
+  const param = asRecord(message.param)
+  if (msgType === 'file') {
+    const name = asString(param.name)
+    return name === '' ? '[文件]' : `[文件] ${name}`
+  }
+  if (msgType === 'other' && asString(param.title) !== '') {
+    return `[链接] ${asString(param.title)}`
+  }
+  if (msgType === 'richText') {
+    const plain = content.replace(/\[图片\]/g, '[图片]').trim()
+    return plain === '' ? '[图文]' : plain
+  }
+  return content.replace(/\s+/g, ' ').slice(0, 60)
+}
+
+/** Drag-chip title for a message (file names and media get real labels). */
+function dragTitleOf(message: Record<string, unknown>): string {
+  const msgType = asString(message.msgType)
+  const param = asRecord(message.param)
+  if (msgType === 'file') {
+    const name = asString(param.name)
+    return name === '' ? '文件消息' : name
+  }
+  if (msgType === 'richText') return '图文消息'
+  const content = asString(message.content)
+  return content === '' ? '(消息)' : content
+}
+
+/** Group avatar: headerUrl image with first-letter fallback. */
+function GroupAvatar({ url, name }: { url: string; name: string }) {
+  const [failed, setFailed] = useState(false)
+  if (url === '' || failed) return <span className={css.groupGlyph}>{name.slice(0, 1)}</span>
+  return (
+    <img
+      className={css.avatar}
+      src={url}
+      alt=""
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+/**
+ * One richText/image/file payload rendered through the file-data proxy
+ * (docrest URLs require the authenticated CLI; the panel has no session
+ * cookie). Shows a loading placeholder, then the image; failures degrade to
+ * a small chip.
+ */
+function ProxyImage({ fileId, alt, onOpen, inject }: {
+  fileId: string
+  alt: string
+  onOpen: (src: string) => void
+  inject: Pick<YzjPanelInject, 'fetchFileData'>
+}) {
+  const [src, setSrc] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void resolveFileData(fileId, inject).then(dataUrl => {
+      if (!alive) return
+      if (dataUrl === undefined) setFailed(true)
+      else setSrc(dataUrl)
+    })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileId])
+  if (failed) return <span className={css.msgImageFail}>图片加载失败</span>
+  if (src === null) return <span className={css.msgImageSkeleton}>加载中…</span>
+  return (
+    <img
+      className={css.msgImage}
+      src={src}
+      alt={alt}
+      onClick={(event) => {
+        event.stopPropagation()
+        onOpen(src)
+      }}
+    />
+  )
+}
+
+/**
+ * One message's body, rendered by msgType: text (with bold segments),
+ * richText (inline proxy images + text), file (download chip), other (link
+ * card or system line), withdraw (system line). Images open a lightbox.
+ */
+function MessageBody({ message, onOpenImage, inject }: {
+  message: Record<string, unknown>
+  onOpenImage: (src: string) => void
+  inject: Pick<YzjPanelInject, 'fetchFileData'>
+}) {
+  const content = asString(message.content)
+  const msgType = asString(message.msgType)
+  const param = asRecord(message.param)
+
+  // System rows (撤回 / 入群 / 其他) — centered, tertiary.
+  if (msgType === 'other' && asString(param.title) === '') {
+    return <span className={css.msgSystem}>{content === '' ? '(系统消息)' : content}</span>
+  }
+  if (asString(param.sysType) === 'withdrawMsg') {
+    return <span className={css.msgSystem}>{content === '' ? '撤回了一条消息' : content}</span>
+  }
+
+  // Reply quote above the body.
+  const replyMsgId = asString(param.replyMsgId)
+  const replySummary = asString(param.replySummary)
+  const replyPerson = asString(param.replyPersonName)
+
+  // File chip: name + size, downloads through the proxy.
+  if (msgType === 'file') {
+    const fileId = asString(param.file_id)
+    const name = asString(param.name) !== '' ? asString(param.name) : content.replace(/^\[文件\]:/, '')
+    const size = formatSize(param.size)
+    const ext = asString(param.ext).toLowerCase()
+    const icon = /^(png|jpe?g|gif|webp|bmp)$/.test(ext) ? '🖼️'
+      : /^(mp4|mov|avi|mkv|webm)$/.test(ext) ? '🎬'
+        : /^pdf$/.test(ext) ? '📕'
+          : /^(xls|xlsx|csv)$/.test(ext) ? '📊'
+            : /^(doc|docx|txt|md)$/.test(ext) ? '📄'
+              : /^(zip|rar|7z|tar|gz)$/.test(ext) ? '📦'
+                : '📎'
+    return (
+      <span className={css.msgBody}>
+        {replyMsgId !== '' && <span className={css.msgQuote} title={replySummary}>{`↳ ${replyPerson === '' ? '' : `${replyPerson}：`}${replySummary}`}</span>}
+        <button
+          type="button"
+          className={css.msgFile}
+          title={fileId === '' ? name : `下载 ${name}`}
+          disabled={fileId === ''}
+          onClick={(event) => {
+            event.stopPropagation()
+            if (fileId === '') return
+            void resolveFileData(fileId, inject).then(dataUrl => {
+              if (dataUrl === undefined) return
+              const link = document.createElement('a')
+              link.href = dataUrl
+              link.download = name
+              document.body.appendChild(link)
+              link.click()
+              link.remove()
+            })
+          }}
+        >
+          <span className={css.msgFileIcon}>{icon}</span>
+          <span className={css.msgFileMeta}>
+            <span className={css.msgFileName}>{name}</span>
+            <span className={css.msgFileSize}>{size === '' ? ext === '' ? '文件' : ext.toUpperCase() : size}</span>
+          </span>
+        </button>
+      </span>
+    )
+  }
+
+  // Link card (interactive card / survey / light app).
+  if (msgType === 'other') {
+    const title = asString(param.title)
+    const thumb = asString(param.thumbUrl)
+    const url = asString(param.webpageUrl)
+    return (
+      <span className={css.msgBody}>
+        <a
+          className={css.linkCard}
+          href={url === '' ? undefined : url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => { event.stopPropagation() }}
+        >
+          {thumb !== '' && (
+            <img className={css.linkCardThumb} src={thumb} alt="" loading="lazy" referrerPolicy="no-referrer" />
+          )}
+          <span className={css.linkCardBody}>
+            <span className={css.linkCardTitle}>{title}</span>
+            <span className={css.linkCardDesc}>{content}</span>
+            {url !== '' && <span className={css.linkCardAction}>查看详情 →</span>}
+          </span>
+        </a>
+      </span>
+    )
+  }
+
+  // richText: interleave text (with bold) and inline proxy images.
+  if (msgType === 'richText') {
+    const desc = asArray(param.desc)
+    const images: { start: number; fileId: string }[] = []
+    const bolds: { start: number; length: number }[] = []
+    for (const raw of desc) {
+      const seg = asRecord(raw)
+      const segType = asString(seg.type)
+      if (segType === 'image') {
+        const fileId = asString(seg.data)
+        if (fileId === '') continue
+        images.push({ start: typeof seg.start === 'number' ? seg.start : -1, fileId })
+      } else if (segType === 'bold' && typeof seg.start === 'number' && typeof seg.length === 'number') {
+        bolds.push({ start: seg.start, length: seg.length })
+      }
+    }
+    const sorted = [...images].sort((a, b) => a.start - b.start)
+    const spans: { text: string; bold: boolean }[] = []
+    const imgSpans: { fileId: string }[] = []
+    let cursor = 0
+    const inBold = (from: number, to: number): boolean =>
+      bolds.some(range => from < range.start + range.length && to > range.start)
+    for (const image of sorted) {
+      const chunk = content.slice(cursor, image.start).replace(/\[图片\]/g, '')
+      if (chunk !== '') spans.push({ text: chunk, bold: inBold(cursor, image.start) })
+      imgSpans.push({ fileId: image.fileId })
+      cursor = image.start + 4
+    }
+    const tail = content.slice(cursor).replace(/\[图片\]/g, '')
+    if (tail !== '') spans.push({ text: tail, bold: inBold(cursor, content.length) })
+    return (
+      <span className={css.msgBody}>
+        {replyMsgId !== '' && <span className={css.msgQuote} title={replySummary}>{`↳ ${replyPerson === '' ? '' : `${replyPerson}：`}${replySummary}`}</span>}
+        {spans.map((span, index) => (
+          <span key={`t${index}`} className={span.bold ? css.msgBold : undefined}>{span.text}</span>
+        ))}
+        {imgSpans.map((image, index) => (
+          <ProxyImage
+            key={`i${index}`}
+            fileId={image.fileId}
+            alt=""
+            onOpen={onOpenImage}
+            inject={inject}
+          />
+        ))}
+      </span>
+    )
+  }
+
+  // Plain text.
+  return (
+    <span className={css.msgBody}>
+      {replyMsgId !== '' && <span className={css.msgQuote} title={replySummary}>{`↳ ${replyPerson === '' ? '' : `${replyPerson}：`}${replySummary}`}</span>}
+      {content === '' ? `(${typeLabelOf(msgType)})` : content}
+    </span>
   )
 }
 
@@ -314,10 +570,21 @@ function loadTab(
       } else fail(result.error.message)
     })
   } else if (tab === 'chat') {
+    // Group list is cached ~30s so switching tabs is instant.
+    const cached = getGroupWindow()
+    if (cached !== undefined) {
+      props.actions.setGroups(cached.groups)
+      props.actions.setGroupsPage(1)
+      props.actions.setGroupsMore(cached.more)
+      props.actions.setLoading(false)
+      return
+    }
     // CLI caps --limit at 20; the node half clamps, so ask for the max.
     void props.fetchGroups(20, 1).then((result) => {
       if (result.ok) {
-        props.actions.setGroups(asArray(asRecord(result.value).list))
+        const groups = asArray(asRecord(result.value).list)
+        putGroupWindow(groups, asRecord(result.value).more === true)
+        props.actions.setGroups(groups)
         props.actions.setGroupsPage(1)
         props.actions.setGroupsMore(asRecord(result.value).more === true)
         props.actions.setLoading(false)
@@ -344,6 +611,34 @@ export function YzjPanel(props: YzjPanelProps) {
   const dragOffset = useRef<{ dx: number; dy: number } | null>(null)
   const anchorRef = useRef<HTMLDivElement | null>(null)
   const [anchorToast, setAnchorToast] = useState('')
+  const [senderNames, setSenderNames] = useState<Record<string, string>>({})
+  const [lightbox, setLightbox] = useState<string | null>(null)
+
+  // Resolve sender display names for the loaded message window (cached).
+  // The React state mirrors the module cache so newly resolved names
+  // re-render; already-cached names are seeded immediately.
+  useEffect(() => {
+    const openIds = state.messages.map(message => asString(asRecord(message).fromOpenId))
+    if (openIds.length === 0) return
+    const seeded: Record<string, string> = {}
+    for (const openId of openIds) {
+      const name = senderNameOf(openId)
+      if (name !== '') seeded[openId] = name
+    }
+    if (Object.keys(seeded).length > 0) setSenderNames(prev => ({ ...prev, ...seeded }))
+    void resolveSenders(openIds, props).then(names => {
+      if (Object.keys(names).length > 0) setSenderNames(prev => ({ ...prev, ...names }))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.messages])
+
+  // Esc closes the image lightbox.
+  useEffect(() => {
+    if (lightbox === null) return
+    const onKey = (event: KeyboardEvent): void => { if (event.key === 'Escape') setLightbox(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox])
 
   // Scroll the jump anchor into view once its group's messages land.
   useEffect(() => {
@@ -411,6 +706,17 @@ export function YzjPanel(props: YzjPanelProps) {
 
   const openGroup = (id: string): void => {
     props.actions.setGroupId(id)
+    // Rendered window is cached ~60s: revisiting a group is instant.
+    const cached = getMessageWindow(id)
+    if (cached !== undefined) {
+      props.actions.setMessages(cached.messages)
+      props.actions.setMessagesMore(cached.more)
+      props.actions.setMessagesAnchor(
+        cached.messages.length > 0 ? asString(asRecord(cached.messages[cached.messages.length - 1]).msgId) : '',
+      )
+      props.actions.setLoading(false)
+      return
+    }
     props.actions.setLoading(true)
     props.actions.setError('')
     void props.fetchMessages(id, 20).then((result) => {
@@ -418,7 +724,9 @@ export function YzjPanel(props: YzjPanelProps) {
         // Store oldest-first so the chat reads top-down; the CLI returns
         // newest-first.
         const messages = asArray(asRecord(result.value).list)
-        props.actions.setMessages([...messages].reverse())
+        const oldestFirst = [...messages].reverse()
+        putMessageWindow(id, oldestFirst, asRecord(result.value).more === true)
+        props.actions.setMessages(oldestFirst)
         props.actions.setMessagesMore(asRecord(result.value).more === true)
         props.actions.setMessagesAnchor(messages.length > 0 ? asString(asRecord(messages[messages.length - 1]).msgId) : '')
       } else {
@@ -451,7 +759,9 @@ export function YzjPanel(props: YzjPanelProps) {
         const older = asArray(asRecord(result.value).list)
         // The CLI returns newest-first; prepend after reversing to keep the
         // store oldest-first.
-        props.actions.prependMessages([...older].reverse())
+        const olderFirst = [...older].reverse()
+        props.actions.prependMessages(olderFirst)
+        putMessageWindow(state.groupId, [...olderFirst, ...state.messages], asRecord(result.value).more === true)
         props.actions.setMessagesMore(asRecord(result.value).more === true)
         if (older.length > 0) {
           props.actions.setMessagesAnchor(asString(asRecord(older[older.length - 1]).msgId))
@@ -659,8 +969,9 @@ export function YzjPanel(props: YzjPanelProps) {
               {state.groups.map((item, index) => {
                 const group = asRecord(item)
                 const unread = typeof group.unreadCount === 'number' ? group.unreadCount : 0
-                const last = asString(asRecord(group.lastMsg).content)
                 const name = asString(group.groupName)
+                const lastTime = formatListTime(group.lastMsgSendTime)
+                const preview = messagePreview(asRecord(group.lastMsg))
                 return (
                   <button
                     key={`g${index}`}
@@ -671,16 +982,17 @@ export function YzjPanel(props: YzjPanelProps) {
                     onDragStart={(event) => {
                       startDragTransfer(event, {
                         kind: 'group', id: asString(group.groupId), title: name,
-                        sub: last.replace(/\s+/g, ' ').slice(0, 40),
+                        sub: preview.replace(/\s+/g, ' ').slice(0, 40),
                       })
                     }}
                   >
                     <span className={css.itemTitle}>
-                      <span className={css.groupGlyph}>{name.slice(0, 1)}</span>
+                      <GroupAvatar url={asString(group.headerUrl)} name={name} />
                       <span className={css.itemTitleText}>{name}</span>
+                      {lastTime !== '' && <span className={css.itemTime}>{lastTime}</span>}
                       {unread > 0 && <span className={css.badge}>{unread > 99 ? '99+' : unread}</span>}
                     </span>
-                    <span className={css.itemSub}>{last.replace(/\s+/g, ' ').slice(0, 40)}</span>
+                    <span className={css.itemSub}>{preview}</span>
                   </button>
                 )
               })}
@@ -703,10 +1015,11 @@ export function YzjPanel(props: YzjPanelProps) {
               )}
               {state.messages.map((item, index) => {
                 const message = asRecord(item)
-                const content = asString(message.content)
                 const msgType = asString(message.msgType)
-                const sendTime = asString(message.sendTime)
+                const sendTime = formatMsgTime(message.sendTime)
                 const msgId = asString(message.msgId)
+                const fromOpenId = asString(message.fromOpenId)
+                const sender = fromOpenId === '' ? '' : senderNames[fromOpenId] ?? ''
                 const anchored = msgId !== '' && msgId === state.anchorMsgId
                 return (
                   <div
@@ -717,8 +1030,8 @@ export function YzjPanel(props: YzjPanelProps) {
                     onDragStart={(event) => {
                       startDragTransfer(event, {
                         kind: 'message', id: msgId,
-                        title: content === '' ? `(${msgType === '' ? '消息' : msgType})` : content,
-                        sub: sendTime.slice(5, 16),
+                        title: dragTitleOf(message),
+                        sub: sendTime,
                         group: state.groupId,
                       })
                     }}
@@ -731,10 +1044,10 @@ export function YzjPanel(props: YzjPanelProps) {
                       </svg>
                     </span>
                     <span className={css.msgMeta}>
-                      <span className={css.msgTime}>{sendTime.slice(5, 16)}</span>
-                      <span className={css.msgKind}>{msgType === '' ? '消息' : msgType}</span>
+                      <span className={css.msgSender}>{sender === '' ? typeLabelOf(msgType) : sender}</span>
+                      <span className={css.msgTime}>{sendTime}</span>
                     </span>
-                    <span className={css.msgBody}>{content === '' ? `(${msgType === '' ? '消息' : msgType})` : content}</span>
+                    <MessageBody message={message} onOpenImage={(src) => setLightbox(src)} inject={props} />
                   </div>
                 )
               })}
@@ -802,6 +1115,15 @@ export function YzjPanel(props: YzjPanelProps) {
               )
             })}
           </div>
+        </div>
+      )}
+      {lightbox !== null && (
+        <div
+          className={css.lightbox}
+          role="presentation"
+          onClick={() => setLightbox(null)}
+        >
+          <img className={css.lightboxImg} src={lightbox} alt="" onClick={(event) => event.stopPropagation()} />
         </div>
       )}
     </div>
