@@ -923,8 +923,14 @@ export function YzjPanel(props: YzjPanelProps) {
     event.preventDefault()
   }
 
+  // Stale persisted positions (saved for the old 460px panel) can push the
+  // wide panel off-screen; clamp so it always stays reachable.
   const dockStyle = state.panelX >= 0 && state.panelY >= 0
-    ? { left: state.panelX, top: state.panelY, margin: 0 }
+    ? {
+        left: Math.min(state.panelX, Math.max(0, window.innerWidth - 860)),
+        top: Math.min(state.panelY, Math.max(0, window.innerHeight - 80)),
+        margin: 0,
+      }
     : undefined
 
   const openWorkspace = (id: string): void => {

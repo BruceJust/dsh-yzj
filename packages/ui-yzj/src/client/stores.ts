@@ -102,7 +102,10 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
       loading: false,
       error: '',
     }),
-    persist: 'dsh.yzj.panel.v2',
+    // v3: the two-pane redesign added docId/calYear/calMonth/calDay/calEvents/
+    // calEventId; v2 snapshots without them would render NaN calendar math
+    // and could pin the panel open off-screen (hiding the floating ball).
+    persist: 'dsh.yzj.panel.v3',
     actions: {
       setOpen: (d: YzjPanelState, open: boolean) => { d.open = open },
       setTab: (d: YzjPanelState, tab: YzjTab) => { d.tab = tab },
