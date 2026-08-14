@@ -107,6 +107,27 @@ const avatars = await dialog.locator('[class*="msgAvatar"]').count()
 ok('sender avatars render', avatars > 0, `${avatars} avatars`)
 const dividers = await dialog.locator('[class*="dayDivider"]').count()
 ok('day dividers separate dates', dividers > 0, `${dividers} dividers`)
+const imText = await dialog.innerText().catch(() => '')
+ok('bracket emoticons render as emoji ([握手]/[机智] gone)', !imText.includes('[握手]') && !imText.includes('[机智]'), 'no raw [token] text')
+
+// ---- 7. opening a group marks it read locally (real unread numbers) ----
+await dialog.getByRole('button', { name: '返回会话' }).click()
+await page.waitForTimeout(600)
+// Pick the first group that currently shows an unread badge (real data).
+const unreadRow = dialog.locator('button[class*="item"]:has([class*="badge"])').first()
+const badgeBefore = await unreadRow.locator('[class*="badge"]').count().catch(() => 0)
+const unreadName = (await unreadRow.innerText().catch(() => '')).split('\n')[0]
+if (badgeBefore > 0) {
+  await unreadRow.click()
+  await page.waitForTimeout(2500)
+  await dialog.getByRole('button', { name: '返回会话' }).click()
+  await page.waitForTimeout(600)
+  const badgeAfter = await dialog.locator('button[class*="item"]').filter({ hasText: unreadName }).first()
+    .locator('[class*="badge"]').count().catch(() => 0)
+  ok(`opening "${unreadName}" clears its unread badge locally`, badgeAfter === 0, `badge ${badgeBefore} → ${badgeAfter}`)
+} else {
+  ok('opening a group clears its unread badge locally (no unread groups found)', true, 'nothing to clear')
+}
 
 await browser.close()
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

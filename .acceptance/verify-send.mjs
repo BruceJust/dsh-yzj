@@ -16,8 +16,10 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const GROUP_ID = '6a7f37b4e4b0e6211b1c5b87' // dsh测试
 const GROUP_NAME = 'dsh测试'
 const FIXTURE = join(HERE, 'fixture.png')
+const FIXTURE_TXT = join(HERE, 'fixture.txt')
 // 1x1 red PNG
 writeFileSync(FIXTURE, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'))
+writeFileSync(FIXTURE_TXT, 'yzj panel file-send fixture\n')
 
 const CHROME = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -66,13 +68,13 @@ const inlineImages = await dialog.locator('img[class*="msgImage"]').count()
 ok('sent image renders inline via proxy', inlineImages >= 1, `${inlineImages} images`)
 ok('uploading status cleared', !(await dialog.innerText()).includes('上传中'))
 
-// ---- 3. file send (upload → file chip) ----
+// ---- 3. file send (upload → file chip; png files preview inline instead) ----
 const fileInput = dialog.locator('input[type="file"]:not([accept])')
-await fileInput.setInputFiles(FIXTURE)
+await fileInput.setInputFiles(FIXTURE_TXT)
 await page.waitForTimeout(8000)
 const fileChips = await dialog.locator('button[class*="msgFile"]').count()
 ok('sent file renders a download chip', fileChips >= 1, `${fileChips} chips`)
-ok('file chip shows the fixture name', (await dialog.innerText()).includes('fixture.png'))
+ok('file chip shows the fixture name', (await dialog.innerText()).includes('fixture.txt'))
 
 // ---- 4. reply flow (on our own text message; system rows have no 回复) ----
 const targetRow = dialog.locator('[class*="msgRow"]').filter({ hasText: MARK }).first()
@@ -97,7 +99,7 @@ const list = await new Promise((resolve) => {
 })
 ok('text confirmed on the server', list.includes(MARK), MARK.slice(0, 30))
 ok('richText image message confirmed on the server', list.includes('[图片]'))
-ok('file message confirmed on the server', list.includes('fixture.png'))
+ok('file message confirmed on the server', list.includes('fixture.txt'))
 
 await browser.close()
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

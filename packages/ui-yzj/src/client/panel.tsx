@@ -17,8 +17,8 @@ import type { BakedActions } from '@deepseek-ai/dsh-client-ui-slots'
 import type { YzjPanelActions, YzjPanelState, YzjTab } from './stores.ts'
 import type { YzjPanelInject } from './rpc.ts'
 import {
-  ensureMyProfile, formatListTime, formatMsgTime, formatSize, getGroupWindow,
-  getMessageWindow, putGroupWindow, putMessageWindow, resolveFileData, resolveSenders,
+  effectiveUnread, ensureMyProfile, formatListTime, formatMsgTime, formatSize, getGroupWindow,
+  getMessageWindow, markGroupRead, putGroupWindow, putMessageWindow, resolveFileData, resolveSenders,
   senderNameOf, senderPhotoOf,
 } from './im-cache.ts'
 import { emitYzjDropRequest } from './drop-bus.ts'
@@ -222,14 +222,43 @@ function ProxyImage({ fileId, alt, onOpen, inject }: {
   )
 }
 
+/** Extract a minimal adaptive-card face (image + title + action). */
+function cardFace(cardJson: string): { title: string; image: string; actionTitle: string; actionUrl: string } {
+  const face = { title: '', image: '', actionTitle: '', actionUrl: '' }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(cardJson)
+  } catch {
+    return face
+  }
+  const walk = (node: unknown): void => {
+    if (typeof node !== 'object' || node === null) return
+    const record = node as Record<string, unknown>
+    if (record.type === 'Image' && typeof record.url === 'string' && face.image === '') face.image = record.url
+    if (record.type === 'TextBlock' && typeof record.text === 'string' && record.isSubtle !== true && face.title === '') face.title = record.text
+    if (record.type === 'Action.OpenUrl') {
+      if (typeof record.title === 'string' && face.actionTitle === '') face.actionTitle = record.title
+      if (typeof record.url === 'string' && face.actionUrl === '') face.actionUrl = record.url
+    }
+    for (const value of Object.values(record)) {
+      if (Array.isArray(value)) for (const item of value) walk(item)
+      else if (typeof value === 'object' && value !== null) walk(value)
+    }
+  }
+  walk(parsed)
+  return face
+}
+
 /**
- * One message's body, rendered by msgType: text (with bold segments),
- * richText (inline proxy images + text), file (download chip), other (link
- * card or system line), withdraw (system line). Images open a lightbox.
+ * One message's body, rendered by msgType: text (bold + emoticon tokens),
+ * richText (inline proxy images + text), file (image inline / PDF preview /
+ * download chip), other (link card, adaptive card, or system line), withdraw
+ * (system line). Images and PDFs open the lightbox.
  */
-function MessageBody({ message, onOpenImage, inject }: {
+function MessageBody({ message, onOpenImage, onOpenPdf, inject }: {
   message: Record<string, unknown>
   onOpenImage: (src: string) => void
+  onOpenPdf: (src: string) => void
   inject: Pick<YzjPanelInject, 'fetchFileData'>
 }) {
   const content = asString(message.content)
@@ -237,65 +266,101 @@ function MessageBody({ message, onOpenImage, inject }: {
   const param = asRecord(message.param)
 
   // System rows (撤回 / 入群 / 其他) — centered, tertiary.
-  if (msgType === 'other' && asString(param.title) === '') {
-    return <span className={css.msgSystem}>{content === '' ? '(系统消息)' : content}</span>
+  if (msgType === 'other' && asString(param.title) === '' && asRecord(param.interactiveCard).cardJson === undefined) {
+    return <span className={css.msgSystem}>{content === '' ? '(系统消息)' : emojiText(content)}</span>
   }
   if (asString(param.sysType) === 'withdrawMsg') {
-    return <span className={css.msgSystem}>{content === '' ? '撤回了一条消息' : content}</span>
+    return <span className={css.msgSystem}>{content === '' ? '撤回了一条消息' : emojiText(content)}</span>
   }
 
   // Reply quote above the body.
   const replyMsgId = asString(param.replyMsgId)
   const replySummary = asString(param.replySummary)
   const replyPerson = asString(param.replyPersonName)
+  const quote = replyMsgId !== ''
+    ? <span className={css.msgQuote} title={replySummary}>{`↳ ${replyPerson === '' ? '' : `${replyPerson}：`}${replySummary}`}</span>
+    : null
 
-  // File chip: name + size, downloads through the proxy.
+  // File: image extensions preview inline; PDF previews in the lightbox
+  // with a separate 下载 action; everything else downloads on click.
   if (msgType === 'file') {
     const fileId = asString(param.file_id)
     const name = asString(param.name) !== '' ? asString(param.name) : content.replace(/^\[文件\]:/, '')
     const size = formatSize(param.size)
     const ext = asString(param.ext).toLowerCase()
-    const icon = /^(png|jpe?g|gif|webp|bmp)$/.test(ext) ? '🖼️'
+    if (/^(png|jpe?g|gif|webp|bmp)$/.test(ext) && fileId !== '') {
+      return (
+        <span className={css.msgBody}>
+          {quote}
+          <ProxyImage fileId={fileId} alt={name} onOpen={onOpenImage} inject={inject} />
+        </span>
+      )
+    }
+    const isPdf = ext === 'pdf'
+    const icon = isPdf ? '📕'
       : /^(mp4|mov|avi|mkv|webm)$/.test(ext) ? '🎬'
-        : /^pdf$/.test(ext) ? '📕'
-          : /^(xls|xlsx|csv)$/.test(ext) ? '📊'
-            : /^(doc|docx|txt|md)$/.test(ext) ? '📄'
-              : /^(zip|rar|7z|tar|gz)$/.test(ext) ? '📦'
-                : '📎'
+        : /^(xls|xlsx|csv)$/.test(ext) ? '📊'
+          : /^(doc|docx|txt|md)$/.test(ext) ? '📄'
+            : /^(zip|rar|7z|tar|gz)$/.test(ext) ? '📦'
+              : '📎'
+    const download = (): void => {
+      if (fileId === '') return
+      void resolveFileData(fileId, inject).then(dataUrl => {
+        if (dataUrl === undefined) return
+        const link = document.createElement('a')
+        link.href = dataUrl
+        link.download = name
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+      })
+    }
     return (
       <span className={css.msgBody}>
-        {replyMsgId !== '' && <span className={css.msgQuote} title={replySummary}>{`↳ ${replyPerson === '' ? '' : `${replyPerson}：`}${replySummary}`}</span>}
-        <button
-          type="button"
-          className={css.msgFile}
-          title={fileId === '' ? name : `下载 ${name}`}
-          disabled={fileId === ''}
-          onClick={(event) => {
-            event.stopPropagation()
-            if (fileId === '') return
-            void resolveFileData(fileId, inject).then(dataUrl => {
-              if (dataUrl === undefined) return
-              const link = document.createElement('a')
-              link.href = dataUrl
-              link.download = name
-              document.body.appendChild(link)
-              link.click()
-              link.remove()
-            })
-          }}
-        >
-          <span className={css.msgFileIcon}>{icon}</span>
-          <span className={css.msgFileMeta}>
-            <span className={css.msgFileName}>{name}</span>
-            <span className={css.msgFileSize}>{size === '' ? ext === '' ? '文件' : ext.toUpperCase() : size}</span>
-          </span>
-        </button>
+        {quote}
+        <span className={css.msgFileGroup}>
+          <button
+            type="button"
+            className={css.msgFile}
+            title={isPdf ? `预览 ${name}` : `下载 ${name}`}
+            disabled={fileId === ''}
+            onClick={(event) => {
+              event.stopPropagation()
+              if (fileId === '') return
+              if (!isPdf) {
+                download()
+                return
+              }
+              void resolveFileData(fileId, inject).then(dataUrl => {
+                if (dataUrl !== undefined) onOpenPdf(dataUrl)
+              })
+            }}
+          >
+            <span className={css.msgFileIcon}>{icon}</span>
+            <span className={css.msgFileMeta}>
+              <span className={css.msgFileName}>{name}</span>
+              <span className={css.msgFileSize}>{size === '' ? ext === '' ? '文件' : ext.toUpperCase() : size}</span>
+            </span>
+          </button>
+          {isPdf && fileId !== '' && (
+            <button
+              type="button"
+              className={css.msgFileDownload}
+              onClick={(event) => {
+                event.stopPropagation()
+                download()
+              }}
+            >
+              下载
+            </button>
+          )}
+        </span>
       </span>
     )
   }
 
-  // Link card (interactive card / survey / light app).
-  if (msgType === 'other') {
+  // Link card (survey / light app).
+  if (msgType === 'other' && asString(param.title) !== '') {
     const title = asString(param.title)
     const thumb = asString(param.thumbUrl)
     const url = asString(param.webpageUrl)
@@ -313,7 +378,7 @@ function MessageBody({ message, onOpenImage, inject }: {
           )}
           <span className={css.linkCardBody}>
             <span className={css.linkCardTitle}>{title}</span>
-            <span className={css.linkCardDesc}>{content}</span>
+            <span className={css.linkCardDesc}>{emojiText(content)}</span>
             {url !== '' && <span className={css.linkCardAction}>查看详情 →</span>}
           </span>
         </a>
@@ -321,7 +386,40 @@ function MessageBody({ message, onOpenImage, inject }: {
     )
   }
 
-  // richText: interleave text (with bold) and inline proxy images.
+  // Adaptive interactive card: first image + title + action, rendered as a
+  // mini card (cloudhub:// deep links stay inert).
+  if (msgType === 'other') {
+    const card = asRecord(param.interactiveCard)
+    const cardJson = asString(card.cardJson)
+    const face = cardJson === '' ? { title: '', image: '', actionTitle: '', actionUrl: '' } : cardFace(cardJson)
+    const title = face.title !== '' ? face.title : content
+    const actionUrl = face.actionUrl.startsWith('http') ? face.actionUrl : ''
+    if (face.title !== '' || face.image !== '') {
+      return (
+        <span className={css.msgBody}>
+          <a
+            className={css.linkCard}
+            href={actionUrl === '' ? undefined : actionUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(event) => { event.stopPropagation() }}
+          >
+            {face.image !== '' && (
+              <img className={css.linkCardThumb} src={face.image} alt="" loading="lazy" referrerPolicy="no-referrer" />
+            )}
+            <span className={css.linkCardBody}>
+              <span className={css.linkCardTitle}>{title}</span>
+              <span className={css.linkCardDesc}>{emojiText(content)}</span>
+              {actionUrl !== '' && <span className={css.linkCardAction}>{face.actionTitle === '' ? '查看详情' : face.actionTitle} →</span>}
+            </span>
+          </a>
+        </span>
+      )
+    }
+    return <span className={css.msgSystem}>{content === '' ? '(系统消息)' : emojiText(content)}</span>
+  }
+
+  // richText: interleave text (with bold + emoticons) and inline images.
   if (msgType === 'richText') {
     const desc = asArray(param.desc)
     const images: { start: number; fileId: string }[] = []
@@ -353,9 +451,9 @@ function MessageBody({ message, onOpenImage, inject }: {
     if (tail !== '') spans.push({ text: tail, bold: inBold(cursor, content.length) })
     return (
       <span className={css.msgBody}>
-        {replyMsgId !== '' && <span className={css.msgQuote} title={replySummary}>{`↳ ${replyPerson === '' ? '' : `${replyPerson}：`}${replySummary}`}</span>}
+        {quote}
         {spans.map((span, index) => (
-          <span key={`t${index}`} className={span.bold ? css.msgBold : undefined}>{span.text}</span>
+          <span key={`t${index}`} className={span.bold ? css.msgBold : undefined}>{emojiText(span.text)}</span>
         ))}
         {imgSpans.map((image, index) => (
           <ProxyImage
@@ -370,11 +468,11 @@ function MessageBody({ message, onOpenImage, inject }: {
     )
   }
 
-  // Plain text.
+  // Plain text (with emoticon tokens).
   return (
     <span className={css.msgBody}>
-      {replyMsgId !== '' && <span className={css.msgQuote} title={replySummary}>{`↳ ${replyPerson === '' ? '' : `${replyPerson}：`}${replySummary}`}</span>}
-      {content === '' ? `(${typeLabelOf(msgType)})` : content}
+      {quote}
+      {content === '' ? `(${typeLabelOf(msgType)})` : emojiText(content)}
     </span>
   )
 }
@@ -396,13 +494,38 @@ export interface YzjPanelButtonProps {
   fetchGroups: (limit?: number, page?: number) => Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }>
 }
 
-/** Sum the unread counts of a recent-session window. */
+/** Sum the effective (read-aware) unread counts of a recent-session window. */
 function unreadTotalOf(value: unknown): number {
   const list = asArray(asRecord(value).list)
   return list.reduce<number>((sum, item) => {
-    const count = asRecord(item).unreadCount
-    return sum + (typeof count === 'number' && count > 0 ? count : 0)
+    const group = asRecord(item)
+    const server = typeof group.unreadCount === 'number' ? group.unreadCount : 0
+    if (server <= 0) return sum
+    return sum + effectiveUnread(asString(group.groupId), server)
   }, 0)
+}
+
+/** Yunzhijia bracket-emoticon tokens → real emoji (messages use [握手] etc.). */
+const EMOJI_MAP: Record<string, string> = {
+  微笑: '😊', 呲牙: '😁', 大笑: '😂', 开心: '😄', 愉快: '😀', 调皮: '😜', 机智: '🤓', 得意: '😎',
+  害羞: '😳', 难过: '😔', 大哭: '😭', 流泪: '😢', 愤怒: '😡', 惊讶: '😲', 惊恐: '😱', 发呆: '😶',
+  睡觉: '😴', 疑问: '🤔', 思考: '🤔', 奋斗: '💪', 加油: '💪', 强: '👊', 弱: '👎', 赞: '👍',
+  鼓掌: '👏', 抱拳: '🙏', 握手: '🤝', 胜利: '✌️', 耶: '✌️', OK: '👌', 勾: '✅', 叉: '❌',
+  心: '❤️', 爱心: '❤️', 玫瑰: '🌹', 咖啡: '☕', 茶: '🍵', 啤酒: '🍺', 干杯: '🍻', 蛋糕: '🎂',
+  庆祝: '🎉', 烟花: '🎆', 红包: '🧧', 礼物: '🎁', 飞机: '✈️', 汽车: '🚗', 太阳: '☀️', 月亮: '🌙',
+  星星: '⭐', 闪电: '⚡', 雨: '🌧️', 雪: '❄️', 云: '☁️', 风: '🍃', 西瓜: '🍉', 苹果: '🍎',
+  米饭: '🍚', 面: '🍜', 收到: '✅', 求抱抱: '🤗', 比心: '💗', 花朵: '🌸',
+}
+
+/** Render message text with [token] emoticons mapped to real emoji. */
+function emojiText(text: string): ReactNode[] {
+  return text.split(/(\[[^\]\n]{1,10}\])/).map((part, index) => {
+    if (part.length > 2 && part.startsWith('[') && part.endsWith(']')) {
+      const emoji = EMOJI_MAP[part.slice(1, -1)]
+      if (emoji !== undefined) return <span key={index}>{emoji}</span>
+    }
+    return part
+  })
 }
 
 /**
@@ -647,7 +770,7 @@ export function YzjPanel(props: YzjPanelProps) {
   const anchorRef = useRef<HTMLDivElement | null>(null)
   const [anchorToast, setAnchorToast] = useState('')
   const [senderNames, setSenderNames] = useState<Record<string, string>>({})
-  const [lightbox, setLightbox] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<{ src: string; kind: 'image' | 'pdf' } | null>(null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -671,6 +794,21 @@ export function YzjPanel(props: YzjPanelProps) {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Opening a group marks it read locally (the CLI has no mark-read): the
+  // row's unread clears and the floating-ball total drops to what's real.
+  useEffect(() => {
+    if (state.groupId === '') return
+    const group = state.groups.map(asRecord).find(item => asString(item.groupId) === state.groupId)
+    if (group === undefined) return
+    const serverUnread = typeof group.unreadCount === 'number' ? group.unreadCount : 0
+    if (serverUnread <= 0) return
+    markGroupRead(state.groupId, serverUnread)
+    props.actions.setGroups(state.groups.map(item =>
+      asString(asRecord(item).groupId) === state.groupId ? { ...asRecord(item), unreadCount: 0 } : item))
+    props.actions.setUnreadTotal(unreadTotalOf({ list: state.groups }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.groupId])
 
   // Reset the auto-growing textarea after a send clears the draft.
   useEffect(() => {
@@ -1193,7 +1331,7 @@ export function YzjPanel(props: YzjPanelProps) {
               )}
               {state.groups.map((item, index) => {
                 const group = asRecord(item)
-                const unread = typeof group.unreadCount === 'number' ? group.unreadCount : 0
+                const unread = effectiveUnread(asString(group.groupId), typeof group.unreadCount === 'number' ? group.unreadCount : 0)
                 const name = asString(group.groupName)
                 const lastTime = formatListTime(group.lastMsgSendTime)
                 const preview = messagePreview(asRecord(group.lastMsg))
@@ -1297,7 +1435,12 @@ export function YzjPanel(props: YzjPanelProps) {
                           <span className={css.msgSender}>{sender === '' ? typeLabelOf(msgType) : sender}</span>
                         )}
                         <span className={mine ? `${css.bubble} ${css.bubbleMine}` : css.bubble}>
-                          <MessageBody message={message} onOpenImage={(src) => setLightbox(src)} inject={props} />
+                          <MessageBody
+                      message={message}
+                      onOpenImage={(src) => setLightbox({ src, kind: 'image' })}
+                      onOpenPdf={(src) => setLightbox({ src, kind: 'pdf' })}
+                      inject={props}
+                    />
                         </span>
                         <span className={mine ? `${css.msgTime} ${css.msgTimeMine}` : css.msgTime}>{sendTime}</span>
                         {!isSystem && (
@@ -1510,7 +1653,18 @@ export function YzjPanel(props: YzjPanelProps) {
           role="presentation"
           onClick={() => setLightbox(null)}
         >
-          <img className={css.lightboxImg} src={lightbox} alt="" onClick={(event) => event.stopPropagation()} />
+          {lightbox.kind === 'pdf'
+            ? (
+                <embed
+                  className={css.lightboxPdf}
+                  src={lightbox.src}
+                  type="application/pdf"
+                  onClick={(event) => event.stopPropagation()}
+                />
+              )
+            : (
+                <img className={css.lightboxImg} src={lightbox.src} alt="" onClick={(event) => event.stopPropagation()} />
+              )}
         </div>
       )}
     </div>

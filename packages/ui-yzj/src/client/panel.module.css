@@ -918,12 +918,45 @@
   text-decoration: none;
   margin-top: 2px;
   min-width: 0;
+  cursor: pointer;
   transition: border-color 120ms var(--ds-ease-in-out, ease), background-color 120ms var(--ds-ease-in-out, ease);
 }
 
-.msgFile:hover {
+.msgFileGroup {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+
+.msgFile:hover:not(:disabled) {
   border-color: var(--dsw-static-deepseek-500);
   background: var(--dsw-static-deepseek-100);
+}
+
+.msgFile:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* PDF chip companion: explicit 下载 beside the preview chip. */
+.msgFileDownload {
+  flex: none;
+  align-self: center;
+  padding: 4px 8px;
+  border: 1px dashed var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 14px;
+  cursor: pointer;
+  transition: border-color 120ms var(--ds-ease-in-out, ease), color 120ms var(--ds-ease-in-out, ease);
+}
+
+.msgFileDownload:hover {
+  border-color: var(--dsw-static-deepseek-500);
+  color: var(--dsw-static-deepseek-500);
 }
 
 .msgFileIcon {
@@ -1030,6 +1063,16 @@
   max-width: 90vw;
   max-height: 90vh;
   border-radius: 8px;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
+}
+
+/* PDF preview inside the lightbox. */
+.lightboxPdf {
+  width: min(720px, 92vw);
+  height: min(90vh, 900px);
+  border: none;
+  border-radius: 8px;
+  background: #ffffff;
   box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
 }
 

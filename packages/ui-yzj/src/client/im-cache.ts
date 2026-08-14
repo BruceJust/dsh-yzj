@@ -48,6 +48,25 @@ export function putGroupWindow(groups: unknown[], more: boolean): void {
   groupCache = { groups, more, fetchedAt: Date.now() }
 }
 
+/* ── Local read state: the CLI has no mark-read, so opening a group marks
+     it read CLIENT-side. We remember the server unread at mark time; later
+     polls show only the delta (new messages), never the historical pile. ── */
+
+const readState = new Map<string, number>()
+
+/** Record that a group was opened; its server unread at that moment. */
+export function markGroupRead(groupId: string, serverUnread: number): void {
+  readState.set(groupId, serverUnread)
+}
+
+/** Effective unread for a group: 0 for marked-read groups plus new arrivals. */
+export function effectiveUnread(groupId: string, serverUnread: number): number {
+  if (groupId === '' || serverUnread <= 0) return serverUnread
+  const marked = readState.get(groupId)
+  if (marked === undefined) return serverUnread
+  return Math.max(0, serverUnread - marked)
+}
+
 /** Session sender cache (openId → display name + avatar). */
 interface SenderInfo {
   name: string
