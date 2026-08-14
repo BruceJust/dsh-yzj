@@ -10,9 +10,14 @@
  * @module @dsh-yzj/bridge
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, execFile } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { promisify } from 'node:util'
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+
+const execFileAsync = promisify(execFile)
 
 /** Result of one `yzj-cli` invocation. */
 export interface YzjRunResult {
@@ -36,6 +41,60 @@ export interface YzjRunResult {
 
 /** Failed to launch the configured binary (missing executable or bad path). */
 export class YzjSpawnError extends Error {}
+
+/**
+ * Parse an npm-generated Windows launcher (.cmd) and return the node entry
+ * script it forwards to, resolved against the launcher directory. Matches the
+ * npm 7+ template `"%_prog%" "%dp0%\node_modules\<pkg>\scripts\<entry>" %*`.
+ * @param cmdPath - absolute path of the .cmd launcher.
+ * @returns the node entry script path, or undefined when the template does not match.
+ */
+export function resolveNpmLauncher(cmdPath: string): string | undefined {
+  let content: string
+  try {
+    content = readFileSync(cmdPath, 'utf8')
+  } catch {
+    return undefined
+  }
+  const match = content.match(/%dp0%\\(node_modules\\[^"]+?\\scripts\\[^"]+)/i)
+  if (match === null || match[1] === undefined) return undefined
+  return join(dirname(cmdPath), match[1])
+}
+
+/** Cached Windows launcher resolutions: bare command name → [executable, prefix argv]. */
+const windowsLauncherCache = new Map<string, [string, string[]]>()
+
+/**
+ * Resolve a bare command name on Windows: `spawn` cannot execute the
+ * .cmd/.ps1/.sh shims npm installs globally, so the bridge routes the command
+ * through `node <entry script>` instead. Non-Windows and explicit paths pass
+ * through untouched.
+ * @param binary - the configured binary name or path.
+ * @returns the [executable, prefix argv] to spawn.
+ */
+async function resolveBinary(binary: string): Promise<[string, string[]]> {
+  if (process.platform !== 'win32') return [binary, []]
+  if (binary.includes('/') || binary.includes('\\') || binary.endsWith('.exe')) return [binary, []]
+  const cached = windowsLauncherCache.get(binary)
+  if (cached !== undefined) return cached
+  let resolved: [string, string[]] = [binary, []]
+  try {
+    const { stdout } = await execFileAsync('where.exe', [binary], { timeout: 5_000 })
+    // `where` lists every PATH hit — the npm sh (extension-less) shim first,
+    // then the .cmd launcher. Pick the .cmd/.bat entry the parser understands.
+    const cmdPath = stdout.split(/\r?\n/)
+      .map(line => line.trim())
+      .find(line => line !== '' && /\.(cmd|bat)$/i.test(line))
+    if (cmdPath !== undefined) {
+      const script = resolveNpmLauncher(cmdPath)
+      if (script !== undefined) resolved = [process.execPath, [script]]
+    }
+  } catch {
+    // Resolution failure falls through: the spawn below reports the real error.
+  }
+  windowsLauncherCache.set(binary, resolved)
+  return resolved
+}
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -109,13 +168,17 @@ export default class YzjBridge extends Service {
     const started = Date.now()
     const timeoutMs = options?.timeoutMs ?? this.config.timeoutMs
     const stdin = options?.stdin
+    // On Windows, npm-global commands exist only as .cmd/.ps1/.sh shims that
+    // `spawn` cannot execute; resolve the shim to its node entry once.
+    const [executable, prefix] = await resolveBinary(this.config.binary)
     const argv = [
+      ...prefix,
       ...(this.config.profile === undefined ? [] : ['--profile', this.config.profile]),
       ...command,
     ]
 
     return new Promise<YzjRunResult>((resolve, reject) => {
-      const child = spawn(this.config.binary, argv, {
+      const child = spawn(executable, argv, {
         stdio: [stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
       })
       let stdout = ''

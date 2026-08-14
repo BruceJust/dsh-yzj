@@ -11,7 +11,10 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { fileURLToPath } from 'node:url'
-import YzjBridge, { YzjSpawnError } from '../src/index.ts'
+import { writeFileSync, mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import YzjBridge, { resolveNpmLauncher, YzjSpawnError } from '../src/index.ts'
 
 const FAKE_BINARY = fileURLToPath(new URL('./fixtures/fake-yzj-cli.mjs', import.meta.url))
 
@@ -101,4 +104,31 @@ describe('yzjBridge.run', () => {
       await expect(bridge.check(5_000)).resolves.toBe(true)
     },
   )
+})
+
+describe('resolveNpmLauncher', () => {
+  it('extracts the node entry script from an npm .cmd launcher', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'yzj-cmd-'))
+    const cmdPath = join(dir, 'yzj-cli.cmd')
+    writeFileSync(cmdPath, [
+      '@ECHO off',
+      'SET dp0=%~dp0',
+      'IF EXIST "%dp0%\\node.exe" (',
+      '  SET "_prog=%dp0%\\node.exe"',
+      ') ELSE (',
+      '  SET "_prog=node"',
+      ')',
+      '"%_prog%"  "%dp0%\\node_modules\\@yunzhijia\\cli\\scripts\\run.js" %*',
+    ].join('\r\n'))
+    const script = resolveNpmLauncher(cmdPath)
+    expect(script).toBe(join(dir, 'node_modules', '@yunzhijia', 'cli', 'scripts', 'run.js'))
+  })
+
+  it('returns undefined for non-npm launchers and missing files', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'yzj-cmd-'))
+    expect(resolveNpmLauncher(join(dir, 'missing.cmd'))).toBeUndefined()
+    const plain = join(dir, 'plain.cmd')
+    writeFileSync(plain, '@ECHO off\r\nstart app.exe %*\r\n')
+    expect(resolveNpmLauncher(plain)).toBeUndefined()
+  })
 })
