@@ -10,18 +10,24 @@
   gap: 6px;
   margin: 4px 0 0;
   padding: 3px 10px;
-  border: 1px dashed transparent;
+  border: 1px dashed var(--dsw-static-deepseek-500);
   border-radius: 8px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  transition: border-color 120ms var(--ds-ease-in-out, ease), background-color 120ms var(--ds-ease-in-out, ease), color 120ms var(--ds-ease-in-out, ease);
-}
-
-.dropBandArmed {
-  border-color: var(--dsw-static-deepseek-500);
   background: var(--dsw-static-deepseek-100);
   color: var(--dsw-static-deepseek-600);
+  font-size: 11px;
   font-weight: 600;
+  animation: bandIn 150ms var(--ds-ease-out, ease-out);
+}
+
+@keyframes bandIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Quick instructions shown right after a drop. */
