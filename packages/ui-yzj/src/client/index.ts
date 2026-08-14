@@ -222,8 +222,9 @@ function openWriteContext(
       if (replyTarget !== '') actions.setAnchorMsgId(replyTarget)
       void inject.fetchMessages(groupId, 20).then((result) => {
         if (result.ok) {
-          const list = asArray(asRecord(result.value).list)
-          actions.setMessages([...list].reverse())
+          // The CLI returns messages oldest-first — the chat reading order;
+          // do NOT reverse.
+          actions.setMessages(asArray(asRecord(result.value).list))
         }
       })
     }

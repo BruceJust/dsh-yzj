@@ -52,6 +52,16 @@ const namedSenders = senderText.filter(text => text !== '消息' && text !== '�
 ok('sender names resolved', namedSenders.length > 0, `e.g. ${namedSenders.slice(0, 3).join(', ')}`)
 const timeTexts = await dialog.locator('[class*="msgTime"]').allInnerTexts().catch(() => [])
 ok('message times formatted (HH:mm or MM-DD HH:mm)', timeTexts.length > 0 && timeTexts.every(t => /^\d{2}:\d{2}$|^\d{2}-\d{2} \d{2}:\d{2}$/.test(t.trim())), timeTexts.slice(0, 3).join(', '))
+// The CLI returns messages oldest-first; the chat must read top-down
+// chronologically (today's HH:mm sorts after any MM-DD day).
+const timeToNum = (t) => {
+  const m = t.trim().match(/^(?:(\d{2})-(\d{2}) )?(\d{2}):(\d{2})$/)
+  if (!m) return 0
+  const day = m[1] !== undefined ? Number(m[1]) * 100 + Number(m[2]) : 999
+  return day * 10000 + Number(m[3]) * 100 + Number(m[4])
+}
+const ascending = timeTexts.every((t, i) => i === 0 || timeToNum(timeTexts[i - 1]) <= timeToNum(t))
+ok('messages read chronologically (oldest first, NOT reversed)', ascending, timeTexts.slice(0, 6).join(' | '))
 
 // ---- 3. richText inline images + lightbox ----
 const imageCount = await dialog.locator('img[class*="msgImage"]').count()

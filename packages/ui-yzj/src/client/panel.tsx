@@ -759,8 +759,10 @@ export function YzjPanel(props: YzjPanelProps) {
     if (cached !== undefined) {
       props.actions.setMessages(cached.messages)
       props.actions.setMessagesMore(cached.more)
+      // The CLI returns messages OLDEST-first; the oldest id is the next
+      // anchor for paging further back.
       props.actions.setMessagesAnchor(
-        cached.messages.length > 0 ? asString(asRecord(cached.messages[cached.messages.length - 1]).msgId) : '',
+        cached.messages.length > 0 ? asString(asRecord(cached.messages[0]).msgId) : '',
       )
       props.actions.setLoading(false)
       return
@@ -769,14 +771,13 @@ export function YzjPanel(props: YzjPanelProps) {
     props.actions.setError('')
     void props.fetchMessages(id, 20).then((result) => {
       if (result.ok) {
-        // Store oldest-first so the chat reads top-down; the CLI returns
-        // newest-first.
+        // The CLI already returns oldest-first, which is exactly the chat
+        // reading order — do NOT reverse.
         const messages = asArray(asRecord(result.value).list)
-        const oldestFirst = [...messages].reverse()
-        putMessageWindow(id, oldestFirst, asRecord(result.value).more === true)
-        props.actions.setMessages(oldestFirst)
+        putMessageWindow(id, messages, asRecord(result.value).more === true)
+        props.actions.setMessages(messages)
         props.actions.setMessagesMore(asRecord(result.value).more === true)
-        props.actions.setMessagesAnchor(messages.length > 0 ? asString(asRecord(messages[messages.length - 1]).msgId) : '')
+        props.actions.setMessagesAnchor(messages.length > 0 ? asString(asRecord(messages[0]).msgId) : '')
       } else {
         props.actions.setError(result.error.message)
       }
@@ -804,15 +805,14 @@ export function YzjPanel(props: YzjPanelProps) {
     props.actions.setLoading(true)
     void props.fetchMessages(state.groupId, 20, { type: 'old', msgId: state.messagesAnchor }).then((result) => {
       if (result.ok) {
+        // type 'old' returns messages OLDER than the anchor, oldest-first —
+        // prepend as-is so the top of the list stays the oldest message.
         const older = asArray(asRecord(result.value).list)
-        // The CLI returns newest-first; prepend after reversing to keep the
-        // store oldest-first.
-        const olderFirst = [...older].reverse()
-        props.actions.prependMessages(olderFirst)
-        putMessageWindow(state.groupId, [...olderFirst, ...state.messages], asRecord(result.value).more === true)
+        props.actions.prependMessages(older)
+        putMessageWindow(state.groupId, [...older, ...state.messages], asRecord(result.value).more === true)
         props.actions.setMessagesMore(asRecord(result.value).more === true)
         if (older.length > 0) {
-          props.actions.setMessagesAnchor(asString(asRecord(older[older.length - 1]).msgId))
+          props.actions.setMessagesAnchor(asString(asRecord(older[0]).msgId))
         }
       } else {
         props.actions.setError(result.error.message)
