@@ -33,34 +33,34 @@ importers:
   packages/bridge:
     dependencies:
       '@deepseek-ai/cordis':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/vendor/cordis
+        specifier: link:../../../deepseek-harness/vendor/cordis
         version: link:../../../deepseek-harness/vendor/cordis
       '@deepseek-ai/schemastery':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/vendor/schemastery
+        specifier: link:../../../deepseek-harness/vendor/schemastery
         version: link:../../../deepseek-harness/vendor/schemastery
 
   packages/bundle:
     dependencies:
       '@dsh-yzj/bridge':
-        specifier: link:/Users/guoxinshan/dev/dsh-yzj/packages/bridge
+        specifier: link:../bridge
         version: link:../bridge
       '@dsh-yzj/tool-yzj':
-        specifier: link:/Users/guoxinshan/dev/dsh-yzj/packages/tool-yzj
+        specifier: link:../tool-yzj
         version: link:../tool-yzj
       '@dsh-yzj/ui-yzj':
-        specifier: link:/Users/guoxinshan/dev/dsh-yzj/packages/ui-yzj
+        specifier: link:../ui-yzj
         version: link:../ui-yzj
 
   packages/tool-yzj:
     dependencies:
       '@deepseek-ai/cordis':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/vendor/cordis
+        specifier: link:../../../deepseek-harness/vendor/cordis
         version: link:../../../deepseek-harness/vendor/cordis
       '@deepseek-ai/dsh-tools':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/core/tools
+        specifier: link:../../../deepseek-harness/packages/core/tools
         version: link:../../../deepseek-harness/packages/core/tools
       '@deepseek-ai/schemastery':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/vendor/schemastery
+        specifier: link:../../../deepseek-harness/vendor/schemastery
         version: link:../../../deepseek-harness/vendor/schemastery
       '@dsh-yzj/bridge':
         specifier: workspace:^
@@ -69,34 +69,34 @@ importers:
   packages/ui-yzj:
     dependencies:
       '@deepseek-ai/cordis':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/vendor/cordis
+        specifier: link:../../../deepseek-harness/vendor/cordis
         version: link:../../../deepseek-harness/vendor/cordis
       '@deepseek-ai/dsh-client-connection':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/connection
+        specifier: link:../../../deepseek-harness/packages/client/connection
         version: link:../../../deepseek-harness/packages/client/connection
       '@deepseek-ai/dsh-client-runtime':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/runtime
+        specifier: link:../../../deepseek-harness/packages/client/runtime
         version: link:../../../deepseek-harness/packages/client/runtime
       '@deepseek-ai/dsh-client-ui-conversation':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-conversation
+        specifier: link:../../../deepseek-harness/packages/client/ui-conversation
         version: link:../../../deepseek-harness/packages/client/ui-conversation
       '@deepseek-ai/dsh-client-ui-input-trigger':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-input-trigger
+        specifier: link:../../../deepseek-harness/packages/client/ui-input-trigger
         version: link:../../../deepseek-harness/packages/client/ui-input-trigger
       '@deepseek-ai/dsh-client-ui-layout':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-layout
+        specifier: link:../../../deepseek-harness/packages/client/ui-layout
         version: link:../../../deepseek-harness/packages/client/ui-layout
       '@deepseek-ai/dsh-client-ui-primitives':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-primitives
+        specifier: link:../../../deepseek-harness/packages/client/ui-primitives
         version: link:../../../deepseek-harness/packages/client/ui-primitives
       '@deepseek-ai/dsh-client-ui-sidebar':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-sidebar
+        specifier: link:../../../deepseek-harness/packages/client/ui-sidebar
         version: link:../../../deepseek-harness/packages/client/ui-sidebar
       '@deepseek-ai/dsh-client-ui-slots':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-slots
+        specifier: link:../../../deepseek-harness/packages/client/ui-slots
         version: link:../../../deepseek-harness/packages/client/ui-slots
       '@deepseek-ai/dsh-client-ui-tool':
-        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-tool
+        specifier: link:../../../deepseek-harness/packages/client/ui-tool
         version: link:../../../deepseek-harness/packages/client/ui-tool
       '@dsh-yzj/bridge':
         specifier: workspace:^

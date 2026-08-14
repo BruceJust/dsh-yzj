@@ -27,8 +27,8 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@dsh-yzj/bridge": "link:/Users/guoxinshan/dev/dsh-yzj/packages/bridge",
-    "@dsh-yzj/tool-yzj": "link:/Users/guoxinshan/dev/dsh-yzj/packages/tool-yzj",
-    "@dsh-yzj/ui-yzj": "link:/Users/guoxinshan/dev/dsh-yzj/packages/ui-yzj"
+    "@dsh-yzj/bridge": "link:../bridge",
+    "@dsh-yzj/tool-yzj": "link:../tool-yzj",
+    "@dsh-yzj/ui-yzj": "link:../ui-yzj"
   }
 }
