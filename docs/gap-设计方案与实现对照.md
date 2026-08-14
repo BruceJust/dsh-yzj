@@ -150,7 +150,8 @@ P0 消息回源、P1 门禁分级/确认卡/通知层一三/skill/影子库/锚�
 ### 验证证据
 
 - `pnpm -r --sort build` / `typecheck`：4 包全绿。
-- `pnpm test`：58 passed + 2 skipped（Windows shebang/--profile 平台限制）。
+- `pnpm test`：65 passed + 2 skipped（Windows shebang/--profile 平台限制）。
+- **真实浏览器验收**（`.acceptance/verify-windows.mjs`，独立 dsh web 实例 + 系统 Chrome）：9 项全 PASS——插件挂载（云之家 toggle）、面板四 tab、四 tab 无 CLI 优雅降级（结构化错误横幅，无 500/无崩溃）、@ 菜单不崩溃、全程零页面错误。验收中抓到并修复 3 个真实 bug（toolview 同 key 注册冲突、store 跨 scope 挂载冲突、bridge spawn 异常 500）+ 1 个配置 bug（dsh.client.inject 指向无 client 面的包）。
 - 客户端 bundle 重建成功（`lib/client.js`）。
 
 *本文档为对照记录，不替代 v1.6 设计原文；标注「待拍板」的项目维持原设计的决策归属。*
