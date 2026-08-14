@@ -1,4 +1,8 @@
-/* Drop band under the composer card. */
+/*
+ * Composer-side seats: the drop band and the post-drop quick actions,
+ * aligned to the dsh native visual language.
+ */
+
 .dropBand {
   display: flex;
   align-items: center;
@@ -8,15 +12,15 @@
   padding: 3px 10px;
   border: 1px dashed transparent;
   border-radius: 8px;
-  color: var(--dsw-text-tertiary, #999999);
+  color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
   transition: border-color 120ms var(--ds-ease-in-out, ease), background-color 120ms var(--ds-ease-in-out, ease), color 120ms var(--ds-ease-in-out, ease);
 }
 
 .dropBandArmed {
-  border-color: var(--dsw-static-deepseek-500, #4176e6);
-  background: var(--dsw-static-deepseek-100, #e4edfd);
-  color: var(--dsw-static-deepseek-600, #4868b2);
+  border-color: var(--dsw-static-deepseek-500);
+  background: var(--dsw-static-deepseek-100);
+  color: var(--dsw-static-deepseek-600);
   font-weight: 600;
 }
 
@@ -30,224 +34,23 @@
 
 .quickButton,
 .quickDismiss {
-  border: 1px solid var(--dsw-border, #d6d6d6);
+  border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 999px;
-  background: var(--dsw-surface, #ffffff);
-  color: var(--dsw-text-secondary, #666666);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
   font-size: 11px;
   padding: 3px 10px;
   cursor: pointer;
+  transition: background-color 120ms var(--ds-ease-in-out, ease), border-color 120ms var(--ds-ease-in-out, ease), color 120ms var(--ds-ease-in-out, ease);
 }
 
 .quickButton:hover {
-  border-color: var(--dsw-static-deepseek-500, #4176e6);
-  color: var(--dsw-static-deepseek-600, #4868b2);
+  border-color: var(--dsw-static-deepseek-500);
+  background: var(--dsw-static-deepseek-100);
+  color: var(--dsw-static-deepseek-600);
 }
 
 .quickDismiss {
   border-style: dashed;
-  color: var(--dsw-text-tertiary, #999999);
-}
-
-/* The tool-row @ button. */
-.atRoot {
-  position: relative;
-  display: inline-flex;
-}
-
-.atButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: none;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--dsw-text-secondary, #666666);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.atButton:hover,
-.atButton[aria-expanded='true'] {
-  background: var(--dsw-static-deepseek-100, #e4edfd);
-  color: var(--dsw-static-deepseek-600, #4868b2);
-}
-
-/* Picker popover above the composer. */
-.picker {
-  position: fixed;
-  bottom: 96px;
-  left: 24px;
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  width: min(360px, calc(100vw - 48px));
-  max-height: 60vh;
-  border: 1px solid var(--dsw-border, #d6d6d6);
-  border-radius: 12px;
-  background: var(--dsw-surface, #ffffff);
-  color: var(--dsw-text-primary, #1a1a1a);
-  box-shadow: 0 16px 40px rgb(0 0 0 / 0.18);
-  font-size: 13px;
-  overflow: hidden;
-}
-
-.pickerHeader {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--dsw-border, #d6d6d6);
-  flex: none;
-}
-
-.pickerTabs {
-  display: flex;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.pickerTab {
-  padding: 4px 10px;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--dsw-text-secondary, #666666);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.pickerTab:hover {
-  background: var(--dsw-surface-hover, #f2f2f2);
-}
-
-.pickerTabActive {
-  background: var(--dsw-static-deepseek-100, #e4edfd);
-  color: var(--dsw-static-deepseek-600, #4868b2);
-  font-weight: 600;
-}
-
-.pickerClose {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--dsw-text-secondary, #666666);
-  font-size: 12px;
-  cursor: pointer;
-  flex: none;
-}
-
-.pickerClose:hover {
-  background: var(--dsw-surface-hover, #f2f2f2);
-}
-
-.pickerSearch {
-  display: flex;
-  gap: 6px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--dsw-border, #d6d6d6);
-  flex: none;
-}
-
-.pickerInput {
-  flex: 1;
-  padding: 5px 8px;
-  border: 1px solid var(--dsw-border, #d6d6d6);
-  border-radius: 7px;
-  background: var(--dsw-surface, #ffffff);
-  color: var(--dsw-text-primary, #1a1a1a);
-  font-size: 12px;
-  outline: none;
-}
-
-.pickerInput:focus {
-  border-color: var(--dsw-static-deepseek-500, #4176e6);
-}
-
-.pickerSearchButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid var(--dsw-border, #d6d6d6);
-  border-radius: 7px;
-  background: var(--dsw-surface, #ffffff);
-  color: var(--dsw-text-secondary, #666666);
-  cursor: pointer;
-}
-
-.pickerList {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.pickerBack {
-  padding: 4px 8px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--dsw-static-deepseek-500, #4176e6);
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.pickerBack:hover {
-  background: var(--dsw-static-deepseek-100, #e4edfd);
-}
-
-.pickerItem {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 6px 8px;
-  border: none;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--dsw-text-primary, #1a1a1a);
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-  min-width: 0;
-}
-
-.pickerItem:hover {
-  background: var(--dsw-surface-hover, #f2f2f2);
-}
-
-.pickerItemTitle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-.pickerItemSub {
-  color: var(--dsw-text-secondary, #666666);
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pickerEmpty {
-  color: var(--dsw-text-tertiary, #999999);
-  font-size: 12px;
-  text-align: center;
-  padding: 18px 0;
+  color: var(--dsw-alias-label-tertiary);
 }
