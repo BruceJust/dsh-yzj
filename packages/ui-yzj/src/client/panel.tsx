@@ -143,8 +143,7 @@ function requestNotificationPermission(): void {
 }
 
 /** The sidebar-foot Yunzhijia toggle (labeled row or rail icon). */
-export function YzjPanelButton(props: YzjPanelButtonProps) {
-  const open = props.useStore(state => state.open)
+export function YzjPanelButton(props: YzjPanelButtonProps) {  const open = props.useStore(state => state.open)
   const unreadTotal = props.useStore(state => state.unreadTotal)
   // Poll cadence follows the design: ~30s while the panel is open, ~5min
   // while collapsed. New unread counts raise the badge and fire a browser
@@ -191,6 +190,35 @@ export function YzjPanelButton(props: YzjPanelButtonProps) {
     <Tooltip label="云之家" delayMs={500} side="right">
       {button}
     </Tooltip>
+  )
+}
+
+/** The floating ball (prototype): bottom-right round button with the unread
+ *  badge; hidden while the panel is open. Registered in shell.overlay. */
+export interface YzjFloatBallProps {
+  useStore: <R>(selector: (state: YzjPanelState) => R) => R
+  actions: BakedActions<YzjPanelState, YzjPanelActions>
+}
+
+export function YzjFloatBall(props: YzjFloatBallProps) {
+  const open = props.useStore(state => state.open)
+  const unreadTotal = props.useStore(state => state.unreadTotal)
+  if (open) return null
+  return (
+    <button
+      type="button"
+      className={css.floatBall}
+      aria-label="云之家悬浮窗"
+      title="云之家"
+      onClick={() => { props.actions.setOpen(true) }}
+    >
+      <YzjCloudIcon size={22} />
+      {unreadTotal > 0 && (
+        <span className={css.floatBallBadge} title={`${unreadTotal} 条未读`}>
+          {unreadTotal > 99 ? '99+' : unreadTotal}
+        </span>
+      )}
+    </button>
   )
 }
 
@@ -250,11 +278,15 @@ export function YzjPanel(props: YzjPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const dragOffset = useRef<{ dx: number; dy: number } | null>(null)
   const anchorRef = useRef<HTMLDivElement | null>(null)
+  const [anchorToast, setAnchorToast] = useState('')
 
   // Scroll the jump anchor into view once its group's messages land.
   useEffect(() => {
     if (state.anchorMsgId === '' || anchorRef.current === null) return
     anchorRef.current.scrollIntoView({ block: 'center' })
+    setAnchorToast(`已定位到锚点消息（${state.anchorMsgId.slice(0, 12)}…）`)
+    const timer = window.setTimeout(() => setAnchorToast(''), 3200)
+    return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.messages, state.anchorMsgId])
 
@@ -626,6 +658,13 @@ export function YzjPanel(props: YzjPanelProps) {
                       })
                     }}
                   >
+                    <span className={css.grip} aria-hidden="true">
+                      <svg viewBox="0 0 10 16" fill="currentColor" width="10" height="16">
+                        <circle cx="3" cy="3" r="1.4" /><circle cx="7" cy="3" r="1.4" />
+                        <circle cx="3" cy="8" r="1.4" /><circle cx="7" cy="8" r="1.4" />
+                        <circle cx="3" cy="13" r="1.4" /><circle cx="7" cy="13" r="1.4" />
+                      </svg>
+                    </span>
                     <span className={css.msgMeta}>
                       <span className={css.msgTime}>{sendTime.slice(5, 16)}</span>
                       <span className={css.msgKind}>{msgType === '' ? '消息' : msgType}</span>
@@ -634,6 +673,9 @@ export function YzjPanel(props: YzjPanelProps) {
                   </div>
                 )
               })}
+              {anchorToast !== '' && (
+                <div className={css.panelToast} role="status">{anchorToast}</div>
+              )}
             </div>
           )}
         </div>

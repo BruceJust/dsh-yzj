@@ -346,6 +346,8 @@
 
 /* Chat message bubble: meta row + body. */
 .msgItem {
+  position: relative;
+  padding-left: 18px;
   background: var(--dsw-alias-bg-layer-1);
   border: 1px solid var(--dsw-alias-border-l1);
 }
@@ -509,4 +511,78 @@
   font-size: 12px;
   line-height: 16px;
   margin-top: 2px;
+}
+
+/* ── Floating ball (prototype) ───────────────────────────────────────── */
+
+.floatBall {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  z-index: 90;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--dsw-alias-button-info-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+  box-shadow: 0 4px 14px rgb(46 111 242 / 0.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 120ms var(--ds-ease-in-out, ease), transform 120ms var(--ds-ease-in-out, ease);
+}
+
+.floatBall:hover {
+  background: var(--dsw-alias-button-info-hover);
+  transform: scale(1.04);
+}
+
+.floatBallBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 2px solid var(--dsw-alias-bg-base);
+  background: var(--dsw-static-red-500);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Message grip + anchor toast ─────────────────────────────────────── */
+
+.grip {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--dsw-alias-label-tertiary);
+  cursor: grab;
+  display: inline-flex;
+  opacity: 0;
+  transition: opacity 120ms var(--ds-ease-in-out, ease);
+}
+
+.msgItem:hover .grip {
+  opacity: 1;
+}
+
+.panelToast {
+  margin: 2px 4px 6px;
+  background: var(--dsw-static-neutral-bluish-850);
+  color: var(--dsw-alias-label-primary-foreground);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 999px;
 }

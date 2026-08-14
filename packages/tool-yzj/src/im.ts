@@ -71,6 +71,7 @@ export function applyImTools(ctx: Context, budget: YzjToolBudget): void {
       atOpenIds: { type: 'array', items: { type: 'string' }, description: 'One per @姓名 in content, in order; group chats only.' },
       atAll: { type: 'boolean', description: 'True when content contains @all (user must have explicitly asked for @all).' },
       images: { type: 'array', items: { type: 'string' }, description: 'File ids for [图片] placeholders in richText content.' },
+      refs: { type: 'array', items: { type: 'string' }, description: 'Referenced Yunzhijia ref tokens (yzj:... encodings from dragged or @-picked chips) this message is based on; the confirmation card shows them as 关联引用. Never sent to the CLI.' },
     },
     output: yzjToolOutput,
     timeoutMs: budget.timeoutMs,

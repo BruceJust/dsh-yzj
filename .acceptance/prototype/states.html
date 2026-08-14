@@ -1,0 +1,195 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>原型 ③ 状态机 × 三层通知｜云之家 × dsh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.kimi.com/sdk-seed.js" defer=""></script></head>
+<body>
+
+<div class="page-head">
+  <h1>③ 确认卡状态机 × 三层通知</h1>
+  <span class="journey">旅程 7 / 2</span>
+  <div class="legend">
+    状态由 yzj.write/request → resolved 事件族驱动，刷新页面可回放（下方确认卡按钮可点）<br/>
+    通知三层：角标轮询 → schedule 筛选播报 → 浏览器系统通知
+  </div>
+</div>
+<div class="screen-tabs">
+  <a href="index.html">① 核心闭环</a>
+  <a href="overlay.html">② 悬浮窗 + @</a>
+  <a class="active" href="states.html">③ 状态机 × 三层通知</a>
+</div>
+
+<div style="padding:0 40px">
+  <div class="section-title">A · 确认卡状态机</div>
+  <div class="section-sub">确认 / 编辑 / 取消 / 查看上下文 —— 全部经 ctx.approval 放行，无旁路</div>
+</div>
+
+<div class="state-grid">
+  <!-- 待确认 -->
+  <div>
+    <div class="confirm-card" id="pendingCard" style="margin:0;max-width:none">
+      <div class="cc-head">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"></path></svg>
+        <span class="cc-title">确认发送 · 标准确认</span>
+        <span class="pill" style="margin-left:auto">待确认</span>
+      </div>
+      <div class="cc-target">目标群：<strong style="color:var(--text)">需求评审</strong>（8821）· 以本人身份发送</div>
+      <div class="cc-msgbox">各位，接口改造方案今天收敛：① 性能部分由老黎牵头，周四 18:00 前出评审稿；② 王工明早提供压测数据；③ 周五前定稿。</div>
+      <div class="cc-refs">关联引用：<span class="mini-chip">老黎 22:14</span><span class="mini-chip">老黎 22:16</span><span class="mini-chip">王工 22:31</span></div>
+      <div class="cc-actions">
+        <button class="btn outline">查看上下文</button>
+        <button class="btn">编辑</button>
+        <button class="btn" onclick="resolve(&#39;cancel&#39;)">取消</button>
+        <button class="btn primary" onclick="resolve(&#39;done&#39;)">发送</button>
+      </div>
+      <div style="font-size:10px;color:var(--faint);margin-top:12px;line-height:1.5">无人处理时工具调用挂起等待，不产生任何写动作；session 恢复后卡片仍可应答。</div>
+    </div>
+    <div class="terminal-card fail" id="failNote" style="display:none;margin-top:14px">
+      <div class="t-head">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2L1 21h22zM12 9v5M12 17.5v.5"></path></svg>
+        失败 · 可重试
+      </div>
+      <div class="t-body">网络超时（yzj-cli 已自动重试 5 次）· 未发送　<button class="btn danger-outline" style="padding:3px 14px;font-size:10px" onclick="retry()">重试</button></div>
+    </div>
+  </div>
+
+  <div class="arrow-cell">→</div>
+
+  <!-- 三个终态 -->
+  <div class="state-col">
+    <div class="terminal-card done">
+      <div class="t-head">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.2 14.5l-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4z"></path></svg>
+        已完成 · 已发送
+      </div>
+      <div class="t-body">已发送到「需求评审」· <a href="overlay.html">在云之家查看 →</a></div>
+      <div class="t-note">终态带 deep link：消息类跳悬浮窗锚点，文档类跳云之家</div>
+    </div>
+    <div class="terminal-card cancel">
+      <div class="t-head">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm5 13.6L13.6 12 17 8.6 15.4 7 12 10.4 8.6 7 7.2 8.6 10.4 12 7 15.4 8.6 17 12 13.6 15.4 17z"></path></svg>
+        已取消
+      </div>
+      <div class="t-body">未产生任何写动作 · 「编辑」可把草稿塞回 composer</div>
+    </div>
+    <div class="terminal-card fail">
+      <div class="t-head">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2L1 21h22zM12 9v5M12 17.5v.5"></path></svg>
+        失败 · 可重试
+      </div>
+      <div class="t-body">网络超时（yzj-cli 已自动重试 5 次）· 未发送</div>
+    </div>
+  </div>
+
+  <!-- 规则 -->
+  <div class="state-col">
+    <div class="rule-card">
+      <div class="r-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary)"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"></path></svg>
+        可回放
+      </div>
+      <div class="r-body">事件携带稳定 writeId，不依赖内存态；刷新页面后卡片状态完整恢复，Trajectory 可回放「谁确认的、发的什么」。</div>
+    </div>
+    <div class="rule-card danger">
+      <div class="r-head">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z"></path></svg>
+        删除类 = 强确认（红色卡片）
+      </div>
+      <div class="r-body">不可逆操作展示完整目标路径，永不参与合并确认；skill 层要求删除前必须复述目标。</div>
+    </div>
+    <div class="rule-card">
+      <div class="r-head">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--warn)"><path d="M4 6h16v3H4zM4 11h16v3H4zM4 16h16v3H4z"></path></svg>
+        防确认疲劳
+      </div>
+      <div class="r-body">只读不弹卡；标准确认可同会话同目标合并（尺度待评审）；宁可烦不可错。</div>
+    </div>
+  </div>
+</div>
+
+<div style="padding:0 40px">
+  <div class="section-title" style="margin-top:44px">B · 新消息三层通知</div>
+  <div class="section-sub">有没有新消息 → 值不值得看（agent 筛选）→ 人不在前台也叫得醒</div>
+</div>
+
+<div class="notify-grid">
+  <!-- L1 -->
+  <div class="notify-card">
+    <div class="n-head"><span class="n-tag">L1</span><span class="n-title">悬浮窗角标 · 轮询 diff</span></div>
+    <div style="display:flex;gap:28px;align-items:center">
+      <div class="demo-ball">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 9h8M8 13h5" stroke="#2E6FF2" stroke-width="1.6" fill="none"></path></svg>
+        <span class="badge">5</span>
+      </div>
+      <div class="demo-groups">
+        需求评审　<span style="color:var(--danger)">● 5</span><br/>
+        产品讨论　<span style="color:var(--faint)">无新消息</span><br/>
+        全员通知　<span style="color:var(--faint)">无新消息</span>
+      </div>
+    </div>
+    <div class="n-caption">面板按群维护 lastSeenMsgId，经 yzjReader 增量 diff：展开时约 30s 一轮，收起时 3–5 分钟一轮，产出悬浮球红点与群角标。</div>
+  </div>
+
+  <!-- L2 -->
+  <div class="notify-card">
+    <div class="n-head"><span class="n-tag">L2</span><span class="n-title">会话内筛选播报 · schedule 唤醒</span></div>
+    <div class="notify-inline">
+      <div class="ni-head">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-4.5-5.8V4.5a1.5 1.5 0 0 0-3 0v.7A6 6 0 0 0 6 11v5l-2 2v1h16v-1z"></path></svg>
+        通知 · 需求群（2 条值得看）
+      </div>
+      <div class="ni-body">老黎 <span style="color:var(--danger)">@你</span>：DDL 提前到周四<br/>王工：压测数据明早给到（含 deadline）</div>
+      <div class="ni-actions"><button class="btn primary" style="padding:4px 16px;font-size:10px">查看上下文</button></div>
+    </div>
+    <div class="n-caption">every 15min 持久提醒到点唤醒 agent（回到原会话的普通轮次）→ 拉各关注群增量，按你的规则（@我的 / 含 deadline / 重点群）筛出重点，产出通知卡；浏览器关掉也能跑。</div>
+  </div>
+
+  <!-- L3 -->
+  <div class="notify-card">
+    <div class="n-head"><span class="n-tag">L3</span><span class="n-title">浏览器系统通知 · 越出 dsh</span></div>
+    <div class="sys-toast">
+      <div class="app-icon">dsh</div>
+      <div>
+        <div class="st-app">dsh · 云之家新消息</div>
+        <div class="st-title">需求群 · 老黎 @你：DDL 提前到周四</div>
+        <div class="st-hint">点击 → 聚焦 dsh 标签页并定位锚点消息</div>
+      </div>
+    </div>
+    <div style="margin-top:14px"><button class="btn outline" onclick="tryNotify()">真实触发一次系统通知</button></div>
+    <div class="n-caption">命中重点规则时由 yzj-ui 自接浏览器 Notification（首次使用引导授权一次）；解决人不在 dsh 前台。限制：标签页须开着。</div>
+  </div>
+</div>
+
+<script>
+function resolve(state){
+  var p = document.getElementById('pendingCard');
+  if(state === 'done'){
+    p.style.borderColor = 'var(--success)';
+    p.style.borderLeftColor = 'var(--success)';
+    p.querySelector('.cc-title').textContent = '已完成 · 已发送';
+    p.querySelector('.pill').textContent = '已完成';
+    p.querySelector('.pill').style.background = '#E6F6EF';
+    p.querySelector('.pill').style.color = 'var(--success)';
+    p.querySelector('.cc-actions').innerHTML = '<a class="btn outline" href="overlay.html" style="text-decoration:none;display:inline-flex;align-items:center">在云之家查看 →</a>';
+  }else{
+    p.style.opacity = '.55';
+    p.querySelector('.cc-title').textContent = '已取消';
+    p.querySelector('.pill').textContent = '已取消';
+    p.querySelector('.cc-actions').innerHTML = '<button class="btn" onclick="location.reload()">重新演示</button>';
+  }
+}
+function retry(){ document.getElementById('failNote').style.display = 'none'; }
+function tryNotify(){
+  if(!('Notification' in window)){ alert('当前浏览器不支持 Notification'); return; }
+  if(Notification.permission === 'granted'){ fireNotify(); }
+  else{ Notification.requestPermission().then(function(p){ if(p === 'granted') fireNotify(); }); }
+}
+function fireNotify(){
+  var n = new Notification('dsh · 云之家新消息', { body: '需求群 · 老黎 @你：DDL 提前到周四' });
+  n.onclick = function(){ window.focus(); location.href = 'overlay.html'; };
+}
+</script>
+
+
+</body></html>

@@ -36,6 +36,7 @@ function baseProps(over: Partial<CardProps>): CardProps {
     inspect: () => {},
     fetchWrite: async () => undefined,
     decideWrite: async () => true,
+    fetchWhoami: async () => '',
     openContext: () => {},
     editDraft: () => {},
     ...over,
@@ -56,6 +57,7 @@ describe('YzjWriteToolCard', () => {
     const injected: WriteCardInjected = {
       fetchWrite: async () => pendingRecord(),
       decideWrite: vi.fn(async () => true),
+      fetchWhoami: async () => '',
       editDraft: vi.fn(), openContext: () => {},
     }
     const text = await renderCard(baseProps({ ...injected }))
@@ -73,6 +75,7 @@ describe('YzjWriteToolCard', () => {
     const injected: WriteCardInjected = {
       fetchWrite: async () => pendingRecord({ toolName: 'yzj_doc_delete', level: 'strong', domain: 'doc', args: { id: 'd1' } }),
       decideWrite: async () => true,
+    fetchWhoami: async () => '',
       editDraft: () => {}, openContext: () => {},
     }
     const text = await renderCard(baseProps({ toolName: 'yzj_doc_delete', ...injected }))
@@ -86,6 +89,7 @@ describe('YzjWriteToolCard', () => {
     const injected: WriteCardInjected = {
       fetchWrite: async () => pendingRecord({ status: 'approved' }),
       decideWrite: async () => true,
+    fetchWhoami: async () => '',
       editDraft: () => {}, openContext: () => {},
     }
     const text = await renderCard(baseProps({ ...injected }))
@@ -98,6 +102,7 @@ describe('YzjWriteToolCard', () => {
     const injected: WriteCardInjected = {
       fetchWrite: async () => undefined,
       decideWrite: async () => true,
+    fetchWhoami: async () => '',
       editDraft: () => {}, openContext: () => {},
     }
     const text = await renderCard(baseProps({ ...injected }))
@@ -115,11 +120,49 @@ describe('YzjWriteToolCard', () => {
     const injected: WriteCardInjected = {
       fetchWrite: async () => pendingRecord({ status: 'done' }),
       decideWrite: async () => true,
+    fetchWhoami: async () => '',
       editDraft: () => {}, openContext: () => {},
     }
     const text = await renderCard(baseProps({ toolName: 'yzj_im_message_send', block: result, ...injected }))
     expect(text).toContain('sent (m1)')
     expect(text).not.toContain('需确认')
+  })
+
+  it('shows writeId, the identity line, and 关联引用 chips (prototype alignment)', async () => {
+    const injected: WriteCardInjected = {
+      fetchWrite: async () => pendingRecord({
+        args: {
+          groupId: 'g1', content: '回复如下：',
+          refs: [
+            'yzj:{"kind":"message","id":"m1","title":"老黎 22:14 接口改造"}',
+            'yzj:{"kind":"message","id":"m2","title":"王工 22:31 压测数据"}',
+          ],
+        },
+      }),
+      decideWrite: async () => true,
+      openContext: () => {},
+      editDraft: () => {},
+      fetchWhoami: async () => '单国鑫',
+    }
+    const text = await renderCard(baseProps({ ...injected }))
+    expect(text).toContain('w1') // writeId
+    expect(text).toContain('将以你本人（单国鑫）身份执行')
+    expect(text).toContain('关联引用')
+    expect(text).toContain('老黎 22:14 接口改造')
+    expect(text).toContain('王工 22:31 压测数据')
+  })
+
+  it('renders the cancelled terminal card', async () => {
+    const injected: WriteCardInjected = {
+      fetchWrite: async () => pendingRecord({ status: 'cancelled' }),
+      decideWrite: async () => true,
+      openContext: () => {},
+      editDraft: () => {},
+      fetchWhoami: async () => '',
+    }
+    const text = await renderCard(baseProps({ ...injected }))
+    expect(text).toContain('已取消')
+    expect(text).toContain('未产生任何写动作')
   })
 })
 

@@ -1,0 +1,218 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>原型 ① 核心闭环｜云之家 × dsh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.kimi.com/sdk-seed.js" defer=""></script></head>
+<body>
+
+<div class="page-head">
+  <h1>① 核心闭环｜拖消息起草 → 确认卡门控发送</h1>
+  <span class="journey">旅程 3 · v1.4</span>
+  <div class="legend">
+    ① 拖入消息 → 引用 chip（@yzj:msg 指针）　② 确认卡 = 全域写闸门（pre-execute ask）<br/>
+    ③ 查看上下文 → 悬浮窗锚点定位　④ 悬浮球未读角标（点击可收起/展开悬浮窗，确认卡按钮可点）
+  </div>
+</div>
+<div class="screen-tabs">
+  <a class="active" href="index.html">① 核心闭环</a>
+  <a href="overlay.html">② 悬浮窗 + @</a>
+  <a href="states.html">③ 状态机 × 三层通知</a>
+</div>
+
+<div class="window">
+  <!-- 侧栏 -->
+  <aside class="sidebar">
+    <div class="logo">dsh</div>
+    <div class="logo-sub">DeepSeek Harness</div>
+    <div class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      会话
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><path d="M6 9v3a3 3 0 0 0 3 3h6"></path></svg>
+      Trajectory
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 7h-4a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v0a2 2 0 0 0 2 2h4"></path><path d="M10 7V5a2 2 0 1 1 4 0v2"></path><path d="M17 7h1a2 2 0 0 1 2 2v1a2 2 0 0 0 2 2 2 2 0 0 0-2 2v1a2 2 0 0 1-2 2h-1"></path></svg>
+      插件 Store
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>
+      调度
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+      设置
+    </div>
+    <div class="user"><div class="avatar">舟</div>小舟</div>
+  </aside>
+
+  <!-- 主区 -->
+  <div class="main">
+    <div class="topbar">
+      <h2>云之家集成 · 方案讨论</h2>
+      <span class="model-pill">deepseek-chat ▾</span>
+    </div>
+
+    <div class="convo">
+      <div class="chips-label">引用 3 条云之家消息 · @yzj:msg 指针</div>
+      <div class="ref-chip">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        老黎 · 昨晚 22:14｜接口改造这版必须周五前定，性能方案还没影…
+      </div>
+      <div class="ref-chip">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        老黎 · 昨晚 22:16｜先发一版给大家拍砖，别等完美方案
+      </div>
+      <div class="ref-chip">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        王工 · 昨晚 22:31｜性能压测数据我明天上午给到
+      </div>
+      <div class="user-bubble">基于这几条起草个回复，发到需求群</div>
+
+      <div class="agent-row">
+        <div class="avatar dark">dsh</div>
+        <div style="flex:1">
+          <div class="agent-name">dsh agent · 刚刚</div>
+          <div class="agent-bubble">
+            起草好了，3 条引用已序列化并附出处：<br/>
+            「各位，接口改造方案今天收敛：① 性能部分由老黎牵头，周四 18:00 前出评审稿；② 王工明早提供压测数据；③ 周五前定稿。」
+            <div class="tool-hint">
+              <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>
+              调用 yzj_msg_send → 已被写门禁拦截，等待你确认
+            </div>
+          </div>
+
+          <!-- 确认卡：待确认 -->
+          <div class="confirm-card" id="confirmCard">
+            <div class="cc-head">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"></path></svg>
+              <span class="cc-title">确认发送 · 标准确认</span>
+              <span class="cc-id">yzj.write/req_8821</span>
+            </div>
+            <div class="cc-target">目标群：<strong style="color:var(--text)">需求评审</strong>（id: 8821） · 以<strong style="color:var(--text)">你本人（小舟）</strong>身份发送</div>
+            <div class="cc-msgbox">各位，接口改造方案今天收敛：① 性能部分由老黎牵头，周四 18:00 前出评审稿；② 王工明早提供压测数据；③ 周五前定稿。</div>
+            <div class="cc-refs">
+              关联引用：
+              <span class="mini-chip">老黎 22:14</span>
+              <span class="mini-chip">老黎 22:16</span>
+              <span class="mini-chip">王工 22:31</span>
+            </div>
+            <div class="cc-actions">
+              <button class="btn outline" onclick="openPanel()">查看上下文</button>
+              <button class="btn">编辑</button>
+              <button class="btn" onclick="resolveCard(&#39;cancel&#39;)">取消</button>
+              <button class="btn primary" onclick="resolveCard(&#39;done&#39;)">发送</button>
+            </div>
+          </div>
+
+          <!-- 终态：已完成 -->
+          <div class="terminal-card done" id="doneCard" style="display:none;max-width:760px;margin-top:16px">
+            <div class="t-head">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.2 14.5l-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4z"></path></svg>
+              已完成 · 已发送
+            </div>
+            <div class="t-body">已发送到「需求评审」· <a href="overlay.html">在云之家查看 →</a></div>
+            <div class="t-note">消息以你本人身份发出 · 终态带 deep link 跳回悬浮窗锚点</div>
+          </div>
+
+          <!-- 终态：已取消 -->
+          <div class="terminal-card cancel" id="cancelCard" style="display:none;max-width:760px;margin-top:16px">
+            <div class="t-head">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm5 13.6L13.6 12 17 8.6 15.4 7 12 10.4 8.6 7 7.2 8.6 10.4 12 7 15.4 8.6 17 12 13.6 15.4 17z"></path></svg>
+              已取消
+            </div>
+            <div class="t-body">未产生任何写动作 · 「编辑」可把草稿塞回 composer 修改后再发起</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- composer -->
+    <div class="composer">
+      <div class="chip-row">
+        <span class="ref-chip">老黎 · 接口改造这版必须周五前定…</span>
+        <span class="ref-chip">王工 · 压测数据明早给到</span>
+      </div>
+      <div class="composer-input-row">
+        <input placeholder="输入消息… 支持 @ 同事 / 群 / 文档，也可从悬浮窗拖入消息"/>
+        <button class="send-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"></path></svg></button>
+      </div>
+    </div>
+
+    <!-- 悬浮球 -->
+    <button class="float-ball" onclick="togglePanel()" title="云之家悬浮窗">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 9h8M8 13h5" stroke="#2E6FF2" stroke-width="1.6" fill="none"></path></svg>
+      <span class="badge">5</span>
+    </button>
+
+    <!-- 悬浮窗面板（默认收起，点悬浮球或「查看上下文」展开） -->
+    <div class="float-panel" id="floatPanel" style="display:none">
+      <div class="panel-tabs">
+        <button class="ptab active">消息 <span class="badge">5</span></button>
+        <button class="ptab">知识库</button>
+        <div class="picons">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"></path></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" onclick="togglePanel()"><path d="M5 12h14"></path></svg>
+        </div>
+      </div>
+      <div class="group-chips">
+        <button class="gchip active">需求评审 5</button>
+        <button class="gchip">产品讨论</button>
+        <button class="gchip">全员通知</button>
+      </div>
+      <div class="anchor-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="7"></circle><circle cx="12" cy="12" r="2" fill="currentColor"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg>
+        已定位到引用的 3 条消息（来自确认卡「查看上下文」）
+      </div>
+      <div class="msg-list">
+        <div class="msg anchored">
+          <span class="grip"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"></circle><circle cx="7" cy="3" r="1.4"></circle><circle cx="3" cy="8" r="1.4"></circle><circle cx="7" cy="8" r="1.4"></circle><circle cx="3" cy="13" r="1.4"></circle><circle cx="7" cy="13" r="1.4"></circle></svg></span>
+          <div class="avatar green">黎</div>
+          <div><div class="msg-meta">老黎 · 昨晚 22:14</div><div class="msg-text">接口改造这版必须周五前定，性能方案还没影，大家先对一下口径。</div></div>
+          <span class="anchor-tag">锚点</span>
+        </div>
+        <div class="msg anchored">
+          <span class="grip"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"></circle><circle cx="7" cy="3" r="1.4"></circle><circle cx="3" cy="8" r="1.4"></circle><circle cx="7" cy="8" r="1.4"></circle><circle cx="3" cy="13" r="1.4"></circle><circle cx="7" cy="13" r="1.4"></circle></svg></span>
+          <div class="avatar green">黎</div>
+          <div><div class="msg-meta">老黎 · 昨晚 22:16</div><div class="msg-text">先发一版给大家拍砖，别等完美方案。</div></div>
+        </div>
+        <div class="msg anchored">
+          <span class="grip"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"></circle><circle cx="7" cy="3" r="1.4"></circle><circle cx="3" cy="8" r="1.4"></circle><circle cx="7" cy="8" r="1.4"></circle><circle cx="3" cy="13" r="1.4"></circle><circle cx="7" cy="13" r="1.4"></circle></svg></span>
+          <div class="avatar gold">王</div>
+          <div><div class="msg-meta">王工 · 昨晚 22:31</div><div class="msg-text">性能压测数据我明天上午给到，含 p99 延迟。</div></div>
+        </div>
+        <div class="msg">
+          <span class="grip"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"></circle><circle cx="7" cy="3" r="1.4"></circle><circle cx="3" cy="8" r="1.4"></circle><circle cx="7" cy="8" r="1.4"></circle><circle cx="3" cy="13" r="1.4"></circle><circle cx="7" cy="13" r="1.4"></circle></svg></span>
+          <div class="avatar">舟</div>
+          <div><div class="msg-meta">小舟（我） · 08:57</div><div class="msg-text">收到，今天收敛方案。</div></div>
+        </div>
+        <div class="msg">
+          <span class="grip"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"></circle><circle cx="7" cy="3" r="1.4"></circle><circle cx="3" cy="8" r="1.4"></circle><circle cx="7" cy="8" r="1.4"></circle><circle cx="3" cy="13" r="1.4"></circle><circle cx="7" cy="13" r="1.4"></circle></svg></span>
+          <div class="avatar green">黎</div>
+          <div><div class="msg-meta">老黎 · 09:12</div><div class="msg-text"><span class="at-me">@小舟</span> DDL 提前到周四，辛苦</div></div>
+        </div>
+      </div>
+      <div class="panel-toast">已跳转到锚点 · yzjPanel.open(8821, msg_2214)</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePanel(){
+  var p = document.getElementById('floatPanel');
+  p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+}
+function openPanel(){
+  document.getElementById('floatPanel').style.display = 'flex';
+}
+function resolveCard(state){
+  document.getElementById('confirmCard').style.display = 'none';
+  if(state === 'done'){ document.getElementById('doneCard').style.display = 'block'; }
+  if(state === 'cancel'){ document.getElementById('cancelCard').style.display = 'block'; }
+}
+</script>
+
+
+</body></html>

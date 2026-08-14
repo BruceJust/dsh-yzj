@@ -14,7 +14,7 @@
 
 - **找群**：`yzj_im_group_recent`（翻页定位，无搜索）。
 - **看消息**：`yzj_im_message_list`（`type: newest/old/new` + `msgId` 锚点分页）。
-- **发消息**：`yzj_im_message_send`——先确认目标（群或单聊）、`@` 提及用 `atOpenIds` 且与正文一一对应、`@all` 仅当用户明确要求；确认卡会展示目标与全文，用户放行后才发出。
+- **发消息**：`yzj_im_message_send`——先确认目标（群或单聊）、`@` 提及用 `atOpenIds` 且与正文一一对应、`@all` 仅当用户明确要求；**若消息基于拖入/@ 选择的云之家引用起草，把引用 token 原样传入 `refs` 参数**（确认卡会以「关联引用」chips 展示，方便核对出处）；确认卡会展示目标与全文，用户放行后才发出。
 - **知识库问答**：`yzj_doc_workspace_list` → `yzj_doc_list` → `yzj_doc_get` / `yzj_doc_block_list`；引用文档时说明出处。
 - **写文档**：`yzj_doc_create`（标题勿在正文重复一级标题）→ `yzj_doc_block_insert`；更新用 `yzj_doc_block_update`（blockId 必须来自 `yzj_doc_block_list`）。
 - **多维表格**：先 `yzj_sheet_get` 拿真实 `tableId` 与字段名，再 `yzj_sheet_record_list/create/update/delete`；字段值类型遵循 schema。

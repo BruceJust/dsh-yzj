@@ -11,6 +11,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { YzjWriteRecord } from '../write-gate.ts'
 import { YzjToolCard } from './cards.tsx'
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/src/client/contract/slots.ts'
+import { decodeRef } from './input-source.ts'
 import css from './cards.module.css'
 
 /**
@@ -41,6 +42,8 @@ export interface WriteCardInjected {
   openContext: (record: YzjWriteRecord) => void
   /** Push a draft text back into the composer for editing. */
   editDraft: (text: string) => void
+  /** The logged-in user's display name, for the 以本人身份 line. */
+  fetchWhoami: () => Promise<string>
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -165,15 +168,30 @@ function ArgBody({ record }: { record: YzjWriteRecord }): ReactNode {
   return <div className={css.rows}>{rows}</div>
 }
 
+/** Mini-chip labels for referenced refs (decode yzj:... tokens → titles). */
+function refChips(refs: unknown): ReactNode[] {
+  const out: ReactNode[] = []
+  const list = asArray(refs)
+  for (let index = 0; index < list.length; index += 1) {
+    const raw = asString(list[index])
+    if (raw === '') continue
+    const parsed = decodeRef(raw)
+    out.push(<span className={css.miniChip} key={`r${index}`}>{parsed?.title ?? raw.slice(0, 24)}</span>)
+  }
+  return out
+}
+
 /**
  * The gated confirmation card. Pending/approved records render the decision
- * surface; everything else (ungated, cancelled, done, failed) delegates to
- * the ordinary tool card so the durable result stays the terminal display.
+ * surface; cancelled renders the terminal 已取消 card; done/failed and
+ * ungated calls delegate to the ordinary tool card so the durable result
+ * stays the terminal display.
  */
 export function YzjWriteToolCard(props: ToolCallViewProps & WriteCardInjected) {
   const { toolName, callId } = props
   const [record, setRecord] = useState<YzjWriteRecord | undefined>(undefined)
   const [ready, setReady] = useState(false)
+  const [meName, setMeName] = useState('')
 
   useEffect(() => {
     let live = true
@@ -181,11 +199,12 @@ export function YzjWriteToolCard(props: ToolCallViewProps & WriteCardInjected) {
     props.fetchWrite(callId)
       .then((found) => { if (live) { setRecord(found); setReady(true) } })
       .catch(() => { if (live) setReady(true) })
+    void props.fetchWhoami().then((name) => { if (live && name !== '') setMeName(name) }).catch(() => {})
     return () => { live = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [callId])
 
-  if (!ready || record === undefined || (record.status !== 'pending' && record.status !== 'approved')) {
+  if (!ready || record === undefined || record.status === 'done' || record.status === 'failed') {
     return <YzjToolCard {...props} />
   }
 
@@ -193,10 +212,25 @@ export function YzjWriteToolCard(props: ToolCallViewProps & WriteCardInjected) {
   const settled = record.status === 'approved'
   const title = WRITE_TITLES[toolName] ?? `云之家 · ${DOMAIN_LABELS[record.domain] ?? '写操作'}`
   const draft = writableDraft(record)
+  const refs = refChips(asRecord(record.args).refs)
   const decide = (outcome: 'allowed-once' | 'rejected', next: YzjWriteRecord['status']): void => {
     void props.decideWrite(record.writeId, outcome).then((ok) => {
       if (ok) setRecord({ ...record, status: next })
     })
+  }
+
+  // Cancelled terminal: a distinct pale card instead of the raw rejection
+  // result (prototype states.html 已取消).
+  if (record.status === 'cancelled') {
+    return (
+      <div className={`${css.card} ${css.terminalCancel}`} role="status">
+        <div className={css.header}>
+          <span className={css.icon}>✕</span>
+          <span className={css.title}>{title} · 已取消</span>
+        </div>
+        <div className={css.text}>未产生任何写动作；「编辑」可把草稿塞回 composer 修改后再发起。</div>
+      </div>
+    )
   }
 
   return (
@@ -204,17 +238,31 @@ export function YzjWriteToolCard(props: ToolCallViewProps & WriteCardInjected) {
       <div className={css.header}>
         <span className={css.icon}>☁</span>
         <span className={css.title}>{title}</span>
-        <span className={strong ? `${css.tag} ${css.tagStrong}` : css.tag}>
-          {strong ? '强确认' : '需确认'}
-        </span>
+        {settled ? (
+          <span className={css.tag}>执行中</span>
+        ) : (
+          <span className={strong ? `${css.tag} ${css.tagStrong}` : css.tag}>
+            {strong ? '强确认' : '需确认'}
+          </span>
+        )}
+        <span className={css.writeId}>{record.writeId}</span>
       </div>
-      <ArgBody record={record} />
+      <div className={css.ccTarget}>
+        <ArgBody record={record} />
+        {meName !== '' && (
+          <div className={css.ccIdentity}>将以你本人（{meName}）身份执行</div>
+        )}
+      </div>
+      {refs.length > 0 && (
+        <div className={css.ccRefs}>
+          <span className={css.ccRefsLabel}>关联引用</span>
+          {refs}
+        </div>
+      )}
       {settled ? (
         <div className={css.text}>已批准，正在执行…</div>
       ) : (
         <div className={css.actions}>
-          <button type="button" className={css.actionPrimary} onClick={() => decide('allowed-once', 'approved')}>确认</button>
-          <button type="button" className={css.action} onClick={() => decide('rejected', 'cancelled')}>取消</button>
           <button type="button" className={css.action} onClick={() => props.openContext(record)}>查看上下文</button>
           {draft !== '' && (
             <button type="button" className={css.action} onClick={() => {
@@ -222,6 +270,8 @@ export function YzjWriteToolCard(props: ToolCallViewProps & WriteCardInjected) {
               decide('rejected', 'cancelled')
             }}>编辑</button>
           )}
+          <button type="button" className={css.action} onClick={() => decide('rejected', 'cancelled')}>取消</button>
+          <button type="button" className={css.actionPrimary} onClick={() => decide('allowed-once', 'approved')}>确认</button>
         </div>
       )}
     </div>

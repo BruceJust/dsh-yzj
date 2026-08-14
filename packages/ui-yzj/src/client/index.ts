@@ -14,7 +14,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { YzjToolCard, YZJ_TOOL_NAMES } from './cards.tsx'
 import { YzjComposerDock, dragInsertRequest, type YzjDropInjected } from './composer.tsx'
 import { applyYzjAtSource } from './input-source.ts'
-import { YzjPanel, YzjPanelButton } from './panel.tsx'
+import { YzjPanel, YzjPanelButton, YzjFloatBall } from './panel.tsx'
 import { createYzjStore } from './stores.ts'
 import { createYzjPanelInject } from './rpc.ts'
 import {
@@ -104,6 +104,13 @@ export function apply(ctx: ClientContext): void {
     YzjPanel,
   ))
 
+  // Floating ball entry (prototype): shares the panel store; hidden while
+  // the panel is open. Lower order so the panel entry wins the stack.
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register(
+    { name: 'shell.overlay', id: 'yzj-ball', order: 90, store },
+    YzjFloatBall,
+  ))
+
   ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register(
     {
       name: 'conversation.composer.dock',
@@ -175,6 +182,12 @@ export function apply(ctx: ClientContext): void {
             openContext: openWriteContextFor,
             editDraft: (text): void => {
               if (actx !== undefined) insertDraftText(actx, text)
+            },
+            fetchWhoami: async (): Promise<string> => {
+              const result = await panelInject.fetchWhoami()
+              if (!result.ok) return ''
+              const users = asArray(result.value)
+              return asString(asRecord(users[0] ?? {}).name)
             },
           }
         },

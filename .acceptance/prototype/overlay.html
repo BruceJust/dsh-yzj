@@ -1,0 +1,210 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>原型 ② 悬浮窗 + @｜云之家 × dsh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.kimi.com/sdk-seed.js" defer=""></script></head>
+<body>
+
+<div class="page-head">
+  <h1>② 悬浮窗｜消息 + 知识库双 Tab · @ 拉上下文</h1>
+  <span class="journey">旅程 1 / 5</span>
+  <div class="legend">
+    ① 双 Tab 面板（注册进 shell.overlay，可切换）　② 锚点消息高亮（yzjPanel.open 定位）<br/>
+    ③ 拖拽手柄 → 拖进 composer 变 chip　④ @ 三组候选：同事 / 群 / 文档（在输入框输入 @ 试试）
+  </div>
+</div>
+<div class="screen-tabs">
+  <a href="index.html">① 核心闭环</a>
+  <a class="active" href="overlay.html">② 悬浮窗 + @</a>
+  <a href="states.html">③ 状态机 × 三层通知</a>
+</div>
+
+<div class="window">
+  <aside class="sidebar">
+    <div class="logo">dsh</div>
+    <div class="logo-sub">DeepSeek Harness</div>
+    <div class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      会话
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><path d="M6 9v3a3 3 0 0 0 3 3h6"></path></svg>
+      Trajectory
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 7h-4a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v0a2 2 0 0 0 2 2h4"></path><path d="M10 7V5a2 2 0 1 1 4 0v2"></path><path d="M17 7h1a2 2 0 0 1 2 2v1a2 2 0 0 0 2 2 2 2 0 0 0-2 2v1a2 2 0 0 1-2 2h-1"></path></svg>
+      插件 Store
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>
+      调度
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path></svg>
+      设置
+    </div>
+    <div class="user"><div class="avatar">舟</div>小舟</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h2>云之家集成 · 方案讨论</h2>
+      <span class="model-pill">deepseek-chat ▾</span>
+    </div>
+
+    <div class="convo" style="background:rgba(29,33,41,.18)"></div>
+
+    <!-- @ 菜单 -->
+    <div class="at-menu" id="atMenu">
+      <div class="at-title">@ 提及 · 注入云之家上下文</div>
+      <div class="at-group">同事</div>
+      <div class="at-item" onclick="pickAt(&#39;@老黎&#39;)">
+        <div class="avatar green" style="width:28px;height:28px;font-size:12px">黎</div>
+        <div><div class="at-name">老黎</div><div class="at-sub">产品经理 · 注入你们共群中的近期发言</div></div>
+      </div>
+      <div class="at-item" onclick="pickAt(&#39;@王工&#39;)">
+        <div class="avatar gold" style="width:28px;height:28px;font-size:12px">王</div>
+        <div><div class="at-name">王工</div><div class="at-sub">后端 · 仅你有权查看的范围，UI 明示</div></div>
+      </div>
+      <div class="at-group">群</div>
+      <div class="at-item" onclick="pickAt(&#39;@需求评审&#39;)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4zM8 11a4 4 0 1 0-.4-7.98A5.98 5.98 0 0 1 9 7a6 6 0 0 1-1 4zM2 21a6 6 0 0 1 12 0zM14 15.2A7.96 7.96 0 0 0 16.5 15c3 0 5.5 2.5 5.5 5h-6a8 8 0 0 0-2-4.8z"></path></svg>
+        <div><div class="at-name">需求评审</div><div class="at-sub">id: 8821 · 选中注入该群最近消息</div></div>
+      </div>
+      <div class="at-item" onclick="pickAt(&#39;@产品讨论&#39;)">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--sub)"><path d="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4zM8 11a4 4 0 1 0-.4-7.98A5.98 5.98 0 0 1 9 7a6 6 0 0 1-1 4zM2 21a6 6 0 0 1 12 0z"></path></svg>
+        <div><div class="at-name">产品讨论</div><div class="at-sub">id: 7315</div></div>
+      </div>
+      <div class="at-group">文档</div>
+      <div class="at-item" onclick="pickAt(&#39;@《接口规范 v2》&#39;)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5zM8 12h8v1.6H8zM8 16h8v1.6H8z"></path></svg>
+        <div><div class="at-name">《接口规范 v2》</div><div class="at-sub">知识库 / 研发 · 选中注入文档正文</div></div>
+      </div>
+    </div>
+
+    <!-- composer -->
+    <div class="composer">
+      <div class="chip-row" id="chipRow">
+        <span class="ref-chip">@老黎</span>
+      </div>
+      <div class="composer-input-row">
+        <input id="composerInput" placeholder="输入 @ 呼出候选菜单" value="｜同步一下今天讨论的结论"/>
+        <button class="send-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"></path></svg></button>
+      </div>
+    </div>
+
+    <!-- 悬浮窗面板：常开展示 -->
+    <div class="float-panel" id="floatPanel" style="display:flex">
+      <div class="panel-tabs">
+        <button class="ptab active" id="tabMsg" onclick="switchTab(&#39;msg&#39;)">消息 <span class="badge">5</span></button>
+        <button class="ptab" id="tabKb" onclick="switchTab(&#39;kb&#39;)">知识库</button>
+        <div class="picons">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"></path></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"></path></svg>
+        </div>
+      </div>
+
+      <!-- 消息 tab -->
+      <div id="paneMsg" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+        <div class="group-chips">
+          <button class="gchip active">需求评审 5</button>
+          <button class="gchip">产品讨论</button>
+          <button class="gchip">全员通知</button>
+        </div>
+        <div class="anchor-hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="7"></circle><circle cx="12" cy="12" r="2" fill="currentColor"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg>
+          已定位到引用的 3 条消息（来自确认卡「查看上下文」）
+        </div>
+        <div class="msg-list">
+          <div class="msg anchored" draggable="true">
+            <span class="grip"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"></circle><circle cx="7" cy="3" r="1.4"></circle><circle cx="3" cy="8" r="1.4"></circle><circle cx="7" cy="8" r="1.4"></circle><circle cx="3" cy="13" r="1.4"></circle><circle cx="7" cy="13" r="1.4"></circle></svg></span>
+            <div class="avatar green">黎</div>
+            <div><div class="msg-meta">老黎 · 昨晚 22:14</div><div class="msg-text">接口改造这版必须周五前定，性能方案还没影，大家先对一下口径。</div></div>
+            <span class="anchor-tag">锚点</span>
+          </div>
+          <div class="msg anchored" draggable="true">
+            <span class="grip"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"></circle><circle cx="7" cy="3" r="1.4"></circle><circle cx="3" cy="8" r="1.4"></circle><circle cx="7" cy="8" r="1.4"></circle><circle cx="3" cy="13" r="1.4"></circle><circle cx="7" cy="13" r="1.4"></circle></svg></span>
+            <div class="avatar green">黎</div>
+            <div><div class="msg-meta">老黎 · 昨晚 22:16</div><div class="msg-text">先发一版给大家拍砖，别等完美方案。</div></div>
+          </div>
+          <div class="msg anchored" draggable="true">
+            <span class="grip"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"></circle><circle cx="7" cy="3" r="1.4"></circle><circle cx="3" cy="8" r="1.4"></circle><circle cx="7" cy="8" r="1.4"></circle><circle cx="3" cy="13" r="1.4"></circle><circle cx="7" cy="13" r="1.4"></circle></svg></span>
+            <div class="avatar gold">王</div>
+            <div><div class="msg-meta">王工 · 昨晚 22:31</div><div class="msg-text">性能压测数据我明天上午给到，含 p99 延迟。</div></div>
+          </div>
+          <div class="msg" draggable="true">
+            <span class="grip"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"></circle><circle cx="7" cy="3" r="1.4"></circle><circle cx="3" cy="8" r="1.4"></circle><circle cx="7" cy="8" r="1.4"></circle><circle cx="3" cy="13" r="1.4"></circle><circle cx="7" cy="13" r="1.4"></circle></svg></span>
+            <div class="avatar">舟</div>
+            <div><div class="msg-meta">小舟（我） · 08:57</div><div class="msg-text">收到，今天收敛方案。</div></div>
+          </div>
+          <div class="msg" draggable="true">
+            <span class="grip"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"></circle><circle cx="7" cy="3" r="1.4"></circle><circle cx="3" cy="8" r="1.4"></circle><circle cx="7" cy="8" r="1.4"></circle><circle cx="3" cy="13" r="1.4"></circle><circle cx="7" cy="13" r="1.4"></circle></svg></span>
+            <div class="avatar green">黎</div>
+            <div><div class="msg-meta">老黎 · 09:12</div><div class="msg-text"><span class="at-me">@小舟</span> DDL 提前到周四，辛苦</div></div>
+          </div>
+        </div>
+        <div class="panel-toast">已跳转到锚点 · yzjPanel.open(8821, msg_2214)</div>
+      </div>
+
+      <!-- 知识库 tab -->
+      <div id="paneKb" style="display:none;flex-direction:column;flex:1;overflow:auto">
+        <div class="kb-tree">
+          <div class="kb-node">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 4v10h16V8z"></path></svg>
+            团队知识库 <span class="kb-sub">enterprise</span>
+          </div>
+          <div class="kb-node indent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+            需求评审
+          </div>
+          <div class="kb-node indent hl" style="margin-left:44px">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5z"></path></svg>
+            接口改造争议与结论 <span class="kb-sub">刚刚创建</span>
+          </div>
+          <div class="kb-node indent" style="margin-left:44px">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5z"></path></svg>
+            接口规范 v2
+          </div>
+          <div class="kb-node indent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+            研发规范
+          </div>
+          <div class="kb-node">
+            <svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--sub)"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 4v10h16V8z"></path></svg>
+            个人空间 <span class="kb-sub">personal</span>
+          </div>
+        </div>
+        <div style="margin:8px 18px 16px;background:#F5F7FA;border-radius:10px;padding:12px 16px;font-size:11px;color:var(--sub);line-height:1.7">
+          <strong style="color:var(--text)">《接口改造争议与结论》预览</strong><br/>
+          落位：团队知识库 / 需求评审 · 确认卡「查看上下文」按 domain 落到本 tab 预览落位。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(t){
+  var msg = document.getElementById('paneMsg'), kb = document.getElementById('paneKb');
+  var tm = document.getElementById('tabMsg'), tk = document.getElementById('tabKb');
+  if(t === 'msg'){ msg.style.display='flex'; kb.style.display='none'; tm.classList.add('active'); tk.classList.remove('active'); }
+  else{ msg.style.display='none'; kb.style.display='flex'; tk.classList.add('active'); tm.classList.remove('active'); }
+}
+function pickAt(label){
+  var row = document.getElementById('chipRow');
+  var chip = document.createElement('span');
+  chip.className = 'ref-chip';
+  chip.textContent = label;
+  row.appendChild(chip);
+  document.getElementById('atMenu').style.display = 'none';
+  document.getElementById('composerInput').value = '';
+  document.getElementById('composerInput').focus();
+}
+document.getElementById('composerInput').addEventListener('input', function(e){
+  document.getElementById('atMenu').style.display = e.target.value.indexOf('@') > -1 ? 'block' : 'none';
+});
+</script>
+
+
+</body></html>
