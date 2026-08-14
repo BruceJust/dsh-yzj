@@ -515,11 +515,17 @@
 
 /* ── Floating ball (prototype) ───────────────────────────────────────── */
 
-.floatBall {
+/* Fixed anchor for ball + hover quick-dock; both stay inside this subtree
+   so mouseleave never fires while moving between them. */
+.floatWrap {
   position: fixed;
   right: 26px;
   bottom: 26px;
   z-index: 90;
+}
+
+.floatBall {
+  position: relative;
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -553,6 +559,76 @@
   font-size: 11px;
   font-weight: 700;
   line-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Hover quick-dock: one shortcut per panel tab, stacked above the ball. */
+.floatDock {
+  position: absolute;
+  right: 0;
+  bottom: 62px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition: opacity 120ms var(--ds-ease-in-out, ease), transform 120ms var(--ds-ease-in-out, ease), visibility 120ms;
+}
+
+.floatDockOpen {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+.floatDockItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 92px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  transition: background-color 120ms var(--ds-ease-in-out, ease), color 120ms var(--ds-ease-in-out, ease);
+}
+
+.floatDockItem:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.floatDockLabel {
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.floatDockBadge {
+  position: absolute;
+  top: 2px;
+  left: 26px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  border: 1px solid var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-static-red-500);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;

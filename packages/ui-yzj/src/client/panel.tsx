@@ -193,32 +193,97 @@ export function YzjPanelButton(props: YzjPanelButtonProps) {  const open = props
   )
 }
 
+/** Shortcut order for the floating ball's hover quick-dock. */
+const DOCK_ITEMS: { key: YzjTab; label: string; icon: () => ReactNode }[] = [
+  { key: 'chat', label: '会话', icon: () => <IconNewChatOutline16 /> },
+  { key: 'calendar', label: '日程', icon: () => <IconChecklistOutline14 /> },
+  { key: 'docs', label: '知识库', icon: () => <IconFolderOpenOutline16 /> },
+  { key: 'me', label: '我的', icon: () => <IconUserOutline16 /> },
+]
+
 /** The floating ball (prototype): bottom-right round button with the unread
- *  badge; hidden while the panel is open. Registered in shell.overlay. */
+ *  badge; hidden while the panel is open. Hovering expands a quick-dock with
+ *  one shortcut per panel tab (会话 carries the unread count). Registered in
+ *  shell.overlay. */
 export interface YzjFloatBallProps {
   useStore: <R>(selector: (state: YzjPanelState) => R) => R
   actions: BakedActions<YzjPanelState, YzjPanelActions>
+  /** Fresh recent-session window for the unread badge poll. */
+  fetchGroups: (limit?: number, page?: number) => Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }>
 }
 
 export function YzjFloatBall(props: YzjFloatBallProps) {
   const open = props.useStore(state => state.open)
   const unreadTotal = props.useStore(state => state.unreadTotal)
+  const [hover, setHover] = useState(false)
+
+  // The unread poll used to live on the sidebar button; the ball is now the
+  // only entry, so it owns the poll. ~60s cadence; an increase raises the
+  // badge and fires one browser notification (design §5.3 layer 3).
+  useEffect(() => {
+    let last = unreadTotal
+    const poll = (): void => {
+      void props.fetchGroups(20).then((result) => {
+        if (!result.ok) return
+        const total = unreadTotalOf(result.value)
+        props.actions.setUnreadTotal(total)
+        if (total > last && total > 0) notifyUnread(total, () => props.actions.setOpen(true))
+        last = total
+      })
+    }
+    poll()
+    const interval = window.setInterval(poll, 60_000)
+    return () => window.clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   if (open) return null
+  const openTab = (tab: YzjTab): void => {
+    props.actions.setTab(tab)
+    props.actions.setOpen(true)
+  }
   return (
-    <button
-      type="button"
-      className={css.floatBall}
-      aria-label="云之家悬浮窗"
-      title="云之家"
-      onClick={() => { props.actions.setOpen(true) }}
-    >
-      <YzjCloudIcon size={22} />
-      {unreadTotal > 0 && (
-        <span className={css.floatBallBadge} title={`${unreadTotal} 条未读`}>
-          {unreadTotal > 99 ? '99+' : unreadTotal}
-        </span>
-      )}
-    </button>
+    <div className={css.floatWrap} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      <div
+        className={hover ? `${css.floatDock} ${css.floatDockOpen}` : css.floatDock}
+        role="group"
+        aria-label="云之家快捷入口"
+      >
+        {DOCK_ITEMS.map(item => (
+          <button
+            key={item.key}
+            type="button"
+            className={css.floatDockItem}
+            title={`${item.label}${item.key === 'chat' && unreadTotal > 0 ? ` · ${unreadTotal} 条未读` : ''}`}
+            aria-label={item.label}
+            onClick={() => openTab(item.key)}
+          >
+            {item.icon()}
+            <span className={css.floatDockLabel}>{item.label}</span>
+            {item.key === 'chat' && unreadTotal > 0 && (
+              <span className={css.floatDockBadge}>{unreadTotal > 99 ? '99+' : unreadTotal}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        className={css.floatBall}
+        aria-label="云之家悬浮窗"
+        title={unreadTotal > 0 ? `云之家 · ${unreadTotal} 条未读` : '云之家'}
+        onClick={() => {
+          requestNotificationPermission()
+          props.actions.setOpen(true)
+        }}
+      >
+        <YzjCloudIcon size={22} />
+        {unreadTotal > 0 && (
+          <span className={css.floatBallBadge} title={`${unreadTotal} 条未读`}>
+            {unreadTotal > 99 ? '99+' : unreadTotal}
+          </span>
+        )}
+      </button>
+    </div>
   )
 }
 

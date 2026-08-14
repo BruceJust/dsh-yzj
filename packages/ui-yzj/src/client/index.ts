@@ -91,10 +91,18 @@ export function apply(ctx: ClientContext): void {
   ))
 
   // Floating ball entry: the ONLY panel entry (no sidebar button). Shares the
-  // panel store; hidden while the panel is open. Lower order so the panel
-  // entry wins the stack.
+  // panel store; hidden while the panel is open; hover shows a quick-dock of
+  // tab shortcuts. Lower order so the panel entry wins the stack.
   ctx.slots.inject('shell.overlay', () => ctx.slots.register(
-    { name: 'shell.overlay', id: 'yzj-ball', order: 90, store },
+    {
+      name: 'shell.overlay',
+      id: 'yzj-ball',
+      order: 90,
+      store,
+      inject: () => ({
+        fetchGroups: (limit, page) => panelInject.fetchGroups(limit, page),
+      }),
+    },
     YzjFloatBall,
   ))
 
