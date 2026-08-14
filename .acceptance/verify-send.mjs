@@ -9,7 +9,8 @@ import { chromium } from 'playwright'
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 
-const GROUP_ID = '6a605c7ce4b0772a6279295e' // 830 项目【登顶计划】(test messages are expected here)
+const GROUP_ID = '6a7f37b4e4b0e6211b1c5b87' // dsh测试 (user's designated test group)
+const GROUP_NAME = 'dsh测试'
 const MARK = `【面板发消息测试】${Date.now()}`
 
 const CHROME = [
@@ -37,7 +38,7 @@ await dialog.locator('nav button').filter({ hasText: '会话' }).first().click()
 await page.waitForTimeout(3000)
 
 // ---- 1. open the test group ----
-await dialog.locator('button[class*="item"]').filter({ hasText: '830 项目' }).first().click()
+await dialog.locator('button[class*="item"]').filter({ hasText: GROUP_NAME }).first().click()
 await page.waitForTimeout(3500)
 
 // ---- 2. composer present; empty draft disables send ----

@@ -663,6 +663,24 @@
   border-radius: 999px;
 }
 
+/* Transient "已插入到输入框" confirmation after a panel-wide drop. */
+.dropToast {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 210;
+  background: var(--dsw-static-neutral-bluish-850);
+  color: var(--dsw-alias-label-primary-foreground);
+  font-size: 12px;
+  line-height: 18px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
+  white-space: nowrap;
+  animation: bandIn 150ms var(--ds-ease-out, ease-out);
+}
+
 /* ── Complete IM: avatars, senders, media, link cards ────────────────── */
 
 /* Group avatar image (32px block, first-letter fallback). */

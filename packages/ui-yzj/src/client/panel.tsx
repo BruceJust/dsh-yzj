@@ -20,6 +20,7 @@ import {
   ensureMyProfile, formatListTime, formatMsgTime, formatSize, getGroupWindow,
   getMessageWindow, putGroupWindow, putMessageWindow, resolveFileData, resolveSenders, senderNameOf,
 } from './im-cache.ts'
+import { emitYzjDropRequest } from './drop-bus.ts'
 import css from './panel.module.css'
 
 /** The props shares the panel reads. */
@@ -615,7 +616,39 @@ export function YzjPanel(props: YzjPanelProps) {
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [dropToast, setDropToast] = useState('')
+  const dropToastTimer = useRef<number | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+
+  // Transient confirmation that a panel drop reached the composer.
+  const showDropToast = (title: string): void => {
+    setDropToast(`已插入「${title.length > 14 ? `${title.slice(0, 14)}…` : title}」到输入框`)
+    if (dropToastTimer.current !== null) window.clearTimeout(dropToastTimer.current)
+    dropToastTimer.current = window.setTimeout(() => setDropToast(''), 2600)
+  }
+
+  // Panel-wide drop target: a yzj drag dropped ANYWHERE on the panel mints
+  // a reference chip in the composer (via the drop bus) — no need to aim at
+  // the thin band outside.
+  const onPanelDragOver = (event: React.DragEvent): void => {
+    if (event.dataTransfer.types.includes(YZJ_DRAG_MIME)) event.preventDefault()
+  }
+  const onPanelDrop = (event: React.DragEvent): void => {
+    if (!event.dataTransfer.types.includes(YZJ_DRAG_MIME)) return
+    const raw = event.dataTransfer.getData(YZJ_DRAG_MIME)
+    if (raw === '') return
+    let ref: YzjDragRef | undefined
+    try {
+      const parsed = JSON.parse(raw) as YzjDragRef
+      if (typeof parsed.kind === 'string' && typeof parsed.title === 'string') ref = parsed
+    } catch {
+      ref = undefined
+    }
+    if (ref === undefined) return
+    event.preventDefault()
+    emitYzjDropRequest(ref)
+    showDropToast(ref.title)
+  }
 
   // Keep the newest messages in view: bottom on group open and after sends,
   // unless an anchor jump is active.
@@ -837,7 +870,15 @@ export function YzjPanel(props: YzjPanelProps) {
   }
 
   return (
-    <div ref={panelRef} className={css.panel} role="dialog" aria-label="云之家" style={dockStyle}>
+    <div
+      ref={panelRef}
+      className={css.panel}
+      role="dialog"
+      aria-label="云之家"
+      style={dockStyle}
+      onDragOver={onPanelDragOver}
+      onDrop={onPanelDrop}
+    >
       <header className={css.header} onPointerDown={startDrag}>
         <span className={css.brand}><YzjCloudIcon size={18} /></span>
         <span className={css.title}>云之家</span>
@@ -1195,6 +1236,9 @@ export function YzjPanel(props: YzjPanelProps) {
             })}
           </div>
         </div>
+      )}
+      {dropToast !== '' && (
+        <div className={css.dropToast} role="status">{dropToast}</div>
       )}
       {lightbox !== null && (
         <div

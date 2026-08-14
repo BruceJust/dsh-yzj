@@ -1,15 +1,15 @@
 /**
  * Composer-side Yunzhijia seats:
  * - `conversation.input.dock`: the drop band above the composer card.
- *   Dragging a workspace/doc/group/event/contact/message from the panel
- *   inserts a reference CHIP (not plain text) into the draft via the scoped
- *   insert-reference event; the chip carries context through the source
- *   codec on send. Registered here (not `conversation.composer.dock`) so the
- *   drop target exists in the hero phase too — a brand-new session otherwise
- *   has nowhere to drop.
- *   The band is invisible at rest: a window-level dragenter with the yzj
- *   drag mime makes it appear, so the composer stays clean until a real
- *   drag is in flight (no persistent "拖到这里" hint strip).
+ *   Dragging a workspace/doc/group/event/contact/message inserts a reference
+ *   CHIP (not plain text) into the draft via the scoped insert-reference
+ *   event — exactly what an '@' pick produces. Drops can land either on this
+ *   band or ANYWHERE on the yzj panel itself (the panel emits through the
+ *   drop bus; this dock owns the scoped insert verb and mints the chip).
+ *   Registered here (not `conversation.composer.dock`) so the drop target
+ *   exists in the hero phase too — a brand-new session otherwise has nowhere
+ *   to drop. The band is invisible at rest and appears only while a yzj drag
+ *   is in flight.
  * - The '@' menu itself is provided by input-source.ts (the trigger
  *   pipeline); this package registers no tool-row button.
  */
@@ -18,9 +18,10 @@ import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { InsertReferenceRequest } from '@deepseek-ai/dsh-client-ui-input-trigger/src/types.ts'
 import { YZJ_DRAG_MIME, YzjCloudIcon, type YzjDragRef } from './panel.tsx'
 import { SOURCE_NAME, encodeRef } from './input-source.ts'
+import { onYzjDropRequest } from './drop-bus.ts'
 import css from './composer.module.css'
 
-/** Injected drop actions: mint a chip from a drag ref (session-scoped). */
+/** Injected drop action: mint a chip from a drag ref (session-scoped). */
 export interface YzjDropInjected {
   /**
    * Insert a reference chip at the end of the draft. The span is resolved
@@ -28,28 +29,23 @@ export interface YzjDropInjected {
    * point-in-time and stale), so no span crosses the inject boundary.
    */
   insertReference: (ref: YzjDragRef) => void
-  /** Insert plain instruction text at the end of the draft (quick actions). */
-  insertText: (text: string) => void
 }
-
-/** Quick instructions offered after a drop (design v1.6 §5.2 req. 4). */
-const QUICK_ACTIONS: readonly { label: string; text: string }[] = [
-  { label: '让 agent 总结', text: '请总结上面引用的云之家内容，给出要点' },
-  { label: '起草回复', text: '基于上面引用的内容起草回复' },
-  { label: '沉淀知识库', text: '把上面引用的内容整理成文档存入知识库' },
-]
 
 /**
  * The drop band above the composer card. Invisible at rest; a window-level
  * dragenter carrying the yzj mime reveals it ("松开以插入云之家引用"), and
- * dropping mints a reference chip plus a reminder banner (count + quick
- * instructions) so 拖入 → 指令 collapses into one step.
+ * dropping (here or anywhere on the yzj panel via the drop bus) mints a
+ * ☁ reference chip — no extra cards or buttons, just agent context.
  */
 export function YzjComposerDock(props: PropsRuntime<'conversation.input.dock'> & YzjDropInjected) {
   const [armed, setArmed] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [dropped, setDropped] = useState(0)
   const depth = useRef(0)
+
+  // Panel-side drops arrive through the bus; mint the same chip.
+  useEffect(() => {
+    return onYzjDropRequest((ref) => props.insertReference(ref))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Reveal the band while any yzj drag is in flight, wherever it crosses the
   // window; hide it when the drag ends or leaves the window entirely.
@@ -87,7 +83,6 @@ export function YzjComposerDock(props: PropsRuntime<'conversation.input.dock'> &
   const onDrop = (event: React.DragEvent): void => {
     depth.current = 0
     setArmed(false)
-    if (busy) return
     const raw = event.dataTransfer.getData(YZJ_DRAG_MIME)
     if (raw === '') return
     let ref: YzjDragRef | undefined
@@ -98,10 +93,7 @@ export function YzjComposerDock(props: PropsRuntime<'conversation.input.dock'> &
       ref = undefined
     }
     if (ref === undefined) return
-    setBusy(true)
     props.insertReference(ref)
-    setDropped(count => count + 1)
-    setTimeout(() => { setBusy(false) }, 60)
   }
 
   return (
@@ -117,37 +109,6 @@ export function YzjComposerDock(props: PropsRuntime<'conversation.input.dock'> &
         >
           <YzjCloudIcon size={13} />
           <span>松开以插入云之家引用</span>
-        </div>
-      )}
-      {dropped > 0 && (
-        <div className={css.reminder} role="status">
-          <div className={css.reminderHead}>
-            <YzjCloudIcon size={13} />
-            <span>已引用 {dropped} 条云之家内容，输入指令让 agent 处理，或：</span>
-          </div>
-          <div className={css.quickRow} role="group" aria-label="快捷处理">
-            {QUICK_ACTIONS.map(action => (
-              <button
-                key={action.label}
-                type="button"
-                className={css.quickButton}
-                onClick={() => {
-                  props.insertText(action.text)
-                  setDropped(0)
-                }}
-              >
-                {action.label}
-              </button>
-            ))}
-            <button
-              type="button"
-              className={css.quickDismiss}
-              onClick={() => { setDropped(0) }}
-              aria-label="收起提醒"
-            >
-              收起
-            </button>
-          </div>
         </div>
       )}
     </div>
