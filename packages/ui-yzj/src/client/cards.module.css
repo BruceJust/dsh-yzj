@@ -25,19 +25,26 @@
 .header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
-.icon {
+/* Tinted icon box (prototype cc-head icon style). */
+.iconBox {
   display: inline-flex;
   align-items: center;
-  color: var(--dsw-alias-label-secondary);
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--dsw-static-deepseek-100);
+  color: var(--dsw-static-deepseek-600);
   flex: none;
 }
 
 .title {
   font-weight: 600;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -52,6 +59,17 @@
   color: var(--dsw-static-deepseek-600);
   font-size: 11px;
   line-height: 18px;
+}
+
+.tagRun {
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.tagFail {
+  background: var(--dsw-static-red-100);
+  color: var(--dsw-static-red-500);
+  font-weight: 600;
 }
 
 .rowWrap {

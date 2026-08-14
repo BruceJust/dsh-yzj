@@ -53,7 +53,7 @@ describe('YzjToolCard', () => {
     const running = { callId: 'c1', name: 'yzj_doc_list', argsRaw: '{"workspace":"kb"}', turn: 1, step: 1, time: 1, callView: null, subCalls: [] }
     const text = renderCard(running, 'yzj_doc_list')
     expect(text).toContain('文档列表')
-    expect(text).toContain('云之家')
+    expect(text).toContain('执行中')
   })
 
   it('renders structured meta payloads for a settled doc call', () => {
@@ -81,10 +81,20 @@ describe('YzjToolCard', () => {
     expect(text).toContain('no permission')
   })
 
-  it('falls back to the digest text when meta carries no structure', () => {
+  it('falls back to a friendly summary when meta carries no structure', () => {
     const block = settledBlock({ meta: { __oversized: true } })
     const text = renderCard(block, 'yzj_doc_workspace_list')
-    expect(text).toContain('digest text')
+    expect(text).toContain('已完成')
+    expect(text).not.toContain('digest text')
+  })
+
+  it('renders friendly action summaries without ids for sends', () => {
+    const block = settledBlock({
+      meta: { payload: { msgId: '6a7f1234e4b0abc' }, msgId: '6a7f1234e4b0abc' },
+    })
+    const text = renderCard(block, 'yzj_im_message_send')
+    expect(text).toContain('消息已发送')
+    expect(text).not.toContain('6a7f1234e4b0abc')
   })
 })
 

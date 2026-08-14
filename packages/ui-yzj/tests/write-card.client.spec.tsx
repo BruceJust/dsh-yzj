@@ -124,7 +124,8 @@ describe('YzjWriteToolCard', () => {
       editDraft: () => {}, openContext: () => {},
     }
     const text = await renderCard(baseProps({ toolName: 'yzj_im_message_send', block: result, ...injected }))
-    expect(text).toContain('sent (m1)')
+    expect(text).toContain('消息已发送')
+    expect(text).not.toContain('sent (m1)')
     expect(text).not.toContain('需确认')
   })
 
