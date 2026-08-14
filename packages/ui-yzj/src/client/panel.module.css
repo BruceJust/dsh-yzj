@@ -1007,7 +1007,9 @@
   animation: bandIn 150ms var(--ds-ease-out, ease-out);
 }
 
-/* Full-viewport drop target while a yzj drag is in flight: drop anywhere. */
+/* Drop decoration while a yzj drag is in flight (official pattern:
+   pointer-inert — the drop is handled at the document level, so nothing on
+   the page is blocked and the chat panel stays fully interactive). */
 .dropOverlay {
   position: fixed;
   inset: 0;
@@ -1015,8 +1017,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--dsw-static-deepseek-100);
-  cursor: copy;
+  background: rgb(46 111 242 / 0.06);
+  pointer-events: none;
 }
 
 .dropOverlay::before {

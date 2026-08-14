@@ -94,7 +94,9 @@ export async function fetchRefContext(
           if (link !== '') lines.push(`链接：${link}`)
         }
         if (blocksResult.ok) {
-          const blocks = asArray(blocksResult.value)
+          // The CLI wraps blocks as { data: { blocks: [...] } }.
+          const blocksValue = asRecord(blocksResult.value)
+          const blocks = asArray(blocksValue.blocks ?? asRecord(blocksValue.data).blocks)
           const excerpt = blocks.slice(0, 10).map(blockText).filter(text => text !== '').join(' ')
           if (excerpt !== '') {
             lines.push(`内容摘要：${excerpt.length > 500 ? `${excerpt.slice(0, 500)}…` : excerpt}`)
@@ -108,7 +110,8 @@ export async function fetchRefContext(
         if (infoResult.ok && asString(asRecord(infoResult.value).fileSuffix) === 'dbt') {
           const sheetResult = await inject.fetchSheet(ref.id)
           if (sheetResult.ok) {
-            const sheets = asArray(asRecord(sheetResult.value).sheets)
+            const sheetValue = asRecord(sheetResult.value)
+            const sheets = asArray(sheetValue.sheets ?? asRecord(sheetValue.data).sheets)
             const tableLines = sheets.slice(0, 5).map((item) => {
               const table = asRecord(item)
               const fields = asArray(table.fields).map(field => asString(asRecord(field).name)).filter(name => name !== '')

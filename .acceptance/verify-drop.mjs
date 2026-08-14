@@ -58,7 +58,7 @@ const drag = await page.evaluate(() => {
     el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }))
   }
   fire(source, 'dragstart') // React handler fills the real payload
-  window.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: dt }))
+  document.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: dt }))
   return { ok: true }
 })
 ok('dragstart + window dragenter dispatched', drag.ok, drag.reason ?? '')
@@ -79,7 +79,7 @@ const dropped = await page.evaluate(() => {
   }
   fire(source, 'dragstart')
   fire(overlay, 'drop') // drop in the middle of the chat panel — anywhere
-  window.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
+  document.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
   return { ok: true }
 })
 ok('drop dispatched on the overlay', dropped.ok, dropped.reason ?? '')
@@ -101,6 +101,12 @@ ok('no quick-action buttons (让 agent 总结 gone)', !pageText.includes('让 ag
 const toastText = await dialog.innerText().catch(() => '')
 ok('panel toast confirms the insert', toastText.includes('已插入'), toastText.slice(0, 60))
 ok('overlay hidden after the drag ended', !(await overlayVisible()))
+
+// ---- 7. the sent message renders the reference as a special @yzj tag ----
+await page.getByRole('button', { name: '发送消息' }).first().click().catch(() => {})
+await page.waitForTimeout(12000)
+const chips = await page.locator('[data-ref-chip]').allInnerTexts().catch(() => [])
+ok('sent message renders the @yzj reference tag', chips.some(text => text.trim() === '@yzj'), chips.join(',') || '(none)')
 
 await browser.close()
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

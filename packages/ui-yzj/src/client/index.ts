@@ -188,6 +188,10 @@ export function apply(ctx: ClientContext): void {
               const users = asArray(result.value)
               return asString(asRecord(users[0] ?? {}).name)
             },
+            fetchGroups: (limit, page) => panelInject.fetchGroups(limit, page),
+            fetchWorkspaces: (type) => panelInject.fetchWorkspaces(type),
+            fetchDoc: (id) => panelInject.fetchDoc(id),
+            fetchContact: (openId) => panelInject.fetchContact(openId),
           }
         },
       },

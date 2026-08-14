@@ -57,9 +57,8 @@ ok('im group card shows group names', /[一-龥]{2,}/.test(text), text.slice(0, 
 ok('im group card leaks no raw ids', !/(groupId|msgId|openId|workId|[a-f0-9]{24})/.test(text), text.replace(/\s+/g, ' ').slice(0, 100))
 
 // ---- 1b. card 查看 → floating panel jumps to that group ----
-// Pick a row with unread (alert groups have real messages; 待办通知's
-// message endpoint returns empty).
-const jumpBtn = page.locator('[class*="card"] [class*="row"]:has-text("未读") button[class*="jump"]').first()
+// Pick a row with unread but NOT 待办通知 (its message endpoint returns empty).
+const jumpBtn = page.locator('[class*="card"] [class*="row"]:has-text("未读"):not(:has-text("待办通知")) button[class*="jump"]').first()
 let jumpClicked = false
 try {
   await jumpBtn.waitFor({ state: 'visible', timeout: 10000 })

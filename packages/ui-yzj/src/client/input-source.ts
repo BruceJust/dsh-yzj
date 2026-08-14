@@ -210,7 +210,10 @@ function sharedCodec(inject: YzjPanelInject): ReferenceCodec {
       if (parsed === undefined) return ref
       const context = await fetchRefContext(inject, parsed)
       signal.throwIfAborted()
-      return context
+      // The sent bubble decorates @/word-boundary tokens as chips, so the
+      // leading @yzj renders as a special tag while the model still receives
+      // the full context below it (no more raw text blob).
+      return `@yzj ${context}`
     },
   }
 }

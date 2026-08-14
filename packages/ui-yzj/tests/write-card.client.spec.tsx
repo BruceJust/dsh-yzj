@@ -63,7 +63,7 @@ describe('YzjWriteToolCard', () => {
     const text = await renderCard(baseProps({ ...injected }))
     expect(text).toContain('发送消息')
     expect(text).toContain('需确认')
-    expect(text).toContain('群 g1')
+    expect(text).toContain('群聊')
     expect(text).toContain('全文消息内容')
     expect(text).toContain('确认')
     expect(text).toContain('取消')
@@ -81,8 +81,8 @@ describe('YzjWriteToolCard', () => {
     const text = await renderCard(baseProps({ toolName: 'yzj_doc_delete', ...injected }))
     expect(text).toContain('删除文档')
     expect(text).toContain('强确认')
-    expect(text).toContain('文档')
-    expect(text).toContain('d1')
+    expect(text).toContain('文档操作')
+    expect(text).not.toContain('d1')
   })
 
   it('shows the executing state once approved', async () => {

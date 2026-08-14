@@ -44,6 +44,11 @@ export interface WriteCardInjected {
   editDraft: (text: string) => void
   /** The logged-in user's display name, for the 以本人身份 line. */
   fetchWhoami: () => Promise<string>
+  /** Name lookups so the card shows friendly labels, never raw ids. */
+  fetchGroups?: (limit?: number, page?: number) => Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }>
+  fetchWorkspaces?: (type?: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }>
+  fetchDoc?: (id: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }>
+  fetchContact?: (openId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }>
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -114,51 +119,119 @@ export function writableDraft(record: YzjWriteRecord): string {
 
 /** The 查看上下文 jump: open the panel on the tab the write targets. */
 
-/** One line of gated arguments, domain-specific. */
-function ArgBody({ record }: { record: YzjWriteRecord }): ReactNode {
+/** Resolve raw ids in the gated args to friendly names (per record). */
+function useResolvedNames(record: YzjWriteRecord | undefined, inject: WriteCardInjected): Record<string, string> {
+  const [names, setNames] = useState<Record<string, string>>({})
+  useEffect(() => {
+    if (record === undefined) return
+    let alive = true
+    const args = asRecord(record.args)
+    const out: Record<string, string> = {}
+    const tasks: Promise<void>[] = []
+    const groupId = asString(args.groupId)
+    if (record.domain === 'im' && groupId !== '' && inject.fetchGroups !== undefined) {
+      tasks.push(inject.fetchGroups(20).then((result) => {
+        if (!result.ok) return
+        const group = asArray(asRecord(result.value).list).map(asRecord).find(g => asString(g.groupId) === groupId)
+        if (group !== undefined && asString(group.groupName) !== '') out[groupId] = asString(group.groupName)
+      }).catch(() => {}))
+    }
+    const docId = asString(args.id)
+    if ((record.domain === 'doc' || record.domain === 'sheet') && docId !== '' && inject.fetchDoc !== undefined) {
+      tasks.push(inject.fetchDoc(docId).then((result) => {
+        if (!result.ok) return
+        const node = asRecord(result.value)
+        const title = asString(node.title) !== '' ? asString(node.title) : asString(asRecord(node.data).title)
+        if (title !== '') out[docId] = title
+      }).catch(() => {}))
+    }
+    const workspace = asString(args.workspace)
+    if (workspace !== '' && inject.fetchWorkspaces !== undefined) {
+      tasks.push(inject.fetchWorkspaces().then((result) => {
+        if (!result.ok) return
+        const ws = asArray(result.value).map(asRecord).find(w => asString(w.id) === workspace)
+        if (ws !== undefined && asString(ws.name) !== '') out[workspace] = asString(ws.name)
+      }).catch(() => {}))
+    }
+    if (inject.fetchContact !== undefined) {
+      for (const raw of asArray(args.organizerOpenIds)) {
+        const openId = asString(raw)
+        if (openId === '') continue
+        tasks.push(inject.fetchContact(openId).then((result) => {
+          if (!result.ok) return
+          const list = asArray(result.value)
+          const user = asRecord(list[0] ?? {})
+          const name = asString(user.name)
+          if (name !== '') out[openId] = name
+        }).catch(() => {}))
+      }
+    }
+    void Promise.all(tasks).then(() => { if (alive) setNames(out) })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record])
+  return names
+}
+
+/** One line of gated arguments, domain-specific, ids resolved to names. */
+function ArgBody({ record, names }: { record: YzjWriteRecord; names: Record<string, string> }): ReactNode {
   const args = asRecord(record.args)
   const str = (key: string): string => asString(args[key])
   const list = (key: string): unknown[] => asArray(args[key])
   const rows: ReactNode[] = []
   const push = (title: string, sub: string, key: string): void => { rows.push(row(title, sub, key)) }
+  const nameOf = (id: string, fallback: string): string => (id === '' ? '' : names[id] ?? fallback)
   switch (record.domain) {
-    case 'im':
-      push('目标', str('groupId') !== '' ? `群 ${str('groupId')}` : `单聊 ${str('toOpenId')}`, 't')
+    case 'im': {
+      const groupId = str('groupId')
+      const toOpenId = str('toOpenId')
+      push('目标', groupId !== '' ? `群聊${nameOf(groupId, '') === '' ? '' : ` · ${nameOf(groupId, '')}`}` : `单聊${nameOf(toOpenId, '') === '' ? '' : ` · ${nameOf(toOpenId, '')}`}`, 't')
       push('类型', str('msgType'), 'mt')
       if (str('content') !== '') {
         rows.push(<div className={css.fullText} key="c">{str('content')}</div>)
       }
-      if (list('atOpenIds').length > 0) push('@', list('atOpenIds').join(', '), 'at')
-      if (args.atAll === true) push('@', '@所有人', 'atall')
-      if (str('replyMsgId') !== '') push('回复', str('replyMsgId'), 'rp')
+      const ats = list('atOpenIds')
+      if (ats.length > 0) push('提及', `${ats.length} 人`, 'at')
+      if (args.atAll === true) push('提及', '@所有人', 'atall')
+      if (str('replyMsgId') !== '') push('回复', '回复一条消息', 'rp')
       break
-    case 'doc':
-      push('文档', str('id'), 'id')
-      if (str('workspace') !== '') push('知识库', str('workspace'), 'ws')
+    }
+    case 'doc': {
+      const id = str('id')
+      push('文档', id === '' ? '新建文档' : nameOf(id, '文档操作'), 'id')
+      const ws = str('workspace')
+      if (ws !== '') push('知识库', nameOf(ws, '知识库'), 'ws')
       if (str('title') !== '') push('标题', str('title'), 'ti')
-      if (str('parentId') !== '') push('父节点', str('parentId'), 'pa')
-      if (record.toolName === 'yzj_doc_move') push('目标父节点', str('targetParentId'), 'tp')
+      if (record.toolName === 'yzj_doc_move') push('目标位置', str('targetParentId') !== '' ? '指定节点下' : '知识库根节点', 'tp')
       if (str('operations') !== '') push('操作', str('operations').slice(0, 200), 'op')
       if (str('element') !== '') push('插入内容', str('element').slice(0, 200), 'el')
       break
+    }
     case 'kb':
       push('知识库名称', str('name'), 'n')
       if (str('description') !== '') push('简介', str('description'), 'd')
       break
-    case 'sheet':
-      push('多维表格', str('id'), 'id')
-      if (str('tableId') !== '') push('数据表', str('tableId'), 'tb')
+    case 'sheet': {
+      const id = str('id')
+      push('多维表格', id === '' ? '新建多维表格' : nameOf(id, '多维表格'), 'id')
+      const recordIds = str('recordIds')
+      if (recordIds !== '') push('删除记录', `${recordIds.split(',').filter(part => part !== '').length} 条`, 'rd')
       if (str('records') !== '') push('记录', str('records').slice(0, 300), 'rc')
-      if (str('recordIds') !== '') push('删除记录', str('recordIds'), 'rd')
       break
-    case 'calendar':
+    }
+    case 'calendar': {
       push('标题', str('title'), 't')
       if (str('start') !== '') push('开始', str('start'), 's')
       if (str('end') !== '') push('结束', str('end'), 'e')
-      if (list('organizerOpenIds').length > 0) push('组织者', list('organizerOpenIds').join(', '), 'o')
+      const orgs = list('organizerOpenIds')
+      if (orgs.length > 0) {
+        const orgNames = orgs.map(id => names[asString(id)] ?? '').filter(name => name !== '')
+        push('组织者', orgNames.length > 0 ? orgNames.join('、') : `${orgs.length} 人`, 'o')
+      }
       break
+    }
     case 'file':
-      if (list('files').length > 0) push('文件', list('files').join(', '), 'f')
+      if (list('files').length > 0) push('文件', `${list('files').length} 个文件`, 'f')
       if (str('name') !== '') push('文件名', str('name'), 'n')
       if (str('output') !== '') push('输出', str('output'), 'o')
       break
@@ -192,6 +265,7 @@ export function YzjWriteToolCard(props: ToolCallViewProps & WriteCardInjected) {
   const [record, setRecord] = useState<YzjWriteRecord | undefined>(undefined)
   const [ready, setReady] = useState(false)
   const [meName, setMeName] = useState('')
+  const names = useResolvedNames(record, props)
 
   useEffect(() => {
     let live = true
@@ -248,7 +322,7 @@ export function YzjWriteToolCard(props: ToolCallViewProps & WriteCardInjected) {
         <span className={css.writeId}>{record.writeId}</span>
       </div>
       <div className={css.ccTarget}>
-        <ArgBody record={record} />
+        <ArgBody record={record} names={names} />
         {meName !== '' && (
           <div className={css.ccIdentity}>将以你本人（{meName}）身份执行</div>
         )}

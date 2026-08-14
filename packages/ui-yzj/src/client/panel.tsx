@@ -842,36 +842,56 @@ export function YzjPanel(props: YzjPanelProps) {
     dropToastTimer.current = window.setTimeout(() => setDropToast(''), 2600)
   }
 
-  // Full-viewport drop target: while a yzj drag is in flight, an overlay
-  // covers the whole screen — drop ANYWHERE (the middle of the chat, the
-  // panel, wherever) and the reference lands in the composer.
+  // Drop intake follows the OFFICIAL image-drag implementation: document-level
+  // listeners with a depth counter, dropEffect 'copy' while the yzj drag is
+  // over the page, and a pointer-inert decorative overlay. The drop lands on
+  // whatever is under the cursor (the chat panel, the composer, the panel
+  // itself) — nothing is blocked, no full-screen trap.
   useEffect(() => {
-    const onEnter = (event: DragEvent): void => {
-      if (event.dataTransfer !== null && event.dataTransfer.types.includes(YZJ_DRAG_MIME)) {
-        dropDepth.current += 1
-        setDropArmed(true)
-      }
-    }
-    const onLeave = (event: DragEvent): void => {
-      if (event.relatedTarget === null) {
-        dropDepth.current = 0
-        setDropArmed(false)
-      }
-    }
-    const onEnd = (): void => {
+    const hasYzj = (event: DragEvent): boolean =>
+      event.dataTransfer?.types.includes(YZJ_DRAG_MIME) ?? false
+    const reset = (): void => {
       dropDepth.current = 0
       setDropArmed(false)
     }
-    window.addEventListener('dragenter', onEnter)
-    window.addEventListener('dragleave', onLeave)
-    window.addEventListener('drop', onEnd)
-    window.addEventListener('dragend', onEnd)
-    return () => {
-      window.removeEventListener('dragenter', onEnter)
-      window.removeEventListener('dragleave', onLeave)
-      window.removeEventListener('drop', onEnd)
-      window.removeEventListener('dragend', onEnd)
+    const onEnter = (event: DragEvent): void => {
+      if (!hasYzj(event)) return
+      event.preventDefault()
+      dropDepth.current += 1
+      setDropArmed(true)
     }
+    const onOver = (event: DragEvent): void => {
+      if (!hasYzj(event) || event.dataTransfer === null) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'copy'
+    }
+    const onLeave = (event: DragEvent): void => {
+      if (!hasYzj(event)) return
+      dropDepth.current = Math.max(0, dropDepth.current - 1)
+      if (dropDepth.current === 0) setDropArmed(false)
+      const leavingViewport = event.clientX <= 0 || event.clientY <= 0
+        || event.clientX >= window.innerWidth || event.clientY >= window.innerHeight
+      if ((event.target === document.documentElement || event.target === document.body) && leavingViewport) reset()
+    }
+    const onDrop = (event: DragEvent): void => {
+      if (!hasYzj(event)) return
+      event.preventDefault()
+      reset()
+      dropRef(event.dataTransfer?.getData(YZJ_DRAG_MIME) ?? '')
+    }
+    document.addEventListener('dragenter', onEnter)
+    document.addEventListener('dragover', onOver)
+    document.addEventListener('dragleave', onLeave)
+    document.addEventListener('drop', onDrop)
+    window.addEventListener('dragend', reset)
+    return () => {
+      document.removeEventListener('dragenter', onEnter)
+      document.removeEventListener('dragover', onOver)
+      document.removeEventListener('dragleave', onLeave)
+      document.removeEventListener('drop', onDrop)
+      window.removeEventListener('dragend', reset)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const dropRef = (raw: string): boolean => {
@@ -887,15 +907,6 @@ export function YzjPanel(props: YzjPanelProps) {
     emitYzjDropRequest(ref)
     showDropToast(ref.title)
     return true
-  }
-
-  const onPanelDragOver = (event: React.DragEvent): void => {
-    if (event.dataTransfer.types.includes(YZJ_DRAG_MIME)) event.preventDefault()
-  }
-  const onPanelDrop = (event: React.DragEvent): void => {
-    if (!event.dataTransfer.types.includes(YZJ_DRAG_MIME)) return
-    event.preventDefault()
-    dropRef(event.dataTransfer.getData(YZJ_DRAG_MIME))
   }
 
   // Keep the newest messages in view: bottom on group open and after sends,
@@ -1020,12 +1031,15 @@ export function YzjPanel(props: YzjPanelProps) {
       ].filter(part => part !== '').join(' · ')
       const lines: string[] = []
       if (blocksResult.ok) {
+        // The CLI wraps blocks as { data: { blocks: [...] } }.
+        const blocksValue = asRecord(blocksResult.value)
+        const blocks = asArray(blocksValue.blocks ?? asRecord(blocksValue.data).blocks)
         const walk = (node2: unknown): void => {
           if (typeof node2 !== 'object' || node2 === null) return
           const record = node2 as Record<string, unknown>
           if (typeof record.type === 'string' && typeof record.content === 'string') {
             const text = record.content.trim()
-            if (text !== '' && (record.type === 'heading' || record.type === 'paragraph' || record.type === 'code' || record.type === 'text')) {
+            if (text !== '' && (record.type === 'heading' || record.type === 'paragraph' || record.type === 'code' || record.type === 'text' || record.type === 'title')) {
               lines.push(text)
             }
           }
@@ -1034,7 +1048,7 @@ export function YzjPanel(props: YzjPanelProps) {
             else if (typeof value === 'object' && value !== null) walk(value)
           }
         }
-        for (const block of asArray(blocksResult.value)) walk(block)
+        for (const block of blocks) walk(block)
       }
       setDocPreview({ title, meta, lines: lines.slice(0, 200) })
     }).catch(() => setDocPreview({ title: '文档', meta: '', lines: [] }))
@@ -1309,8 +1323,6 @@ export function YzjPanel(props: YzjPanelProps) {
       role="dialog"
       aria-label="云之家"
       style={dockStyle}
-      onDragOver={onPanelDragOver}
-      onDrop={onPanelDrop}
     >
       <header className={css.header} onPointerDown={startDrag}>
         <span className={css.brand}><YzjCloudIcon size={18} /></span>
@@ -1891,16 +1903,7 @@ export function YzjPanel(props: YzjPanelProps) {
         <div className={css.dropToast} role="status">{dropToast}</div>
       )}
       {dropArmed && (
-        <div
-          className={css.dropOverlay}
-          onDragOver={(event) => { event.preventDefault() }}
-          onDrop={(event) => {
-            event.preventDefault()
-            dropDepth.current = 0
-            setDropArmed(false)
-            dropRef(event.dataTransfer.getData(YZJ_DRAG_MIME))
-          }}
-        >
+        <div className={css.dropOverlay}>
           <span className={css.dropOverlayHint}>
             <YzjCloudIcon size={16} /> 松开以插入云之家引用
           </span>
