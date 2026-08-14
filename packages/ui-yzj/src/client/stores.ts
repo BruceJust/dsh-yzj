@@ -6,8 +6,8 @@
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
 
-/** Panel tabs. */
-export type YzjTab = 'docs' | 'calendar' | 'chat' | 'me'
+/** Panel tabs (我的 removed — the composer '@' covers directory search). */
+export type YzjTab = 'docs' | 'calendar' | 'chat'
 
 /** Yunzhijia panel viewing state (raw CLI payloads, rendered by components). */
 export type YzjPanelState = {
@@ -29,9 +29,6 @@ export type YzjPanelState = {
   messagesAnchor: string
   /** Message to scroll to and highlight after the group loads (jump anchor). */
   anchorMsgId: string
-  me: unknown
-  searchKeyword: string
-  searchResults: unknown[]
   /** Sum of unread counts across recent sessions (the floating-ball badge). */
   unreadTotal: number
   loading: boolean
@@ -57,9 +54,6 @@ export type YzjPanelActions = {
   setMessagesAnchor: (draft: YzjPanelState, anchor: string) => void
   prependMessages: (draft: YzjPanelState, messages: unknown[]) => void
   setAnchorMsgId: (draft: YzjPanelState, id: string) => void
-  setMe: (draft: YzjPanelState, me: unknown) => void
-  setSearchKeyword: (draft: YzjPanelState, keyword: string) => void
-  setSearchResults: (draft: YzjPanelState, results: unknown[]) => void
   setUnreadTotal: (draft: YzjPanelState, total: number) => void
   setLoading: (draft: YzjPanelState, loading: boolean) => void
   setError: (draft: YzjPanelState, error: string) => void
@@ -85,9 +79,6 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
       messagesMore: false,
       messagesAnchor: '',
       anchorMsgId: '',
-      me: {},
-      searchKeyword: '',
-      searchResults: [],
       unreadTotal: 0,
       loading: false,
       error: '',
@@ -117,9 +108,6 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
         d.messages = [...messages.filter(message => !seen.has(String(asRecord(message).msgId))), ...d.messages]
       },
       setAnchorMsgId: (d: YzjPanelState, id: string) => { d.anchorMsgId = id },
-      setMe: (d: YzjPanelState, me: unknown) => { d.me = me },
-      setSearchKeyword: (d: YzjPanelState, keyword: string) => { d.searchKeyword = keyword },
-      setSearchResults: (d: YzjPanelState, results: unknown[]) => { d.searchResults = results },
       setUnreadTotal: (d: YzjPanelState, total: number) => { d.unreadTotal = total },
       setLoading: (d: YzjPanelState, loading: boolean) => { d.loading = loading },
       setError: (d: YzjPanelState, error: string) => { d.error = error },

@@ -45,9 +45,9 @@ let dockVisible = false
 try { await dock.waitFor({ state: 'visible', timeout: 5000 }); dockVisible = true } catch {}
 ok('hover expands the quick-dock', dockVisible)
 const dockItems = await dock.locator('button').count()
-ok('dock has 4 tab shortcuts', dockItems === 4, `${dockItems} items`)
+ok('dock has 3 tab shortcuts', dockItems === 3, `${dockItems} items`)
 const dockLabels = await dock.locator('button').allInnerTexts()
-ok('dock labels are 会话/日程/知识库/我的', ['会话', '日程', '知识库', '我的'].every(label => dockLabels.some(text => text.includes(label))), dockLabels.join(','))
+ok('dock labels are 会话/日程/知识库', ['会话', '日程', '知识库'].every(label => dockLabels.some(text => text.includes(label))), dockLabels.join(','))
 
 // ---- 3. leaving hides the dock ----
 await page.mouse.move(10, 10)

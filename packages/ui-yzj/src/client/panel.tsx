@@ -1,16 +1,15 @@
 /**
- * The Yunzhijia workspace panel: a frame overlay with four tabs — 知识库
+ * The Yunzhijia workspace panel: a frame overlay with three tabs — 知识库
  * (workspace → doc tree), 日程 (today), 会话 (recent groups → messages with
- * paging), and 我的 (whoami + directory search). Rendering stays
- * presentational: data arrives through the injected fetch face and the shared
- * store; verbs are the injected face and store actions.
+ * paging). Rendering stays presentational: data arrives through the injected
+ * fetch face and the shared store; verbs are the injected face and store
+ * actions.
  */
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import {
   IconChecklistOutline14,
   IconFolderOpenOutline16,
   IconNewChatOutline16,
-  IconUserOutline16,
   Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { BakedActions } from '@deepseek-ai/dsh-client-ui-slots'
@@ -481,7 +480,6 @@ const TABS: { key: YzjTab; label: string; icon: () => ReactNode }[] = [
   { key: 'docs', label: '知识库', icon: () => <IconFolderOpenOutline16 /> },
   { key: 'calendar', label: '日程', icon: () => <IconChecklistOutline14 /> },
   { key: 'chat', label: '会话', icon: () => <IconNewChatOutline16 /> },
-  { key: 'me', label: '我的', icon: () => <IconUserOutline16 /> },
 ]
 
 /** The sidebar-foot toggle; label and open state ride the store shares. */
@@ -609,7 +607,6 @@ const DOCK_ITEMS: { key: YzjTab; label: string; icon: () => ReactNode }[] = [
   { key: 'chat', label: '会话', icon: () => <IconNewChatOutline16 /> },
   { key: 'calendar', label: '日程', icon: () => <IconChecklistOutline14 /> },
   { key: 'docs', label: '知识库', icon: () => <IconFolderOpenOutline16 /> },
-  { key: 'me', label: '我的', icon: () => <IconUserOutline16 /> },
 ]
 
 /** Common emojis for the composer picker (real-IM habit). */
@@ -748,14 +745,6 @@ function loadTab(
         props.actions.setLoading(false)
       } else fail(result.error.message)
     })
-  } else {
-    void props.fetchWhoami().then((result) => {
-      if (result.ok) {
-        const users = asArray(result.value)
-        props.actions.setMe(users[0] ?? {})
-        props.actions.setLoading(false)
-      } else fail(result.error.message)
-    })
   }
 }
 
@@ -763,7 +752,8 @@ function loadTab(
 export function YzjPanel(props: YzjPanelProps) {
   const open = props.useStore(state => state.open)
   const tab = props.useStore(state => state.tab)
-  const [keyword, setKeyword] = useState('')
+  // Persisted tabs may hold the removed 'me'; fall back to the docs tab.
+  const activeTab: YzjTab = tab === 'docs' || tab === 'calendar' || tab === 'chat' ? tab : 'docs'
   const state = props.useStore(s => s)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const dragOffset = useRef<{ dx: number; dy: number } | null>(null)
@@ -911,11 +901,11 @@ export function YzjPanel(props: YzjPanelProps) {
 
   useEffect(() => {
     if (!open) return
-    loadTab(tab, props)
+    loadTab(activeTab, props)
     // tab switches and opens are the load triggers; state reads inside the
     // loader come from the snapshot taken at effect time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tab])
+  }, [open, activeTab])
 
   if (!open) return null
 
@@ -1128,19 +1118,6 @@ export function YzjPanel(props: YzjPanelProps) {
     reader.readAsDataURL(file)
   }
 
-  const runSearch = (): void => {
-    if (keyword.trim() === '') return
-    props.actions.setLoading(true)
-    void props.fetchSearch(keyword.trim()).then((result) => {
-      if (result.ok) {
-        props.actions.setSearchResults(asArray(result.value))
-      } else {
-        props.actions.setError(result.error.message)
-      }
-      props.actions.setLoading(false)
-    })
-  }
-
   return (
     <div
       ref={panelRef}
@@ -1158,7 +1135,7 @@ export function YzjPanel(props: YzjPanelProps) {
         <button
           type="button"
           className={css.iconButton}
-          onClick={() => { loadTab(tab, props) }}
+          onClick={() => { loadTab(activeTab, props) }}
           disabled={state.loading}
           aria-label="刷新"
           title="刷新"
@@ -1182,8 +1159,8 @@ export function YzjPanel(props: YzjPanelProps) {
           <button
             key={item.key}
             type="button"
-            className={tab === item.key ? `${css.tab} ${css.tabActive}` : css.tab}
-            aria-current={tab === item.key ? 'page' : undefined}
+            className={activeTab === item.key ? `${css.tab} ${css.tabActive}` : css.tab}
+            aria-current={activeTab === item.key ? 'page' : undefined}
             onClick={() => { props.actions.setTab(item.key) }}
           >
             {item.icon()}
@@ -1207,7 +1184,7 @@ export function YzjPanel(props: YzjPanelProps) {
       )}
       {state.loading && <div className={css.loading}>加载中…</div>}
 
-      {tab === 'docs' && (
+      {activeTab === 'docs' && (
         <div className={css.body}>
           {state.workspaceId === '' ? (
             <div className={css.list}>
@@ -1279,7 +1256,7 @@ export function YzjPanel(props: YzjPanelProps) {
         </div>
       )}
 
-      {tab === 'calendar' && (
+      {activeTab === 'calendar' && (
         <div className={css.body}>
           <div className={css.list}>
             {state.events.length === 0 && !state.loading && state.error === '' && (
@@ -1322,7 +1299,7 @@ export function YzjPanel(props: YzjPanelProps) {
         </div>
       )}
 
-      {tab === 'chat' && (
+      {activeTab === 'chat' && (
         <div className={css.body}>
           {state.groupId === '' ? (
             <div className={css.list}>
@@ -1586,64 +1563,6 @@ export function YzjPanel(props: YzjPanelProps) {
         </div>
       )}
 
-      {tab === 'me' && (
-        <div className={css.body}>
-          <div className={css.searchRow}>
-            <input
-              className={css.searchInput}
-              value={keyword}
-              onChange={(event) => { setKeyword(event.target.value) }}
-              onKeyDown={(event) => { if (event.key === 'Enter') runSearch() }}
-              placeholder="搜索同事…"
-            />
-            <button type="button" className={css.headerButton} onClick={runSearch}>搜索</button>
-          </div>
-          {(() => {
-            const me = asRecord(state.me)
-            if (Object.keys(me).length === 0) return null
-            const photo = asString(me.photoUrl)
-            return (
-              <div className={css.meCard}>
-                {photo !== ''
-                  ? <img className={css.meAvatar} src={photo} alt="" />
-                  : <span className={css.meAvatarFallback}>{asString(me.name).slice(0, 1)}</span>}
-                <div className={css.meInfo}>
-                  <div className={css.meName}>{asString(me.name)}</div>
-                  <div className={css.meSub}>
-                    {[asString(me.department), asString(me.jobTitle), asString(me.jobNo) === '' ? '' : `工号 ${asString(me.jobNo)}`].filter(part => part !== '').join(' · ')}
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
-          <div className={css.list}>
-            {state.searchResults.map((item, index) => {
-              const user = asRecord(item)
-              const openId = asString(user.oId ?? user.openId)
-              const name = asString(user.name)
-              return (
-                <div
-                  key={`s${index}`}
-                  className={css.item}
-                  draggable
-                  onDragStart={(event) => {
-                    startDragTransfer(event, {
-                      kind: 'contact', id: openId, title: name,
-                      sub: [asString(user.department), asString(user.jobTitle)].filter(part => part !== '').join(' · '),
-                    })
-                  }}
-                >
-                  <span className={css.itemTitle}>
-                    <span className={css.userGlyph}>{name.slice(0, 1)}</span>
-                    <span className={css.itemTitleText}>{name}</span>
-                  </span>
-                  <span className={css.itemSub}>{[asString(user.department), asString(user.jobTitle)].filter(part => part !== '').join(' · ')}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
       {dropToast !== '' && (
         <div className={css.dropToast} role="status">{dropToast}</div>
       )}
