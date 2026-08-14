@@ -1,0 +1,110 @@
+/**
+ * Yunzhijia browser surface, node half: the `/yzj` Connection RPC channel over
+ * `ctx.yzjBridge`. The browser half fetches workspaces, docs, events, chats,
+ * and contacts through it; the model-facing tools remain in `@dsh-yzj/tool-yzj`.
+ * Only lossless CLI-parsed JSON crosses the channel — never harness live
+ * objects.
+ * @module @dsh-yzj/ui-yzj
+ */
+
+import type { Context } from '@deepseek-ai/cordis'
+import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
+import type {} from '@dsh-yzj/bridge'
+
+/** Cordis plugin name used by loader diagnostics. */
+export const name = 'ui-yzj'
+/** Services required by the board channel. */
+export const inject = ['connection', 'yzjBridge']
+
+/** Internal failure envelope matching the closed RpcError union. */
+function internalError(message: string): { ok: false; error: { code: 'internal'; message: string; details: Record<string, never> } } {
+  return { ok: false, error: { code: 'internal', message, details: {} } }
+}
+
+/** One bridge call projected into the RPC result envelope. */
+async function bridgeResult(
+  ctx: Context,
+  label: string,
+  command: readonly string[],
+): Promise<{ ok: true; value: unknown } | { ok: false; error: { code: 'internal'; message: string; details: Record<string, never> } }> {
+  const result = await ctx.yzjBridge.run(command)
+  if (!result.ok) {
+    const detail = result.stderr.trim() === '' ? `${label} failed (exit ${result.exitCode})` : result.stderr.trim()
+    return internalError(detail)
+  }
+  return { ok: true, value: result.json ?? {} }
+}
+
+/** Validate a string field of an RPC payload. */
+function stringField(payload: unknown, key: string): string | undefined {
+  const value = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>)[key] : undefined
+  return typeof value === 'string' && value !== '' ? value : undefined
+}
+
+/**
+ * Register the `/yzj` channel: `workspaces`, `docs`, `events`, `groups`,
+ * `messages`, `whoami`, and `search` endpoints, all backed by the yzj-cli
+ * bridge. Endpoint payloads are validated as lossless JSON before use.
+ * @param ctx - Cordis context carrying the connection and bridge services.
+ */
+export function apply(ctx: Context): void {
+  const handler: ConnectionRpcHandler = async (endpoint, payload, _signal) => {
+    switch (endpoint) {
+      case 'workspaces': {
+        const type = stringField(payload, 'type')
+        const command = ['doc', 'workspace', 'list']
+        if (type !== undefined) command.push('--type', type)
+        return bridgeResult(ctx, 'doc workspace list', command)
+      }
+      case 'docs': {
+        const workspace = stringField(payload, 'workspace')
+        if (workspace === undefined) return internalError('docs endpoint requires a workspace payload')
+        const command = ['doc', 'list', '--workspace', workspace]
+        const parentId = stringField(payload, 'parentId')
+        if (parentId !== undefined) command.push('--parent-id', parentId)
+        return bridgeResult(ctx, 'doc list', command)
+      }
+      case 'events': {
+        const start = stringField(payload, 'start')
+        const end = stringField(payload, 'end')
+        if (start === undefined || end === undefined) return internalError('events endpoint requires start and end payloads')
+        return bridgeResult(ctx, 'calendar event list', ['calendar', 'event', 'list', '--start', start, '--end', end])
+      }
+      case 'groups': {
+        const command = ['im', 'group', 'recent']
+        if (typeof payload === 'object' && payload !== null) {
+          const limit = (payload as Record<string, unknown>).limit
+          if (typeof limit === 'number' && Number.isInteger(limit) && limit > 0) command.push('--limit', String(limit))
+          const page = (payload as Record<string, unknown>).page
+          if (typeof page === 'number' && Number.isInteger(page) && page > 0) command.push('--page', String(page))
+        }
+        return bridgeResult(ctx, 'im group recent', command)
+      }
+      case 'messages': {
+        const groupId = stringField(payload, 'groupId')
+        if (groupId === undefined) return internalError('messages endpoint requires a groupId payload')
+        const command = ['im', 'message', 'list', '--group-id', groupId]
+        const type = stringField(payload, 'type')
+        if (type !== undefined) command.push('--type', type)
+        const msgId = stringField(payload, 'msgId')
+        if (msgId !== undefined) command.push('--msg-id', msgId)
+        if (typeof payload === 'object' && payload !== null) {
+          const limit = (payload as Record<string, unknown>).limit
+          if (typeof limit === 'number' && Number.isInteger(limit) && limit > 0) command.push('--limit', String(limit))
+        }
+        return bridgeResult(ctx, 'im message list', command)
+      }
+      case 'whoami': {
+        return bridgeResult(ctx, 'contact user get', ['contact', 'user', 'get'])
+      }
+      case 'search': {
+        const keyword = stringField(payload, 'keyword')
+        if (keyword === undefined) return internalError('search endpoint requires a keyword payload')
+        return bridgeResult(ctx, 'contact user search', ['contact', 'user', 'search', '--keyword', keyword])
+      }
+      default:
+        return internalError(`unknown /yzj endpoint ${endpoint}`)
+    }
+  }
+  ctx.connection.rpc.handle('/yzj', handler, { authority: 'loopback' })
+}

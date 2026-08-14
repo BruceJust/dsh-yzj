@@ -1,0 +1,225 @@
+.panel {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 100vw);
+  height: min(560px, 100vh);
+  margin: auto;
+  border: 1px solid var(--dsw-border, #d6d6d6);
+  border-radius: 12px;
+  background: var(--dsw-surface, #ffffff);
+  color: var(--dsw-text-primary, #1a1a1a);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.18);
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--dsw-border, #d6d6d6);
+  flex: none;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tab {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-text-secondary, #666666);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tabActive {
+  background: var(--dsw-static-deepseek-100, #e4edfd);
+  color: var(--dsw-static-deepseek-600, #4868b2);
+  font-weight: 600;
+}
+
+.headerButton {
+  padding: 4px 10px;
+  border: 1px solid var(--dsw-border, #d6d6d6);
+  border-radius: 6px;
+  background: var(--dsw-surface, #ffffff);
+  color: var(--dsw-text-primary, #1a1a1a);
+  font-size: 12px;
+  cursor: pointer;
+  flex: none;
+}
+
+.headerButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.list {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-border, #d6d6d6);
+  border-radius: 8px;
+  background: var(--dsw-surface-raised, #f7f7f7);
+  color: var(--dsw-text-primary, #1a1a1a);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.itemTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemSub {
+  color: var(--dsw-text-secondary, #666666);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.back {
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  color: var(--dsw-static-deepseek-500, #4176e6);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.badge {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--dsw-static-red-500, #d92d20);
+  color: #ffffff;
+  font-size: 11px;
+  flex: none;
+}
+
+.empty {
+  color: var(--dsw-text-tertiary, #999999);
+  font-size: 12px;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.error {
+  padding: 6px 12px;
+  background: var(--dsw-static-red-50, #fef3f2);
+  color: var(--dsw-text-danger, #b3261e);
+  font-size: 12px;
+  flex: none;
+}
+
+.loading {
+  padding: 6px 12px;
+  color: var(--dsw-text-secondary, #666666);
+  font-size: 12px;
+  flex: none;
+}
+
+.searchRow {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  flex: none;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--dsw-border, #d6d6d6);
+  border-radius: 6px;
+  background: var(--dsw-surface, #ffffff);
+  color: var(--dsw-text-primary, #1a1a1a);
+  font-size: 12px;
+}
+
+.meCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 8px 8px;
+  padding: 10px;
+  border: 1px solid var(--dsw-border, #d6d6d6);
+  border-radius: 8px;
+  background: var(--dsw-surface-raised, #f7f7f7);
+  flex: none;
+}
+
+.meAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+
+.meAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--dsw-static-deepseek-100, #e4edfd);
+  color: var(--dsw-static-deepseek-600, #4868b2);
+  font-size: 16px;
+  flex: none;
+}
+
+.meInfo {
+  min-width: 0;
+}
+
+.meName {
+  font-weight: 600;
+}
+
+.meSub {
+  color: var(--dsw-text-secondary, #666666);
+  font-size: 12px;
+}

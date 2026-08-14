@@ -1,0 +1,20 @@
+# The dsh-yzj bundle patch: mounts the Yunzhijia bridge, tool family, and
+# browser surface over the dsh-base + web-app layers. All three rows carry
+# their defaults; deployments override per-row config in their own
+# cordis.patch.yml (an id-targeted patch replaces the whole config).
+- insert:
+    # Host channel to the yzj-cli binary (spawns it directly, reusing the
+    # machine's yzj-cli login state; the harness never sees credentials).
+    - id: yzj-bridge
+      name: '@dsh-yzj/bridge'
+
+    # Model-facing tools over the bridge; destructive operations ask through
+    # the approval seam (the GUI approval panel answers).
+    - id: tool-yzj
+      name: '@dsh-yzj/tool-yzj'
+
+    # Browser surface: /yzj RPC channel (node half) + rich tool cards and the
+    # workspace panel (browser half, a dsh.client row scanned into the boot
+    # graph by the modules registry).
+    - id: ui-yzj
+      name: '@dsh-yzj/ui-yzj'

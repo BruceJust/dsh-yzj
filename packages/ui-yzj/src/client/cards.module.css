@@ -1,0 +1,129 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-border, #d6d6d6);
+  border-radius: 8px;
+  background: var(--dsw-surface-raised, #f7f7f7);
+  color: var(--dsw-text-primary, #1a1a1a);
+  font-size: 13px;
+  line-height: 1.45;
+  min-width: 0;
+}
+
+.errorCard {
+  border-color: var(--dsw-border-danger, #b3261e);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--dsw-text-secondary, #666666);
+  flex: none;
+}
+
+.title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag {
+  flex: none;
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--dsw-static-deepseek-100, #e4edfd);
+  color: var(--dsw-static-deepseek-600, #4868b2);
+  font-size: 11px;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: var(--dsw-surface, #ffffff);
+}
+
+.rowTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.rowSub {
+  color: var(--dsw-text-secondary, #666666);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowId {
+  color: var(--dsw-text-tertiary, #999999);
+  font-size: 11px;
+  flex: none;
+}
+
+.avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+
+.avatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--dsw-static-deepseek-100, #e4edfd);
+  color: var(--dsw-static-deepseek-600, #4868b2);
+  font-size: 12px;
+  flex: none;
+}
+
+.link {
+  color: var(--dsw-static-deepseek-500, #4176e6);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text {
+  color: var(--dsw-text-secondary, #666666);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  max-height: 200px;
+  overflow: auto;
+}
