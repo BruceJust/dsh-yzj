@@ -10,6 +10,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
 import type {} from '@dsh-yzj/bridge'
+import { applyWriteGate, type YzjWriteRecord } from './write-gate.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'ui-yzj'
@@ -50,6 +51,24 @@ function clampLimit(value: unknown): number | undefined {
 /** Hard CLI cap for im `--limit` (verified against yzj-cli 0.x). */
 const CLI_LIMIT_MAX = 20
 
+/** Project a write-gate record into lossless JSON for the browser card. */
+function projectRecord(record: YzjWriteRecord): YzjWriteRecord {
+  return {
+    writeId: record.writeId,
+    sessionId: record.sessionId,
+    toolName: record.toolName,
+    ...record.callId === undefined ? {} : { callId: record.callId },
+    level: record.level,
+    domain: record.domain,
+    args: record.args,
+    reason: record.reason,
+    status: record.status,
+    ...record.error === undefined ? {} : { error: record.error },
+    time: record.time,
+    ...record.decidedAt === undefined ? {} : { decidedAt: record.decidedAt },
+  }
+}
+
 /**
  * Register the `/yzj` channel: `workspaces`, `docs`, `events`, `groups`,
  * `messages`, `whoami`, and `search` endpoints, all backed by the yzj-cli
@@ -57,6 +76,7 @@ const CLI_LIMIT_MAX = 20
  * @param ctx - Cordis context carrying the connection and bridge services.
  */
 export function apply(ctx: Context): void {
+  const writeGate = applyWriteGate(ctx)
   const handler: ConnectionRpcHandler = async (endpoint, payload, _signal) => {
     switch (endpoint) {
       case 'workspaces': {
@@ -138,6 +158,25 @@ export function apply(ctx: Context): void {
         const keyword = stringField(payload, 'keyword')
         if (keyword === undefined) return internalError('search endpoint requires a keyword payload')
         return bridgeResult(ctx, 'contact user search', ['contact', 'user', 'search', '--keyword', keyword])
+      }
+      case 'write-list': {
+        const sessionId = stringField(payload, 'sessionId')
+        if (sessionId === undefined) return internalError('write-list endpoint requires a sessionId payload')
+        const callId = stringField(payload, 'callId')
+        const list = writeGate.list(sessionId, callId).map(projectRecord)
+        return { ok: true, value: { list } }
+      }
+      case 'write-decide': {
+        const writeId = stringField(payload, 'writeId')
+        const outcome = stringField(payload, 'outcome')
+        if (writeId === undefined || outcome === undefined) {
+          return internalError('write-decide endpoint requires writeId and outcome payloads')
+        }
+        if (outcome !== 'allowed-once' && outcome !== 'rejected') {
+          return internalError(`write-decide endpoint rejects outcome "${outcome}"`)
+        }
+        const settled = writeGate.decide(writeId, outcome)
+        return { ok: true, value: { settled } }
       }
       default:
         return internalError(`unknown /yzj endpoint ${endpoint}`)

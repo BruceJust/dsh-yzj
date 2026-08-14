@@ -53,7 +53,11 @@ export function apply(ctx: ClientContext): void {
       id: 'yzj-drop-band',
       order: 100,
       inject: (sessionId: string): YzjDropInjected => {
-        const actx = ctx.sessions.scope(sessionId)
+        // The node-half write-gate imports host-only types that merge the
+        // host `ctx.sessions` declaration over the browser runtime's in this
+        // single-program package; re-narrow to the client scope face.
+        const sessions = ctx.sessions as unknown as { scope: (id: string) => import('@deepseek-ai/dsh-client-runtime/client').AgentContext | undefined }
+        const actx = sessions.scope(sessionId)
         return {
           insertReference: (ref) => {
             if (actx === undefined) return

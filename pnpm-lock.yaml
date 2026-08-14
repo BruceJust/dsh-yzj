@@ -71,6 +71,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: link:../../../deepseek-harness/vendor/cordis
         version: link:../../../deepseek-harness/vendor/cordis
+      '@deepseek-ai/dsh-agent':
+        specifier: link:../../../deepseek-harness/packages/core/agent
+        version: link:../../../deepseek-harness/packages/core/agent
       '@deepseek-ai/dsh-client-connection':
         specifier: link:../../../deepseek-harness/packages/client/connection
         version: link:../../../deepseek-harness/packages/client/connection
@@ -98,6 +101,12 @@ importers:
       '@deepseek-ai/dsh-client-ui-tool':
         specifier: link:../../../deepseek-harness/packages/client/ui-tool
         version: link:../../../deepseek-harness/packages/client/ui-tool
+      '@deepseek-ai/dsh-tools':
+        specifier: link:../../../deepseek-harness/packages/core/tools
+        version: link:../../../deepseek-harness/packages/core/tools
+      '@deepseek-ai/dsh-user-approval':
+        specifier: link:../../../deepseek-harness/packages/interaction/user-approval
+        version: link:../../../deepseek-harness/packages/interaction/user-approval
       '@dsh-yzj/bridge':
         specifier: workspace:^
         version: link:../bridge
