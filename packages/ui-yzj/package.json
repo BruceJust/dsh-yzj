@@ -24,7 +24,11 @@
   "dsh": {
     "client": {
       "inject": [
-        "@dsh-yzj/bridge"
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-input-trigger"
       ],
       "platform": "web"
     }

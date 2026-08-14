@@ -43,6 +43,10 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
 
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
 /** The client session scope face (see the composer dock for the why). */
 function scopeOf(ctx: ClientContext, sessionId: string): import('@deepseek-ai/dsh-client-runtime/client').AgentContext | undefined {
   const sessions = ctx.sessions as unknown as { scope: (id: string) => import('@deepseek-ai/dsh-client-runtime/client').AgentContext | undefined }
@@ -75,6 +79,11 @@ export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle | undefined
   const store = createYzjStore()
   const panelInject = createYzjPanelInject(connection)
+  // The engine caches one instance per handle × scope key, so this root
+  // create() IS the instance the panel/button slots mount — actions here
+  // drive the live panel.
+  const panelInstance = store.create()
+  const openWriteContextFor = (record: YzjWriteRecord): void => openWriteContext(panelInstance, panelInject, record)
 
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register(
     {
@@ -133,7 +142,12 @@ export function apply(ctx: ClientContext): void {
 
   applyYzjAtSource(ctx, panelInject)
 
+  // Write tools render only the confirmation-enhanced card (which falls back
+  // to the ordinary card internally); registering both under the same key
+  // would collide in the keyed toolview seat.
+  const writeNames = YZJ_WRITE_TOOL_NAMES as readonly string[]
   for (const toolName of YZJ_TOOL_NAMES) {
+    if (writeNames.includes(toolName)) continue
     ctx.slots.inject('tool.call.toolview', () => ctx.slots.register(
       { name: 'tool.call.toolview', key: toolName },
       YzjToolCard,
@@ -145,7 +159,6 @@ export function apply(ctx: ClientContext): void {
       {
         name: 'tool.call.toolview',
         key: toolName,
-        store,
         inject: (sessionId: string): WriteCardInjected => {
           const actx = scopeOf(ctx, sessionId)
           return {
@@ -159,10 +172,7 @@ export function apply(ctx: ClientContext): void {
               const result = await panelInject.decideWrite(writeId, outcome)
               return result.ok && asRecord(result.value).settled === true
             },
-            fetchMessages: (groupId): Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }> =>
-              panelInject.fetchMessages(groupId, 20),
-            fetchDocs: (workspace): Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }> =>
-              panelInject.fetchDocs(workspace),
+            openContext: openWriteContextFor,
             editDraft: (text): void => {
               if (actx !== undefined) insertDraftText(actx, text)
             },
@@ -171,5 +181,52 @@ export function apply(ctx: ClientContext): void {
       },
       YzjWriteToolCard,
     ))
+  }
+}
+
+/**
+ * The 查看上下文 jump: open the shared panel store instance (the engine
+ * caches one instance per handle × scope key, so this IS the panel's store)
+ * and drive it onto the tab the write targets.
+ */
+function openWriteContext(
+  instance: import('@deepseek-ai/dsh-client-runtime/client').EngineStoreInstance<
+    import('./stores.ts').YzjPanelState,
+    import('./stores.ts').YzjPanelActions
+  >,
+  inject: ReturnType<typeof createYzjPanelInject>,
+  record: YzjWriteRecord,
+): void {
+  const actions = instance.actions
+  actions.setOpen(true)
+  actions.setError('')
+  const args = asRecord(record.args)
+  if (record.domain === 'im') {
+    actions.setTab('chat')
+    const groupId = asString(args.groupId)
+    if (groupId !== '') {
+      actions.setGroupId(groupId)
+      // Anchor on the replied-to message when this write is a reply — the
+      // context the user must verify before sending.
+      const replyTarget = asString(args.replyMsgId)
+      if (replyTarget !== '') actions.setAnchorMsgId(replyTarget)
+      void inject.fetchMessages(groupId, 20).then((result) => {
+        if (result.ok) {
+          const list = asArray(asRecord(result.value).list)
+          actions.setMessages([...list].reverse())
+        }
+      })
+    }
+  } else if (record.domain === 'doc' || record.domain === 'kb' || record.domain === 'sheet') {
+    actions.setTab('docs')
+    const workspace = asString(args.workspace)
+    if (workspace !== '') {
+      actions.setWorkspaceId(workspace)
+      void inject.fetchDocs(workspace).then((result) => {
+        if (result.ok) actions.setDocs(asArray(result.value))
+      })
+    }
+  } else {
+    actions.setTab('calendar')
   }
 }

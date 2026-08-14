@@ -28,7 +28,14 @@ async function bridgeResult(
   label: string,
   command: readonly string[],
 ): Promise<{ ok: true; value: unknown } | { ok: false; error: { code: 'internal'; message: string; details: Record<string, never> } }> {
-  const result = await ctx.yzjBridge.run(command)
+  let result
+  try {
+    result = await ctx.yzjBridge.run(command)
+  } catch (error) {
+    // The bridge rejects only on spawn failure (binary missing, bad path) —
+    // surface a structured error with the login hint instead of a 500.
+    return internalError(`${label} failed: ${String(error)}；请确认已安装 yzj-cli 并完成 \`yzj-cli auth login\``)
+  }
   if (!result.ok) {
     const detail = result.stderr.trim() === '' ? `${label} failed (exit ${result.exitCode})` : result.stderr.trim()
     return internalError(detail)

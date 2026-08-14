@@ -8,11 +8,9 @@
  * durable tool events — replay-safe by construction.
  */
 import { useEffect, useState, type ReactNode } from 'react'
-import type { BakedActions } from '@deepseek-ai/dsh-client-ui-slots'
 import type { YzjWriteRecord } from '../write-gate.ts'
 import { YzjToolCard } from './cards.tsx'
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/src/client/contract/slots.ts'
-import type { YzjPanelActions, YzjPanelState } from './stores.ts'
 import css from './cards.module.css'
 
 /**
@@ -39,18 +37,10 @@ export interface WriteCardInjected {
   fetchWrite: (callId: string) => Promise<YzjWriteRecord | undefined>
   /** Settle the pending decision; false when the record is no longer pending. */
   decideWrite: (writeId: string, outcome: 'allowed-once' | 'rejected') => Promise<boolean>
-  /** Fresh message window for the 查看上下文 jump (chat domain). */
-  fetchMessages: (groupId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }>
-  /** Fresh doc window for the 查看上下文 jump (doc/kb/sheet domains). */
-  fetchDocs: (workspace: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }>
+  /** Open the floating panel on the context the write targets. */
+  openContext: (record: YzjWriteRecord) => void
   /** Push a draft text back into the composer for editing. */
   editDraft: (text: string) => void
-}
-
-/** Store shares the card uses for the panel jump (registered with `store`). */
-export type WriteCardStoreProps = {
-  useStore: <R>(selector: (state: YzjPanelState) => R) => R
-  actions: BakedActions<YzjPanelState, YzjPanelActions>
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -120,39 +110,6 @@ export function writableDraft(record: YzjWriteRecord): string {
 }
 
 /** The 查看上下文 jump: open the panel on the tab the write targets. */
-function openContext(props: WriteCardInjected & WriteCardStoreProps, record: YzjWriteRecord): void {
-  props.actions.setOpen(true)
-  props.actions.setError('')
-  const args = asRecord(record.args)
-  if (record.domain === 'im') {
-    props.actions.setTab('chat')
-    const groupId = asString(args.groupId)
-    if (groupId !== '') {
-      props.actions.setGroupId(groupId)
-      // Anchor on the replied-to message when this write is a reply — the
-      // context the user must verify before sending.
-      const replyTarget = asString(args.replyMsgId)
-      if (replyTarget !== '') props.actions.setAnchorMsgId(replyTarget)
-      void props.fetchMessages(groupId).then((result) => {
-        if (result.ok) {
-          const list = asArray(asRecord(result.value).list)
-          props.actions.setMessages([...list].reverse())
-        }
-      })
-    }
-  } else if (record.domain === 'doc' || record.domain === 'kb' || record.domain === 'sheet') {
-    props.actions.setTab('docs')
-    const workspace = asString(args.workspace)
-    if (workspace !== '') {
-      props.actions.setWorkspaceId(workspace)
-      void props.fetchDocs(workspace).then((result) => {
-        if (result.ok) props.actions.setDocs(asArray(result.value))
-      })
-    }
-  } else {
-    props.actions.setTab('calendar')
-  }
-}
 
 /** One line of gated arguments, domain-specific. */
 function ArgBody({ record }: { record: YzjWriteRecord }): ReactNode {
@@ -213,7 +170,7 @@ function ArgBody({ record }: { record: YzjWriteRecord }): ReactNode {
  * surface; everything else (ungated, cancelled, done, failed) delegates to
  * the ordinary tool card so the durable result stays the terminal display.
  */
-export function YzjWriteToolCard(props: ToolCallViewProps & WriteCardInjected & WriteCardStoreProps) {
+export function YzjWriteToolCard(props: ToolCallViewProps & WriteCardInjected) {
   const { toolName, callId } = props
   const [record, setRecord] = useState<YzjWriteRecord | undefined>(undefined)
   const [ready, setReady] = useState(false)
@@ -258,7 +215,7 @@ export function YzjWriteToolCard(props: ToolCallViewProps & WriteCardInjected & 
         <div className={css.actions}>
           <button type="button" className={css.actionPrimary} onClick={() => decide('allowed-once', 'approved')}>确认</button>
           <button type="button" className={css.action} onClick={() => decide('rejected', 'cancelled')}>取消</button>
-          <button type="button" className={css.action} onClick={() => openContext(props, record)}>查看上下文</button>
+          <button type="button" className={css.action} onClick={() => props.openContext(record)}>查看上下文</button>
           {draft !== '' && (
             <button type="button" className={css.action} onClick={() => {
               props.editDraft(draft)

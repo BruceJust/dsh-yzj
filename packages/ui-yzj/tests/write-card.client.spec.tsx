@@ -9,9 +9,8 @@ import { act } from 'react-dom/test-utils'
 import { createRoot } from 'react-dom/client'
 import { describe, expect, it, vi } from 'vitest'
 import type { ToolResultNode } from '@deepseek-ai/dsh-client-runtime/client'
-import { YzjWriteToolCard, writableDraft, type WriteCardInjected, type WriteCardStoreProps } from '../src/client/write-card.tsx'
+import { YzjWriteToolCard, writableDraft, type WriteCardInjected } from '../src/client/write-card.tsx'
 import type { YzjWriteRecord } from '../src/write-gate.ts'
-import { createYzjStore } from '../src/client/stores.ts'
 
 type CardProps = Parameters<typeof YzjWriteToolCard>[0]
 
@@ -27,15 +26,6 @@ async function renderCard(over: Partial<CardProps>): Promise<string> {
   return container.textContent ?? ''
 }
 
-const STORE = createYzjStore()
-
-function storeProps(): WriteCardStoreProps {
-  return {
-    useStore: ((selector: (state: never) => unknown) => selector(STORE.create().getSnapshot() as never)) as WriteCardStoreProps['useStore'],
-    actions: {} as WriteCardStoreProps['actions'],
-  }
-}
-
 function baseProps(over: Partial<CardProps>): CardProps {
   return {
     toolName: 'yzj_im_message_send',
@@ -46,10 +36,8 @@ function baseProps(over: Partial<CardProps>): CardProps {
     inspect: () => {},
     fetchWrite: async () => undefined,
     decideWrite: async () => true,
-    fetchMessages: async () => ({ ok: false, error: { message: 'x' } }),
-    fetchDocs: async () => ({ ok: false, error: { message: 'x' } }),
+    openContext: () => {},
     editDraft: () => {},
-    ...storeProps(),
     ...over,
   }
 }
@@ -68,9 +56,7 @@ describe('YzjWriteToolCard', () => {
     const injected: WriteCardInjected = {
       fetchWrite: async () => pendingRecord(),
       decideWrite: vi.fn(async () => true),
-      fetchMessages: async () => ({ ok: false, error: { message: 'x' } }),
-      fetchDocs: async () => ({ ok: false, error: { message: 'x' } }),
-      editDraft: vi.fn(),
+      editDraft: vi.fn(), openContext: () => {},
     }
     const text = await renderCard(baseProps({ ...injected }))
     expect(text).toContain('发送消息')
@@ -87,9 +73,7 @@ describe('YzjWriteToolCard', () => {
     const injected: WriteCardInjected = {
       fetchWrite: async () => pendingRecord({ toolName: 'yzj_doc_delete', level: 'strong', domain: 'doc', args: { id: 'd1' } }),
       decideWrite: async () => true,
-      fetchMessages: async () => ({ ok: false, error: { message: 'x' } }),
-      fetchDocs: async () => ({ ok: false, error: { message: 'x' } }),
-      editDraft: () => {},
+      editDraft: () => {}, openContext: () => {},
     }
     const text = await renderCard(baseProps({ toolName: 'yzj_doc_delete', ...injected }))
     expect(text).toContain('删除文档')
@@ -102,9 +86,7 @@ describe('YzjWriteToolCard', () => {
     const injected: WriteCardInjected = {
       fetchWrite: async () => pendingRecord({ status: 'approved' }),
       decideWrite: async () => true,
-      fetchMessages: async () => ({ ok: false, error: { message: 'x' } }),
-      fetchDocs: async () => ({ ok: false, error: { message: 'x' } }),
-      editDraft: () => {},
+      editDraft: () => {}, openContext: () => {},
     }
     const text = await renderCard(baseProps({ ...injected }))
     expect(text).toContain('已批准，正在执行')
@@ -116,9 +98,7 @@ describe('YzjWriteToolCard', () => {
     const injected: WriteCardInjected = {
       fetchWrite: async () => undefined,
       decideWrite: async () => true,
-      fetchMessages: async () => ({ ok: false, error: { message: 'x' } }),
-      fetchDocs: async () => ({ ok: false, error: { message: 'x' } }),
-      editDraft: () => {},
+      editDraft: () => {}, openContext: () => {},
     }
     const text = await renderCard(baseProps({ ...injected }))
     expect(text).toContain('发送消息')
@@ -135,9 +115,7 @@ describe('YzjWriteToolCard', () => {
     const injected: WriteCardInjected = {
       fetchWrite: async () => pendingRecord({ status: 'done' }),
       decideWrite: async () => true,
-      fetchMessages: async () => ({ ok: false, error: { message: 'x' } }),
-      fetchDocs: async () => ({ ok: false, error: { message: 'x' } }),
-      editDraft: () => {},
+      editDraft: () => {}, openContext: () => {},
     }
     const text = await renderCard(baseProps({ toolName: 'yzj_im_message_send', block: result, ...injected }))
     expect(text).toContain('sent (m1)')
