@@ -69,15 +69,23 @@ function projectRecord(record: YzjWriteRecord): YzjWriteRecord {
   }
 }
 
+/** The write-gate query/decide face consumed by the RPC handler. */
+export interface YzjWriteGateFace {
+  list: (sessionId: string, callId?: string) => YzjWriteRecord[]
+  decide: (writeId: string, outcome: 'allowed-once' | 'rejected') => boolean
+}
+
 /**
- * Register the `/yzj` channel: `workspaces`, `docs`, `events`, `groups`,
- * `messages`, `whoami`, and `search` endpoints, all backed by the yzj-cli
- * bridge. Endpoint payloads are validated as lossless JSON before use.
- * @param ctx - Cordis context carrying the connection and bridge services.
+ * Build the `/yzj` RPC handler: `workspaces`, `docs`, `events`, `groups`,
+ * `messages`, `whoami`, `search`, `doc-get`, `doc-blocks`, `sheet-get`,
+ * `workspace-get`, `event-get`, `contact-get`, `write-list`, and
+ * `write-decide` endpoints, all backed by the yzj-cli bridge and the
+ * write-gate. Endpoint payloads are validated as lossless JSON before use.
+ * @param ctx - Cordis context carrying the bridge service.
+ * @param writeGate - the confirmation-card bridge face.
  */
-export function apply(ctx: Context): void {
-  const writeGate = applyWriteGate(ctx)
-  const handler: ConnectionRpcHandler = async (endpoint, payload, _signal) => {
+export function createRpcHandler(ctx: Context, writeGate: YzjWriteGateFace): ConnectionRpcHandler {
+  return async (endpoint, payload, _signal) => {
     switch (endpoint) {
       case 'workspaces': {
         const type = stringField(payload, 'type')
@@ -187,5 +195,14 @@ export function apply(ctx: Context): void {
         return internalError(`unknown /yzj endpoint ${endpoint}`)
     }
   }
+}
+
+/**
+ * Register the `/yzj` channel over the built handler.
+ * @param ctx - Cordis context carrying the connection and bridge services.
+ */
+export function apply(ctx: Context): void {
+  const writeGate = applyWriteGate(ctx)
+  const handler = createRpcHandler(ctx, writeGate)
   ctx.connection.rpc.handle('/yzj', handler, { authority: 'loopback' })
 }
