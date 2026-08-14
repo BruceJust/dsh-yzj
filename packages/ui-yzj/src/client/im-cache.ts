@@ -52,6 +52,25 @@ export function putGroupWindow(groups: unknown[], more: boolean): void {
 const senderNames = new Map<string, string>()
 const senderInflight = new Map<string, Promise<string>>()
 
+/** The login user's profile, resolved once (for outbound message attribution). */
+let myProfile: { openId: string; name: string } | null = null
+
+/** Resolve the login user's openId + name (cached for the session). */
+export async function ensureMyProfile(
+  inject: Pick<YzjPanelInject, 'fetchWhoami'>,
+): Promise<{ openId: string; name: string }> {
+  if (myProfile !== null) return myProfile
+  const result = await inject.fetchWhoami()
+  if (!result.ok) return { openId: '', name: '' }
+  const list = Array.isArray(result.value) ? result.value : []
+  const user = (list[0] ?? {}) as Record<string, unknown>
+  myProfile = {
+    openId: typeof user.openId === 'string' ? user.openId : typeof user.oId === 'string' ? user.oId : '',
+    name: typeof user.name === 'string' ? user.name : '',
+  }
+  return myProfile
+}
+
 /** Cached display name for a sender, or '' when not yet resolved. */
 export function senderNameOf(openId: string): string {
   return senderNames.get(openId) ?? ''

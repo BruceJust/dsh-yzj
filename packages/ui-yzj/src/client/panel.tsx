@@ -17,7 +17,7 @@ import type { BakedActions } from '@deepseek-ai/dsh-client-ui-slots'
 import type { YzjPanelActions, YzjPanelState, YzjTab } from './stores.ts'
 import type { YzjPanelInject } from './rpc.ts'
 import {
-  formatListTime, formatMsgTime, formatSize, getGroupWindow,
+  ensureMyProfile, formatListTime, formatMsgTime, formatSize, getGroupWindow,
   getMessageWindow, putGroupWindow, putMessageWindow, resolveFileData, resolveSenders, senderNameOf,
 } from './im-cache.ts'
 import css from './panel.module.css'
@@ -613,6 +613,19 @@ export function YzjPanel(props: YzjPanelProps) {
   const [anchorToast, setAnchorToast] = useState('')
   const [senderNames, setSenderNames] = useState<Record<string, string>>({})
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const listRef = useRef<HTMLDivElement | null>(null)
+
+  // Keep the newest messages in view: bottom on group open and after sends,
+  // unless an anchor jump is active.
+  useEffect(() => {
+    if (state.groupId === '' || state.anchorMsgId !== '') return
+    const list = listRef.current
+    if (list === null) return
+    list.scrollTop = list.scrollHeight
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.groupId, state.messages])
 
   // Resolve sender display names for the loaded message window (cached).
   // The React state mirrors the module cache so newly resolved names
@@ -706,6 +719,8 @@ export function YzjPanel(props: YzjPanelProps) {
 
   const openGroup = (id: string): void => {
     props.actions.setGroupId(id)
+    props.actions.setAnchorMsgId('')
+    setDraft('')
     // Rendered window is cached ~60s: revisiting a group is instant.
     const cached = getMessageWindow(id)
     if (cached !== undefined) {
@@ -771,6 +786,41 @@ export function YzjPanel(props: YzjPanelProps) {
       }
       props.actions.setLoading(false)
     })
+  }
+
+  const submitMessage = (): void => {
+    const content = draft.trim()
+    if (content === '' || sending || state.groupId === '') return
+    setSending(true)
+    const groupId = state.groupId
+    void props.sendMessage(groupId, content).then(async (result) => {
+      if (!result.ok) {
+        props.actions.setError(result.error.message)
+        return
+      }
+      const profile = await ensureMyProfile(props)
+      const payload = asRecord(result.value)
+      const now = new Date()
+      const pad = (n: number): string => String(n).padStart(2, '0')
+      const sendTime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.000`
+      const sent: Record<string, unknown> = {
+        msgId: asString(payload.msgId ?? payload.id) === '' ? `local-${now.getTime()}` : asString(payload.msgId ?? payload.id),
+        content,
+        msgType: 'text',
+        sendTime,
+        fromOpenId: profile.openId,
+        param: {},
+      }
+      if (profile.openId !== '' && profile.name !== '') {
+        setSenderNames(prev => ({ ...prev, [profile.openId]: profile.name }))
+      }
+      const next = [...state.messages, sent]
+      props.actions.setMessages(next)
+      putMessageWindow(groupId, next, state.messagesMore)
+      setDraft('')
+      const list = listRef.current
+      if (list !== null) list.scrollTop = list.scrollHeight
+    }).finally(() => setSending(false))
   }
 
   const runSearch = (): void => {
@@ -1003,10 +1053,15 @@ export function YzjPanel(props: YzjPanelProps) {
               )}
             </div>
           ) : (
-            <div className={css.list}>
-              <button type="button" className={css.back} onClick={() => { props.actions.setGroupId('') }}>
-                <IconChevronLeft14 /> 返回会话
-              </button>
+            <>
+              <div className={css.list} ref={listRef}>
+                <button type="button" className={css.back} onClick={() => {
+                  props.actions.setGroupId('')
+                  props.actions.setAnchorMsgId('')
+                  setDraft('')
+                }}>
+                  <IconChevronLeft14 /> 返回会话
+                </button>
               {state.messages.length === 0 && !state.loading && state.error === '' && <div className={css.empty}>暂无消息</div>}
               {state.messagesMore && (
                 <button type="button" className={css.more} onClick={loadOlderMessages} disabled={state.loading}>
@@ -1054,7 +1109,31 @@ export function YzjPanel(props: YzjPanelProps) {
               {anchorToast !== '' && (
                 <div className={css.panelToast} role="status">{anchorToast}</div>
               )}
-            </div>
+              </div>
+              <div className={css.composer}>
+                <input
+                  className={css.composerInput}
+                  value={draft}
+                  onChange={(event) => { setDraft(event.target.value) }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' || event.nativeEvent.isComposing || event.shiftKey) return
+                    event.preventDefault()
+                    submitMessage()
+                  }}
+                  placeholder="输入消息，回车发送…"
+                  aria-label="输入消息"
+                  disabled={sending}
+                />
+                <button
+                  type="button"
+                  className={css.composerSend}
+                  onClick={submitMessage}
+                  disabled={sending || draft.trim() === ''}
+                >
+                  {sending ? '发送中…' : '发送'}
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}

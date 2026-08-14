@@ -28,6 +28,8 @@ export interface YzjPanelInject {
   fetchContact: (openId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   /** One file's data URL proxied through the authenticated CLI (fileId). */
   fetchFileData: (fileId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  /** Send a text message to a group from the panel composer. */
+  sendMessage: (groupId: string, content: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   /** One write-confirmation record for a tool call (undefined when not gated). */
   fetchWrite: (sessionId: string, callId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   /** Settle one pending write-confirmation decision. */
@@ -65,6 +67,7 @@ export function createYzjPanelInject(connection: ConnectionHandle | undefined): 
     fetchEvent: (id) => call('event-get', { id }),
     fetchContact: (openId) => call('contact-get', { openId }),
     fetchFileData: (fileId) => call('file-data', { fileId }),
+    sendMessage: (groupId, content) => call('im-send', { groupId, content }),
     fetchWrite: (sessionId, callId) => call('write-list', { sessionId, callId }),
     decideWrite: (writeId, outcome) => call('write-decide', { writeId, outcome }),
   }

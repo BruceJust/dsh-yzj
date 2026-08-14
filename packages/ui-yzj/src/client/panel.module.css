@@ -882,3 +882,61 @@
   border-radius: 8px;
   box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
 }
+
+/* ── Message composer (panel send) ───────────────────────────────────── */
+
+.composer {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+  flex: none;
+}
+
+.composerInput {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 18px;
+  outline: none;
+  transition: border-color 120ms var(--ds-ease-in-out, ease);
+}
+
+.composerInput:focus {
+  border-color: var(--dsw-static-deepseek-500);
+}
+
+.composerInput::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.composerInput:disabled {
+  opacity: 0.6;
+}
+
+.composerSend {
+  flex: none;
+  padding: 0 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--dsw-static-deepseek-500);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms var(--ds-ease-in-out, ease), opacity 120ms var(--ds-ease-in-out, ease);
+}
+
+.composerSend:hover:not(:disabled) {
+  background: var(--dsw-static-deepseek-600);
+}
+
+.composerSend:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

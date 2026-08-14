@@ -244,6 +244,16 @@ export function createRpcHandler(ctx: Context, writeGate: YzjWriteGateFace): Con
         if (keyword === undefined) return internalError('search endpoint requires a keyword payload')
         return bridgeResult(ctx, 'contact user search', ['contact', 'user', 'search', '--keyword', keyword])
       }
+      case 'im-send': {
+        const groupId = stringField(payload, 'groupId')
+        const content = stringField(payload, 'content')
+        if (groupId === undefined || content === undefined) {
+          return internalError('im-send endpoint requires groupId and content payloads')
+        }
+        if (content.trim() === '') return internalError('im-send endpoint rejects empty content')
+        if (content.length > 4000) return internalError('im-send endpoint rejects content over 4000 chars')
+        return bridgeResult(ctx, 'im message send', ['im', 'message', 'send', '--msg-type', 'text', '--group-id', groupId, '--content', content])
+      }
       case 'file-data': {
         const fileId = stringField(payload, 'fileId')
         if (fileId === undefined) return internalError('file-data endpoint requires a fileId payload')
