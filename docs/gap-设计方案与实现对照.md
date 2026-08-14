@@ -150,8 +150,9 @@ P0 消息回源、P1 门禁分级/确认卡/通知层一三/skill/影子库/锚�
 ### 验证证据
 
 - `pnpm -r --sort build` / `typecheck`：4 包全绿。
-- `pnpm test`：65 passed + 2 skipped（Windows shebang/--profile 平台限制）。
-- **真实浏览器验收**（`.acceptance/verify-windows.mjs`，独立 dsh web 实例 + 系统 Chrome）：9 项全 PASS——插件挂载（云之家 toggle）、面板四 tab、四 tab 无 CLI 优雅降级（结构化错误横幅，无 500/无崩溃）、@ 菜单不崩溃、全程零页面错误。验收中抓到并修复 3 个真实 bug（toolview 同 key 注册冲突、store 跨 scope 挂载冲突、bridge spawn 异常 500）+ 1 个配置 bug（dsh.client.inject 指向无 client 面的包）。
+- `pnpm test`：67 passed + 2 skipped（Windows 平台限制），**含 tool-yzj 8 项真实 CLI 冒烟**（登录态下执行 whoami/知识库/通讯录/最近会话/日程）。
+- **真实浏览器验收**（`.acceptance/verify-real-data.mjs`，已登录 yzj-cli + 独立 dsh web 实例 + 系统 Chrome）：**8/8 PASS**——知识库真实列表、日程真实事件、20 个真实群组、群消息加载、@ 菜单会话/文档组真实候选、同事组关键词检索（带可见范围提示）、零页面错误。
+- **无 CLI 降级验收**（`.acceptance/verify-windows.mjs`）：9/9 PASS——插件挂载、面板四 tab、优雅错误横幅（无 500）、@ 菜单不崩溃。验收中抓到并修复 4 个真实 bug（toolview 同 key 注册冲突、store 跨 scope 冲突、bridge spawn 500、dsh.client.inject 配置）+ Windows npm 启动器解析（bridge 真实 CLI 链路）与 @ 候选 warm 时序问题。
 - 客户端 bundle 重建成功（`lib/client.js`）。
 
 *本文档为对照记录，不替代 v1.6 设计原文；标注「待拍板」的项目维持原设计的决策归属。*
