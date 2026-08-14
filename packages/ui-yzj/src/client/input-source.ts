@@ -244,10 +244,13 @@ export function createYzjSources(inject: YzjPanelInject): InputTriggerSource[] {
       warm(session: ClientSessionContext) {
         void ensureWarm(cacheOf(session.sessionId), inject)
       },
-      candidates: (session, req) => {
+      // Candidates await the warm themselves — the trigger pipeline may call
+      // candidates before warm settles (or before it runs at all), so relying
+      // on warm alone would yield an empty group.
+      candidates: async (session, req) => {
         const cache = cacheOf(session.sessionId)
-        if (cache.warm !== null) return cache.warm.then(() => groupCandidates(cache, req.query))
-        return Promise.resolve(groupCandidates(cache, req.query))
+        await ensureWarm(cache, inject)
+        return groupCandidates(cache, req.query)
       },
       onPick: onPick(SOURCE_GROUPS),
       codec,
@@ -259,10 +262,10 @@ export function createYzjSources(inject: YzjPanelInject): InputTriggerSource[] {
       warm(session: ClientSessionContext) {
         void ensureWarm(cacheOf(session.sessionId), inject)
       },
-      candidates: (session, req) => {
+      candidates: async (session, req) => {
         const cache = cacheOf(session.sessionId)
-        if (cache.warm !== null) return cache.warm.then(() => docCandidates(cache, req.query))
-        return Promise.resolve(docCandidates(cache, req.query))
+        await ensureWarm(cache, inject)
+        return docCandidates(cache, req.query)
       },
       onPick: onPick(SOURCE_DOCS),
       codec,
