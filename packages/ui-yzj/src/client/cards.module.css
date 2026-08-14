@@ -143,3 +143,51 @@
   max-height: 200px;
   overflow: auto;
 }
+
+/* --- write confirmation card --- */
+
+.strongCard {
+  border-color: var(--dsw-border-danger, #b3261e);
+  background: var(--dsw-danger-surface, #fdeceb);
+}
+
+.tagStrong {
+  background: var(--dsw-danger-surface, #fdeceb);
+  color: var(--dsw-text-danger, #b3261e);
+}
+
+.fullText {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: var(--dsw-surface, #ffffff);
+  max-height: 180px;
+  overflow: auto;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.action,
+.actionPrimary {
+  border: 1px solid var(--dsw-border, #d6d6d6);
+  border-radius: 6px;
+  background: var(--dsw-surface, #ffffff);
+  color: var(--dsw-text-primary, #1a1a1a);
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.actionPrimary {
+  border-color: var(--dsw-static-deepseek-500, #4176e6);
+  background: var(--dsw-static-deepseek-500, #4176e6);
+  color: #ffffff;
+  font-weight: 600;
+}
