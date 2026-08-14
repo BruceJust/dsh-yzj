@@ -129,6 +129,10 @@ function openContext(props: WriteCardInjected & WriteCardStoreProps, record: Yzj
     const groupId = asString(args.groupId)
     if (groupId !== '') {
       props.actions.setGroupId(groupId)
+      // Anchor on the replied-to message when this write is a reply — the
+      // context the user must verify before sending.
+      const replyTarget = asString(args.replyMsgId)
+      if (replyTarget !== '') props.actions.setAnchorMsgId(replyTarget)
       void props.fetchMessages(groupId).then((result) => {
         if (result.ok) {
           const list = asArray(asRecord(result.value).list)

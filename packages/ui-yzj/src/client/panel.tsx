@@ -249,6 +249,14 @@ export function YzjPanel(props: YzjPanelProps) {
   const state = props.useStore(s => s)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const dragOffset = useRef<{ dx: number; dy: number } | null>(null)
+  const anchorRef = useRef<HTMLDivElement | null>(null)
+
+  // Scroll the jump anchor into view once its group's messages land.
+  useEffect(() => {
+    if (state.anchorMsgId === '' || anchorRef.current === null) return
+    anchorRef.current.scrollIntoView({ block: 'center' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.messages, state.anchorMsgId])
 
   useEffect(() => {
     if (!open) return
@@ -600,14 +608,17 @@ export function YzjPanel(props: YzjPanelProps) {
                 const content = asString(message.content)
                 const msgType = asString(message.msgType)
                 const sendTime = asString(message.sendTime)
+                const msgId = asString(message.msgId)
+                const anchored = msgId !== '' && msgId === state.anchorMsgId
                 return (
                   <div
                     key={`m${index}`}
-                    className={css.item}
+                    ref={anchored ? anchorRef : undefined}
+                    className={anchored ? `${css.item} ${css.itemAnchored}` : css.item}
                     draggable
                     onDragStart={(event) => {
                       startDragTransfer(event, {
-                        kind: 'message', id: asString(message.msgId),
+                        kind: 'message', id: msgId,
                         title: content === '' ? `(${msgType === '' ? '消息' : msgType})` : content,
                         sub: sendTime.slice(5, 16),
                         group: state.groupId,

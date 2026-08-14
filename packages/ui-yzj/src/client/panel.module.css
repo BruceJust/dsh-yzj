@@ -318,6 +318,13 @@
   flex: none;
 }
 
+/* Jump-anchor message highlight (查看上下文 / 通知定位). */
+.itemAnchored {
+  outline: 2px solid var(--dsw-static-deepseek-500, #4176e6);
+  outline-offset: -1px;
+  background: var(--dsw-static-deepseek-100, #e4edfd);
+}
+
 .back {
   display: inline-flex;
   align-items: center;

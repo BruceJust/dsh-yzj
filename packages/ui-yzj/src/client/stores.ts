@@ -27,6 +27,8 @@ export type YzjPanelState = {
   messages: unknown[]
   messagesMore: boolean
   messagesAnchor: string
+  /** Message to scroll to and highlight after the group loads (jump anchor). */
+  anchorMsgId: string
   me: unknown
   searchKeyword: string
   searchResults: unknown[]
@@ -54,6 +56,7 @@ export type YzjPanelActions = {
   setMessagesMore: (draft: YzjPanelState, more: boolean) => void
   setMessagesAnchor: (draft: YzjPanelState, anchor: string) => void
   prependMessages: (draft: YzjPanelState, messages: unknown[]) => void
+  setAnchorMsgId: (draft: YzjPanelState, id: string) => void
   setMe: (draft: YzjPanelState, me: unknown) => void
   setSearchKeyword: (draft: YzjPanelState, keyword: string) => void
   setSearchResults: (draft: YzjPanelState, results: unknown[]) => void
@@ -81,6 +84,7 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
       messages: [],
       messagesMore: false,
       messagesAnchor: '',
+      anchorMsgId: '',
       me: {},
       searchKeyword: '',
       searchResults: [],
@@ -112,6 +116,7 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
         const seen = new Set(d.messages.map(message => String(asRecord(message).msgId)))
         d.messages = [...messages.filter(message => !seen.has(String(asRecord(message).msgId))), ...d.messages]
       },
+      setAnchorMsgId: (d: YzjPanelState, id: string) => { d.anchorMsgId = id },
       setMe: (d: YzjPanelState, me: unknown) => { d.me = me },
       setSearchKeyword: (d: YzjPanelState, keyword: string) => { d.searchKeyword = keyword },
       setSearchResults: (d: YzjPanelState, results: unknown[]) => { d.searchResults = results },
