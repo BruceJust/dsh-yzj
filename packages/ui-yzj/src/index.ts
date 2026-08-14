@@ -41,6 +41,15 @@ function stringField(payload: unknown, key: string): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 
+/** Cap an integer field at the CLI's real `--limit` bound (1-20 for im). */
+function clampLimit(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return undefined
+  return Math.min(value, CLI_LIMIT_MAX)
+}
+
+/** Hard CLI cap for im `--limit` (verified against yzj-cli 0.x). */
+const CLI_LIMIT_MAX = 20
+
 /**
  * Register the `/yzj` channel: `workspaces`, `docs`, `events`, `groups`,
  * `messages`, `whoami`, and `search` endpoints, all backed by the yzj-cli
@@ -73,8 +82,8 @@ export function apply(ctx: Context): void {
       case 'groups': {
         const command = ['im', 'group', 'recent']
         if (typeof payload === 'object' && payload !== null) {
-          const limit = (payload as Record<string, unknown>).limit
-          if (typeof limit === 'number' && Number.isInteger(limit) && limit > 0) command.push('--limit', String(limit))
+          const limit = clampLimit((payload as Record<string, unknown>).limit)
+          if (limit !== undefined) command.push('--limit', String(limit))
           const page = (payload as Record<string, unknown>).page
           if (typeof page === 'number' && Number.isInteger(page) && page > 0) command.push('--page', String(page))
         }
@@ -89,13 +98,41 @@ export function apply(ctx: Context): void {
         const msgId = stringField(payload, 'msgId')
         if (msgId !== undefined) command.push('--msg-id', msgId)
         if (typeof payload === 'object' && payload !== null) {
-          const limit = (payload as Record<string, unknown>).limit
-          if (typeof limit === 'number' && Number.isInteger(limit) && limit > 0) command.push('--limit', String(limit))
+          const limit = clampLimit((payload as Record<string, unknown>).limit)
+          if (limit !== undefined) command.push('--limit', String(limit))
         }
         return bridgeResult(ctx, 'im message list', command)
       }
       case 'whoami': {
         return bridgeResult(ctx, 'contact user get', ['contact', 'user', 'get'])
+      }
+      case 'doc-get': {
+        const id = stringField(payload, 'id')
+        if (id === undefined) return internalError('doc-get endpoint requires an id payload')
+        return bridgeResult(ctx, 'doc get', ['doc', 'get', '--id', id])
+      }
+      case 'doc-blocks': {
+        const id = stringField(payload, 'id')
+        if (id === undefined) return internalError('doc-blocks endpoint requires an id payload')
+        const command = ['doc', 'block', 'list', '--id', id]
+        const blockId = stringField(payload, 'blockId')
+        if (blockId !== undefined) command.push('--block-id', blockId)
+        return bridgeResult(ctx, 'doc block list', command)
+      }
+      case 'workspace-get': {
+        const id = stringField(payload, 'id')
+        if (id === undefined) return internalError('workspace-get endpoint requires an id payload')
+        return bridgeResult(ctx, 'doc workspace get', ['doc', 'workspace', 'get', '--id', id])
+      }
+      case 'event-get': {
+        const id = stringField(payload, 'id')
+        if (id === undefined) return internalError('event-get endpoint requires an id payload')
+        return bridgeResult(ctx, 'calendar event get', ['calendar', 'event', 'get', '--id', id])
+      }
+      case 'contact-get': {
+        const openId = stringField(payload, 'openId')
+        if (openId === undefined) return internalError('contact-get endpoint requires an openId payload')
+        return bridgeResult(ctx, 'contact user get', ['contact', 'user', 'get', '--open-id', openId])
       }
       case 'search': {
         const keyword = stringField(payload, 'keyword')

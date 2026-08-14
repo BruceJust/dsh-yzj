@@ -2,3 +2,7 @@ node_modules/
 lib/
 *.tsbuildinfo
 dist/
+
+# acceptance artifacts
+.acceptance/shots/
+.DS_Store

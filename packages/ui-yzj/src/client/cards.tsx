@@ -133,10 +133,6 @@ function resultText(block: Extract<ToolCallBlock, { kind: 'tool-result' }>): str
 }
 
 /** Short id for display. */
-function shortId(id: string): string {
-  return id.length > 10 ? id.slice(0, 10) : id
-}
-
 function row(title: string, sub: string, key: string): ReactNode {
   return (
     <div className={css.row} key={key}>
@@ -169,9 +165,15 @@ function DocBody(meta: UnknownRecord): ReactNode {
         {list.map((item, index) => {
           const node = asRecord(item)
           const name = asString(node.name) !== '' ? asString(node.name) : asString(node.title)
-          const id = asString(node.id)
           const kind = asNumber(node.visibility) === 2 ? '个人' : ''
-          return row(`${name}${kind === '' ? '' : ` · ${kind}`}`, `${shortId(id)}${nodeSub(node) === '' ? '' : ` · ${nodeSub(node)}`}`, `n${index}`)
+          const url = asString(node.openWebUrl)
+          const sub = nodeSub(node)
+          return (
+            <div key={`n${index}`} className={css.rowWrap}>
+              {row(`${name}${kind === '' ? '' : ` · ${kind}`}`, sub, `n${index}`)}
+              {url !== '' && linkRow(url, '打开', `l${index}`)}
+            </div>
+          )
         })}
       </div>
     )
@@ -221,13 +223,12 @@ function SheetBody(meta: UnknownRecord): ReactNode {
       <div className={css.rows}>
         {records.map((item, index) => {
           const record = asRecord(item)
-          const id = asString(record.id)
           const fields = asRecord(record.fieldsValue ?? record.fields)
           const values = Object.entries(fields).map(([key, value]) => {
             const text = typeof value === 'string' ? value : JSON.stringify(value)
             return `${key}: ${text.length > 40 ? `${text.slice(0, 40)}…` : text}`
           })
-          return row(shortId(id), values.join(' · '), `r${index}`)
+          return row(values.join(' · ') === '' ? '(空记录)' : values.join(' · '), '', `r${index}`)
         })}
       </div>
     )
@@ -270,7 +271,7 @@ function ImBody(meta: UnknownRecord): ReactNode {
           const time = asString(message.sendTime).slice(5, 16)
           const content = asString(message.content)
           const reply = asString(asRecord(message.param).replySummary)
-          return row(content === '' ? '(文件/图片消息)' : content, [time, asString(message.fromOpenId), reply === '' ? '' : `↳ ${reply}`].filter(part => part !== '').join(' · '), `m${index}`)
+          return row(content === '' ? '(文件/图片消息)' : content, [time, reply === '' ? '' : `↳ ${reply}`].filter(part => part !== '').join(' · '), `m${index}`)
         })}
       </div>
     )
@@ -302,7 +303,6 @@ function ContactBody(meta: UnknownRecord): ReactNode {
       {users.map((item, index) => {
         const user = asRecord(item)
         const name = asString(user.name)
-        const openId = asString(user.openId ?? user.oId)
         const department = asString(user.department ?? user.fulldepartment)
         const jobTitle = asString(user.jobTitle)
         const sub = [department, jobTitle, asString(user.jobNo) === '' ? '' : `工号 ${asString(user.jobNo)}`].filter(part => part !== '').join(' · ')
@@ -313,7 +313,6 @@ function ContactBody(meta: UnknownRecord): ReactNode {
                 ? <img className={css.avatar} src={user.photoUrl} alt="" />
                 : <span className={css.avatarFallback}>{name.slice(0, 1)}</span>}
               <span>{name}</span>
-              {openId !== '' && <span className={css.rowId}>{shortId(openId)}</span>}
             </div>
             {sub !== '' && <div className={css.rowSub}>{sub}</div>}
           </div>

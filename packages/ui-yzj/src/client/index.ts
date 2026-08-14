@@ -9,7 +9,11 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { YzjToolCard, YZJ_TOOL_NAMES } from './cards.tsx'
+import { YzjComposerDock, dragInsertRequest, type YzjDropInjected } from './composer.tsx'
+import { applyYzjAtSource } from './input-source.ts'
 import { YzjPanel, YzjPanelButton } from './panel.tsx'
 import { createYzjStore } from './stores.ts'
 import { createYzjPanelInject } from './rpc.ts'
@@ -20,8 +24,8 @@ export type { YzjPanelInject, YzjRpcError } from './rpc.ts'
 export type { YzjPanelState, YzjPanelActions, YzjTab } from './stores.ts'
 export type { YzjPanelProps } from './panel.tsx'
 
-/** Required services: the slot registry and the connection transport. */
-export const inject = ['slots', 'connection']
+/** Required services: the slot registry, connection transport, and sessions. */
+export const inject = ['slots', 'connection', 'sessions']
 
 /**
  * Client plugin body: register the sidebar toggle, the overlay panel, and the
@@ -42,6 +46,41 @@ export function apply(ctx: ClientContext): void {
     { name: 'shell.overlay', id: 'yzj-panel', order: 100, store, inject: () => panelInject },
     YzjPanel,
   ))
+
+  ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register(
+    {
+      name: 'conversation.composer.dock',
+      id: 'yzj-drop-band',
+      order: 100,
+      inject: (sessionId: string): YzjDropInjected => {
+        const actx = ctx.sessions.scope(sessionId)
+        return {
+          insertReference: (ref) => {
+            if (actx === undefined) return
+            // Resolve the span from the LIVE input store — component
+            // snapshots are point-in-time and would carry a stale draftRev.
+            const attempt = (): boolean => {
+              const conversation = actx.get('conversation') as
+                | { input: { for: (actx: unknown) => { state: { getSnapshot(): { draft: string; draftRev: number } } } } }
+                | undefined
+              const state = conversation?.input.for(actx).state.getSnapshot()
+              const length = state?.draft.length ?? 0
+              const draftRev = state?.draftRev ?? 0
+              return actx.bail(actx, 'slash/input-insert-reference', dragInsertRequest(ref, { start: length, end: length, draftRev })) === true
+            }
+            if (!attempt()) {
+              // One retry after a frame: the drop may have raced an input
+              // mutation that bumped draftRev past our snapshot.
+              setTimeout(() => { attempt() }, 80)
+            }
+          },
+        }
+      },
+    },
+    YzjComposerDock,
+  ))
+
+  applyYzjAtSource(ctx, panelInject)
 
   for (const toolName of YZJ_TOOL_NAMES) {
     ctx.slots.inject('tool.call.toolview', () => ctx.slots.register(

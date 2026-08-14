@@ -89,6 +89,15 @@ describe('read-only tools over the real CLI', () => {
     expect(result.content.length).toBeGreaterThan(0)
   })
 
+  it('im tools reject limits above the CLI cap of 20', async () => {
+    if (!(await bridge.check(10_000))) return
+    await expect(byName.get('yzj_im_group_recent')!.execute({ limit: 21 })).rejects.toThrow(/1 and 20/)
+    await expect(byName.get('yzj_im_message_list')!.execute({ groupId: 'x', limit: 21 })).rejects.toThrow(/1 and 20/)
+    // boundary values are accepted
+    const ok = await byName.get('yzj_im_group_recent')!.execute({ limit: 20 })
+    expect(ok.content.length).toBeGreaterThan(0)
+  })
+
   it('yzj_calendar_event_list returns events or an empty notice', async () => {
     if (!(await bridge.check(10_000))) return
     const today = new Date().toISOString().slice(0, 10)

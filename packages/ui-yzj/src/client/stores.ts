@@ -13,13 +13,20 @@ export type YzjTab = 'docs' | 'calendar' | 'chat' | 'me'
 export type YzjPanelState = {
   open: boolean
   tab: YzjTab
+  /** Floating-window position (CSS px, viewport-relative). */
+  panelX: number
+  panelY: number
   workspaces: unknown[]
   workspaceId: string
   docs: unknown[]
   events: unknown[]
   groups: unknown[]
+  groupsPage: number
+  groupsMore: boolean
   groupId: string
   messages: unknown[]
+  messagesMore: boolean
+  messagesAnchor: string
   me: unknown
   searchKeyword: string
   searchResults: unknown[]
@@ -31,13 +38,20 @@ export type YzjPanelState = {
 export type YzjPanelActions = {
   setOpen: (draft: YzjPanelState, open: boolean) => void
   setTab: (draft: YzjPanelState, tab: YzjTab) => void
+  setPanelPosition: (draft: YzjPanelState, x: number, y: number) => void
   setWorkspaces: (draft: YzjPanelState, workspaces: unknown[]) => void
   setWorkspaceId: (draft: YzjPanelState, id: string) => void
   setDocs: (draft: YzjPanelState, docs: unknown[]) => void
   setEvents: (draft: YzjPanelState, events: unknown[]) => void
   setGroups: (draft: YzjPanelState, groups: unknown[]) => void
+  setGroupsPage: (draft: YzjPanelState, page: number) => void
+  setGroupsMore: (draft: YzjPanelState, more: boolean) => void
+  appendGroups: (draft: YzjPanelState, groups: unknown[]) => void
   setGroupId: (draft: YzjPanelState, id: string) => void
   setMessages: (draft: YzjPanelState, messages: unknown[]) => void
+  setMessagesMore: (draft: YzjPanelState, more: boolean) => void
+  setMessagesAnchor: (draft: YzjPanelState, anchor: string) => void
+  prependMessages: (draft: YzjPanelState, messages: unknown[]) => void
   setMe: (draft: YzjPanelState, me: unknown) => void
   setSearchKeyword: (draft: YzjPanelState, keyword: string) => void
   setSearchResults: (draft: YzjPanelState, results: unknown[]) => void
@@ -51,30 +65,49 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
     init: (): YzjPanelState => ({
       open: false,
       tab: 'docs',
+      panelX: -1,
+      panelY: -1,
       workspaces: [],
       workspaceId: '',
       docs: [],
       events: [],
       groups: [],
+      groupsPage: 1,
+      groupsMore: false,
       groupId: '',
       messages: [],
+      messagesMore: false,
+      messagesAnchor: '',
       me: {},
       searchKeyword: '',
       searchResults: [],
       loading: false,
       error: '',
     }),
-    persist: 'dsh.yzj.panel.v1',
+    persist: 'dsh.yzj.panel.v2',
     actions: {
       setOpen: (d: YzjPanelState, open: boolean) => { d.open = open },
       setTab: (d: YzjPanelState, tab: YzjTab) => { d.tab = tab },
+      setPanelPosition: (d: YzjPanelState, x: number, y: number) => { d.panelX = x; d.panelY = y },
       setWorkspaces: (d: YzjPanelState, workspaces: unknown[]) => { d.workspaces = workspaces },
       setWorkspaceId: (d: YzjPanelState, id: string) => { d.workspaceId = id },
       setDocs: (d: YzjPanelState, docs: unknown[]) => { d.docs = docs },
       setEvents: (d: YzjPanelState, events: unknown[]) => { d.events = events },
       setGroups: (d: YzjPanelState, groups: unknown[]) => { d.groups = groups },
+      setGroupsPage: (d: YzjPanelState, page: number) => { d.groupsPage = page },
+      setGroupsMore: (d: YzjPanelState, more: boolean) => { d.groupsMore = more },
+      appendGroups: (d: YzjPanelState, groups: unknown[]) => {
+        const seen = new Set(d.groups.map(group => String(asRecord(group).groupId)))
+        d.groups = [...d.groups, ...groups.filter(group => !seen.has(String(asRecord(group).groupId)))]
+      },
       setGroupId: (d: YzjPanelState, id: string) => { d.groupId = id },
       setMessages: (d: YzjPanelState, messages: unknown[]) => { d.messages = messages },
+      setMessagesMore: (d: YzjPanelState, more: boolean) => { d.messagesMore = more },
+      setMessagesAnchor: (d: YzjPanelState, anchor: string) => { d.messagesAnchor = anchor },
+      prependMessages: (d: YzjPanelState, messages: unknown[]) => {
+        const seen = new Set(d.messages.map(message => String(asRecord(message).msgId)))
+        d.messages = [...messages.filter(message => !seen.has(String(asRecord(message).msgId))), ...d.messages]
+      },
       setMe: (d: YzjPanelState, me: unknown) => { d.me = me },
       setSearchKeyword: (d: YzjPanelState, keyword: string) => { d.searchKeyword = keyword },
       setSearchResults: (d: YzjPanelState, results: unknown[]) => { d.searchResults = results },
@@ -82,4 +115,8 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
       setError: (d: YzjPanelState, error: string) => { d.error = error },
     },
   })
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
 }

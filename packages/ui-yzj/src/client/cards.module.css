@@ -47,6 +47,22 @@
   font-size: 11px;
 }
 
+.rowWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rowWrap > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.rowWrap .link {
+  flex: none;
+}
+
 .rows {
   display: flex;
   flex-direction: column;

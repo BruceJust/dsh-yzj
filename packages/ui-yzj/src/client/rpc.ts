@@ -16,9 +16,14 @@ export interface YzjPanelInject {
   fetchDocs: (workspace: string, parentId?: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchEvents: (start: string, end: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchGroups: (limit?: number, page?: number) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
-  fetchMessages: (groupId: string, limit?: number) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  fetchMessages: (groupId: string, limit?: number, page?: { type: 'newest' | 'old' | 'new'; msgId?: string }) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchWhoami: () => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchSearch: (keyword: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  fetchDoc: (id: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  fetchDocBlocks: (id: string, blockId?: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  fetchWorkspace: (id: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  fetchEvent: (id: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  fetchContact: (openId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
 }
 
 /** Build the inject face from a connection handle; unavailable → failed calls. */
@@ -38,12 +43,17 @@ export function createYzjPanelInject(connection: ConnectionHandle | undefined): 
       ...(limit === undefined ? {} : { limit }),
       ...(page === undefined ? {} : { page }),
     }),
-    fetchMessages: (groupId, limit) => call('messages', {
+    fetchMessages: (groupId, limit, page) => call('messages', {
       groupId,
-      type: 'newest',
       ...(limit === undefined ? {} : { limit }),
+      ...(page === undefined ? { type: 'newest' } : page),
     }),
     fetchWhoami: () => call('whoami', {}),
     fetchSearch: (keyword) => call('search', { keyword }),
+    fetchDoc: (id) => call('doc-get', { id }),
+    fetchDocBlocks: (id, blockId) => call('doc-blocks', blockId === undefined ? { id } : { id, blockId }),
+    fetchWorkspace: (id) => call('workspace-get', { id }),
+    fetchEvent: (id) => call('event-get', { id }),
+    fetchContact: (openId) => call('contact-get', { openId }),
   }
 }

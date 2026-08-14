@@ -51,6 +51,8 @@
     "@deepseek-ai/dsh-client-ui-tool": "link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-tool",
     "@deepseek-ai/dsh-client-ui-sidebar": "link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-sidebar",
     "@deepseek-ai/dsh-client-ui-layout": "link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-layout",
+    "@deepseek-ai/dsh-client-ui-conversation": "link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-conversation",
+    "@deepseek-ai/dsh-client-ui-input-trigger": "link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-input-trigger",
     "react": "^18.2.0"
   },
   "devDependencies": {

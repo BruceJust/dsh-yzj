@@ -77,6 +77,12 @@ importers:
       '@deepseek-ai/dsh-client-runtime':
         specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/runtime
         version: link:../../../deepseek-harness/packages/client/runtime
+      '@deepseek-ai/dsh-client-ui-conversation':
+        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-conversation
+        version: link:../../../deepseek-harness/packages/client/ui-conversation
+      '@deepseek-ai/dsh-client-ui-input-trigger':
+        specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-input-trigger
+        version: link:../../../deepseek-harness/packages/client/ui-input-trigger
       '@deepseek-ai/dsh-client-ui-layout':
         specifier: link:/Users/guoxinshan/dev/deepseek-harness/packages/client/ui-layout
         version: link:../../../deepseek-harness/packages/client/ui-layout

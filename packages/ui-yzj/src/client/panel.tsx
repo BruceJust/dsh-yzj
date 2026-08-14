@@ -1,11 +1,18 @@
 /**
  * The Yunzhijia workspace panel: a frame overlay with four tabs — 知识库
- * (workspace → doc tree), 日程 (today), 会话 (recent groups → messages), and
- * 我的 (whoami + directory search). Rendering stays presentational: data
- * arrives through the injected fetch face and the shared store; verbs are the
- * injected face and store actions.
+ * (workspace → doc tree), 日程 (today), 会话 (recent groups → messages with
+ * paging), and 我的 (whoami + directory search). Rendering stays
+ * presentational: data arrives through the injected fetch face and the shared
+ * store; verbs are the injected face and store actions.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import {
+  IconChecklistOutline14,
+  IconFolderOpenOutline16,
+  IconNewChatOutline16,
+  IconUserOutline16,
+  Tooltip,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { BakedActions } from '@deepseek-ai/dsh-client-ui-slots'
 import type { YzjPanelActions, YzjPanelState, YzjTab } from './stores.ts'
 import type { YzjPanelInject } from './rpc.ts'
@@ -31,35 +38,92 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
 
-function shortId(id: string): string {
-  return id.length > 10 ? id.slice(0, 10) : id
+/** One draggable reference payload shared by drag sources and the drop dock. */
+export interface YzjDragRef {
+  kind: 'workspace' | 'doc' | 'group' | 'event' | 'contact' | 'message'
+  id: string
+  title: string
+  url?: string
+  sub?: string
 }
 
-const TABS: { key: YzjTab; label: string }[] = [
-  { key: 'docs', label: '知识库' },
-  { key: 'calendar', label: '日程' },
-  { key: 'chat', label: '会话' },
-  { key: 'me', label: '我的' },
+/** MIME type carrying the structured drag payload. */
+export const YZJ_DRAG_MIME = 'application/x-dsh-yzj-ref'
+
+/** Human-readable citation text for a drag ref (what lands in the draft). */
+export function yzjRefText(ref: YzjDragRef): string {
+  const kindLabel: Record<YzjDragRef['kind'], string> = {
+    workspace: '知识库', doc: '文档', group: '会话', event: '日程', contact: '联系人', message: '消息',
+  }
+  const head = `【云之家·${kindLabel[ref.kind]}】${ref.title}`
+  const sub = ref.sub === undefined || ref.sub === '' ? '' : `（${ref.sub}）`
+  const url = ref.url === undefined || ref.url === '' ? '' : `\n${ref.url}`
+  return `${head}${sub}${url}`
+}
+
+/** Wire one draggable item's data transfer. */
+function startDragTransfer(event: React.DragEvent, ref: YzjDragRef): void {
+  event.dataTransfer.effectAllowed = 'copy'
+  event.dataTransfer.setData(YZJ_DRAG_MIME, JSON.stringify(ref))
+  event.dataTransfer.setData('text/plain', yzjRefText(ref))
+}
+
+/** Outline cloud mark for the Yunzhijia brand, DSH icon-line style. */
+export function YzjCloudIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M7.5 18.5h9a4.25 4.25 0 0 0 .65-8.45A6 6 0 0 0 5.6 11.3a3.9 3.9 0 0 0 1.9 7.2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9.2 14.6l2.4 2.3 3.4-3.6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+const TABS: { key: YzjTab; label: string; icon: () => ReactNode }[] = [
+  { key: 'docs', label: '知识库', icon: () => <IconFolderOpenOutline16 /> },
+  { key: 'calendar', label: '日程', icon: () => <IconChecklistOutline14 /> },
+  { key: 'chat', label: '会话', icon: () => <IconNewChatOutline16 /> },
+  { key: 'me', label: '我的', icon: () => <IconUserOutline16 /> },
 ]
 
 /** The sidebar-foot toggle; label and open state ride the store shares. */
 export interface YzjPanelButtonProps {
   useStore: <R>(selector: (state: YzjPanelState) => R) => R
   actions: BakedActions<YzjPanelState, YzjPanelActions>
+  /** Sidebar column state: wide renders the labeled row, rail the icon. */
+  wide: boolean
 }
 
-/** The sidebar-foot Yunzhijia toggle. */
+/** The sidebar-foot Yunzhijia toggle (labeled row or rail icon). */
 export function YzjPanelButton(props: YzjPanelButtonProps) {
   const open = props.useStore(state => state.open)
-  return (
+  const button = (
     <button
       type="button"
+      className={open ? `${css.toggle} ${css.toggleActive}` : css.toggle}
       aria-expanded={open}
       onClick={() => { props.actions.setOpen(!open) }}
-      title="云之家"
+      aria-label="云之家"
     >
-      <span>云之家</span>
+      <YzjCloudIcon size={props.wide ? 16 : 18} />
+      {props.wide && <span className={css.toggleLabel}>云之家</span>}
     </button>
+  )
+  if (props.wide) return button
+  return (
+    <Tooltip label="云之家" delayMs={500} side="right">
+      {button}
+    </Tooltip>
   )
 }
 
@@ -90,9 +154,12 @@ function loadTab(
       } else fail(result.error.message)
     })
   } else if (tab === 'chat') {
-    void props.fetchGroups(50).then((result) => {
+    // CLI caps --limit at 20; the node half clamps, so ask for the max.
+    void props.fetchGroups(20, 1).then((result) => {
       if (result.ok) {
         props.actions.setGroups(asArray(asRecord(result.value).list))
+        props.actions.setGroupsPage(1)
+        props.actions.setGroupsMore(asRecord(result.value).more === true)
         props.actions.setLoading(false)
       } else fail(result.error.message)
     })
@@ -113,6 +180,26 @@ export function YzjPanel(props: YzjPanelProps) {
   const tab = props.useStore(state => state.tab)
   const [keyword, setKeyword] = useState('')
   const state = props.useStore(s => s)
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  const dragOffset = useRef<{ dx: number; dy: number } | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const move = (event: PointerEvent): void => {
+      if (dragOffset.current === null) return
+      const x = Math.max(8, Math.min(event.clientX - dragOffset.current.dx, window.innerWidth - 220))
+      const y = Math.max(8, Math.min(event.clientY - dragOffset.current.dy, window.innerHeight - 60))
+      props.actions.setPanelPosition(x, y)
+    }
+    const up = (): void => { dragOffset.current = null }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -124,9 +211,22 @@ export function YzjPanel(props: YzjPanelProps) {
 
   if (!open) return null
 
+  const startDrag = (event: ReactPointerEvent<HTMLElement>): void => {
+    if (event.button !== 0) return
+    const rect = panelRef.current?.getBoundingClientRect()
+    if (rect === undefined) return
+    dragOffset.current = { dx: event.clientX - rect.left, dy: event.clientY - rect.top }
+    event.preventDefault()
+  }
+
+  const dockStyle = state.panelX >= 0 && state.panelY >= 0
+    ? { left: state.panelX, top: state.panelY, margin: 0 }
+    : undefined
+
   const openWorkspace = (id: string): void => {
     props.actions.setWorkspaceId(id)
     props.actions.setLoading(true)
+    props.actions.setError('')
     void props.fetchDocs(id).then((result) => {
       if (result.ok) {
         props.actions.setDocs(asArray(result.value))
@@ -140,9 +240,50 @@ export function YzjPanel(props: YzjPanelProps) {
   const openGroup = (id: string): void => {
     props.actions.setGroupId(id)
     props.actions.setLoading(true)
+    props.actions.setError('')
     void props.fetchMessages(id, 20).then((result) => {
       if (result.ok) {
-        props.actions.setMessages(asArray(asRecord(result.value).list))
+        // Store oldest-first so the chat reads top-down; the CLI returns
+        // newest-first.
+        const messages = asArray(asRecord(result.value).list)
+        props.actions.setMessages([...messages].reverse())
+        props.actions.setMessagesMore(asRecord(result.value).more === true)
+        props.actions.setMessagesAnchor(messages.length > 0 ? asString(asRecord(messages[messages.length - 1]).msgId) : '')
+      } else {
+        props.actions.setError(result.error.message)
+      }
+      props.actions.setLoading(false)
+    })
+  }
+
+  const loadMoreGroups = (): void => {
+    if (state.loading) return
+    props.actions.setLoading(true)
+    void props.fetchGroups(20, state.groupsPage + 1).then((result) => {
+      if (result.ok) {
+        props.actions.appendGroups(asArray(asRecord(result.value).list))
+        props.actions.setGroupsPage(state.groupsPage + 1)
+        props.actions.setGroupsMore(asRecord(result.value).more === true)
+      } else {
+        props.actions.setError(result.error.message)
+      }
+      props.actions.setLoading(false)
+    })
+  }
+
+  const loadOlderMessages = (): void => {
+    if (state.loading || state.messagesAnchor === '') return
+    props.actions.setLoading(true)
+    void props.fetchMessages(state.groupId, 20, { type: 'old', msgId: state.messagesAnchor }).then((result) => {
+      if (result.ok) {
+        const older = asArray(asRecord(result.value).list)
+        // The CLI returns newest-first; prepend after reversing to keep the
+        // store oldest-first.
+        props.actions.prependMessages([...older].reverse())
+        props.actions.setMessagesMore(asRecord(result.value).more === true)
+        if (older.length > 0) {
+          props.actions.setMessagesAnchor(asString(asRecord(older[older.length - 1]).msgId))
+        }
       } else {
         props.actions.setError(result.error.message)
       }
@@ -164,69 +305,125 @@ export function YzjPanel(props: YzjPanelProps) {
   }
 
   return (
-    <div className={css.panel} role="dialog" aria-label="云之家">
-      <header className={css.header}>
+    <div ref={panelRef} className={css.panel} role="dialog" aria-label="云之家" style={dockStyle}>
+      <header className={css.header} onPointerDown={startDrag}>
+        <span className={css.brand}><YzjCloudIcon size={18} /></span>
         <span className={css.title}>云之家</span>
-        <nav className={css.tabs}>
+        <nav className={css.tabs} aria-label="云之家功能" onPointerDown={(event) => { event.stopPropagation() }}>
           {TABS.map(item => (
             <button
               key={item.key}
               type="button"
               className={tab === item.key ? `${css.tab} ${css.tabActive}` : css.tab}
+              aria-current={tab === item.key ? 'page' : undefined}
               onClick={() => { props.actions.setTab(item.key) }}
             >
-              {item.label}
+              {item.icon()}
+              <span>{item.label}</span>
             </button>
           ))}
         </nav>
         <button
           type="button"
-          className={css.headerButton}
+          className={css.iconButton}
           onClick={() => { loadTab(tab, props) }}
           disabled={state.loading}
           aria-label="刷新"
+          title="刷新"
+          onPointerDown={(event) => { event.stopPropagation() }}
         >
-          刷新
+          <IconRefresh14 />
         </button>
         <button
           type="button"
-          className={css.headerButton}
+          className={css.iconButton}
           onClick={() => { props.actions.setOpen(false) }}
           aria-label="关闭"
+          title="关闭"
+          onPointerDown={(event) => { event.stopPropagation() }}
         >
-          关闭
+          <IconClose14 />
         </button>
       </header>
 
-      {state.error !== '' && <div className={css.error}>{state.error}</div>}
+      {state.error !== '' && (
+        <div className={css.error} role="alert">
+          <span className={css.errorText}>{state.error}</span>
+          <button
+            type="button"
+            className={css.errorDismiss}
+            onClick={() => { props.actions.setError('') }}
+            aria-label="忽略错误"
+          >
+            <IconClose14 />
+          </button>
+        </div>
+      )}
       {state.loading && <div className={css.loading}>加载中…</div>}
 
       {tab === 'docs' && (
         <div className={css.body}>
           {state.workspaceId === '' ? (
             <div className={css.list}>
-              {state.workspaces.length === 0 && !state.loading && <div className={css.empty}>暂无知识库</div>}
+              {state.workspaces.length === 0 && !state.loading && state.error === '' && (
+                <div className={css.empty}><YzjCloudIcon size={28} /><span>暂无知识库</span></div>
+              )}
               {state.workspaces.map((item, index) => {
                 const ws = asRecord(item)
                 const count = typeof ws.docCount === 'number' ? ws.docCount : 0
+                const members = typeof ws.memberCount === 'number' ? ws.memberCount : 0
+                const id = asString(ws.id)
+                const name = asString(ws.name)
                 return (
-                  <button key={`w${index}`} type="button" className={css.item} onClick={() => { openWorkspace(asString(ws.id)) }}>
-                    <span className={css.itemTitle}>{asString(ws.name)}</span>
-                    <span className={css.itemSub}>{shortId(asString(ws.id))} · 文档 {count}</span>
+                  <button
+                    key={`w${index}`}
+                    type="button"
+                    className={css.item}
+                    onClick={() => { openWorkspace(id) }}
+                    draggable
+                    onDragStart={(event) => {
+                      startDragTransfer(event, { kind: 'workspace', id, title: name, sub: `文档 ${count} · 成员 ${members}` })
+                    }}
+                  >
+                    <span className={css.itemTitle}>
+                      <IconFolderOpenOutline16 />
+                      <span className={css.itemTitleText}>{name}</span>
+                    </span>
+                    <span className={css.itemSub}>文档 {count} · 成员 {members}</span>
                   </button>
                 )
               })}
             </div>
           ) : (
             <div className={css.list}>
-              <button type="button" className={css.back} onClick={() => { props.actions.setWorkspaceId('') }}>← 返回知识库</button>
-              {state.docs.length === 0 && !state.loading && <div className={css.empty}>暂无文档</div>}
+              <button type="button" className={css.back} onClick={() => { props.actions.setWorkspaceId('') }}>
+                <IconChevronLeft14 /> 返回知识库
+              </button>
+              {state.docs.length === 0 && !state.loading && state.error === '' && <div className={css.empty}>暂无文档</div>}
               {state.docs.map((item, index) => {
                 const node = asRecord(item)
                 const suffix = asString(node.fileSuffix)
+                const title = asString(node.title)
+                const id = asString(node.id)
+                const url = asString(node.openWebUrl)
                 return (
-                  <button key={`d${index}`} type="button" className={css.item} onClick={() => { window.open(asString(node.openWebUrl), '_blank', 'noreferrer') }}>
-                    <span className={css.itemTitle}>{asString(node.title)}</span>
+                  <button
+                    key={`d${index}`}
+                    type="button"
+                    className={css.item}
+                    onClick={() => { window.open(url, '_blank', 'noreferrer') }}
+                    draggable
+                    onDragStart={(event) => {
+                      startDragTransfer(event, {
+                        kind: 'doc', id, title, url,
+                        sub: `${suffix === 'dbt' ? '多维表格' : '在线文档'} · ${asString(node.updateTime).slice(0, 10)}`,
+                      })
+                    }}
+                  >
+                    <span className={css.itemTitle}>
+                      <span className={css.docGlyph}>{suffix === 'dbt' ? '表' : '文'}</span>
+                      <span className={css.itemTitleText}>{title}</span>
+                    </span>
                     <span className={css.itemSub}>{suffix === 'dbt' ? '多维表格' : '在线文档'} · {asString(node.updateTime).slice(0, 10)}</span>
                   </button>
                 )
@@ -239,7 +436,9 @@ export function YzjPanel(props: YzjPanelProps) {
       {tab === 'calendar' && (
         <div className={css.body}>
           <div className={css.list}>
-            {state.events.length === 0 && !state.loading && <div className={css.empty}>今日暂无日程</div>}
+            {state.events.length === 0 && !state.loading && state.error === '' && (
+              <div className={css.empty}><IconChecklistOutline14 /><span>今日暂无日程</span></div>
+            )}
             {state.events.map((item, index) => {
               const event = asRecord(item)
               const clock = (ms: unknown): string => {
@@ -250,10 +449,26 @@ export function YzjPanel(props: YzjPanelProps) {
               }
               const start = clock(event.startDate)
               const end = clock(event.endDate)
+              const timeText = start === '' ? '' : `${start}${end === '' ? '' : ` → ${end}`}`
+              const title = asString(event.title)
+              const person = asString(event.personName)
               return (
-                <div key={`e${index}`} className={css.item}>
-                  <span className={css.itemTitle}>{asString(event.title)}</span>
-                  <span className={css.itemSub}>{start === '' ? '' : `${start}${end === '' ? '' : ` → ${end}`}`}{asString(event.personName) === '' ? '' : ` · ${asString(event.personName)}`}</span>
+                <div
+                  key={`e${index}`}
+                  className={css.item}
+                  draggable
+                  onDragStart={(event) => {
+                    startDragTransfer(event, {
+                      kind: 'event', id: asString(asRecord(item).id), title,
+                      sub: [timeText, person].filter(part => part !== '').join(' · '),
+                    })
+                  }}
+                >
+                  <span className={css.itemTitle}><span className={css.itemTitleText}>{title}</span></span>
+                  <span className={css.itemSub}>
+                    {timeText}
+                    {person === '' ? '' : ` · ${person}`}
+                  </span>
                 </div>
               )
             })}
@@ -265,32 +480,76 @@ export function YzjPanel(props: YzjPanelProps) {
         <div className={css.body}>
           {state.groupId === '' ? (
             <div className={css.list}>
-              {state.groups.length === 0 && !state.loading && <div className={css.empty}>暂无最近会话</div>}
+              {state.groups.length === 0 && !state.loading && state.error === '' && (
+                <div className={css.empty}><IconNewChatOutline16 /><span>暂无最近会话</span></div>
+              )}
               {state.groups.map((item, index) => {
                 const group = asRecord(item)
                 const unread = typeof group.unreadCount === 'number' ? group.unreadCount : 0
                 const last = asString(asRecord(group.lastMsg).content)
+                const name = asString(group.groupName)
                 return (
-                  <button key={`g${index}`} type="button" className={css.item} onClick={() => { openGroup(asString(group.groupId)) }}>
+                  <button
+                    key={`g${index}`}
+                    type="button"
+                    className={css.item}
+                    onClick={() => { openGroup(asString(group.groupId)) }}
+                    draggable
+                    onDragStart={(event) => {
+                      startDragTransfer(event, {
+                        kind: 'group', id: asString(group.groupId), title: name,
+                        sub: last.replace(/\s+/g, ' ').slice(0, 40),
+                      })
+                    }}
+                  >
                     <span className={css.itemTitle}>
-                      {asString(group.groupName)}
-                      {unread > 0 && <span className={css.badge}>{unread}</span>}
+                      <span className={css.groupGlyph}>{name.slice(0, 1)}</span>
+                      <span className={css.itemTitleText}>{name}</span>
+                      {unread > 0 && <span className={css.badge}>{unread > 99 ? '99+' : unread}</span>}
                     </span>
                     <span className={css.itemSub}>{last.replace(/\s+/g, ' ').slice(0, 40)}</span>
                   </button>
                 )
               })}
+              {state.groupsMore && (
+                <button type="button" className={css.more} onClick={loadMoreGroups} disabled={state.loading}>
+                  {state.loading ? '加载中…' : '加载更多会话'}
+                </button>
+              )}
             </div>
           ) : (
             <div className={css.list}>
-              <button type="button" className={css.back} onClick={() => { props.actions.setGroupId('') }}>← 返回会话</button>
+              <button type="button" className={css.back} onClick={() => { props.actions.setGroupId('') }}>
+                <IconChevronLeft14 /> 返回会话
+              </button>
+              {state.messages.length === 0 && !state.loading && state.error === '' && <div className={css.empty}>暂无消息</div>}
+              {state.messagesMore && (
+                <button type="button" className={css.more} onClick={loadOlderMessages} disabled={state.loading}>
+                  {state.loading ? '加载中…' : '加载更早消息'}
+                </button>
+              )}
               {state.messages.map((item, index) => {
                 const message = asRecord(item)
                 const content = asString(message.content)
+                const msgType = asString(message.msgType)
+                const sendTime = asString(message.sendTime)
                 return (
-                  <div key={`m${index}`} className={css.item}>
-                    <span className={css.itemTitle}>{content === '' ? '(文件/图片消息)' : content}</span>
-                    <span className={css.itemSub}>{asString(message.sendTime).slice(5, 16)} · {asString(message.fromOpenId)}</span>
+                  <div
+                    key={`m${index}`}
+                    className={css.item}
+                    draggable
+                    onDragStart={(event) => {
+                      startDragTransfer(event, {
+                        kind: 'message', id: asString(message.msgId),
+                        title: content === '' ? `(${msgType === '' ? '消息' : msgType})` : content,
+                        sub: sendTime.slice(5, 16),
+                      })
+                    }}
+                  >
+                    <span className={css.itemTitle}>
+                      <span className={css.itemTitleText}>{content === '' ? `(${msgType === '' ? '消息' : msgType})` : content}</span>
+                    </span>
+                    <span className={css.itemSub}>{sendTime.slice(5, 16)}</span>
                   </div>
                 )
               })}
@@ -333,10 +592,24 @@ export function YzjPanel(props: YzjPanelProps) {
             {state.searchResults.map((item, index) => {
               const user = asRecord(item)
               const openId = asString(user.oId ?? user.openId)
+              const name = asString(user.name)
               return (
-                <div key={`s${index}`} className={css.item}>
-                  <span className={css.itemTitle}>{asString(user.name)}</span>
-                  <span className={css.itemSub}>{[asString(user.department), asString(user.jobTitle), shortId(openId)].filter(part => part !== '').join(' · ')}</span>
+                <div
+                  key={`s${index}`}
+                  className={css.item}
+                  draggable
+                  onDragStart={(event) => {
+                    startDragTransfer(event, {
+                      kind: 'contact', id: openId, title: name,
+                      sub: [asString(user.department), asString(user.jobTitle)].filter(part => part !== '').join(' · '),
+                    })
+                  }}
+                >
+                  <span className={css.itemTitle}>
+                    <span className={css.userGlyph}>{name.slice(0, 1)}</span>
+                    <span className={css.itemTitleText}>{name}</span>
+                  </span>
+                  <span className={css.itemSub}>{[asString(user.department), asString(user.jobTitle)].filter(part => part !== '').join(' · ')}</span>
                 </div>
               )
             })}
@@ -344,5 +617,30 @@ export function YzjPanel(props: YzjPanelProps) {
         </div>
       )}
     </div>
+  )
+}
+
+function IconRefresh14() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M20 3v4h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function IconClose14() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function IconChevronLeft14() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M14.5 5.5L8 12l6.5 6.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }

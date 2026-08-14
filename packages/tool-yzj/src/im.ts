@@ -119,7 +119,7 @@ export function applyImTools(ctx: Context, budget: YzjToolBudget): void {
       groupId: { type: 'string', required: true, description: 'Group or chat session id.' },
       type: { type: 'string', enum: ['newest', 'old', 'new'], description: 'newest fetches the latest; old/new page around msgId.' },
       msgId: { type: 'string', description: 'Anchor message id; required for type old/new.' },
-      limit: { type: 'number', description: 'Message count; default 20, range 1-100.' },
+      limit: { type: 'number', description: 'Message count; default 20, range 1-20 (CLI cap).' },
     },
     output: yzjToolOutput,
     timeoutMs: budget.timeoutMs,
@@ -129,8 +129,8 @@ export function applyImTools(ctx: Context, budget: YzjToolBudget): void {
       if (args.type !== undefined) command.push('--type', args.type)
       if (args.msgId !== undefined) command.push('--msg-id', args.msgId)
       if (args.limit !== undefined) {
-        if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 100) {
-          throw new Error('yzj_im_message_list: limit must be an integer between 1 and 100')
+        if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 20) {
+          throw new Error('yzj_im_message_list: limit must be an integer between 1 and 20 (CLI cap)')
         }
         command.push('--limit', String(args.limit))
       }
@@ -151,7 +151,7 @@ export function applyImTools(ctx: Context, budget: YzjToolBudget): void {
     name: 'yzj_im_group_recent',
     description: 'List recent group/chat sessions with unread counts and last-message previews, newest first. There is no group search; page through this to locate a target group.',
     parameters: {
-      limit: { type: 'number', description: 'Per-page count; default 20, range 1-100 (use 100 to find a group).' },
+      limit: { type: 'number', description: 'Per-page count; default 20, range 1-20 (CLI cap).' },
       page: { type: 'number', description: 'Page number; default 1, must be >= 1.' },
     },
     output: yzjToolOutput,
@@ -160,8 +160,8 @@ export function applyImTools(ctx: Context, budget: YzjToolBudget): void {
     async execute(args) {
       const command = ['im', 'group', 'recent']
       if (args.limit !== undefined) {
-        if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 100) {
-          throw new Error('yzj_im_group_recent: limit must be an integer between 1 and 100')
+        if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 20) {
+          throw new Error('yzj_im_group_recent: limit must be an integer between 1 and 20 (CLI cap)')
         }
         command.push('--limit', String(args.limit))
       }
