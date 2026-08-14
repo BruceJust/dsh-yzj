@@ -14,7 +14,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { YzjToolCard, YZJ_TOOL_NAMES } from './cards.tsx'
 import { YzjComposerDock, dragInsertRequest, type YzjDropInjected } from './composer.tsx'
 import { applyYzjAtSource } from './input-source.ts'
-import { YzjPanel, YzjPanelButton } from './panel.tsx'
+import { YzjPanel, YzjFloatBall } from './panel.tsx'
 import { createYzjStore } from './stores.ts'
 import { createYzjPanelInject } from './rpc.ts'
 import {
@@ -85,30 +85,24 @@ export function apply(ctx: ClientContext): void {
   const panelInstance = store.create()
   const openWriteContextFor = (record: YzjWriteRecord): void => openWriteContext(panelInstance, panelInject, record)
 
-  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register(
-    {
-      name: 'sidebar.footer.action',
-      id: 'yzj',
-      order: 100,
-      label: () => '云之家',
-      store,
-      inject: () => ({
-        fetchGroups: (limit, page) => panelInject.fetchGroups(limit, page),
-      }),
-    },
-    YzjPanelButton,
-  ))
-
   ctx.slots.inject('shell.overlay', () => ctx.slots.register(
     { name: 'shell.overlay', id: 'yzj-panel', order: 100, store, inject: () => panelInject },
     YzjPanel,
+  ))
+
+  // Floating ball entry: the ONLY panel entry (no sidebar button). Shares the
+  // panel store; hidden while the panel is open. Lower order so the panel
+  // entry wins the stack.
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register(
+    { name: 'shell.overlay', id: 'yzj-ball', order: 90, store },
+    YzjFloatBall,
   ))
 
   // Drop band: registered in `conversation.input.dock` (its own row above the
   // composer card) because `conversation.composer.dock` only renders in the
   // non-hero phase — a brand-new session would have no drop target at all.
   // The band itself stays hidden until a yzj drag crosses the window
-  // (see composer.tsx); the panel entry is the sidebar 云之家 button only.
+  // (see composer.tsx); the panel entry is the floating ball only.
   ctx.slots.inject('conversation.input.dock', () => ctx.slots.register(
     {
       name: 'conversation.input.dock',

@@ -1,7 +1,7 @@
 /**
- * Verify the clean-composer changes:
+ * Verify the clean-composer changes (entry = floating ball only):
  *  1. no persistent "拖到这里" hint strip at rest (hero + composer)
- *  2. floating ball removed; the sidebar 云之家 button still opens the panel
+ *  2. floating ball is the panel entry; the sidebar 云之家 button is gone
  *  3. the band appears only while a yzj drag is in flight (window dragenter)
  *  4. drop still mints a reference chip + reminder + quick actions work
  */
@@ -34,20 +34,25 @@ const restHasBand = async () => page.evaluate(() =>
   [...document.querySelectorAll('div,span')].some(el =>
     el.childElementCount === 0 && (el.textContent ?? '').includes('松开以插入云之家引用')))
 
-// ---- 1. hero: nothing at rest, no floating ball ----
+// ---- 1. hero: nothing at rest, ball is the entry ----
 await page.getByRole('button', { name: '新建会话' }).first().click().catch(() => {})
 await page.waitForTimeout(2500)
 ok('no hint strip in HERO at rest', !(await restHasHint()))
 ok('no band in HERO at rest', !(await restHasBand()))
-ok('floating ball removed', (await page.getByLabel('云之家悬浮窗').count()) === 0)
+ok('sidebar 云之家 button gone', (await page.getByRole('button', { name: '云之家', exact: true }).count()) === 0)
+const ball = page.getByLabel('云之家悬浮窗')
+let ballVisible = false
+try { await ball.waitFor({ state: 'visible', timeout: 20000 }); ballVisible = true } catch {}
+ok('floating ball visible', ballVisible)
 
-// ---- 2. sidebar button still opens the panel ----
-const side = page.getByRole('button', { name: '云之家' }).first()
-let sideOpened = false
-try { await side.waitFor({ state: 'visible', timeout: 15000 }); await side.click() } catch {}
+// ---- 2. ball opens the panel ----
+await ball.click()
 const dialog = page.getByRole('dialog', { name: '云之家' })
+let sideOpened = false
 try { await dialog.waitFor({ state: 'visible', timeout: 15000 }); sideOpened = true } catch {}
-ok('sidebar 云之家 button opens the panel', sideOpened)
+ok('floating ball opens the panel', sideOpened)
+const ballHidden = await ball.isVisible().catch(() => false)
+ok('ball hides while the panel is open', !ballHidden)
 await dialog.locator('nav button').filter({ hasText: '会话' }).first().click()
 await page.waitForTimeout(3000)
 const draggableCount = await dialog.locator('button[draggable="true"]').count()
