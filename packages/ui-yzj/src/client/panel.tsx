@@ -613,10 +613,9 @@ const DOCK_ITEMS: { key: YzjTab; label: string; icon: () => ReactNode }[] = [
 /** Common emojis for the composer picker (real-IM habit). */
 const EMOJI_LIST = ['😀', '😄', '😂', '🤣', '😊', '😍', '🤔', '😎', '😭', '😅', '😉', '🙏', '👍', '👏', '💪', '🔥', '❤️', '🎉', '✅', '❌', '⚠️', '📌', '💡', '🚀']
 
-/** The floating ball (prototype): bottom-right round button with the unread
- *  badge; hidden while the panel is open. Hovering expands a quick-dock with
- *  one shortcut per panel tab (会话 carries the unread count). Registered in
- *  shell.overlay. */
+/** The floating ball: a PERMANENT bottom-right entry — it never disappears,
+ *  even while the panel is open (click toggles open/close). Hovering expands
+ *  a quick-dock with one shortcut per panel tab. Registered in shell.overlay. */
 export interface YzjFloatBallProps {
   useStore: <R>(selector: (state: YzjPanelState) => R) => R
   actions: BakedActions<YzjPanelState, YzjPanelActions>
@@ -649,7 +648,6 @@ export function YzjFloatBall(props: YzjFloatBallProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  if (open) return null
   const openTab = (tab: YzjTab): void => {
     props.actions.setTab(tab)
     props.actions.setOpen(true)
@@ -680,12 +678,13 @@ export function YzjFloatBall(props: YzjFloatBallProps) {
       </div>
       <button
         type="button"
-        className={css.floatBall}
+        className={open ? `${css.floatBall} ${css.floatBallActive}` : css.floatBall}
         aria-label="云之家悬浮窗"
+        aria-expanded={open}
         title={unreadTotal > 0 ? `云之家 · ${unreadTotal} 条未读` : '云之家'}
         onClick={() => {
           requestNotificationPermission()
-          props.actions.setOpen(true)
+          props.actions.setOpen(!open)
         }}
       >
         <YzjCloudIcon size={22} />

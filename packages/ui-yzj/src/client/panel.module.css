@@ -871,6 +871,11 @@
   transform: scale(1.04);
 }
 
+/* Active (panel open): keep the ball visible as the persistent toggle. */
+.floatBallActive {
+  box-shadow: 0 0 0 2px var(--dsw-alias-bg-base), 0 0 0 4px var(--dsw-static-deepseek-500), 0 4px 14px rgb(46 111 242 / 0.35);
+}
+
 .floatBallBadge {
   position: absolute;
   top: -4px;

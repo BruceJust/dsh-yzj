@@ -66,10 +66,15 @@ try { await dialog.waitFor({ state: 'visible', timeout: 15000 }); opened = true 
 ok('dock shortcut opens the panel', opened)
 const activeTab = await dialog.locator('nav button[class*="tabActive"]').innerText().catch(() => '')
 ok('panel opened directly on 会话 tab', activeTab.includes('会话'), `active="${activeTab}"`)
-const ballHidden = await ball.isVisible().catch(() => false)
-ok('ball hides while the panel is open', !ballHidden)
+const ballStays = await ball.isVisible().catch(() => false)
+ok('ball stays visible while the panel is open (persistent toggle)', ballStays)
 
-// ---- 5. close returns the ball ----
+// ---- 5. clicking the open ball closes the panel; 关闭 returns it too ----
+await ball.click()
+await page.waitForTimeout(800)
+ok('clicking the ball while open closes the panel', !(await dialog.isVisible().catch(() => false)))
+await ball.click()
+await page.waitForTimeout(800)
 await dialog.getByRole('button', { name: '关闭' }).click()
 await page.waitForTimeout(600)
 ok('ball returns after closing the panel', await ball.isVisible().catch(() => false))
