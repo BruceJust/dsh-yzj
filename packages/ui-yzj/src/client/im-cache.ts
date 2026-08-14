@@ -22,6 +22,7 @@ let groupCache: { groups: unknown[]; more: boolean; fetchedAt: number } | null =
 
 /** Fresh cached message window for a group, or undefined when stale/missing. */
 export function getMessageWindow(groupId: string): MessageWindow | undefined {
+  loadPersisted()
   const hit = messageCache.get(groupId)
   if (hit === undefined) return undefined
   if (Date.now() - hit.fetchedAt > MESSAGE_TTL) {
@@ -34,10 +35,12 @@ export function getMessageWindow(groupId: string): MessageWindow | undefined {
 /** Store (or refresh) a group's rendered message window. */
 export function putMessageWindow(groupId: string, messages: unknown[], more: boolean): void {
   messageCache.set(groupId, { messages, more, fetchedAt: Date.now() })
+  scheduleSave()
 }
 
 /** Fresh cached first group page, or undefined when stale/missing. */
 export function getGroupWindow(): { groups: unknown[]; more: boolean } | undefined {
+  loadPersisted()
   if (groupCache === null) return undefined
   if (Date.now() - groupCache.fetchedAt > GROUP_TTL) return undefined
   return { groups: groupCache.groups, more: groupCache.more }
@@ -46,25 +49,104 @@ export function getGroupWindow(): { groups: unknown[]; more: boolean } | undefin
 /** Store (or refresh) the first group page. */
 export function putGroupWindow(groups: unknown[], more: boolean): void {
   groupCache = { groups, more, fetchedAt: Date.now() }
+  scheduleSave()
 }
 
 /* ── Local read state: the CLI has no mark-read, so opening a group marks
      it read CLIENT-side. We remember the server unread at mark time; later
-     polls show only the delta (new messages), never the historical pile. ── */
+     polls show only the delta (new messages), never the historical pile.
+     Persisted to localStorage so a refresh does not resurrect 99+. ── */
 
 const readState = new Map<string, number>()
 
 /** Record that a group was opened; its server unread at that moment. */
 export function markGroupRead(groupId: string, serverUnread: number): void {
   readState.set(groupId, serverUnread)
+  scheduleSave()
+}
+
+/** Mark every group in a window read (全部已读). */
+export function markAllRead(groups: unknown[]): void {
+  for (const item of groups) {
+    const group = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
+    const id = typeof group.groupId === 'string' ? group.groupId : ''
+    const unread = typeof group.unreadCount === 'number' ? group.unreadCount : 0
+    if (id !== '' && unread > 0) readState.set(id, unread)
+  }
+  scheduleSave()
 }
 
 /** Effective unread for a group: 0 for marked-read groups plus new arrivals. */
 export function effectiveUnread(groupId: string, serverUnread: number): number {
+  loadPersisted()
   if (groupId === '' || serverUnread <= 0) return serverUnread
   const marked = readState.get(groupId)
   if (marked === undefined) return serverUnread
   return Math.max(0, serverUnread - marked)
+}
+
+/* ── Persistence: read state + senders permanently, message/group windows
+     as a warm start (same TTLs), all in one bounded localStorage blob. ── */
+
+const PERSIST_KEY = 'dsh.yzj.imcache.v1'
+const PERSIST_WINDOWS_MAX = 8
+const PERSIST_BYTES_MAX = 700_000
+
+let loaded = false
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+function loadPersisted(): void {
+  if (loaded) return
+  loaded = true
+  try {
+    const raw = window.localStorage.getItem(PERSIST_KEY)
+    if (raw === null) return
+    const data = JSON.parse(raw) as {
+      readState?: [string, number][]
+      senders?: [string, SenderInfo][]
+      groups?: { groups: unknown[]; more: boolean; fetchedAt: number } | null
+      windows?: [string, MessageWindow][]
+    }
+    if (Array.isArray(data.readState)) for (const [id, unread] of data.readState) readState.set(id, unread)
+    if (Array.isArray(data.senders)) for (const [id, info] of data.senders) senderNames.set(id, info)
+    if (data.groups !== undefined && data.groups !== null) {
+      if (Date.now() - data.groups.fetchedAt <= GROUP_TTL) groupCache = data.groups
+    }
+    if (Array.isArray(data.windows)) {
+      for (const [id, windowData] of data.windows) {
+        if (Date.now() - windowData.fetchedAt <= MESSAGE_TTL) messageCache.set(id, windowData)
+      }
+    }
+  } catch {
+    // Storage unavailable (private mode / sandboxed iframe): stay in-memory.
+  }
+}
+
+/** Debounced, bounded localStorage snapshot of every cache. */
+function scheduleSave(): void {
+  if (saveTimer !== null) return
+  saveTimer = setTimeout(() => {
+    saveTimer = null
+    try {
+      const windows = [...messageCache.entries()].slice(0, PERSIST_WINDOWS_MAX)
+      const data = {
+        readState: [...readState.entries()],
+        senders: [...senderNames.entries()],
+        groups: groupCache,
+        windows,
+      }
+      let text = JSON.stringify(data)
+      // Bounded: drop oldest windows until the blob fits.
+      while (text.length > PERSIST_BYTES_MAX && windows.length > 0) {
+        windows.shift()
+        data.windows = windows
+        text = JSON.stringify(data)
+      }
+      window.localStorage.setItem(PERSIST_KEY, text)
+    } catch {
+      // Storage full or unavailable: keep caches in-memory only.
+    }
+  }, 400)
 }
 
 /** Session sender cache (openId → display name + avatar). */
@@ -97,11 +179,13 @@ export async function ensureMyProfile(
 
 /** Cached display name for a sender, or '' when not yet resolved. */
 export function senderNameOf(openId: string): string {
+  loadPersisted()
   return senderNames.get(openId)?.name ?? ''
 }
 
 /** Cached avatar URL for a sender, or '' when unknown. */
 export function senderPhotoOf(openId: string): string {
+  loadPersisted()
   return senderNames.get(openId)?.photoUrl ?? ''
 }
 
@@ -132,6 +216,7 @@ export async function resolveSenders(
     const info = await pending
     if (info.name !== '') out[openId] = info.name
   }))
+  scheduleSave()
   return out
 }
 

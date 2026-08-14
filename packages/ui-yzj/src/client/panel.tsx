@@ -17,7 +17,7 @@ import type { YzjPanelActions, YzjPanelState, YzjTab } from './stores.ts'
 import type { YzjPanelInject } from './rpc.ts'
 import {
   effectiveUnread, ensureMyProfile, formatListTime, formatMsgTime, formatSize, getGroupWindow,
-  getMessageWindow, markGroupRead, putGroupWindow, putMessageWindow, resolveFileData, resolveSenders,
+  getMessageWindow, markAllRead, markGroupRead, putGroupWindow, putMessageWindow, resolveFileData, resolveSenders,
   senderNameOf, senderPhotoOf,
 } from './im-cache.ts'
 import { emitYzjDropRequest } from './drop-bus.ts'
@@ -1312,7 +1312,25 @@ export function YzjPanel(props: YzjPanelProps) {
       {activeTab === 'chat' && (
         <div className={css.body}>
           {state.groupId === '' ? (
-            <div className={css.list}>
+            <>
+              <div className={css.readAllRow}>
+                <span className={css.readAllHint}>
+                  {state.unreadTotal > 0 ? `共 ${state.unreadTotal > 99 ? '99+' : state.unreadTotal} 条未读` : '没有未读消息'}
+                </span>
+                <button
+                  type="button"
+                  className={css.readAll}
+                  disabled={state.unreadTotal === 0}
+                  onClick={() => {
+                    markAllRead(state.groups)
+                    props.actions.setGroups(state.groups.map(item => ({ ...asRecord(item), unreadCount: 0 })))
+                    props.actions.setUnreadTotal(0)
+                  }}
+                >
+                  全部已读
+                </button>
+              </div>
+              <div className={css.list}>
               {state.groups.length === 0 && !state.loading && state.error === '' && (
                 <div className={css.empty}><IconNewChatOutline16 /><span>暂无最近会话</span></div>
               )}
@@ -1352,6 +1370,7 @@ export function YzjPanel(props: YzjPanelProps) {
                 </button>
               )}
             </div>
+            </>
           ) : (
             <>
               <div className={css.chatHeader}>

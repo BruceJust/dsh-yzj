@@ -137,17 +137,45 @@ await page.waitForTimeout(600)
 const unreadRow = dialog.locator('button[class*="item"]:has([class*="badge"])').first()
 const badgeBefore = await unreadRow.locator('[class*="badge"]').count().catch(() => 0)
 const unreadName = (await unreadRow.innerText().catch(() => '')).split('\n')[0]
-if (badgeBefore > 0) {
+if (unreadName !== '') {
   await unreadRow.click()
   await page.waitForTimeout(2500)
   await dialog.getByRole('button', { name: '返回会话' }).click()
   await page.waitForTimeout(600)
   const badgeAfter = await dialog.locator('button[class*="item"]').filter({ hasText: unreadName }).first()
     .locator('[class*="badge"]').count().catch(() => 0)
-  ok(`opening "${unreadName}" clears its unread badge locally`, badgeAfter === 0, `badge ${badgeBefore} → ${badgeAfter}`)
+  ok(`opening "${unreadName}" clears its unread badge locally`, badgeAfter === 0, `badge rows → ${badgeAfter}`)
 } else {
   ok('opening a group clears its unread badge locally (no unread groups found)', true, 'nothing to clear')
 }
+
+// ---- 8. 全部已读: clears every badge at once ----
+const readAll = dialog.locator('button[class*="readAll"]')
+let readAllVisible = false
+try { await readAll.waitFor({ state: 'visible', timeout: 5000 }); readAllVisible = true } catch {}
+ok('全部已读 button visible in the group list', readAllVisible)
+await readAll.click().catch(() => {})
+await page.waitForTimeout(800)
+const badgesAfterAll = await dialog.locator('button[class*="item"]:has([class*="badge"])').count().catch(() => 0)
+ok('全部已读 clears every badge', badgesAfterAll === 0, `${badgesAfterAll} badge rows left`)
+
+// ---- 9. persistence: a page reload keeps the read state (no 99+ again) ----
+await page.reload({ waitUntil: 'domcontentloaded' })
+await page.waitForTimeout(6000)
+const dialog2 = page.getByRole('dialog', { name: '云之家' })
+let panelUp = false
+try { await dialog2.waitFor({ state: 'visible', timeout: 5000 }); panelUp = true } catch {}
+if (!panelUp) {
+  await page.getByLabel('云之家悬浮窗').waitFor({ state: 'visible', timeout: 20000 })
+  await page.getByLabel('云之家悬浮窗').click()
+  await dialog2.waitFor({ state: 'visible', timeout: 15000 })
+}
+await dialog2.locator('nav button').filter({ hasText: '会话' }).first().click()
+await page.waitForTimeout(4000)
+const badgesAfterReload = await dialog2.locator('button[class*="item"]:has([class*="badge"])').count().catch(() => 0)
+ok('read state persists across a reload (badges stay cleared)', badgesAfterReload === 0, `${badgesAfterReload} badge rows after reload`)
+const stored = await page.evaluate(() => (window.localStorage.getItem('dsh.yzj.imcache.v1') ?? '').slice(0, 80))
+ok('im cache persisted to localStorage', stored !== '', stored)
 
 await browser.close()
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
