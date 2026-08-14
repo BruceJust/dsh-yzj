@@ -8,7 +8,6 @@ import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-run
 
 /** Panel tabs (我的 removed — the composer '@' covers directory search). */
 export type YzjTab = 'docs' | 'calendar' | 'chat'
-
 /** Yunzhijia panel viewing state (raw CLI payloads, rendered by components). */
 export type YzjPanelState = {
   open: boolean
@@ -19,7 +18,16 @@ export type YzjPanelState = {
   workspaces: unknown[]
   workspaceId: string
   docs: unknown[]
+  /** Doc opened in the right pane preview (docs tab). */
+  docId: string
   events: unknown[]
+  /** Calendar cursor: visible month + selected day + month events. */
+  calYear: number
+  calMonth: number
+  calDay: string
+  calEvents: unknown[]
+  /** Selected event for the right-pane detail. */
+  calEventId: string
   groups: unknown[]
   groupsPage: number
   groupsMore: boolean
@@ -43,7 +51,12 @@ export type YzjPanelActions = {
   setWorkspaces: (draft: YzjPanelState, workspaces: unknown[]) => void
   setWorkspaceId: (draft: YzjPanelState, id: string) => void
   setDocs: (draft: YzjPanelState, docs: unknown[]) => void
+  setDocId: (draft: YzjPanelState, id: string) => void
   setEvents: (draft: YzjPanelState, events: unknown[]) => void
+  setCalCursor: (draft: YzjPanelState, year: number, month: number) => void
+  setCalDay: (draft: YzjPanelState, day: string) => void
+  setCalEvents: (draft: YzjPanelState, events: unknown[]) => void
+  setCalEventId: (draft: YzjPanelState, id: string) => void
   setGroups: (draft: YzjPanelState, groups: unknown[]) => void
   setGroupsPage: (draft: YzjPanelState, page: number) => void
   setGroupsMore: (draft: YzjPanelState, more: boolean) => void
@@ -70,7 +83,13 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
       workspaces: [],
       workspaceId: '',
       docs: [],
+      docId: '',
       events: [],
+      calYear: new Date().getFullYear(),
+      calMonth: new Date().getMonth() + 1,
+      calDay: '',
+      calEvents: [],
+      calEventId: '',
       groups: [],
       groupsPage: 1,
       groupsMore: false,
@@ -91,7 +110,12 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
       setWorkspaces: (d: YzjPanelState, workspaces: unknown[]) => { d.workspaces = workspaces },
       setWorkspaceId: (d: YzjPanelState, id: string) => { d.workspaceId = id },
       setDocs: (d: YzjPanelState, docs: unknown[]) => { d.docs = docs },
+      setDocId: (d: YzjPanelState, id: string) => { d.docId = id },
       setEvents: (d: YzjPanelState, events: unknown[]) => { d.events = events },
+      setCalCursor: (d: YzjPanelState, year: number, month: number) => { d.calYear = year; d.calMonth = month },
+      setCalDay: (d: YzjPanelState, day: string) => { d.calDay = day },
+      setCalEvents: (d: YzjPanelState, events: unknown[]) => { d.calEvents = events },
+      setCalEventId: (d: YzjPanelState, id: string) => { d.calEventId = id },
       setGroups: (d: YzjPanelState, groups: unknown[]) => { d.groups = groups },
       setGroupsPage: (d: YzjPanelState, page: number) => { d.groupsPage = page },
       setGroupsMore: (d: YzjPanelState, more: boolean) => { d.groupsMore = more },

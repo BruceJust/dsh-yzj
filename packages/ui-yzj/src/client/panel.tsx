@@ -702,6 +702,7 @@ export function YzjFloatBall(props: YzjFloatBallProps) {
 function loadTab(
   tab: YzjTab,
   props: YzjPanelProps,
+  state: YzjPanelState,
 ): void {
   const fail = (error: unknown): void => {
     props.actions.setError(typeof error === 'string' ? error : '加载失败')
@@ -717,10 +718,12 @@ function loadTab(
       } else fail(result.error.message)
     })
   } else if (tab === 'calendar') {
-    const today = new Date().toISOString().slice(0, 10)
-    void props.fetchEvents(today, today).then((result) => {
+    const pad = (n: number): string => String(n).padStart(2, '0')
+    const start = `${state.calYear}-${pad(state.calMonth)}-01`
+    const end = `${state.calYear}-${pad(state.calMonth)}-${pad(new Date(state.calYear, state.calMonth, 0).getDate())}`
+    void props.fetchEvents(start, end).then((result) => {
       if (result.ok) {
-        props.actions.setEvents(asArray(result.value))
+        props.actions.setCalEvents(asArray(result.value))
         props.actions.setLoading(false)
       } else fail(result.error.message)
     })
@@ -756,15 +759,6 @@ export function YzjPanel(props: YzjPanelProps) {
   const activeTab: YzjTab = tab === 'docs' || tab === 'calendar' || tab === 'chat' ? tab : 'docs'
   const anchorActive = props.useStore(state => state.anchorMsgId !== '')
   const state = props.useStore(s => s)
-  // Chips row: recent groups, always including the open one.
-  const chipGroups = (() => {
-    const list = state.groups.slice(0, 7)
-    if (state.groupId !== '' && !list.some(group => asString(asRecord(group).groupId) === state.groupId)) {
-      const current = state.groups.find(group => asString(asRecord(group).groupId) === state.groupId)
-      if (current !== undefined) list.push(current)
-    }
-    return list
-  })()
   const panelRef = useRef<HTMLDivElement | null>(null)
   const dragOffset = useRef<{ dx: number; dy: number } | null>(null)
   const anchorRef = useRef<HTMLDivElement | null>(null)
@@ -778,6 +772,8 @@ export function YzjPanel(props: YzjPanelProps) {
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [myProfile, setMyProfile] = useState<{ openId: string; name: string }>({ openId: '', name: '' })
   const [dropToast, setDropToast] = useState('')
+  const [docPreview, setDocPreview] = useState<{ title: string; meta: string; lines: string[] } | null>(null)
+  const [eventDetail, setEventDetail] = useState<{ title: string; time: string; person: string; place: string; content: string } | null>(null)
   const dropToastTimer = useRef<number | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
@@ -895,7 +891,7 @@ export function YzjPanel(props: YzjPanelProps) {
     if (!open) return
     const move = (event: PointerEvent): void => {
       if (dragOffset.current === null) return
-      const x = Math.max(8, Math.min(event.clientX - dragOffset.current.dx, window.innerWidth - 220))
+      const x = Math.max(8, Math.min(event.clientX - dragOffset.current.dx, Math.max(8, window.innerWidth - 880)))
       const y = Math.max(8, Math.min(event.clientY - dragOffset.current.dy, window.innerHeight - 60))
       props.actions.setPanelPosition(x, y)
     }
@@ -911,7 +907,7 @@ export function YzjPanel(props: YzjPanelProps) {
 
   useEffect(() => {
     if (!open) return
-    loadTab(activeTab, props)
+    loadTab(activeTab, props, state)
     // tab switches and opens are the load triggers; state reads inside the
     // loader come from the snapshot taken at effect time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -933,6 +929,8 @@ export function YzjPanel(props: YzjPanelProps) {
 
   const openWorkspace = (id: string): void => {
     props.actions.setWorkspaceId(id)
+    props.actions.setDocId('')
+    setDocPreview(null)
     props.actions.setLoading(true)
     props.actions.setError('')
     void props.fetchDocs(id).then((result) => {
@@ -943,6 +941,114 @@ export function YzjPanel(props: YzjPanelProps) {
       }
       props.actions.setLoading(false)
     })
+  }
+
+  /** Right-pane doc preview: info + first blocks as text. */
+  const openDoc = (id: string, title: string): void => {
+    props.actions.setDocId(id)
+    setDocPreview(null)
+    void Promise.all([props.fetchDoc(id), props.fetchDocBlocks(id)]).then(([infoResult, blocksResult]) => {
+      const node = asRecord(infoResult.ok ? infoResult.value : {})
+      const suffix = asString(node.fileSuffix)
+      const meta = [
+        suffix === 'dbt' ? '多维表格' : '在线文档',
+        asString(node.updateTime).slice(0, 10) === '' ? '' : `更新 ${asString(node.updateTime).slice(0, 10)}`,
+        asString(node.creatorName) === '' ? '' : `创建人 ${asString(node.creatorName)}`,
+      ].filter(part => part !== '').join(' · ')
+      const lines: string[] = []
+      if (blocksResult.ok) {
+        const walk = (node2: unknown): void => {
+          if (typeof node2 !== 'object' || node2 === null) return
+          const record = node2 as Record<string, unknown>
+          if (typeof record.type === 'string' && typeof record.content === 'string') {
+            const text = record.content.trim()
+            if (text !== '' && (record.type === 'heading' || record.type === 'paragraph' || record.type === 'code' || record.type === 'text')) {
+              lines.push(text)
+            }
+          }
+          for (const value of Object.values(record)) {
+            if (Array.isArray(value)) for (const item of value) walk(item)
+            else if (typeof value === 'object' && value !== null) walk(value)
+          }
+        }
+        for (const block of asArray(blocksResult.value)) walk(block)
+      }
+      setDocPreview({ title, meta, lines: lines.slice(0, 200) })
+    }).catch(() => setDocPreview({ title, meta: '', lines: [] }))
+  }
+
+  /** Move the calendar cursor and fetch the new month. */
+  const moveMonth = (delta: number): void => {
+    const next = new Date(state.calYear, state.calMonth - 1 + delta, 1)
+    const year = next.getFullYear()
+    const month = next.getMonth() + 1
+    props.actions.setCalCursor(year, month)
+    props.actions.setCalDay('')
+    props.actions.setCalEventId('')
+    setEventDetail(null)
+    const pad = (n: number): string => String(n).padStart(2, '0')
+    const start = `${year}-${pad(month)}-01`
+    const end = `${year}-${pad(month)}-${pad(new Date(year, month, 0).getDate())}`
+    props.actions.setLoading(true)
+    props.actions.setError('')
+    void props.fetchEvents(start, end).then((result) => {
+      if (result.ok) {
+        props.actions.setCalEvents(asArray(result.value))
+      } else {
+        props.actions.setError(result.error.message)
+      }
+      props.actions.setLoading(false)
+    })
+  }
+
+  /** Select a calendar day; the right pane lists its events. */
+  const pickDay = (day: string): void => {
+    props.actions.setCalDay(day)
+    props.actions.setCalEventId('')
+    setEventDetail(null)
+  }
+
+  /** Select an event; enrich with the full detail when needed. */
+  const pickEvent = (event: Record<string, unknown>): void => {
+    const id = asString(event.id)
+    props.actions.setCalEventId(id)
+    const clock = (ms: unknown): string => {
+      if (typeof ms !== 'number') return ''
+      const date = new Date(ms)
+      const pad = (n: number): string => String(n).padStart(2, '0')
+      return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+    }
+    const start = clock(event.startDate)
+    const end = clock(event.endDate)
+    const base = {
+      title: asString(event.title),
+      time: start === '' ? '' : `${start}${end === '' ? '' : ` → ${end}`}`,
+      person: asString(event.personName),
+      place: asString(event.meetingPlace),
+      content: asString(event.content),
+    }
+    if (base.content !== '') {
+      setEventDetail(base)
+      return
+    }
+    void props.fetchEvent(id).then((result) => {
+      if (!result.ok) {
+        setEventDetail(base)
+        return
+      }
+      const detail = asRecord(result.value)
+      const ms = typeof detail.startDate === 'number' ? detail.startDate : typeof event.startDate === 'number' ? event.startDate : 0
+      const start2 = clock(ms)
+      const endMs = typeof detail.endDate === 'number' ? detail.endDate : typeof event.endDate === 'number' ? event.endDate : 0
+      const end2 = clock(endMs)
+      setEventDetail({
+        title: asString(detail.title) === '' ? base.title : asString(detail.title),
+        time: start2 === '' ? base.time : `${start2}${end2 === '' ? '' : ` → ${end2}`}`,
+        person: asString(detail.personName) === '' ? base.person : asString(detail.personName),
+        place: asString(detail.meetingPlace),
+        content: asString(detail.content),
+      })
+    }).catch(() => setEventDetail(base))
   }
 
   const openGroup = (id: string): void => {
@@ -1145,7 +1251,7 @@ export function YzjPanel(props: YzjPanelProps) {
         <button
           type="button"
           className={css.iconButton}
-          onClick={() => { loadTab(activeTab, props) }}
+          onClick={() => { loadTab(activeTab, props, state) }}
           disabled={state.loading}
           aria-label="刷新"
           title="刷新"
@@ -1196,123 +1302,235 @@ export function YzjPanel(props: YzjPanelProps) {
 
       {activeTab === 'docs' && (
         <div className={css.body}>
-          {state.workspaceId === '' ? (
-            <div className={css.list}>
-              {state.workspaces.length === 0 && !state.loading && state.error === '' && (
-                <div className={css.empty}><YzjCloudIcon size={28} /><span>暂无知识库</span></div>
+          <div className={css.twoPane}>
+            <div className={css.paneLeft}>
+              <div className={css.paneList}>
+                {state.workspaces.length === 0 && !state.loading && state.error === '' && (
+                  <div className={css.empty}><YzjCloudIcon size={28} /><span>暂无知识库</span></div>
+                )}
+                {state.workspaces.map((item, index) => {
+                  const ws = asRecord(item)
+                  const count = typeof ws.docCount === 'number' ? ws.docCount : 0
+                  const members = typeof ws.memberCount === 'number' ? ws.memberCount : 0
+                  const id = asString(ws.id)
+                  const name = asString(ws.name)
+                  const active = id === state.workspaceId
+                  return (
+                    <button
+                      key={`w${index}`}
+                      type="button"
+                      className={active ? `${css.item} ${css.itemActive}` : css.item}
+                      onClick={() => { openWorkspace(id) }}
+                      draggable
+                      onDragStart={(event) => {
+                        startDragTransfer(event, { kind: 'workspace', id, title: name, sub: `文档 ${count} · 成员 ${members}` })
+                      }}
+                    >
+                      <span className={css.itemTitle}>
+                        <IconFolderOpenOutline16 />
+                        <span className={css.itemTitleText}>{name}</span>
+                      </span>
+                      <span className={css.itemSub}>文档 {count} · 成员 {members}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className={css.paneRight}>
+              {state.workspaceId === '' ? (
+                <div className={css.paneEmpty}><YzjCloudIcon size={28} /><span>选择左侧知识库查看文档</span></div>
+              ) : state.docId === '' ? (
+                <div className={css.paneList}>
+                  <div className={css.paneHead}>
+                    <span className={css.paneTitle}>
+                      {asString(state.workspaces.map(asRecord).find(ws => asString(ws.id) === state.workspaceId)?.name ?? '知识库')}
+                    </span>
+                  </div>
+                  {state.docs.length === 0 && !state.loading && state.error === '' && <div className={css.empty}>暂无文档</div>}
+                  {state.docs.map((item, index) => {
+                    const node = asRecord(item)
+                    const suffix = asString(node.fileSuffix)
+                    const title = asString(node.title)
+                    const id = asString(node.id)
+                    const url = asString(node.openWebUrl)
+                    return (
+                      <button
+                        key={`d${index}`}
+                        type="button"
+                        className={css.item}
+                        onClick={() => { openDoc(id, title) }}
+                        draggable
+                        onDragStart={(event) => {
+                          startDragTransfer(event, {
+                            kind: 'doc', id, title, url,
+                            sub: `${suffix === 'dbt' ? '多维表格' : '在线文档'} · ${asString(node.updateTime).slice(0, 10)}`,
+                          })
+                        }}
+                      >
+                        <span className={css.itemTitle}>
+                          <span className={css.docGlyph}>{suffix === 'dbt' ? '表' : '文'}</span>
+                          <span className={css.itemTitleText}>{title}</span>
+                        </span>
+                        <span className={css.itemSub}>{suffix === 'dbt' ? '多维表格' : '在线文档'} · {asString(node.updateTime).slice(0, 10)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : docPreview === null ? (
+                <div className={css.paneEmpty}>加载中…</div>
+              ) : (
+                <div className={css.paneList}>
+                  <div className={css.paneHead}>
+                    <button type="button" className={css.back} onClick={() => { props.actions.setDocId('') }}>
+                      <IconChevronLeft14 /> 返回文档
+                    </button>
+                    <span className={css.paneTitle}>{docPreview.title}</span>
+                  </div>
+                  {docPreview.meta !== '' && <div className={css.docMeta}>{docPreview.meta}</div>}
+                  <div className={css.docBody}>
+                    {docPreview.lines.length === 0
+                      ? '（无文本内容，可拖拽引用或在新标签打开）'
+                      : docPreview.lines.map((line, i) => <div key={i}>{line}</div>)}
+                  </div>
+                </div>
               )}
-              {state.workspaces.map((item, index) => {
-                const ws = asRecord(item)
-                const count = typeof ws.docCount === 'number' ? ws.docCount : 0
-                const members = typeof ws.memberCount === 'number' ? ws.memberCount : 0
-                const id = asString(ws.id)
-                const name = asString(ws.name)
-                return (
-                  <button
-                    key={`w${index}`}
-                    type="button"
-                    className={css.item}
-                    onClick={() => { openWorkspace(id) }}
-                    draggable
-                    onDragStart={(event) => {
-                      startDragTransfer(event, { kind: 'workspace', id, title: name, sub: `文档 ${count} · 成员 ${members}` })
-                    }}
-                  >
-                    <span className={css.itemTitle}>
-                      <IconFolderOpenOutline16 />
-                      <span className={css.itemTitleText}>{name}</span>
-                    </span>
-                    <span className={css.itemSub}>文档 {count} · 成员 {members}</span>
-                  </button>
-                )
-              })}
             </div>
-          ) : (
-            <div className={css.list}>
-              <button type="button" className={css.back} onClick={() => { props.actions.setWorkspaceId('') }}>
-                <IconChevronLeft14 /> 返回知识库
-              </button>
-              {state.docs.length === 0 && !state.loading && state.error === '' && <div className={css.empty}>暂无文档</div>}
-              {state.docs.map((item, index) => {
-                const node = asRecord(item)
-                const suffix = asString(node.fileSuffix)
-                const title = asString(node.title)
-                const id = asString(node.id)
-                const url = asString(node.openWebUrl)
-                return (
-                  <button
-                    key={`d${index}`}
-                    type="button"
-                    className={css.item}
-                    onClick={() => { window.open(url, '_blank', 'noreferrer') }}
-                    draggable
-                    onDragStart={(event) => {
-                      startDragTransfer(event, {
-                        kind: 'doc', id, title, url,
-                        sub: `${suffix === 'dbt' ? '多维表格' : '在线文档'} · ${asString(node.updateTime).slice(0, 10)}`,
-                      })
-                    }}
-                  >
-                    <span className={css.itemTitle}>
-                      <span className={css.docGlyph}>{suffix === 'dbt' ? '表' : '文'}</span>
-                      <span className={css.itemTitleText}>{title}</span>
-                    </span>
-                    <span className={css.itemSub}>{suffix === 'dbt' ? '多维表格' : '在线文档'} · {asString(node.updateTime).slice(0, 10)}</span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
+          </div>
         </div>
       )}
 
       {activeTab === 'calendar' && (
         <div className={css.body}>
-          <div className={css.list}>
-            {state.events.length === 0 && !state.loading && state.error === '' && (
-              <div className={css.empty}><IconChecklistOutline14 /><span>今日暂无日程</span></div>
-            )}
-            {state.events.map((item, index) => {
-              const event = asRecord(item)
-              const clock = (ms: unknown): string => {
-                if (typeof ms !== 'number') return ''
-                const date = new Date(ms)
-                const pad = (n: number): string => String(n).padStart(2, '0')
-                return `${pad(date.getHours())}:${pad(date.getMinutes())}`
-              }
-              const start = clock(event.startDate)
-              const end = clock(event.endDate)
-              const timeText = start === '' ? '' : `${start}${end === '' ? '' : ` → ${end}`}`
-              const title = asString(event.title)
-              const person = asString(event.personName)
-              return (
-                <div
-                  key={`e${index}`}
-                  className={css.item}
-                  draggable
-                  onDragStart={(event) => {
-                    startDragTransfer(event, {
-                      kind: 'event', id: asString(asRecord(item).id), title,
-                      sub: [timeText, person].filter(part => part !== '').join(' · '),
+          <div className={css.twoPane}>
+            <div className={css.paneLeft}>
+              <div className={css.calHead}>
+                <button type="button" className={css.calNav} aria-label="上个月" onClick={() => moveMonth(-1)}>‹</button>
+                <span className={css.calTitle}>{state.calYear}年{state.calMonth}月</span>
+                <button type="button" className={css.calNav} aria-label="下个月" onClick={() => moveMonth(1)}>›</button>
+              </div>
+              <div className={css.calGrid}>
+                {['一', '二', '三', '四', '五', '六', '日'].map(day => (
+                  <div key={day} className={css.calDow}>{day}</div>
+                ))}
+                {(() => {
+                  const firstDow = (new Date(state.calYear, state.calMonth - 1, 1).getDay() + 6) % 7
+                  const daysInMonth = new Date(state.calYear, state.calMonth, 0).getDate()
+                  const pad = (n: number): string => String(n).padStart(2, '0')
+                  const todayKey = `${new Date().getFullYear()}-${pad(new Date().getMonth() + 1)}-${pad(new Date().getDate())}`
+                  const eventsByDay = new Map<string, number>()
+                  for (const item of state.calEvents) {
+                    const event = asRecord(item)
+                    if (typeof event.startDate !== 'number') continue
+                    const date = new Date(event.startDate)
+                    const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+                    eventsByDay.set(key, (eventsByDay.get(key) ?? 0) + 1)
+                  }
+                  const cells = []
+                  for (let i = 0; i < firstDow; i++) cells.push(<div key={`b${i}`} className={css.calBlank} />)
+                  for (let day = 1; day <= daysInMonth; day++) {
+                    const key = `${state.calYear}-${pad(state.calMonth)}-${pad(day)}`
+                    const count = eventsByDay.get(key) ?? 0
+                    const classes = [
+                      css.calCell,
+                      key === todayKey ? css.calCellToday : '',
+                      key === state.calDay ? css.calCellSelected : '',
+                      count > 0 ? css.calCellHas : '',
+                    ].filter(Boolean).join(' ')
+                    cells.push(
+                      <button
+                        key={key}
+                        type="button"
+                        className={classes}
+                        aria-label={key}
+                        onClick={() => pickDay(key)}
+                      >
+                        <span className={css.calDayNum}>{day}</span>
+                        {count > 0 && <span className={css.calDot} title={`${count} 个日程`} />}
+                      </button>,
+                    )
+                  }
+                  return cells
+                })()}
+              </div>
+            </div>
+            <div className={css.paneRight}>
+              {state.calDay === '' ? (
+                <div className={css.paneEmpty}><IconChecklistOutline14 /><span>选择左侧日期查看日程</span></div>
+              ) : (
+                <div className={css.paneList}>
+                  <div className={css.paneHead}>
+                    <span className={css.paneTitle}>{formatListTime(`${state.calDay} 00:00:00`)}</span>
+                  </div>
+                  {(() => {
+                    const pad = (n: number): string => String(n).padStart(2, '0')
+                    const dayEvents = state.calEvents.filter((item) => {
+                      const event = asRecord(item)
+                      if (typeof event.startDate !== 'number') return false
+                      const date = new Date(event.startDate)
+                      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` === state.calDay
                     })
-                  }}
-                >
-                  <span className={css.itemTitle}><span className={css.itemTitleText}>{title}</span></span>
-                  <span className={css.itemSub}>
-                    {timeText}
-                    {person === '' ? '' : ` · ${person}`}
-                  </span>
+                    if (dayEvents.length === 0) {
+                      return <div className={css.empty}>当天暂无日程</div>
+                    }
+                    return dayEvents.map((item, index) => {
+                      const event = asRecord(item)
+                      const clock = (ms: unknown): string => {
+                        if (typeof ms !== 'number') return ''
+                        const date = new Date(ms)
+                        const p = (n: number): string => String(n).padStart(2, '0')
+                        return `${p(date.getHours())}:${p(date.getMinutes())}`
+                      }
+                      const start = clock(event.startDate)
+                      const end = clock(event.endDate)
+                      const timeText = start === '' ? '' : `${start}${end === '' ? '' : ` → ${end}`}`
+                      const title = asString(event.title)
+                      const person = asString(event.personName)
+                      const place = asString(event.meetingPlace)
+                      const id = asString(event.id)
+                      const active = id === state.calEventId
+                      return (
+                        <button
+                          key={`e${index}`}
+                          type="button"
+                          className={active ? `${css.item} ${css.itemActive}` : css.item}
+                          onClick={() => pickEvent(event)}
+                          draggable
+                          onDragStart={(event) => {
+                            startDragTransfer(event, {
+                              kind: 'event', id, title,
+                              sub: [timeText, person].filter(part => part !== '').join(' · '),
+                            })
+                          }}
+                        >
+                          <span className={css.eventTime}>{timeText === '' ? '全天' : timeText}</span>
+                          <span className={css.itemTitleText}>{title}</span>
+                          <span className={css.itemSub}>
+                            {[person, place].filter(part => part !== '').join(' · ')}
+                          </span>
+                        </button>
+                      )
+                    })
+                  })()}
+                  {eventDetail !== null && state.calEventId !== '' && (
+                    <div className={css.eventDetail}>
+                      <div className={css.eventDetailTitle}>{eventDetail.title}</div>
+                      {eventDetail.time !== '' && <div className={css.eventDetailRow}>🕐 {eventDetail.time}</div>}
+                      {eventDetail.person !== '' && <div className={css.eventDetailRow}>👤 {eventDetail.person}</div>}
+                      {eventDetail.place !== '' && <div className={css.eventDetailRow}>📍 {eventDetail.place}</div>}
+                      {eventDetail.content !== '' && <div className={css.eventDetailContent}>{eventDetail.content}</div>}
+                    </div>
+                  )}
                 </div>
-              )
-            })}
+              )}
+            </div>
           </div>
         </div>
       )}
 
       {activeTab === 'chat' && (
         <div className={css.body}>
-          {state.groupId === '' ? (
-            <>
+          <div className={css.twoPane}>
+            <div className={css.paneLeft}>
               <div className={css.readAllRow}>
                 <span className={css.readAllHint}>
                   {state.unreadTotal > 0 ? `共 ${state.unreadTotal > 99 ? '99+' : state.unreadTotal} 条未读` : '没有未读消息'}
@@ -1330,7 +1548,7 @@ export function YzjPanel(props: YzjPanelProps) {
                   全部已读
                 </button>
               </div>
-              <div className={css.list}>
+              <div className={css.paneList}>
               {state.groups.length === 0 && !state.loading && state.error === '' && (
                 <div className={css.empty}><IconNewChatOutline16 /><span>暂无最近会话</span></div>
               )}
@@ -1340,11 +1558,12 @@ export function YzjPanel(props: YzjPanelProps) {
                 const name = asString(group.groupName)
                 const lastTime = formatListTime(group.lastMsgSendTime)
                 const preview = messagePreview(asRecord(group.lastMsg))
+                const active = asString(group.groupId) === state.groupId
                 return (
                   <button
                     key={`g${index}`}
                     type="button"
-                    className={css.item}
+                    className={active ? `${css.item} ${css.itemActive}` : css.item}
                     onClick={() => { openGroup(asString(group.groupId)) }}
                     draggable
                     onDragStart={(event) => {
@@ -1370,41 +1589,14 @@ export function YzjPanel(props: YzjPanelProps) {
                 </button>
               )}
             </div>
-            </>
-          ) : (
+            </div>
+            <div className={css.paneRight}>
+            {state.groupId === '' ? (
+                <div className={css.paneEmpty}><IconNewChatOutline16 /><span>选择左侧会话查看消息</span></div>
+            ) : (
             <>
               <div className={css.chatHeader}>
-                <button type="button" className={css.back} onClick={() => {
-                  props.actions.setGroupId('')
-                  props.actions.setAnchorMsgId('')
-                  setDraft('')
-                  setReplyTo(null)
-                }}>
-                  <IconChevronLeft14 /> 返回会话
-                </button>
                 <GroupHead groups={state.groups} groupId={state.groupId} />
-              </div>
-              {/* Reference-style group chips: quick switching without going back. */}
-              <div className={css.groupChips} role="tablist" aria-label="会话切换">
-                {chipGroups.map((item, index) => {
-                  const group = asRecord(item)
-                  const id = asString(group.groupId)
-                  const unread = effectiveUnread(id, typeof group.unreadCount === 'number' ? group.unreadCount : 0)
-                  const active = id === state.groupId
-                  return (
-                    <button
-                      key={`c${index}`}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      className={active ? `${css.groupChip} ${css.groupChipActive}` : css.groupChip}
-                      onClick={() => openGroup(id)}
-                    >
-                      {asString(group.groupName)}
-                      {unread > 0 && <span className={css.chipBadge}>{unread > 99 ? '99+' : unread}</span>}
-                    </button>
-                  )
-                })}
               </div>
               {anchorActive && (
                 <div className={css.anchorHint} role="status">
@@ -1620,6 +1812,8 @@ export function YzjPanel(props: YzjPanelProps) {
               </div>
             </>
           )}
+            </div>
+          </div>
         </div>
       )}
 

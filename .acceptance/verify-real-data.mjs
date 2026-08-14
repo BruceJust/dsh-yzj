@@ -59,12 +59,18 @@ const groupCount = await dialog.locator('button[class*="item"]').count()
 ok('会话 tab lists real recent groups', groupCount > 0, `${groupCount} groups: ${chatText.replace(/\n/g, ' ').slice(0, 80)}`)
 await page.screenshot({ path: shot('3-chat.png') })
 
-// --- 4. open a group: real messages load ---
+// --- 4. open a group: real messages load in the right pane ---
 if (groupCount > 0) {
-  await dialog.locator('button[class*="item"]').first().click()
+  const groupRow = dialog.locator('button[class*="item"]').filter({ hasText: '灵基Chat' }).first()
+  if (await groupRow.count().catch(() => 0) > 0) {
+    await groupRow.click()
+  } else {
+    await dialog.locator('button[class*="item"]').first().click()
+  }
   await page.waitForTimeout(4000)
   const msgText = await dialog.innerText().catch(() => '')
-  ok('group messages load', msgText.includes('返回会话') && (msgText.includes('暂无消息') || /消息|加载更早/.test(msgText)), msgText.replace(/\n/g, ' ').slice(0, 80))
+  const msgRows = await dialog.locator('[class*="msgRow"]').count()
+  ok('group messages load', msgRows > 0 && (msgText.includes('加载更早消息') || msgText.includes('暂无消息')), `${msgRows} rows: ${msgText.replace(/\n/g, ' ').slice(0, 80)}`)
   await page.screenshot({ path: shot('4-messages.png') })
 }
 

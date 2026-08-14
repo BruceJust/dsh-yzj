@@ -53,13 +53,13 @@ ok('sender names resolved', namedSenders.length > 0, `e.g. ${namedSenders.slice(
 const timeTexts = await dialog.locator('[class*="msgTime"]').allInnerTexts().catch(() => [])
 ok('message times formatted (HH:mm / 昨天 HH:mm / MM-DD HH:mm)', timeTexts.length > 0 && timeTexts.every(t => /^\d{2}:\d{2}$|^昨天 \d{2}:\d{2}$|^\d{2}-\d{2} \d{2}:\d{2}$/.test(t.trim())), timeTexts.slice(0, 3).join(', '))
 
-// ---- 2b. the chat header (返回会话) is pinned above the scrollable list ----
-const backBtn = dialog.getByRole('button', { name: '返回会话' })
-const boxBefore = await backBtn.boundingBox().catch(() => null)
+// ---- 2b. the chat header stays pinned above the scrollable list ----
+const chatHeader = dialog.locator('[class*="chatHeader"]').first()
+const boxBefore = await chatHeader.boundingBox().catch(() => null)
 await dialog.locator('div[class*="list"]').last().evaluate(el => { el.scrollTop = el.scrollHeight }).catch(() => {})
 await page.waitForTimeout(300)
-const boxAfter = await backBtn.boundingBox().catch(() => null)
-ok('back button stays pinned while the list scrolls',
+const boxAfter = await chatHeader.boundingBox().catch(() => null)
+ok('chat header stays pinned while the list scrolls',
   boxBefore !== null && boxAfter !== null && Math.abs(boxBefore.y - boxAfter.y) < 1,
   `y ${boxBefore?.y ?? '?'} → ${boxAfter?.y ?? '?'}`)
 // The CLI returns messages oldest-first; the chat must read top-down
@@ -102,46 +102,35 @@ ok('file chip shows the file name', fileName !== '', fileName)
 const quotes = await dialog.locator('[class*="msgQuote"]').count()
 ok('reply messages render quote lines', quotes > 0, `${quotes} quotes`)
 
-// ---- 5. cache: revisit renders instantly from the window cache ----
-await dialog.getByRole('button', { name: '返回会话' }).click()
-await page.waitForTimeout(600)
+// ---- 5. two-pane: switching groups is a left-pane click (no back) ----
 await groupButtons.filter({ hasText: '金蝶集团桌游协会' }).first().click()
 await page.waitForTimeout(2500)
 const otherMessages = await dialog.locator('[class*="msgRow"]').count()
 ok('second group loads messages', otherMessages > 0, `${otherMessages} messages`)
-await dialog.getByRole('button', { name: '返回会话' }).click()
-await page.waitForTimeout(400)
+const activeRows = await dialog.locator('button[class*="itemActive"]').count()
+ok('left pane highlights the active group', activeRows >= 1, `${activeRows} active`)
 await groupButtons.filter({ hasText: '灵基Chat' }).first().click()
 await page.waitForTimeout(800)
 const cachedMessages = await dialog.locator('[class*="msgRow"]').count()
 ok('revisit reuses the cached window (instant render)', cachedMessages > 0, `${cachedMessages} messages`)
 
-// ---- 6. reference-style IM layout: meta lines, avatars, dividers, chips ----
+// ---- 6. reference-style IM layout: meta lines, avatars, dividers ----
 const metaLines = await dialog.locator('[class*="msgMetaLine"]').count()
 ok('messages render name · time meta lines', metaLines > 0, `${metaLines} lines`)
 const avatars = await dialog.locator('[class*="msgAvatar"]').count()
 ok('sender avatars render', avatars > 0, `${avatars} avatars`)
 const dividers = await dialog.locator('[class*="dayDivider"]').count()
 ok('day dividers separate dates', dividers > 0, `${dividers} dividers`)
-const chips = await dialog.locator('button[class*="groupChip"]').count()
-ok('group chips row enables quick switching', chips > 0, `${chips} chips`)
-const activeChips = await dialog.locator('button[class*="groupChipActive"]').count()
-ok('current group chip is active', activeChips >= 1, `${activeChips} active`)
 const imText = await dialog.innerText().catch(() => '')
 ok('bracket emoticons render as emoji ([握手]/[机智] gone)', !imText.includes('[握手]') && !imText.includes('[机智]'), 'no raw [token] text')
 
 // ---- 7. opening a group marks it read locally (real unread numbers) ----
-await dialog.getByRole('button', { name: '返回会话' }).click()
-await page.waitForTimeout(600)
 // Pick the first group that currently shows an unread badge (real data).
 const unreadRow = dialog.locator('button[class*="item"]:has([class*="badge"])').first()
-const badgeBefore = await unreadRow.locator('[class*="badge"]').count().catch(() => 0)
 const unreadName = (await unreadRow.innerText().catch(() => '')).split('\n')[0]
 if (unreadName !== '') {
   await unreadRow.click()
   await page.waitForTimeout(2500)
-  await dialog.getByRole('button', { name: '返回会话' }).click()
-  await page.waitForTimeout(600)
   const badgeAfter = await dialog.locator('button[class*="item"]').filter({ hasText: unreadName }).first()
     .locator('[class*="badge"]').count().catch(() => 0)
   ok(`opening "${unreadName}" clears its unread badge locally`, badgeAfter === 0, `badge rows → ${badgeAfter}`)

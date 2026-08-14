@@ -60,8 +60,8 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  width: min(460px, 100vw);
-  height: min(700px, 100vh);
+  width: min(880px, 96vw);
+  height: min(700px, 94vh);
   margin: auto;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 14px;
@@ -194,6 +194,79 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* ── Wide two-pane layout: left list, right content ──────────────────── */
+
+.twoPane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.paneLeft {
+  width: 250px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--dsw-alias-border-l1);
+}
+
+.paneRight {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.paneList {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.paneEmpty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+}
+
+.paneHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 8px;
+}
+
+.paneTitle {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Active row in the left list. */
+.itemActive {
+  background: var(--dsw-static-deepseek-100);
+}
+
+.itemActive:hover {
+  background: var(--dsw-static-deepseek-100);
 }
 
 /* ── Status strips ───────────────────────────────────────────────────── */
@@ -1371,4 +1444,169 @@
 
 .emojiCell:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* ── Calendar month grid (real calendar component) ───────────────────── */
+
+.calHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px 4px;
+}
+
+.calTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.calNav {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 16px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.calNav:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 4px 10px 10px;
+}
+
+.calDow {
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 20px;
+}
+
+.calBlank {
+  height: 30px;
+}
+
+.calCell {
+  position: relative;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 120ms var(--ds-ease-in-out, ease);
+}
+
+.calCell:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.calCellToday {
+  box-shadow: inset 0 0 0 1px var(--dsw-static-deepseek-500);
+}
+
+.calCellSelected {
+  background: var(--dsw-static-deepseek-100);
+  font-weight: 600;
+  color: var(--dsw-static-deepseek-600);
+}
+
+.calCellHas {
+  font-weight: 600;
+  color: var(--dsw-static-deepseek-500);
+}
+
+.calDayNum {
+  line-height: 18px;
+}
+
+.calDot {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--dsw-static-deepseek-500);
+}
+
+/* Event rows + detail card in the calendar right pane. */
+.eventTime {
+  color: var(--dsw-static-deepseek-500);
+  font-size: 11px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.eventDetail {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.eventDetailTitle {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.eventDetailRow {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.eventDetailContent {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Doc preview in the docs right pane ──────────────────────────────── */
+
+.docMeta {
+  flex: none;
+  padding: 0 10px 6px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.docBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 12px 12px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
