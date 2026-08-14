@@ -60,8 +60,8 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  width: min(420px, 100vw);
-  height: min(620px, 100vh);
+  width: min(460px, 100vw);
+  height: min(700px, 100vh);
   margin: auto;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 14px;
@@ -352,12 +352,95 @@
   border: 1px solid var(--dsw-alias-border-l1);
 }
 
-.msgMeta {
+/* ── Real-IM bubble layout ───────────────────────────────────────────── */
+
+/* One message row: [avatar] [stack] — flipped for my own messages. */
+.msgRow {
+  position: relative;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: 8px;
+  padding: 4px 10px 4px 18px;
+  border-radius: 10px;
   min-width: 0;
+}
+
+.msgRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.msgRow[draggable='true'] {
+  cursor: grab;
+}
+
+.msgRowMine {
+  flex-direction: row-reverse;
+}
+
+.msgRowSystem {
+  justify-content: center;
+  padding-left: 10px;
+}
+
+/* Sender avatar (28px round photo, glyph fallback). */
+.msgAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+  margin-top: 2px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.msgAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--dsw-static-deepseek-100);
+  color: var(--dsw-static-deepseek-600);
+  font-size: 12px;
+  font-weight: 600;
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Sender name + bubble + time column. */
+.msgStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 78%;
+  min-width: 0;
+}
+
+.msgStackMine {
+  align-items: flex-end;
+}
+
+/* The bubble itself: others layer-1, mine brand blue with white text. */
+.bubble {
+  padding: 7px 10px;
+  border-radius: 12px;
+  border-top-left-radius: 4px;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l1);
+  min-width: 0;
+}
+
+.bubbleMine {
+  background: var(--dsw-static-deepseek-500);
+  border-color: var(--dsw-static-deepseek-500);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 4px;
+  color: #ffffff;
+}
+
+.bubbleMine .msgBody {
+  color: #ffffff;
 }
 
 .msgTime {
@@ -365,14 +448,63 @@
   font-size: 11px;
   line-height: 14px;
   font-variant-numeric: tabular-nums;
-  flex: none;
+  margin-top: 2px;
 }
 
-.msgKind {
+.msgTimeMine {
+  margin-right: 2px;
+}
+
+/* Hover-revealed 回复 action on a message row. */
+.msgReply {
+  margin-top: 2px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-static-deepseek-500);
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms var(--ds-ease-in-out, ease), background-color 120ms var(--ds-ease-in-out, ease);
+}
+
+.msgRow:hover .msgReply {
+  opacity: 1;
+}
+
+.msgReply:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* Date separator between message days. */
+.dayDivider {
+  display: table;
+  margin: 6px auto 2px;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
-  line-height: 14px;
-  flex: none;
+  line-height: 18px;
+}
+
+/* Group header inside the chat view: avatar + name. */
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 10px 8px;
+}
+
+.groupHeadName {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .msgBody {
@@ -901,14 +1033,22 @@
   box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
 }
 
-/* ── Message composer (panel send) ───────────────────────────────────── */
+/* ── Message composer (real-IM toolbar + reply) ──────────────────────── */
 
 .composer {
+  position: relative;
   display: flex;
+  flex-direction: column;
   gap: 6px;
   padding: 8px 10px;
   border-top: 1px solid var(--dsw-alias-border-l1);
   flex: none;
+}
+
+.composerRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
 }
 
 .composerInput {
@@ -916,12 +1056,16 @@
   min-width: 0;
   padding: 7px 10px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
   line-height: 18px;
+  font-family: inherit;
+  resize: none;
   outline: none;
+  max-height: 120px;
+  overflow-y: auto;
   transition: border-color 120ms var(--ds-ease-in-out, ease);
 }
 
@@ -939,9 +1083,9 @@
 
 .composerSend {
   flex: none;
-  padding: 0 14px;
+  padding: 7px 14px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--dsw-static-deepseek-500);
   color: #ffffff;
   font-size: 13px;
@@ -957,4 +1101,110 @@
 .composerSend:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+.composerToolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.toolButton {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 15px;
+  line-height: 15px;
+  cursor: pointer;
+  transition: background-color 120ms var(--ds-ease-in-out, ease);
+}
+
+.toolButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.toolButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.toolStatus {
+  margin-left: 6px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+}
+
+/* Reply target bar above the input row. */
+.replyBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-left: 2px solid var(--dsw-static-deepseek-500);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  font-size: 12px;
+}
+
+.replyText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.replyCancel {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.replyCancel:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* Emoji picker popover above the composer. */
+.emojiPanel {
+  position: absolute;
+  left: 10px;
+  bottom: calc(100% - 4px);
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-base);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.16);
+  z-index: 30;
+}
+
+.emojiCell {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.emojiCell:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
 }

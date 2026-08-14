@@ -28,8 +28,17 @@ export interface YzjPanelInject {
   fetchContact: (openId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   /** One file's data URL proxied through the authenticated CLI (fileId). */
   fetchFileData: (fileId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
-  /** Send a text message to a group from the panel composer. */
-  sendMessage: (groupId: string, content: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  /** Send options beyond plain text (real IM: richText/file/reply/images). */
+  sendMessageOpts?: {
+    msgType?: 'text' | 'richText' | 'file'
+    fileId?: string
+    images?: string[]
+    replyMsgId?: string
+  }
+  /** Send a message to a group from the panel composer. */
+  sendMessage: (groupId: string, content: string | undefined, opts?: YzjPanelInject['sendMessageOpts']) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  /** Upload a local file (base64) to Yunzhijia; returns the fileId. */
+  uploadFile: (name: string, base64: string, size: number) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   /** One write-confirmation record for a tool call (undefined when not gated). */
   fetchWrite: (sessionId: string, callId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   /** Settle one pending write-confirmation decision. */
@@ -67,7 +76,15 @@ export function createYzjPanelInject(connection: ConnectionHandle | undefined): 
     fetchEvent: (id) => call('event-get', { id }),
     fetchContact: (openId) => call('contact-get', { openId }),
     fetchFileData: (fileId) => call('file-data', { fileId }),
-    sendMessage: (groupId, content) => call('im-send', { groupId, content }),
+    sendMessage: (groupId, content, opts) => call('im-send', {
+      groupId,
+      ...(content === undefined ? {} : { content }),
+      ...(opts?.msgType === undefined ? {} : { msgType: opts.msgType }),
+      ...(opts?.fileId === undefined ? {} : { fileId: opts.fileId }),
+      ...(opts?.images === undefined ? {} : { images: opts.images }),
+      ...(opts?.replyMsgId === undefined ? {} : { replyMsgId: opts.replyMsgId }),
+    }),
+    uploadFile: (name, base64, size) => call('file-upload', { name, base64, size }),
     fetchWrite: (sessionId, callId) => call('write-list', { sessionId, callId }),
     decideWrite: (writeId, outcome) => call('write-decide', { writeId, outcome }),
   }

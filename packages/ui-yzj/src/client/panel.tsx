@@ -18,7 +18,8 @@ import type { YzjPanelActions, YzjPanelState, YzjTab } from './stores.ts'
 import type { YzjPanelInject } from './rpc.ts'
 import {
   ensureMyProfile, formatListTime, formatMsgTime, formatSize, getGroupWindow,
-  getMessageWindow, putGroupWindow, putMessageWindow, resolveFileData, resolveSenders, senderNameOf,
+  getMessageWindow, putGroupWindow, putMessageWindow, resolveFileData, resolveSenders,
+  senderNameOf, senderPhotoOf,
 } from './im-cache.ts'
 import { emitYzjDropRequest } from './drop-bus.ts'
 import css from './panel.module.css'
@@ -144,6 +145,36 @@ function GroupAvatar({ url, name }: { url: string; name: string }) {
     <img
       className={css.avatar}
       src={url}
+      alt=""
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+/** Chat header inside a group: the group's avatar + name. */
+function GroupHead({ groups, groupId }: { groups: unknown[]; groupId: string }) {
+  const group = groups.map(asRecord).find(item => asString(item.groupId) === groupId)
+  const name = group === undefined ? '群聊' : asString(group.groupName)
+  const avatar = group === undefined ? '' : asString(group.headerUrl)
+  return (
+    <div className={css.groupHead}>
+      <GroupAvatar url={avatar} name={name} />
+      <span className={css.groupHeadName}>{name}</span>
+    </div>
+  )
+}
+
+/** Sender avatar in a message row: photo with a glyph fallback. */
+function SenderAvatar({ openId, fallback }: { openId: string; fallback: string }) {
+  const [failed, setFailed] = useState(false)
+  const photo = senderPhotoOf(openId)
+  if (photo === '' || failed) return <span className={css.msgAvatarFallback}>{fallback.slice(0, 1)}</span>
+  return (
+    <img
+      className={css.msgAvatar}
+      src={photo}
       alt=""
       loading="lazy"
       referrerPolicy="no-referrer"
@@ -458,6 +489,9 @@ const DOCK_ITEMS: { key: YzjTab; label: string; icon: () => ReactNode }[] = [
   { key: 'me', label: '我的', icon: () => <IconUserOutline16 /> },
 ]
 
+/** Common emojis for the composer picker (real-IM habit). */
+const EMOJI_LIST = ['😀', '😄', '😂', '🤣', '😊', '😍', '🤔', '😎', '😭', '😅', '😉', '🙏', '👍', '👏', '💪', '🔥', '❤️', '🎉', '✅', '❌', '⚠️', '📌', '💡', '🚀']
+
 /** The floating ball (prototype): bottom-right round button with the unread
  *  badge; hidden while the panel is open. Hovering expands a quick-dock with
  *  one shortcut per panel tab (会话 carries the unread count). Registered in
@@ -616,9 +650,32 @@ export function YzjPanel(props: YzjPanelProps) {
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [replyTo, setReplyTo] = useState<{ msgId: string; summary: string } | null>(null)
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const [myProfile, setMyProfile] = useState<{ openId: string; name: string }>({ openId: '', name: '' })
   const [dropToast, setDropToast] = useState('')
   const dropToastTimer = useRef<number | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  const imageInputRef = useRef<HTMLInputElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const draftRef = useRef<HTMLTextAreaElement | null>(null)
+
+  // The login user, so "my" messages bubble right with the brand color.
+  useEffect(() => {
+    void ensureMyProfile(props).then(profile => {
+      setMyProfile({ openId: profile.openId, name: profile.name })
+      if (profile.openId !== '' && profile.name !== '') {
+        setSenderNames(prev => ({ ...prev, [profile.openId]: profile.name }))
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Reset the auto-growing textarea after a send clears the draft.
+  useEffect(() => {
+    if (draft === '' && draftRef.current !== null) draftRef.current.style.height = 'auto'
+  }, [draft])
 
   // Transient confirmation that a panel drop reached the composer.
   const showDropToast = (title: string): void => {
@@ -821,39 +878,116 @@ export function YzjPanel(props: YzjPanelProps) {
     })
   }
 
+  /** Core send: calls the bridge, appends the local message, clears state. */
+  const doSend = async (opts: {
+    content?: string
+    msgType?: 'text' | 'richText' | 'file'
+    fileId?: string
+    images?: string[]
+    replyMsgId?: string
+    fileName?: string
+    fileSize?: number
+  }): Promise<void> => {
+    if (state.groupId === '') return
+    const groupId = state.groupId
+    const result = await props.sendMessage(groupId, opts.content, {
+      ...(opts.msgType === undefined ? {} : { msgType: opts.msgType }),
+      ...(opts.fileId === undefined ? {} : { fileId: opts.fileId }),
+      ...(opts.images === undefined ? {} : { images: opts.images }),
+      ...(opts.replyMsgId === undefined ? {} : { replyMsgId: opts.replyMsgId }),
+    })
+    if (!result.ok) {
+      props.actions.setError(result.error.message)
+      return
+    }
+    const profile = await ensureMyProfile(props)
+    const payload = asRecord(result.value)
+    const now = new Date()
+    const pad = (n: number): string => String(n).padStart(2, '0')
+    const sendTime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.000`
+    const msgType = opts.msgType ?? 'text'
+    const sent: Record<string, unknown> = {
+      msgId: asString(payload.msgId ?? payload.id) === '' ? `local-${now.getTime()}` : asString(payload.msgId ?? payload.id),
+      content: opts.content ?? '',
+      msgType,
+      sendTime,
+      fromOpenId: profile.openId,
+      param: {
+        ...(opts.replyMsgId === undefined ? {} : { replyMsgId: opts.replyMsgId }),
+        ...(opts.replyMsgId !== undefined && opts.content !== undefined ? { replySummary: opts.content.slice(0, 80) } : {}),
+        ...(msgType === 'file'
+          ? { file_id: opts.fileId ?? '', name: opts.fileName ?? '', size: opts.fileSize ?? 0, ext: (opts.fileName ?? '').split('.').pop() ?? '' }
+          : {}),
+        ...(msgType === 'richText' && opts.images !== undefined && opts.images.length > 0
+          ? {
+              desc: opts.images.map((fileId) => ({
+                type: 'image',
+                data: fileId,
+                start: (opts.content ?? '').indexOf('[图片]'),
+                length: 4,
+              })),
+            }
+          : {}),
+      },
+    }
+    if (profile.openId !== '' && profile.name !== '') {
+      setSenderNames(prev => ({ ...prev, [profile.openId]: profile.name }))
+    }
+    const next = [...state.messages, sent]
+    props.actions.setMessages(next)
+    putMessageWindow(groupId, next, state.messagesMore)
+    setDraft('')
+    setReplyTo(null)
+    const list = listRef.current
+    if (list !== null) list.scrollTop = list.scrollHeight
+  }
+
+  /** Plain-text send (Enter / 发送 button). */
   const submitMessage = (): void => {
     const content = draft.trim()
-    if (content === '' || sending || state.groupId === '') return
+    if (content === '' || sending || uploading || state.groupId === '') return
     setSending(true)
-    const groupId = state.groupId
-    void props.sendMessage(groupId, content).then(async (result) => {
-      if (!result.ok) {
-        props.actions.setError(result.error.message)
-        return
-      }
-      const profile = await ensureMyProfile(props)
-      const payload = asRecord(result.value)
-      const now = new Date()
-      const pad = (n: number): string => String(n).padStart(2, '0')
-      const sendTime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.000`
-      const sent: Record<string, unknown> = {
-        msgId: asString(payload.msgId ?? payload.id) === '' ? `local-${now.getTime()}` : asString(payload.msgId ?? payload.id),
-        content,
-        msgType: 'text',
-        sendTime,
-        fromOpenId: profile.openId,
-        param: {},
-      }
-      if (profile.openId !== '' && profile.name !== '') {
-        setSenderNames(prev => ({ ...prev, [profile.openId]: profile.name }))
-      }
-      const next = [...state.messages, sent]
-      props.actions.setMessages(next)
-      putMessageWindow(groupId, next, state.messagesMore)
-      setDraft('')
-      const list = listRef.current
-      if (list !== null) list.scrollTop = list.scrollHeight
-    }).finally(() => setSending(false))
+    const replyMsgId = replyTo?.msgId
+    void doSend(replyMsgId === undefined ? { content } : { content, replyMsgId })
+      .finally(() => setSending(false))
+  }
+
+  /** Upload a picked file, then send it as an image (richText) or file. */
+  const handlePickFile = (kind: 'image' | 'file', file: File | undefined): void => {
+    if (file === undefined) return
+    if (file.size > 24 * 1024 * 1024) {
+      props.actions.setError('文件超过 24MB，请压缩后重试')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (): void => {
+      const base64 = typeof reader.result === 'string' ? reader.result.split(',')[1] ?? '' : ''
+      if (base64 === '') return
+      setUploading(true)
+      void props.uploadFile(file.name, base64, file.size).then(async (result) => {
+        if (!result.ok) {
+          props.actions.setError(result.error.message)
+          return
+        }
+        const payload = asRecord(result.value)
+        const fileId = asString(payload.fileId ?? payload.file_id ?? payload.id)
+        if (fileId === '') {
+          props.actions.setError('上传失败：未返回文件 ID')
+          return
+        }
+        if (kind === 'image') {
+          const text = draft.trim()
+          const content = text === '' ? '[图片]' : `${text}\n[图片]`
+          const replyMsgId = replyTo?.msgId
+          await doSend(replyMsgId === undefined
+            ? { content, msgType: 'richText', images: [fileId] }
+            : { content, msgType: 'richText', images: [fileId], replyMsgId })
+        } else {
+          await doSend({ msgType: 'file', fileId, fileName: file.name, fileSize: file.size })
+        }
+      }).finally(() => setUploading(false))
+    }
+    reader.readAsDataURL(file)
   }
 
   const runSearch = (): void => {
@@ -1100,9 +1234,11 @@ export function YzjPanel(props: YzjPanelProps) {
                   props.actions.setGroupId('')
                   props.actions.setAnchorMsgId('')
                   setDraft('')
+                  setReplyTo(null)
                 }}>
                   <IconChevronLeft14 /> 返回会话
                 </button>
+                <GroupHead groups={state.groups} groupId={state.groupId} />
               {state.messages.length === 0 && !state.loading && state.error === '' && <div className={css.empty}>暂无消息</div>}
               {state.messagesMore && (
                 <button type="button" className={css.more} onClick={loadOlderMessages} disabled={state.loading}>
@@ -1115,35 +1251,71 @@ export function YzjPanel(props: YzjPanelProps) {
                 const sendTime = formatMsgTime(message.sendTime)
                 const msgId = asString(message.msgId)
                 const fromOpenId = asString(message.fromOpenId)
+                const mine = myProfile.openId !== '' && fromOpenId === myProfile.openId
                 const sender = fromOpenId === '' ? '' : senderNames[fromOpenId] ?? ''
                 const anchored = msgId !== '' && msgId === state.anchorMsgId
+                // Date divider: a new day between consecutive messages.
+                const dayKey = String(message.sendTime).slice(0, 10)
+                const prevDay = index > 0 ? String(asRecord(state.messages[index - 1]).sendTime).slice(0, 10) : ''
+                const dayLabel = dayKey === '' ? '' : formatListTime(`${dayKey} 00:00:00`)
+                const isSystem = msgType === 'other' || asString(asRecord(message.param).sysType) === 'withdrawMsg'
                 return (
-                  <div
-                    key={`m${index}`}
-                    ref={anchored ? anchorRef : undefined}
-                    className={anchored ? `${css.item} ${css.msgItem} ${css.itemAnchored}` : `${css.item} ${css.msgItem}`}
-                    draggable
-                    onDragStart={(event) => {
-                      startDragTransfer(event, {
-                        kind: 'message', id: msgId,
-                        title: dragTitleOf(message),
-                        sub: sendTime,
-                        group: state.groupId,
-                      })
-                    }}
-                  >
-                    <span className={css.grip} aria-hidden="true">
-                      <svg viewBox="0 0 10 16" fill="currentColor" width="10" height="16">
-                        <circle cx="3" cy="3" r="1.4" /><circle cx="7" cy="3" r="1.4" />
-                        <circle cx="3" cy="8" r="1.4" /><circle cx="7" cy="8" r="1.4" />
-                        <circle cx="3" cy="13" r="1.4" /><circle cx="7" cy="13" r="1.4" />
-                      </svg>
-                    </span>
-                    <span className={css.msgMeta}>
-                      <span className={css.msgSender}>{sender === '' ? typeLabelOf(msgType) : sender}</span>
-                      <span className={css.msgTime}>{sendTime}</span>
-                    </span>
-                    <MessageBody message={message} onOpenImage={(src) => setLightbox(src)} inject={props} />
+                  <div key={`m${index}`}>
+                    {dayKey !== '' && dayKey !== prevDay && (
+                      <div className={css.dayDivider}>{dayLabel}</div>
+                    )}
+                    <div
+                      ref={anchored ? anchorRef : undefined}
+                      className={[
+                        css.msgRow,
+                        mine ? css.msgRowMine : '',
+                        isSystem ? css.msgRowSystem : '',
+                        anchored ? css.itemAnchored : '',
+                      ].filter(Boolean).join(' ')}
+                      draggable
+                      onDragStart={(event) => {
+                        startDragTransfer(event, {
+                          kind: 'message', id: msgId,
+                          title: dragTitleOf(message),
+                          sub: sendTime,
+                          group: state.groupId,
+                        })
+                      }}
+                    >
+                      <span className={css.grip} aria-hidden="true">
+                        <svg viewBox="0 0 10 16" fill="currentColor" width="10" height="16">
+                          <circle cx="3" cy="3" r="1.4" /><circle cx="7" cy="3" r="1.4" />
+                          <circle cx="3" cy="8" r="1.4" /><circle cx="7" cy="8" r="1.4" />
+                          <circle cx="3" cy="13" r="1.4" /><circle cx="7" cy="13" r="1.4" />
+                        </svg>
+                      </span>
+                      {!mine && !isSystem && (
+                        <SenderAvatar openId={fromOpenId} fallback={sender === '' ? typeLabelOf(msgType) : sender} />
+                      )}
+                      <span className={mine ? `${css.msgStack} ${css.msgStackMine}` : css.msgStack}>
+                        {!mine && !isSystem && (
+                          <span className={css.msgSender}>{sender === '' ? typeLabelOf(msgType) : sender}</span>
+                        )}
+                        <span className={mine ? `${css.bubble} ${css.bubbleMine}` : css.bubble}>
+                          <MessageBody message={message} onOpenImage={(src) => setLightbox(src)} inject={props} />
+                        </span>
+                        <span className={mine ? `${css.msgTime} ${css.msgTimeMine}` : css.msgTime}>{sendTime}</span>
+                        {!isSystem && (
+                          <button
+                            type="button"
+                            className={css.msgReply}
+                            title="回复此消息"
+                            aria-label="回复"
+                            onClick={() => {
+                              setReplyTo({ msgId, summary: dragTitleOf(message) })
+                              draftRef.current?.focus()
+                            }}
+                          >
+                            回复
+                          </button>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 )
               })}
@@ -1152,27 +1324,119 @@ export function YzjPanel(props: YzjPanelProps) {
               )}
               </div>
               <div className={css.composer}>
-                <input
-                  className={css.composerInput}
-                  value={draft}
-                  onChange={(event) => { setDraft(event.target.value) }}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter' || event.nativeEvent.isComposing || event.shiftKey) return
-                    event.preventDefault()
-                    submitMessage()
-                  }}
-                  placeholder="输入消息，回车发送…"
-                  aria-label="输入消息"
-                  disabled={sending}
-                />
-                <button
-                  type="button"
-                  className={css.composerSend}
-                  onClick={submitMessage}
-                  disabled={sending || draft.trim() === ''}
-                >
-                  {sending ? '发送中…' : '发送'}
-                </button>
+                {replyTo !== null && (
+                  <div className={css.replyBar}>
+                    <span className={css.replyText}>回复：{replyTo.summary.length > 40 ? `${replyTo.summary.slice(0, 40)}…` : replyTo.summary}</span>
+                    <button
+                      type="button"
+                      className={css.replyCancel}
+                      aria-label="取消回复"
+                      onClick={() => setReplyTo(null)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                {emojiOpen && (
+                  <div className={css.emojiPanel} role="group" aria-label="表情">
+                    {EMOJI_LIST.map(emoji => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        className={css.emojiCell}
+                        onClick={() => {
+                          setDraft(draft + emoji)
+                          draftRef.current?.focus()
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className={css.composerRow}>
+                  <textarea
+                    ref={draftRef}
+                    className={css.composerInput}
+                    value={draft}
+                    rows={1}
+                    onChange={(event) => {
+                      setDraft(event.target.value)
+                      const el = event.target
+                      el.style.height = 'auto'
+                      el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.nativeEvent.isComposing && !event.shiftKey) {
+                        event.preventDefault()
+                        submitMessage()
+                      }
+                    }}
+                    placeholder="输入消息，回车发送…"
+                    aria-label="输入消息"
+                    disabled={sending || uploading}
+                  />
+                  <button
+                    type="button"
+                    className={css.composerSend}
+                    onClick={submitMessage}
+                    disabled={sending || uploading || draft.trim() === ''}
+                  >
+                    {sending || uploading ? '发送中…' : '发送'}
+                  </button>
+                </div>
+                <div className={css.composerToolbar}>
+                  <button
+                    type="button"
+                    className={css.toolButton}
+                    title="发送图片"
+                    aria-label="发送图片"
+                    disabled={sending || uploading}
+                    onClick={() => imageInputRef.current?.click()}
+                  >
+                    🖼️
+                  </button>
+                  <button
+                    type="button"
+                    className={css.toolButton}
+                    title="发送文件"
+                    aria-label="发送文件"
+                    disabled={sending || uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    📎
+                  </button>
+                  <button
+                    type="button"
+                    className={css.toolButton}
+                    title="表情"
+                    aria-label="表情"
+                    disabled={sending || uploading}
+                    onClick={() => setEmojiOpen(open => !open)}
+                  >
+                    😊
+                  </button>
+                  {uploading && <span className={css.toolStatus}>上传中…</span>}
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(event) => {
+                      handlePickFile('image', event.target.files?.[0])
+                      event.target.value = ''
+                    }}
+                  />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    hidden
+                    onChange={(event) => {
+                      handlePickFile('file', event.target.files?.[0])
+                      event.target.value = ''
+                    }}
+                  />
+                </div>
               </div>
             </>
           )}

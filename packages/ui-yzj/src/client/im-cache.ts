@@ -48,32 +48,42 @@ export function putGroupWindow(groups: unknown[], more: boolean): void {
   groupCache = { groups, more, fetchedAt: Date.now() }
 }
 
-/** Session sender-name cache (openId → display name). */
-const senderNames = new Map<string, string>()
-const senderInflight = new Map<string, Promise<string>>()
+/** Session sender cache (openId → display name + avatar). */
+interface SenderInfo {
+  name: string
+  photoUrl: string
+}
+const senderNames = new Map<string, SenderInfo>()
+const senderInflight = new Map<string, Promise<SenderInfo>>()
 
 /** The login user's profile, resolved once (for outbound message attribution). */
-let myProfile: { openId: string; name: string } | null = null
+let myProfile: { openId: string; name: string; photoUrl: string } | null = null
 
 /** Resolve the login user's openId + name (cached for the session). */
 export async function ensureMyProfile(
   inject: Pick<YzjPanelInject, 'fetchWhoami'>,
-): Promise<{ openId: string; name: string }> {
+): Promise<{ openId: string; name: string; photoUrl: string }> {
   if (myProfile !== null) return myProfile
   const result = await inject.fetchWhoami()
-  if (!result.ok) return { openId: '', name: '' }
+  if (!result.ok) return { openId: '', name: '', photoUrl: '' }
   const list = Array.isArray(result.value) ? result.value : []
   const user = (list[0] ?? {}) as Record<string, unknown>
   myProfile = {
     openId: typeof user.openId === 'string' ? user.openId : typeof user.oId === 'string' ? user.oId : '',
     name: typeof user.name === 'string' ? user.name : '',
+    photoUrl: typeof user.photoUrl === 'string' ? user.photoUrl : '',
   }
   return myProfile
 }
 
 /** Cached display name for a sender, or '' when not yet resolved. */
 export function senderNameOf(openId: string): string {
-  return senderNames.get(openId) ?? ''
+  return senderNames.get(openId)?.name ?? ''
+}
+
+/** Cached avatar URL for a sender, or '' when unknown. */
+export function senderPhotoOf(openId: string): string {
+  return senderNames.get(openId)?.photoUrl ?? ''
 }
 
 /** Resolve every unknown sender in a window; returns the newly found names. */
@@ -88,17 +98,20 @@ export async function resolveSenders(
     let pending = senderInflight.get(openId)
     if (pending === undefined) {
       pending = inject.fetchContact(openId).then((result) => {
-        if (!result.ok) return ''
-        const list = Array.isArray(result.value) ? result.value : []
-        const user = (list[0] ?? {}) as Record<string, unknown>
-        const name = typeof user.name === 'string' ? user.name : ''
-        if (name !== '') senderNames.set(openId, name)
-        return name
-      }).catch(() => '')
+        const info: SenderInfo = { name: '', photoUrl: '' }
+        if (result.ok) {
+          const list = Array.isArray(result.value) ? result.value : []
+          const user = (list[0] ?? {}) as Record<string, unknown>
+          info.name = typeof user.name === 'string' ? user.name : ''
+          info.photoUrl = typeof user.photoUrl === 'string' ? user.photoUrl : ''
+          if (info.name !== '' || info.photoUrl !== '') senderNames.set(openId, info)
+        }
+        return info
+      }).catch(() => ({ name: '', photoUrl: '' }))
       senderInflight.set(openId, pending)
     }
-    const name = await pending
-    if (name !== '') out[openId] = name
+    const info = await pending
+    if (info.name !== '') out[openId] = info.name
   }))
   return out
 }

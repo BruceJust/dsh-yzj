@@ -1,17 +1,23 @@
 /**
- * Verify the panel message composer:
- *  1. composer visible inside a group view
- *  2. typing + 发送 posts a real message (verified via the CLI)
- *  3. the sent message appears in the list with the sender's name
- *  4. Enter sends too; empty draft disables the button
+ * Verify the real-IM composer on the dsh测试 group:
+ *  1. text send (button + Enter)
+ *  2. image send (upload → richText [图片]) — shown inline + server-confirmed
+ *  3. file send (upload → file chip)
+ *  4. reply flow (hover 回复 → reply bar → send → quote shown)
+ * All messages land in dsh测试 (the user's designated test group).
  */
 import { chromium } from 'playwright'
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 
-const GROUP_ID = '6a7f37b4e4b0e6211b1c5b87' // dsh测试 (user's designated test group)
+const HERE = dirname(fileURLToPath(import.meta.url))
+const GROUP_ID = '6a7f37b4e4b0e6211b1c5b87' // dsh测试
 const GROUP_NAME = 'dsh测试'
-const MARK = `【面板发消息测试】${Date.now()}`
+const FIXTURE = join(HERE, 'fixture.png')
+// 1x1 red PNG
+writeFileSync(FIXTURE, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'))
 
 const CHROME = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -36,48 +42,62 @@ const dialog = page.getByRole('dialog', { name: '云之家' })
 await dialog.waitFor({ state: 'visible', timeout: 15000 })
 await dialog.locator('nav button').filter({ hasText: '会话' }).first().click()
 await page.waitForTimeout(3000)
-
-// ---- 1. open the test group ----
 await dialog.locator('button[class*="item"]').filter({ hasText: GROUP_NAME }).first().click()
 await page.waitForTimeout(3500)
 
-// ---- 2. composer present; empty draft disables send ----
-const composer = dialog.locator('input[class*="composerInput"]')
+const composer = dialog.locator('textarea[class*="composerInput"]')
 let composerVisible = false
 try { await composer.waitFor({ state: 'visible', timeout: 5000 }); composerVisible = true } catch {}
 ok('composer visible inside the group view', composerVisible)
-const sendBtn = dialog.locator('button[class*="composerSend"]')
-ok('send disabled on empty draft', await sendBtn.isDisabled().catch(() => false))
 
-// ---- 3. type and send via button ----
+// ---- 1. text send via button ----
+const MARK = `【面板文本测试】${Date.now()}`
+const sendBtn = dialog.locator('button[class*="composerSend"]')
 await composer.fill(MARK)
-await page.waitForTimeout(200)
-ok('send enabled after typing', !(await sendBtn.isDisabled().catch(() => true)))
 await sendBtn.click()
 await page.waitForTimeout(4000)
+ok('text message appears in the panel', (await dialog.innerText()).includes(MARK), MARK.slice(0, 30))
 
-// The message appears in the panel list (sender = the login user).
-const panelText = await dialog.innerText().catch(() => '')
-ok('sent message appears in the panel list', panelText.includes(MARK), MARK.slice(0, 40))
-const senderShown = await dialog.locator('[class*="msgSender"]').allInnerTexts().catch(() => [])
-ok('sender name shown for the sent message', senderShown.some(text => text === '单国鑫'), senderShown.slice(-3).join(','))
+// ---- 2. image send (upload → richText) ----
+const imageInput = dialog.locator('input[type="file"][accept^="image"]')
+await imageInput.setInputFiles(FIXTURE)
+await page.waitForTimeout(8000)
+const inlineImages = await dialog.locator('img[class*="msgImage"]').count()
+ok('sent image renders inline via proxy', inlineImages >= 1, `${inlineImages} images`)
+ok('uploading status cleared', !(await dialog.innerText()).includes('上传中'))
 
-// ---- 4. verified server-side via the CLI ----
+// ---- 3. file send (upload → file chip) ----
+const fileInput = dialog.locator('input[type="file"]:not([accept])')
+await fileInput.setInputFiles(FIXTURE)
+await page.waitForTimeout(8000)
+const fileChips = await dialog.locator('button[class*="msgFile"]').count()
+ok('sent file renders a download chip', fileChips >= 1, `${fileChips} chips`)
+ok('file chip shows the fixture name', (await dialog.innerText()).includes('fixture.png'))
+
+// ---- 4. reply flow (on our own text message; system rows have no 回复) ----
+const targetRow = dialog.locator('[class*="msgRow"]').filter({ hasText: MARK }).first()
+await targetRow.hover()
+await page.waitForTimeout(300)
+await targetRow.locator('button[class*="msgReply"]').click()
+await page.waitForTimeout(300)
+const replyBar = dialog.locator('[class*="replyBar"]')
+ok('reply bar appears after 回复', await replyBar.isVisible().catch(() => false))
+await composer.fill(`【面板回复测试】${Date.now()}`)
+await page.keyboard.press('Enter')
+await page.waitForTimeout(4000)
+const quotes = await dialog.locator('[class*="msgQuote"]').count()
+ok('reply message shows the quote line', quotes >= 1, `${quotes} quotes`)
+
+// ---- 5. server-side confirmation (CLI) ----
 const entry = 'C:\\Users\\rocks\\AppData\\Roaming\\npm\\node_modules\\@yunzhijia\\cli'
 const list = await new Promise((resolve) => {
-  execFile('node', [entry + '\\scripts\\run.js', 'im', 'message', 'list', '--group-id', GROUP_ID, '--limit', '5'], { timeout: 60000 }, (err, stdout) => {
+  execFile('node', [entry + '\\scripts\\run.js', 'im', 'message', 'list', '--group-id', GROUP_ID, '--limit', '20'], { timeout: 60000 }, (err, stdout) => {
     resolve(err === null ? stdout : '')
   })
 })
-ok('message confirmed on the server (CLI list)', list.includes(MARK), MARK.slice(0, 40))
-
-// ---- 5. Enter sends the second message ----
-const MARK2 = `【面板回车测试】${Date.now()}`
-await composer.fill(MARK2)
-await page.keyboard.press('Enter')
-await page.waitForTimeout(4000)
-const panelText2 = await dialog.innerText().catch(() => '')
-ok('Enter sends the second message', panelText2.includes(MARK2))
+ok('text confirmed on the server', list.includes(MARK), MARK.slice(0, 30))
+ok('richText image message confirmed on the server', list.includes('[图片]'))
+ok('file message confirmed on the server', list.includes('fixture.png'))
 
 await browser.close()
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

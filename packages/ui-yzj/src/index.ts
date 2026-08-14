@@ -11,7 +11,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
 import type {} from '@dsh-yzj/bridge'
 import { applyWriteGate, type YzjWriteRecord } from './write-gate.ts'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -246,13 +246,82 @@ export function createRpcHandler(ctx: Context, writeGate: YzjWriteGateFace): Con
       }
       case 'im-send': {
         const groupId = stringField(payload, 'groupId')
-        const content = stringField(payload, 'content')
-        if (groupId === undefined || content === undefined) {
-          return internalError('im-send endpoint requires groupId and content payloads')
+        if (groupId === undefined) return internalError('im-send endpoint requires a groupId payload')
+        const record = typeof payload === 'object' && payload !== null ? payload as Record<string, unknown> : {}
+        const msgType = stringField(record, 'msgType') ?? 'text'
+        if (msgType !== 'text' && msgType !== 'richText' && msgType !== 'file') {
+          return internalError(`im-send endpoint rejects msg-type "${msgType}"`)
         }
-        if (content.trim() === '') return internalError('im-send endpoint rejects empty content')
-        if (content.length > 4000) return internalError('im-send endpoint rejects content over 4000 chars')
-        return bridgeResult(ctx, 'im message send', ['im', 'message', 'send', '--msg-type', 'text', '--group-id', groupId, '--content', content])
+        const content = stringField(record, 'content')
+        const fileId = stringField(record, 'fileId')
+        const replyMsgId = stringField(record, 'replyMsgId')
+        const rawImages = record.images
+        const images = Array.isArray(rawImages)
+          ? rawImages.filter((item): item is string => typeof item === 'string' && item !== '')
+          : []
+        // Mirror the tool's validation: file needs a fileId and nothing else.
+        if (msgType === 'file') {
+          if (fileId === undefined) return internalError('im-send: msg-type file requires fileId')
+          if (content !== undefined || replyMsgId !== undefined || images.length > 0) {
+            return internalError('im-send: msg-type file does not support content, reply, or images')
+          }
+        } else {
+          if (content === undefined || content.trim() === '') {
+            return internalError('im-send: text/richText require non-empty content')
+          }
+          if (content.length > 4000) return internalError('im-send: content over 4000 chars')
+          if (msgType !== 'richText' && images.length > 0) {
+            return internalError('im-send: images are only supported for msg-type richText')
+          }
+        }
+        const command = ['im', 'message', 'send', '--msg-type', msgType, '--group-id', groupId]
+        if (content !== undefined) command.push('--content', content)
+        if (fileId !== undefined) command.push('--file-id', fileId)
+        if (replyMsgId !== undefined) command.push('--reply-msg-id', replyMsgId)
+        for (const image of images) command.push('--image', image)
+        return bridgeResult(ctx, 'im message send', command)
+      }
+      case 'file-upload': {
+        const record = typeof payload === 'object' && payload !== null ? payload as Record<string, unknown> : {}
+        const name = stringField(record, 'name')
+        const base64 = stringField(record, 'base64')
+        if (name === undefined || base64 === undefined) {
+          return internalError('file-upload endpoint requires name and base64 payloads')
+        }
+        if (base64.length > 32 * 1024 * 1024) {
+          return internalError('file-upload endpoint rejects payloads over 24MB (base64)')
+        }
+        let bytes: Buffer
+        try {
+          bytes = Buffer.from(base64, 'base64')
+        } catch {
+          return internalError('file-upload endpoint received invalid base64')
+        }
+        if (bytes.length === 0) return internalError('file-upload endpoint rejects empty files')
+        if (bytes.length > 24 * 1024 * 1024) {
+          return internalError('file-upload endpoint rejects files over 24MB')
+        }
+        const dir = await mkdtemp(join(tmpdir(), 'yzj-up-'))
+        const target = join(dir, name.replace(/[\\/:*?"<>|]/g, '_'))
+        try {
+          await writeFile(target, bytes)
+          const result = await ctx.yzjBridge.run(
+            ['file', 'upload', '--file', target, '--name', name],
+            { timeoutMs: 120_000 },
+          )
+          if (!result.ok) {
+            const detail = result.stderr.trim() === '' ? `file upload failed (exit ${result.exitCode})` : result.stderr.trim()
+            return internalError(detail)
+          }
+          const payloadJson = result.json ?? {}
+          const fileId = stringField(payloadJson, 'fileId') ?? stringField(payloadJson, 'file_id') ?? stringField(payloadJson, 'id')
+          if (fileId === undefined) return internalError('file upload returned no fileId')
+          return { ok: true, value: { fileId, name, size: bytes.length } }
+        } catch (error) {
+          return internalError(`file upload failed: ${String(error)}`)
+        } finally {
+          await rm(dir, { recursive: true, force: true }).catch(() => {})
+        }
       }
       case 'file-data': {
         const fileId = stringField(payload, 'fileId')
