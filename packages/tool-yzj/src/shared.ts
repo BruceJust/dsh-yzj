@@ -40,8 +40,16 @@ function digestOf(text: string, max: number): { content: string; truncated: bool
 export function failureDigest(label: string, result: YzjRunResult, max: number): YzjToolValue {
   const reason = result.timedOut ? 'timed out' : `exit ${result.exitCode ?? 'killed'}`
   const detail = result.stderr.trim() === '' ? '(no stderr)' : result.stderr.trim()
-  const { content, truncated } = digestOf(`yzj ${label} failed (${reason}): ${detail}`, max)
+  const hint = looksUnauthenticated(result.stderr)
+    ? '\n提示：yzj-cli 可能未登录，请先运行 `yzj-cli auth login` 完成浏览器/设备码登录。'
+    : ''
+  const { content, truncated } = digestOf(`yzj ${label} failed (${reason}): ${detail}${hint}`, max)
   return { content, truncated, data: {} }
+}
+
+/** Heuristic: stderr mentions an auth/credential failure worth a login hint. */
+function looksUnauthenticated(stderr: string): boolean {
+  return /(auth|login|登录|token|credential|unauthorized|未授权)/i.test(stderr)
 }
 
 /** Wrap a digest into the common tool value with an empty payload. */

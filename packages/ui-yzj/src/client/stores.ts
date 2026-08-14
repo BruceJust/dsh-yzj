@@ -30,6 +30,8 @@ export type YzjPanelState = {
   me: unknown
   searchKeyword: string
   searchResults: unknown[]
+  /** Sum of unread counts across recent sessions (the floating-ball badge). */
+  unreadTotal: number
   loading: boolean
   error: string
 }
@@ -55,6 +57,7 @@ export type YzjPanelActions = {
   setMe: (draft: YzjPanelState, me: unknown) => void
   setSearchKeyword: (draft: YzjPanelState, keyword: string) => void
   setSearchResults: (draft: YzjPanelState, results: unknown[]) => void
+  setUnreadTotal: (draft: YzjPanelState, total: number) => void
   setLoading: (draft: YzjPanelState, loading: boolean) => void
   setError: (draft: YzjPanelState, error: string) => void
 }
@@ -81,6 +84,7 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
       me: {},
       searchKeyword: '',
       searchResults: [],
+      unreadTotal: 0,
       loading: false,
       error: '',
     }),
@@ -111,6 +115,7 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
       setMe: (d: YzjPanelState, me: unknown) => { d.me = me },
       setSearchKeyword: (d: YzjPanelState, keyword: string) => { d.searchKeyword = keyword },
       setSearchResults: (d: YzjPanelState, results: unknown[]) => { d.searchResults = results },
+      setUnreadTotal: (d: YzjPanelState, total: number) => { d.unreadTotal = total },
       setLoading: (d: YzjPanelState, loading: boolean) => { d.loading = loading },
       setError: (d: YzjPanelState, error: string) => { d.error = error },
     },

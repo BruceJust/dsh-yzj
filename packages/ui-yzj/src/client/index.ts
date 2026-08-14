@@ -77,7 +77,16 @@ export function apply(ctx: ClientContext): void {
   const panelInject = createYzjPanelInject(connection)
 
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register(
-    { name: 'sidebar.footer.action', id: 'yzj', order: 100, label: () => '云之家', store },
+    {
+      name: 'sidebar.footer.action',
+      id: 'yzj',
+      order: 100,
+      label: () => '云之家',
+      store,
+      inject: () => ({
+        fetchGroups: (limit, page) => panelInject.fetchGroups(limit, page),
+      }),
+    },
     YzjPanelButton,
   ))
 

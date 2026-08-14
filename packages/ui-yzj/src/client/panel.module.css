@@ -31,6 +31,21 @@
   white-space: nowrap;
 }
 
+/* Floating-ball unread badge on the sidebar toggle. */
+.unreadBadge {
+  position: relative;
+  flex: none;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--dsw-border-danger, #b3261e);
+  color: #ffffff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
 /* ── Panel frame ─────────────────────────────────────────────────────── */
 
 .panel {

@@ -139,6 +139,11 @@ export function apply(ctx: Context): void {
         if (blockId !== undefined) command.push('--block-id', blockId)
         return bridgeResult(ctx, 'doc block list', command)
       }
+      case 'sheet-get': {
+        const id = stringField(payload, 'id')
+        if (id === undefined) return internalError('sheet-get endpoint requires an id payload')
+        return bridgeResult(ctx, 'sheet get', ['sheet', 'get', '--id', id])
+      }
       case 'workspace-get': {
         const id = stringField(payload, 'id')
         if (id === undefined) return internalError('workspace-get endpoint requires an id payload')

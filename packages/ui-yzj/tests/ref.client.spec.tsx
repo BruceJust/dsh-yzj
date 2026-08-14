@@ -45,9 +45,12 @@ describe('fetchRefContext message branch', () => {
       fetchSearch: async () => fail(),
       fetchDoc: async () => fail(),
       fetchDocBlocks: async () => fail(),
+      fetchSheet: async () => fail(),
       fetchWorkspace: async () => fail(),
       fetchEvent: async () => fail(),
       fetchContact: async () => fail(),
+      fetchWrite: async () => fail(),
+      decideWrite: async () => fail(),
     }
   }
 

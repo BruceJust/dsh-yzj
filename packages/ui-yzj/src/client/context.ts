@@ -96,7 +96,26 @@ export async function fetchRefContext(
         if (blocksResult.ok) {
           const blocks = asArray(blocksResult.value)
           const excerpt = blocks.slice(0, 10).map(blockText).filter(text => text !== '').join(' ')
-          if (excerpt !== '') lines.push(`内容摘要：${excerpt.length > 500 ? `${excerpt.slice(0, 500)}…` : excerpt}`)
+          if (excerpt !== '') {
+            lines.push(`内容摘要：${excerpt.length > 500 ? `${excerpt.slice(0, 500)}…` : excerpt}`)
+            // Design v1.6 §5.2 hard requirement 3: give the agent an explicit
+            // self-healing path to the full body.
+            lines.push('（内容为摘要，完整内容可用 yzj_doc_block_list / yzj_doc_get 获取）')
+          }
+        }
+        // Design v1.6 §5.2 hard requirement 2: a dbt node previews its table
+        // structure (schema) instead of an empty block digest.
+        if (infoResult.ok && asString(asRecord(infoResult.value).fileSuffix) === 'dbt') {
+          const sheetResult = await inject.fetchSheet(ref.id)
+          if (sheetResult.ok) {
+            const sheets = asArray(asRecord(sheetResult.value).sheets)
+            const tableLines = sheets.slice(0, 5).map((item) => {
+              const table = asRecord(item)
+              const fields = asArray(table.fields).map(field => asString(asRecord(field).name)).filter(name => name !== '')
+              return `- ${asString(table.name)}${fields.length === 0 ? '' : `：${fields.join(' / ')}`}`
+            })
+            if (tableLines.length > 0) lines.push(`表结构：\n${tableLines.join('\n')}`)
+          }
         }
         break
       }

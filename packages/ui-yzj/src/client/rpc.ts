@@ -21,6 +21,8 @@ export interface YzjPanelInject {
   fetchSearch: (keyword: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchDoc: (id: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchDocBlocks: (id: string, blockId?: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
+  /** 多维表格 schema (tables and fields) — used for dbt drag previews. */
+  fetchSheet: (id: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchWorkspace: (id: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchEvent: (id: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
   fetchContact: (openId: string) => Promise<{ ok: true; value: unknown } | { ok: false; error: YzjRpcError }>
@@ -56,6 +58,7 @@ export function createYzjPanelInject(connection: ConnectionHandle | undefined): 
     fetchSearch: (keyword) => call('search', { keyword }),
     fetchDoc: (id) => call('doc-get', { id }),
     fetchDocBlocks: (id, blockId) => call('doc-blocks', blockId === undefined ? { id } : { id, blockId }),
+    fetchSheet: (id) => call('sheet-get', { id }),
     fetchWorkspace: (id) => call('workspace-get', { id }),
     fetchEvent: (id) => call('event-get', { id }),
     fetchContact: (openId) => call('contact-get', { openId }),

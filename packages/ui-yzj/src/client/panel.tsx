@@ -104,21 +104,86 @@ export interface YzjPanelButtonProps {
   actions: BakedActions<YzjPanelState, YzjPanelActions>
   /** Sidebar column state: wide renders the labeled row, rail the icon. */
   wide: boolean
+  /** Fresh recent-session window for the unread badge poll. */
+  fetchGroups: (limit?: number, page?: number) => Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }>
+}
+
+/** Sum the unread counts of a recent-session window. */
+function unreadTotalOf(value: unknown): number {
+  const list = asArray(asRecord(value).list)
+  return list.reduce<number>((sum, item) => {
+    const count = asRecord(item).unreadCount
+    return sum + (typeof count === 'number' && count > 0 ? count : 0)
+  }, 0)
+}
+
+/**
+ * Fire one browser system notification for new unread messages (design v1.6
+ * §5.3 layer 3). dsh ships no Notification wrapper — this plugin owns it.
+ */
+function notifyUnread(total: number, focusPanel: () => void): void {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+  try {
+    const notice = new Notification('云之家', { body: `${total} 条未读消息` })
+    notice.onclick = () => {
+      window.focus()
+      focusPanel()
+    }
+  } catch {
+    // Some environments (sandboxed iframes) throw on construction.
+  }
+}
+
+/** Ask for notification permission on first toggle (design §5.3 layer 3). */
+function requestNotificationPermission(): void {
+  if (typeof Notification === 'undefined') return
+  if (Notification.permission === 'default' && typeof Notification.requestPermission === 'function') {
+    void Notification.requestPermission()
+  }
 }
 
 /** The sidebar-foot Yunzhijia toggle (labeled row or rail icon). */
 export function YzjPanelButton(props: YzjPanelButtonProps) {
   const open = props.useStore(state => state.open)
+  const unreadTotal = props.useStore(state => state.unreadTotal)
+  // Poll cadence follows the design: ~30s while the panel is open, ~5min
+  // while collapsed. New unread counts raise the badge and fire a browser
+  // notification once per increase.
+  useEffect(() => {
+    let last = unreadTotal
+    const poll = (): void => {
+      void props.fetchGroups(20).then((result) => {
+        if (!result.ok) return
+        const total = unreadTotalOf(result.value)
+        props.actions.setUnreadTotal(total)
+        if (total > last && total > 0) notifyUnread(total, () => props.actions.setOpen(true))
+        last = total
+      })
+    }
+    poll()
+    const interval = window.setInterval(poll, open ? 30_000 : 300_000)
+    return () => window.clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   const button = (
     <button
       type="button"
       className={open ? `${css.toggle} ${css.toggleActive}` : css.toggle}
       aria-expanded={open}
-      onClick={() => { props.actions.setOpen(!open) }}
+      onClick={() => {
+        requestNotificationPermission()
+        props.actions.setOpen(!open)
+      }}
       aria-label="云之家"
     >
       <YzjCloudIcon size={props.wide ? 16 : 18} />
       {props.wide && <span className={css.toggleLabel}>云之家</span>}
+      {unreadTotal > 0 && (
+        <span className={css.unreadBadge} title={`${unreadTotal} 条未读`}>
+          {unreadTotal > 99 ? '99+' : unreadTotal}
+        </span>
+      )}
     </button>
   )
   if (props.wide) return button
