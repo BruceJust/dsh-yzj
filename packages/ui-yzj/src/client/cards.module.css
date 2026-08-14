@@ -166,6 +166,24 @@
   text-decoration: underline;
 }
 
+/* Ghost jump button (card → floating panel), same link style as the panel. */
+.jump {
+  flex: none;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-static-deepseek-500);
+  font-size: 12px;
+  line-height: 16px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background-color 120ms var(--ds-ease-in-out, ease);
+}
+
+.jump:hover {
+  background: var(--dsw-static-deepseek-100);
+}
+
 .text {
   color: var(--dsw-alias-label-secondary);
   white-space: pre-wrap;

@@ -21,6 +21,7 @@ import {
   senderNameOf, senderPhotoOf,
 } from './im-cache.ts'
 import { emitYzjDropRequest } from './drop-bus.ts'
+import { registerPanelController } from './panel-controller.ts'
 import css from './panel.module.css'
 
 /** The props shares the panel reads. */
@@ -772,6 +773,8 @@ export function YzjPanel(props: YzjPanelProps) {
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [myProfile, setMyProfile] = useState<{ openId: string; name: string }>({ openId: '', name: '' })
   const [dropToast, setDropToast] = useState('')
+  const [dropArmed, setDropArmed] = useState(false)
+  const dropDepth = useRef(0)
   const [docPreview, setDocPreview] = useState<{ title: string; meta: string; lines: string[] } | null>(null)
   const [eventDetail, setEventDetail] = useState<{ title: string; time: string; person: string; place: string; content: string } | null>(null)
   const dropToastTimer = useRef<number | null>(null)
@@ -790,6 +793,10 @@ export function YzjPanel(props: YzjPanelProps) {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Expose the REAL slot-bound actions to cards (查看详情 / 查看上下文
+  // jumps) — apply()-side store.create() is a different instance.
+  useEffect(() => registerPanelController(props.actions, props), [])
 
   // Opening a group marks it read locally (the CLI has no mark-read): the
   // row's unread clears and the floating-ball total drops to what's real.
@@ -811,6 +818,23 @@ export function YzjPanel(props: YzjPanelProps) {
     if (draft === '' && draftRef.current !== null) draftRef.current.style.height = 'auto'
   }, [draft])
 
+  // External jumps (card 查看 → docs preview) set docId without the click
+  // handler; fetch the preview when the id changes.
+  useEffect(() => {
+    if (state.docId === '' || docPreview !== null) return
+    loadDocPreview(state.docId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.docId])
+
+  // External jumps (card 查看 → calendar event) set calEventId; enrich the
+  // detail once the month's events land.
+  useEffect(() => {
+    if (state.calEventId === '' || eventDetail !== null) return
+    const event = state.calEvents.map(asRecord).find(item => asString(item.id) === state.calEventId)
+    if (event !== undefined) pickEvent(event)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.calEventId, state.calEvents])
+
   // Transient confirmation that a panel drop reached the composer.
   const showDropToast = (title: string): void => {
     setDropToast(`已插入「${title.length > 14 ? `${title.slice(0, 14)}…` : title}」到输入框`)
@@ -818,16 +842,40 @@ export function YzjPanel(props: YzjPanelProps) {
     dropToastTimer.current = window.setTimeout(() => setDropToast(''), 2600)
   }
 
-  // Panel-wide drop target: a yzj drag dropped ANYWHERE on the panel mints
-  // a reference chip in the composer (via the drop bus) — no need to aim at
-  // the thin band outside.
-  const onPanelDragOver = (event: React.DragEvent): void => {
-    if (event.dataTransfer.types.includes(YZJ_DRAG_MIME)) event.preventDefault()
-  }
-  const onPanelDrop = (event: React.DragEvent): void => {
-    if (!event.dataTransfer.types.includes(YZJ_DRAG_MIME)) return
-    const raw = event.dataTransfer.getData(YZJ_DRAG_MIME)
-    if (raw === '') return
+  // Full-viewport drop target: while a yzj drag is in flight, an overlay
+  // covers the whole screen — drop ANYWHERE (the middle of the chat, the
+  // panel, wherever) and the reference lands in the composer.
+  useEffect(() => {
+    const onEnter = (event: DragEvent): void => {
+      if (event.dataTransfer !== null && event.dataTransfer.types.includes(YZJ_DRAG_MIME)) {
+        dropDepth.current += 1
+        setDropArmed(true)
+      }
+    }
+    const onLeave = (event: DragEvent): void => {
+      if (event.relatedTarget === null) {
+        dropDepth.current = 0
+        setDropArmed(false)
+      }
+    }
+    const onEnd = (): void => {
+      dropDepth.current = 0
+      setDropArmed(false)
+    }
+    window.addEventListener('dragenter', onEnter)
+    window.addEventListener('dragleave', onLeave)
+    window.addEventListener('drop', onEnd)
+    window.addEventListener('dragend', onEnd)
+    return () => {
+      window.removeEventListener('dragenter', onEnter)
+      window.removeEventListener('dragleave', onLeave)
+      window.removeEventListener('drop', onEnd)
+      window.removeEventListener('dragend', onEnd)
+    }
+  }, [])
+
+  const dropRef = (raw: string): boolean => {
+    if (raw === '') return false
     let ref: YzjDragRef | undefined
     try {
       const parsed = JSON.parse(raw) as YzjDragRef
@@ -835,10 +883,19 @@ export function YzjPanel(props: YzjPanelProps) {
     } catch {
       ref = undefined
     }
-    if (ref === undefined) return
-    event.preventDefault()
+    if (ref === undefined) return false
     emitYzjDropRequest(ref)
     showDropToast(ref.title)
+    return true
+  }
+
+  const onPanelDragOver = (event: React.DragEvent): void => {
+    if (event.dataTransfer.types.includes(YZJ_DRAG_MIME)) event.preventDefault()
+  }
+  const onPanelDrop = (event: React.DragEvent): void => {
+    if (!event.dataTransfer.types.includes(YZJ_DRAG_MIME)) return
+    event.preventDefault()
+    dropRef(event.dataTransfer.getData(YZJ_DRAG_MIME))
   }
 
   // Keep the newest messages in view: bottom on group open and after sends,
@@ -950,11 +1007,11 @@ export function YzjPanel(props: YzjPanelProps) {
   }
 
   /** Right-pane doc preview: info + first blocks as text. */
-  const openDoc = (id: string, title: string): void => {
-    props.actions.setDocId(id)
+  const loadDocPreview = (id: string): void => {
     setDocPreview(null)
     void Promise.all([props.fetchDoc(id), props.fetchDocBlocks(id)]).then(([infoResult, blocksResult]) => {
       const node = asRecord(infoResult.ok ? infoResult.value : {})
+      const title = asString(node.title) === '' ? '文档' : asString(node.title)
       const suffix = asString(node.fileSuffix)
       const meta = [
         suffix === 'dbt' ? '多维表格' : '在线文档',
@@ -980,7 +1037,12 @@ export function YzjPanel(props: YzjPanelProps) {
         for (const block of asArray(blocksResult.value)) walk(block)
       }
       setDocPreview({ title, meta, lines: lines.slice(0, 200) })
-    }).catch(() => setDocPreview({ title, meta: '', lines: [] }))
+    }).catch(() => setDocPreview({ title: '文档', meta: '', lines: [] }))
+  }
+
+  const openDoc = (id: string): void => {
+    props.actions.setDocId(id)
+    loadDocPreview(id)
   }
 
   /** Move the calendar cursor and fetch the new month. */
@@ -1343,9 +1405,28 @@ export function YzjPanel(props: YzjPanelProps) {
               </div>
             </div>
             <div className={css.paneRight}>
-              {state.workspaceId === '' ? (
+              {state.docId !== '' ? (
+                docPreview === null ? (
+                  <div className={css.paneEmpty}>加载中…</div>
+                ) : (
+                  <div className={css.paneList}>
+                    <div className={css.paneHead}>
+                      <button type="button" className={css.back} onClick={() => { props.actions.setDocId('') }}>
+                        <IconChevronLeft14 /> 返回文档
+                      </button>
+                      <span className={css.paneTitle}>{docPreview.title}</span>
+                    </div>
+                    {docPreview.meta !== '' && <div className={css.docMeta}>{docPreview.meta}</div>}
+                    <div className={css.docBody}>
+                      {docPreview.lines.length === 0
+                        ? '（无文本内容，可拖拽引用或在新标签打开）'
+                        : docPreview.lines.map((line, i) => <div key={i}>{line}</div>)}
+                    </div>
+                  </div>
+                )
+              ) : state.workspaceId === '' ? (
                 <div className={css.paneEmpty}><YzjCloudIcon size={28} /><span>选择左侧知识库查看文档</span></div>
-              ) : state.docId === '' ? (
+              ) : (
                 <div className={css.paneList}>
                   <div className={css.paneHead}>
                     <span className={css.paneTitle}>
@@ -1364,7 +1445,7 @@ export function YzjPanel(props: YzjPanelProps) {
                         key={`d${index}`}
                         type="button"
                         className={css.item}
-                        onClick={() => { openDoc(id, title) }}
+                        onClick={() => { openDoc(id) }}
                         draggable
                         onDragStart={(event) => {
                           startDragTransfer(event, {
@@ -1381,23 +1462,6 @@ export function YzjPanel(props: YzjPanelProps) {
                       </button>
                     )
                   })}
-                </div>
-              ) : docPreview === null ? (
-                <div className={css.paneEmpty}>加载中…</div>
-              ) : (
-                <div className={css.paneList}>
-                  <div className={css.paneHead}>
-                    <button type="button" className={css.back} onClick={() => { props.actions.setDocId('') }}>
-                      <IconChevronLeft14 /> 返回文档
-                    </button>
-                    <span className={css.paneTitle}>{docPreview.title}</span>
-                  </div>
-                  {docPreview.meta !== '' && <div className={css.docMeta}>{docPreview.meta}</div>}
-                  <div className={css.docBody}>
-                    {docPreview.lines.length === 0
-                      ? '（无文本内容，可拖拽引用或在新标签打开）'
-                      : docPreview.lines.map((line, i) => <div key={i}>{line}</div>)}
-                  </div>
                 </div>
               )}
             </div>
@@ -1772,7 +1836,7 @@ export function YzjPanel(props: YzjPanelProps) {
                     disabled={sending || uploading}
                     onClick={() => imageInputRef.current?.click()}
                   >
-                    🖼️
+                    <IconImage14 />
                   </button>
                   <button
                     type="button"
@@ -1782,7 +1846,7 @@ export function YzjPanel(props: YzjPanelProps) {
                     disabled={sending || uploading}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    📎
+                    <IconClip14 />
                   </button>
                   <button
                     type="button"
@@ -1792,7 +1856,7 @@ export function YzjPanel(props: YzjPanelProps) {
                     disabled={sending || uploading}
                     onClick={() => setEmojiOpen(open => !open)}
                   >
-                    😊
+                    <IconSmile14 />
                   </button>
                   {uploading && <span className={css.toolStatus}>上传中…</span>}
                   <input
@@ -1826,6 +1890,22 @@ export function YzjPanel(props: YzjPanelProps) {
       {dropToast !== '' && (
         <div className={css.dropToast} role="status">{dropToast}</div>
       )}
+      {dropArmed && (
+        <div
+          className={css.dropOverlay}
+          onDragOver={(event) => { event.preventDefault() }}
+          onDrop={(event) => {
+            event.preventDefault()
+            dropDepth.current = 0
+            setDropArmed(false)
+            dropRef(event.dataTransfer.getData(YZJ_DRAG_MIME))
+          }}
+        >
+          <span className={css.dropOverlayHint}>
+            <YzjCloudIcon size={16} /> 松开以插入云之家引用
+          </span>
+        </div>
+      )}
       {lightbox !== null && (
         <div
           className={css.lightbox}
@@ -1855,6 +1935,40 @@ function IconRefresh14() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path d="M20 3v4h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function IconImage14() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="9" cy="10" r="1.8" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M4 17.5l4.5-4.5 3.5 3.5 3-3 5 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function IconClip14() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M9 12.5V8a3 3 0 0 1 6 0v6.5a4.5 4.5 0 0 1-9 0V7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function IconSmile14() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="9" cy="10" r="1" fill="currentColor" />
+      <circle cx="15" cy="10" r="1" fill="currentColor" />
+      <path d="M8.5 14.5a4.2 4.2 0 0 0 7 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   )
 }

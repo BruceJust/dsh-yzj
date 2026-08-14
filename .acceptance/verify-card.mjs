@@ -26,16 +26,14 @@ await page.waitForTimeout(6000)
 await page.getByRole('button', { name: '新建会话' }).first().click().catch(() => {})
 await page.waitForTimeout(2500)
 
-/** The card's full text: smallest header div containing every needle,
- *  then walk up to its card container. */
+/** The card's full text: smallest element whose class contains "card"
+ *  and whose text includes every needle (conversation text excluded). */
 async function cardText(needles) {
   return page.evaluate((ns) => {
-    const els = [...document.querySelectorAll('div')].filter(el => ns.every(n => (el.textContent ?? '').includes(n)))
+    const els = [...document.querySelectorAll('[class*="card"]')].filter(el =>
+      ns.every(n => (el.textContent ?? '').includes(n)))
     if (els.length === 0) return ''
-    const header = els.sort((a, b) => a.textContent.length - b.textContent.length)[0]
-    let node = header
-    while (node !== null && !String(node.className ?? '').includes('card')) node = node.parentElement
-    return node === null ? (header.textContent ?? '') : (node.textContent ?? '')
+    return els.sort((a, b) => a.textContent.length - b.textContent.length)[0].textContent ?? ''
   }, needles)
 }
 
@@ -57,6 +55,31 @@ for (let i = 0; i < 40; i++) {
 ok('im group card renders (最近会话 + 云之家)', text.includes('最近会话') && text.includes('云之家'), text.slice(0, 60))
 ok('im group card shows group names', /[一-龥]{2,}/.test(text), text.slice(0, 60))
 ok('im group card leaks no raw ids', !/(groupId|msgId|openId|workId|[a-f0-9]{24})/.test(text), text.replace(/\s+/g, ' ').slice(0, 100))
+
+// ---- 1b. card 查看 → floating panel jumps to that group ----
+// Pick a row with unread (alert groups have real messages; 待办通知's
+// message endpoint returns empty).
+const jumpBtn = page.locator('[class*="card"] [class*="row"]:has-text("未读") button[class*="jump"]').first()
+let jumpClicked = false
+try {
+  await jumpBtn.waitFor({ state: 'visible', timeout: 10000 })
+  await jumpBtn.click()
+  jumpClicked = true
+} catch {}
+ok('card has a 查看 jump button', jumpClicked)
+if (jumpClicked) {
+  const panel = page.getByRole('dialog', { name: '云之家' })
+  let panelOpened = false
+  try { await panel.waitFor({ state: 'visible', timeout: 15000 }); panelOpened = true } catch {}
+  ok('jump opens the floating panel', panelOpened)
+  await page.waitForTimeout(3000)
+  const rightMessages = await panel.locator('[class*="paneRight"] [class*="msgRow"]').count()
+  ok('panel lands on the group messages', rightMessages > 0, `${rightMessages} rows`)
+  const activeRows = await panel.locator('button[class*="itemActive"]').count()
+  ok('group highlighted in the left pane', activeRows >= 1, `${activeRows} active`)
+  await panel.getByRole('button', { name: '关闭' }).click()
+  await page.waitForTimeout(600)
+}
 
 // ---- 2. yzj_whoami card ----
 await ask('请调用 yzj_whoami 查一下我的云之家信息')

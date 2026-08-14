@@ -22,8 +22,7 @@ import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/src/clie
 import css from './cards.module.css'
 
 /** Every wire tool name this package renders. */
-export const YZJ_TOOL_NAMES = [
-  'yzj_whoami',
+export const YZJ_TOOL_NAMES = [  'yzj_whoami',
   'yzj_contact_search',
   'yzj_contact_get',
   'yzj_doc_workspace_list',
@@ -113,6 +112,18 @@ const FAMILY_TITLES: Record<string, string> = {
 
 type UnknownRecord = Record<string, unknown>
 
+/** Card → floating-window jump: open the panel focused on one item. */
+export type YzjJumpTarget =
+  | { kind: 'group'; groupId: string }
+  | { kind: 'doc'; docId: string }
+  | { kind: 'workspace'; workspaceId: string }
+  | { kind: 'event'; event: { id: string; startDate: number; title: string } }
+
+/** Injected by the registration: jump to a panel view. */
+export interface YzjCardInjected {
+  openPanel: (target: YzjJumpTarget) => void
+}
+
 function asRecord(value: unknown): UnknownRecord {
   return typeof value === 'object' && value !== null ? value as UnknownRecord : {}
 }
@@ -153,6 +164,13 @@ function linkRow(url: string, label: string, key: string): ReactNode {
   )
 }
 
+/** Ghost jump button: opens the floating panel at this item. */
+function jumpRow(label: string, onClick: () => void, key: string): ReactNode {
+  return (
+    <button key={key} type="button" className={css.jump} onClick={onClick}>{label}</button>
+  )
+}
+
 /** Generic list body from title/sub key lists (ids never displayed). */
 function listRows(list: unknown[], titleKeys: string[], subKeys: string[]): ReactNode {
   return (
@@ -176,7 +194,7 @@ function nodeSub(node: UnknownRecord): string {
 }
 
 /** Doc-domain body (workspaces, doc lists, doc records). */
-function DocBody(meta: UnknownRecord): ReactNode {
+function DocBody(meta: UnknownRecord, openPanel: YzjCardInjected['openPanel'], listKind: 'workspace' | 'doc'): ReactNode {
   const list = asArray(meta.list)
   if (list.length > 0) {
     return (
@@ -186,9 +204,14 @@ function DocBody(meta: UnknownRecord): ReactNode {
           const name = asString(node.name) !== '' ? asString(node.name) : asString(node.title)
           const kind = asNumber(node.visibility) === 2 ? '个人' : ''
           const url = asString(node.openWebUrl)
+          const id = asString(node.id)
+          const jump = listKind === 'workspace'
+            ? (id !== '' ? jumpRow('查看', () => openPanel({ kind: 'workspace', workspaceId: id }), `j${index}`) : null)
+            : (id !== '' ? jumpRow('查看', () => openPanel({ kind: 'doc', docId: id }), `j${index}`) : null)
           return (
             <div key={`n${index}`} className={css.rowWrap}>
               {row(`${name}${kind === '' ? '' : ` · ${kind}`}`, nodeSub(node), `n${index}`)}
+              {jump}
               {url !== '' && linkRow(url, '打开', `l${index}`)}
             </div>
           )
@@ -199,6 +222,7 @@ function DocBody(meta: UnknownRecord): ReactNode {
   const record = asRecord(meta.record)
   const title = asString(record.title) || asString(record.name)
   const link = asString(record.openWebUrl)
+  const id = asString(record.id)
   if (title !== '') {
     const suffix = asString(record.fileSuffix)
     const permission: Record<number, string> = { 1: '可管理', 2: '可编辑', 3: '可查看', 9: '无权限' }
@@ -208,8 +232,11 @@ function DocBody(meta: UnknownRecord): ReactNode {
       .join(' · ')
     return (
       <div className={css.rows}>
-        {row(title, sub, 'r')}
-        {link !== '' && linkRow(link, '打开文档', 'l')}
+        <div className={css.rowWrap}>
+          {row(title, sub, 'r')}
+          {id !== '' && jumpRow('查看', () => openPanel({ kind: 'doc', docId: id }), 'j')}
+          {link !== '' && linkRow(link, '打开文档', 'l')}
+        </div>
       </div>
     )
   }
@@ -277,7 +304,7 @@ function SheetBody(meta: UnknownRecord): ReactNode {
 }
 
 /** Calendar-domain body (events). */
-function CalendarBody(meta: UnknownRecord): ReactNode {
+function CalendarBody(meta: UnknownRecord, openPanel: YzjCardInjected['openPanel']): ReactNode {
   const events = asArray(meta.list)
   if (events.length === 0) return null
   const clock = (ms: unknown): string => {
@@ -294,14 +321,21 @@ function CalendarBody(meta: UnknownRecord): ReactNode {
         const end = clock(event.endDate)
         const time = start === '' ? '' : `${start}${end === '' ? '' : ` → ${end}`}`
         const person = asString(event.personName)
-        return row(asString(event.title), [time, person].filter(part => part !== '').join(' · '), `e${index}`)
+        const id = asString(event.id)
+        const startMs = typeof event.startDate === 'number' ? event.startDate : 0
+        return (
+          <div key={`e${index}`} className={css.rowWrap}>
+            {row(asString(event.title), [time, person].filter(part => part !== '').join(' · '), `e${index}`)}
+            {id !== '' && startMs > 0 && jumpRow('查看', () => openPanel({ kind: 'event', event: { id, startDate: startMs, title: asString(event.title) } }), `j${index}`)}
+          </div>
+        )
       })}
     </div>
   )
 }
 
 /** IM-domain body (messages / recent groups). */
-function ImBody(meta: UnknownRecord): ReactNode {
+function ImBody(meta: UnknownRecord, openPanel: YzjCardInjected['openPanel']): ReactNode {
   const messages = asArray(meta.list)
   if (messages.length > 0 && asString(asRecord(messages[0]).sendTime) !== '') {
     return (
@@ -324,7 +358,13 @@ function ImBody(meta: UnknownRecord): ReactNode {
           const group = asRecord(item)
           const unread = asNumber(group.unreadCount)
           const last = asString(asRecord(group.lastMsg).content)
-          return row(asString(group.groupName), [unread !== undefined && unread > 0 ? `未读 ${unread}` : '', last.replace(/\s+/g, ' ').slice(0, 40)].filter(part => part !== '').join(' · '), `g${index}`)
+          const groupId = asString(group.groupId)
+          return (
+            <div key={`g${index}`} className={css.rowWrap}>
+              {row(asString(group.groupName), [unread !== undefined && unread > 0 ? `未读 ${unread}` : '', last.replace(/\s+/g, ' ').slice(0, 40)].filter(part => part !== '').join(' · '), `g${index}`)}
+              {groupId !== '' && jumpRow('查看', () => openPanel({ kind: 'group', groupId }), `j${index}`)}
+            </div>
+          )
         })}
       </div>
     )
@@ -404,8 +444,9 @@ function familyIcon(toolName: string): ReactNode {
  * rows (or a friendly action summary) — the raw digest (which carries ids)
  * is never shown to the human, and error text keeps the pill red.
  */
-export function YzjToolCard({ toolName, block }: ToolCallViewProps) {
+export function YzjToolCard({ toolName, block, openPanel }: ToolCallViewProps & Partial<YzjCardInjected>) {
   const family = FAMILY_TITLES[toolName] ?? '云之家'
+  const jump = openPanel ?? (() => {})
   if (!('kind' in block) || block.kind !== 'tool-result') {
     return (
       <div className={css.card}>
@@ -436,10 +477,10 @@ export function YzjToolCard({ toolName, block }: ToolCallViewProps) {
   if (toolName === 'yzj_doc_block_list') body = BlockBody(meta)
   else if (toolName === 'yzj_calendar_event_participants') body = listRows(asArray(meta.list), ['name'], ['jobTitle', 'department'])
   else if (toolName === 'yzj_calendar_room_find') body = listRows(asArray(meta.list), ['name', 'title'], ['capacity', 'floor'])
-  else if (toolName.startsWith('yzj_doc_')) body = DocBody(meta)
+  else if (toolName.startsWith('yzj_doc_')) body = DocBody(meta, jump, toolName === 'yzj_doc_workspace_list' || toolName === 'yzj_doc_workspace_get' ? 'workspace' : 'doc')
   else if (toolName.startsWith('yzj_sheet_')) body = SheetBody(meta)
-  else if (toolName.startsWith('yzj_calendar_')) body = CalendarBody(meta)
-  else if (toolName.startsWith('yzj_im_')) body = ImBody(meta)
+  else if (toolName.startsWith('yzj_calendar_')) body = CalendarBody(meta, jump)
+  else if (toolName.startsWith('yzj_im_')) body = ImBody(meta, jump)
   else if (toolName.startsWith('yzj_contact_') || toolName === 'yzj_whoami') body = ContactBody(meta)
   if (body === null) body = ActionBody(meta, toolName)
 

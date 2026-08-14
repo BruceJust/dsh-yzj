@@ -17,6 +17,7 @@ import { applyYzjAtSource } from './input-source.ts'
 import { YzjPanel, YzjFloatBall } from './panel.tsx'
 import { createYzjStore } from './stores.ts'
 import { createYzjPanelInject } from './rpc.ts'
+import { openPanelTarget } from './panel-controller.ts'
 import {
   YZJ_WRITE_TOOL_NAMES, YzjWriteToolCard,
   type WriteCardInjected,
@@ -79,11 +80,7 @@ export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle | undefined
   const store = createYzjStore()
   const panelInject = createYzjPanelInject(connection)
-  // The engine caches one instance per handle × scope key, so this root
-  // create() IS the instance the panel/button slots mount — actions here
-  // drive the live panel.
-  const panelInstance = store.create()
-  const openWriteContextFor = (record: YzjWriteRecord): void => openWriteContext(panelInstance, panelInject, record)
+  const openWriteContextFor = (record: YzjWriteRecord): void => openWriteContext(record)
 
   ctx.slots.inject('shell.overlay', () => ctx.slots.register(
     { name: 'shell.overlay', id: 'yzj-panel', order: 100, store, inject: () => panelInject },
@@ -153,7 +150,12 @@ export function apply(ctx: ClientContext): void {
   for (const toolName of YZJ_TOOL_NAMES) {
     if (writeNames.includes(toolName)) continue
     ctx.slots.inject('tool.call.toolview', () => ctx.slots.register(
-      { name: 'tool.call.toolview', key: toolName },
+      {
+        name: 'tool.call.toolview',
+        key: toolName,
+        // Cards can jump into the floating panel (查看详情 → focused view).
+        inject: () => ({ openPanel: openPanelTarget }),
+      },
       YzjToolCard,
     ))
   }
@@ -195,49 +197,22 @@ export function apply(ctx: ClientContext): void {
 }
 
 /**
- * The 查看上下文 jump: open the shared panel store instance (the engine
- * caches one instance per handle × scope key, so this IS the panel's store)
- * and drive it onto the tab the write targets.
+ * The 查看上下文 jump (write card): drive the real panel (via the live
+ * controller) onto the context the write targets. IM writes anchor on the
+ * replied-to message when this write is a reply.
  */
-function openWriteContext(
-  instance: import('@deepseek-ai/dsh-client-runtime/client').EngineStoreInstance<
-    import('./stores.ts').YzjPanelState,
-    import('./stores.ts').YzjPanelActions
-  >,
-  inject: ReturnType<typeof createYzjPanelInject>,
-  record: YzjWriteRecord,
-): void {
-  const actions = instance.actions
-  actions.setOpen(true)
-  actions.setError('')
+function openWriteContext(record: YzjWriteRecord): void {
   const args = asRecord(record.args)
   if (record.domain === 'im') {
-    actions.setTab('chat')
     const groupId = asString(args.groupId)
-    if (groupId !== '') {
-      actions.setGroupId(groupId)
-      // Anchor on the replied-to message when this write is a reply — the
-      // context the user must verify before sending.
-      const replyTarget = asString(args.replyMsgId)
-      if (replyTarget !== '') actions.setAnchorMsgId(replyTarget)
-      void inject.fetchMessages(groupId, 20).then((result) => {
-        if (result.ok) {
-          // The CLI returns messages oldest-first — the chat reading order;
-          // do NOT reverse.
-          actions.setMessages(asArray(asRecord(result.value).list))
-        }
-      })
-    }
+    if (groupId === '') return
+    const replyTarget = asString(args.replyMsgId)
+    openPanelTarget({ kind: 'group', groupId }, replyTarget === '' ? undefined : replyTarget)
   } else if (record.domain === 'doc' || record.domain === 'kb' || record.domain === 'sheet') {
-    actions.setTab('docs')
     const workspace = asString(args.workspace)
-    if (workspace !== '') {
-      actions.setWorkspaceId(workspace)
-      void inject.fetchDocs(workspace).then((result) => {
-        if (result.ok) actions.setDocs(asArray(result.value))
-      })
-    }
+    if (workspace !== '') openPanelTarget({ kind: 'workspace', workspaceId: workspace })
   } else {
-    actions.setTab('calendar')
+    // Calendar writes: open the panel on the calendar tab as-is.
+    openPanelTarget({ kind: 'event', event: { id: '', startDate: 0, title: '' } })
   }
 }

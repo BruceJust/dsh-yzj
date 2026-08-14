@@ -1007,6 +1007,41 @@
   animation: bandIn 150ms var(--ds-ease-out, ease-out);
 }
 
+/* Full-viewport drop target while a yzj drag is in flight: drop anywhere. */
+.dropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dsw-static-deepseek-100);
+  cursor: copy;
+}
+
+.dropOverlay::before {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border: 2px dashed var(--dsw-static-deepseek-500);
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.dropOverlayHint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-static-deepseek-600);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+}
+
 /* ── Complete IM: avatars, senders, media, link cards ────────────────── */
 
 /* Group avatar image (32px block, first-letter fallback). */
