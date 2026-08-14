@@ -49,7 +49,7 @@ ok('panel bg resolves from alias tokens', (report.panelBg || '').startsWith('rgb
 ok('no legacy --dsw-surface/--dsw-border custom props referenced', report.legacyTokens.length === 0, `legacy: ${report.legacyTokens.join(',')}`)
 
 await page.screenshot({ path: join(OUT, 'panel-new-style.png') })
-await dialog.locator('header button').filter({ hasText: '会话' }).first().click()
+await dialog.locator('nav button').filter({ hasText: '会话' }).first().click()
 await page.waitForTimeout(3000)
 await page.screenshot({ path: join(OUT, 'chat-tab-new-style.png') })
 

@@ -1,7 +1,7 @@
 /*
- * Yunzhijia floating panel + sidebar toggle, aligned to the dsh native
- * visual language: --dsw-alias-* semantic tokens (light/dark adaptive),
- * 14px body text, 8-10px radii, layered borders instead of raw shadows.
+ * Yunzhijia floating panel + sidebar toggle, redesigned on the dsh native
+ * visual language: semantic --dsw-alias-* tokens, 16px rhythm, layered
+ * borders, card-like list entries, chat bubbles for the message stream.
  */
 
 /* Sidebar-foot toggle: a labeled pill in the wide column, a centered rail
@@ -61,7 +61,7 @@
   display: flex;
   flex-direction: column;
   width: min(420px, 100vw);
-  height: min(600px, 100vh);
+  height: min(620px, 100vh);
   margin: auto;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 14px;
@@ -73,12 +73,12 @@
   overflow: hidden;
 }
 
+/* Header row: brand + title + spacer + icon actions. */
 .header {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--dsw-alias-border-l1);
   flex: none;
 }
 
@@ -95,21 +95,29 @@
   flex: none;
 }
 
+.headerSpacer {
+  flex: 1;
+}
+
+/* Tab rail: its own row under the header, pill segmented control. */
 .tabs {
   display: flex;
   gap: 2px;
-  flex: 1;
-  min-width: 0;
+  padding: 2px 12px 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  flex: none;
   overflow: hidden;
 }
 
 .tab {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  padding: 5px 9px;
+  flex: 1;
+  padding: 5px 8px;
   border: none;
-  border-radius: 999px;
+  border-radius: 8px;
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
@@ -137,11 +145,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
@@ -244,16 +252,17 @@
   padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
+/* Generic entry: icon block + title + sub, hover-revealed surface. */
 .item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 7px 10px;
+  gap: 3px;
+  padding: 8px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
@@ -278,7 +287,7 @@
 .itemTitle {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
   min-width: 0;
   font-weight: 500;
 }
@@ -295,25 +304,25 @@
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 16px;
-  padding-left: 27px;
+  padding-left: 42px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* First-letter glyph blocks (docs, groups, contacts). */
+/* First-letter glyph blocks (docs, groups, contacts) — avatar-sized. */
 .docGlyph,
 .groupGlyph,
 .userGlyph {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   background: var(--dsw-static-deepseek-100);
   color: var(--dsw-static-deepseek-600);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   flex: none;
 }
@@ -333,6 +342,44 @@
   outline: 2px solid var(--dsw-static-deepseek-500);
   outline-offset: -1px;
   background: var(--dsw-static-deepseek-100);
+}
+
+/* Chat message bubble: meta row + body. */
+.msgItem {
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l1);
+}
+
+.msgMeta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.msgTime {
+  color: var(--dsw-alias-label-caption);
+  font-size: 11px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.msgKind {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 14px;
+  flex: none;
+}
+
+.msgBody {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .back {
@@ -381,11 +428,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   text-align: center;
-  padding: 40px 0;
+  padding: 44px 0;
 }
 
 /* ── Search + me ─────────────────────────────────────────────────────── */
@@ -393,7 +440,7 @@
 .searchRow {
   display: flex;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 10px 10px 6px;
   flex: none;
 }
 
@@ -406,28 +453,29 @@
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
   outline: none;
-  transition: border-color 120ms var(--ds-ease-in-out, ease);
+  transition: border-color 120ms var(--ds-ease-in-out, ease), background-color 120ms var(--ds-ease-in-out, ease);
 }
 
 .searchInput:focus {
   border-color: var(--dsw-static-deepseek-500);
+  background: var(--dsw-alias-bg-base);
 }
 
 .meCard {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 10px 8px;
-  padding: 10px;
+  gap: 12px;
+  margin: 6px 10px 8px;
+  padding: 12px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--dsw-alias-bg-layer-1);
   flex: none;
 }
 
 .meAvatar {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   object-fit: cover;
   flex: none;
@@ -437,12 +485,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--dsw-static-deepseek-100);
   color: var(--dsw-static-deepseek-600);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   flex: none;
 }
@@ -453,9 +501,12 @@
 
 .meName {
   font-weight: 600;
+  font-size: 15px;
 }
 
 .meSub {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
+  line-height: 16px;
+  margin-top: 2px;
 }

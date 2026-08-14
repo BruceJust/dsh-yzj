@@ -57,7 +57,7 @@ ok('panel has four tabs', ['知识库', '日程', '会话', '我的'].every(tab 
 
 // --- 3. tab loads: graceful degradation without yzj-cli ---
 for (const tab of ['知识库', '日程', '会话', '我的']) {
-  await dialog.locator('header button').filter({ hasText: tab }).first().click()
+  await dialog.locator('nav button').filter({ hasText: tab }).first().click()
   await page.waitForTimeout(2500)
   const text = await dialog.innerText().catch(() => '')
   // Without a logged-in yzj-cli the bridge fails; the panel must show an

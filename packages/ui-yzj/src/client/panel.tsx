@@ -384,20 +384,7 @@ export function YzjPanel(props: YzjPanelProps) {
       <header className={css.header} onPointerDown={startDrag}>
         <span className={css.brand}><YzjCloudIcon size={18} /></span>
         <span className={css.title}>云之家</span>
-        <nav className={css.tabs} aria-label="云之家功能" onPointerDown={(event) => { event.stopPropagation() }}>
-          {TABS.map(item => (
-            <button
-              key={item.key}
-              type="button"
-              className={tab === item.key ? `${css.tab} ${css.tabActive}` : css.tab}
-              aria-current={tab === item.key ? 'page' : undefined}
-              onClick={() => { props.actions.setTab(item.key) }}
-            >
-              {item.icon()}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
+        <span className={css.headerSpacer} />
         <button
           type="button"
           className={css.iconButton}
@@ -420,6 +407,20 @@ export function YzjPanel(props: YzjPanelProps) {
           <IconClose14 />
         </button>
       </header>
+      <nav className={css.tabs} aria-label="云之家功能" onPointerDown={(event) => { event.stopPropagation() }}>
+        {TABS.map(item => (
+          <button
+            key={item.key}
+            type="button"
+            className={tab === item.key ? `${css.tab} ${css.tabActive}` : css.tab}
+            aria-current={tab === item.key ? 'page' : undefined}
+            onClick={() => { props.actions.setTab(item.key) }}
+          >
+            {item.icon()}
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
 
       {state.error !== '' && (
         <div className={css.error} role="alert">
@@ -614,7 +615,7 @@ export function YzjPanel(props: YzjPanelProps) {
                   <div
                     key={`m${index}`}
                     ref={anchored ? anchorRef : undefined}
-                    className={anchored ? `${css.item} ${css.itemAnchored}` : css.item}
+                    className={anchored ? `${css.item} ${css.msgItem} ${css.itemAnchored}` : `${css.item} ${css.msgItem}`}
                     draggable
                     onDragStart={(event) => {
                       startDragTransfer(event, {
@@ -625,10 +626,11 @@ export function YzjPanel(props: YzjPanelProps) {
                       })
                     }}
                   >
-                    <span className={css.itemTitle}>
-                      <span className={css.itemTitleText}>{content === '' ? `(${msgType === '' ? '消息' : msgType})` : content}</span>
+                    <span className={css.msgMeta}>
+                      <span className={css.msgTime}>{sendTime.slice(5, 16)}</span>
+                      <span className={css.msgKind}>{msgType === '' ? '消息' : msgType}</span>
                     </span>
-                    <span className={css.itemSub}>{sendTime.slice(5, 16)}</span>
+                    <span className={css.msgBody}>{content === '' ? `(${msgType === '' ? '消息' : msgType})` : content}</span>
                   </div>
                 )
               })}

@@ -38,21 +38,21 @@ const dialog = page.getByRole('dialog', { name: '云之家' })
 await dialog.waitFor({ state: 'visible', timeout: 15000 })
 
 // --- 1. knowledge bases load real data ---
-await dialog.locator('header button').filter({ hasText: '知识库' }).first().click()
+await dialog.locator('nav button').filter({ hasText: '知识库' }).first().click()
 await page.waitForTimeout(4000)
 const kbText = await dialog.innerText().catch(() => '')
 ok('知识库 tab lists real workspaces', /文档 \d+/.test(kbText) || /成员 \d+/.test(kbText), kbText.replace(/\n/g, ' ').slice(0, 80))
 await page.screenshot({ path: shot('1-kb.png') })
 
 // --- 2. calendar loads real events ---
-await dialog.locator('header button').filter({ hasText: '日程' }).first().click()
+await dialog.locator('nav button').filter({ hasText: '日程' }).first().click()
 await page.waitForTimeout(4000)
 const calText = await dialog.innerText().catch(() => '')
 ok('日程 tab loads (events or empty notice)', calText.includes('暂无日程') || /日程|→/.test(calText), calText.replace(/\n/g, ' ').slice(0, 80))
 await page.screenshot({ path: shot('2-calendar.png') })
 
 // --- 3. recent groups load real data ---
-await dialog.locator('header button').filter({ hasText: '会话' }).first().click()
+await dialog.locator('nav button').filter({ hasText: '会话' }).first().click()
 await page.waitForTimeout(4000)
 const chatText = await dialog.innerText().catch(() => '')
 const groupCount = await dialog.locator('button[class*="item"]').count()
