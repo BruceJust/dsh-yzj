@@ -151,6 +151,7 @@ P0 消息回源、P1 门禁分级/确认卡/通知层一三/skill/影子库/锚�
 
 - `pnpm -r --sort build` / `typecheck`：4 包全绿。
 - `pnpm test`：67 passed + 2 skipped（Windows 平台限制），**含 tool-yzj 8 项真实 CLI 冒烟**（登录态下执行 whoami/知识库/通讯录/最近会话/日程）。
+- **确认卡真实端到端**（`.acceptance/verify-confirm-e2e2.mjs`，真实登录态 + 真实 agent + 用户授权的目标群「830 项目【登顶计划】」）：**7/7 PASS**——模型调 `yzj_im_message_send` → 门禁 ask → 确认卡渲染（目标群 ID / 全文 / 确认 / 取消 / 查看上下文）→ 点击确认 → 工具真实发送 → 卡片结算；`im message list` 独立回查确认消息入群。**过程中发现并封堵一个旁路**：官方原版 skill 引导模型走 bash 直调 CLI（绕过确认卡）——改造版 skill 已装入 `~/.agents/skills/yzj-cli/`（原版备份 `SKILL.md.orig`，references 保留），红线「写操作必须走 yzj_* 工具」生效后确认卡链路正常。
 - **真实浏览器验收**（`.acceptance/verify-real-data.mjs`，已登录 yzj-cli + 独立 dsh web 实例 + 系统 Chrome）：**8/8 PASS**——知识库真实列表、日程真实事件、20 个真实群组、群消息加载、@ 菜单会话/文档组真实候选、同事组关键词检索（带可见范围提示）、零页面错误。
 - **无 CLI 降级验收**（`.acceptance/verify-windows.mjs`）：9/9 PASS——插件挂载、面板四 tab、优雅错误横幅（无 500）、@ 菜单不崩溃。验收中抓到并修复 4 个真实 bug（toolview 同 key 注册冲突、store 跨 scope 冲突、bridge spawn 500、dsh.client.inject 配置）+ Windows npm 启动器解析（bridge 真实 CLI 链路）与 @ 候选 warm 时序问题。
 - 客户端 bundle 重建成功（`lib/client.js`）。
