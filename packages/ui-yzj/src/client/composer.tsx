@@ -23,15 +23,26 @@ export interface YzjDropInjected {
    * point-in-time and stale), so no span crosses the inject boundary.
    */
   insertReference: (ref: YzjDragRef) => void
+  /** Insert plain instruction text at the end of the draft (quick actions). */
+  insertText: (text: string) => void
 }
+
+/** Quick instructions offered after a drop (design v1.6 §5.2 req. 4). */
+const QUICK_ACTIONS: readonly { label: string; text: string }[] = [
+  { label: '让 agent 总结', text: '请总结上面引用的云之家内容' },
+  { label: '起草回复', text: '基于上面引用的内容起草回复' },
+  { label: '沉淀知识库', text: '把上面引用的内容整理成文档存入知识库' },
+]
 
 /**
  * The drop band under the composer card. Idle it is a slim hint; while a
- * yzj drag hovers it expands and invites the drop.
+ * yzj drag hovers it expands and invites the drop; right after a drop it
+ * offers quick instructions so 拖入 → 指令 collapses into one step.
  */
 export function YzjComposerDock(props: PropsRuntime<'conversation.composer.dock'> & YzjDropInjected) {
   const [armed, setArmed] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [dropped, setDropped] = useState(0)
   const depth = useRef(0)
 
   const onDragEnter = (event: React.DragEvent): void => {
@@ -60,22 +71,50 @@ export function YzjComposerDock(props: PropsRuntime<'conversation.composer.dock'
     if (ref === undefined) return
     setBusy(true)
     props.insertReference(ref)
+    setDropped(count => count + 1)
     setTimeout(() => { setBusy(false) }, 60)
   }
 
   return (
-    <div
-      className={armed ? `${css.dropBand} ${css.dropBandArmed}` : css.dropBand}
-      onDragEnter={onDragEnter}
-      onDragOver={(event) => { event.preventDefault() }}
-      onDragLeave={onDragLeave}
-      onDrop={(event) => {
-        event.preventDefault()
-        onDrop(event)
-      }}
-    >
-      <YzjCloudIcon size={13} />
-      <span>{armed ? '松开以插入云之家卡片' : '把云之家内容拖到这里，以卡片插入上下文'}</span>
+    <div>
+      <div
+        className={armed ? `${css.dropBand} ${css.dropBandArmed}` : css.dropBand}
+        onDragEnter={onDragEnter}
+        onDragOver={(event) => { event.preventDefault() }}
+        onDragLeave={onDragLeave}
+        onDrop={(event) => {
+          event.preventDefault()
+          onDrop(event)
+        }}
+      >
+        <YzjCloudIcon size={13} />
+        <span>{armed ? '松开以插入云之家卡片' : '把云之家内容拖到这里，以卡片插入上下文'}</span>
+      </div>
+      {dropped > 0 && (
+        <div className={css.quickRow} role="group" aria-label="快捷处理">
+          {QUICK_ACTIONS.map(action => (
+            <button
+              key={action.label}
+              type="button"
+              className={css.quickButton}
+              onClick={() => {
+                props.insertText(action.text)
+                setDropped(0)
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className={css.quickDismiss}
+            onClick={() => { setDropped(0) }}
+            aria-label="收起快捷操作"
+          >
+            收起
+          </button>
+        </div>
+      )}
     </div>
   )
 }

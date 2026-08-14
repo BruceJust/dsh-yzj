@@ -122,6 +122,9 @@ export function apply(ctx: ClientContext): void {
               setTimeout(() => { attempt() }, 80)
             }
           },
+          insertText: (text): void => {
+            if (actx !== undefined) insertDraftText(actx, text)
+          },
         }
       },
     },

@@ -20,6 +20,35 @@
   font-weight: 600;
 }
 
+/* Quick instructions shown right after a drop. */
+.quickRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 0;
+}
+
+.quickButton,
+.quickDismiss {
+  border: 1px solid var(--dsw-border, #d6d6d6);
+  border-radius: 999px;
+  background: var(--dsw-surface, #ffffff);
+  color: var(--dsw-text-secondary, #666666);
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.quickButton:hover {
+  border-color: var(--dsw-static-deepseek-500, #4176e6);
+  color: var(--dsw-static-deepseek-600, #4868b2);
+}
+
+.quickDismiss {
+  border-style: dashed;
+  color: var(--dsw-text-tertiary, #999999);
+}
+
 /* The tool-row @ button. */
 .atRoot {
   position: relative;
