@@ -16,7 +16,7 @@ import { clearRefContextCache, fetchRefContext } from './context.ts'
 
 /** Compact ref string persisted with the chip (lossless JSON payload). */
 export function encodeRef(ref: YzjDragRef): string {
-  return `yzj:${JSON.stringify({ kind: ref.kind, id: ref.id, title: ref.title, url: ref.url, sub: ref.sub })}`
+  return `yzj:${JSON.stringify({ kind: ref.kind, id: ref.id, title: ref.title, url: ref.url, sub: ref.sub, group: ref.group })}`
 }
 
 /** Best-effort decode; unknown shapes return undefined. */
@@ -32,6 +32,7 @@ export function decodeRef(raw: string): YzjDragRef | undefined {
     }
     if (typeof parsed.url === 'string' && parsed.url !== '') ref.url = parsed.url
     if (typeof parsed.sub === 'string' && parsed.sub !== '') ref.sub = parsed.sub
+    if (typeof parsed.group === 'string' && parsed.group !== '') ref.group = parsed.group
     return ref
   } catch {
     return undefined

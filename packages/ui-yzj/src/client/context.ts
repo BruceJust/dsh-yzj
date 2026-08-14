@@ -137,11 +137,32 @@ export async function fetchRefContext(
         break
       }
       case 'message': {
-        // The drag payload may carry a groupId for message refs.
-        const groupId = typeof ref.id === 'string' && ref.id !== '' && ref.url !== undefined ? ref.url : ''
-        if (groupId !== '') lines.push(`所属会话：${groupId}`)
+        // Hard requirement (design v1.6 §5.2): the drag payload must carry
+        // the owning groupId so the codec can re-fetch the original body.
+        const groupId = asString(ref.group)
+        if (groupId !== '') {
+          lines.push(`所属会话：${groupId}`)
+          const result = await inject.fetchMessages(groupId, 20, { type: 'new', msgId: ref.id })
+          if (result.ok) {
+            const list = asArray(asRecord(result.value).list)
+            const hit = list.find(item => asString(asRecord(item).msgId) === ref.id)
+            if (hit !== undefined) {
+              const message = asRecord(hit)
+              const body = asString(message.content)
+              const from = asString(message.fromOpenId)
+              lines.push(`发送人：${from === '' ? '(未知)' : from}`)
+              lines.push(`原文：${body === '' ? `(${asString(message.msgType) === '' ? '消息' : asString(message.msgType)})` : body}`)
+            } else {
+              // Anchor not in the returned window: keep the snapshot, marked.
+              lines.push(`内容（快照，原文可能已变）：${ref.title}`)
+            }
+          } else {
+            lines.push(`内容（快照，原文可能已变）：${ref.title}`)
+          }
+        } else {
+          lines.push(`内容（快照，原文可能已变）：${ref.title}`)
+        }
         if (asString(ref.sub) !== '') lines.push(`时间：${asString(ref.sub)}`)
-        lines.push(`内容：${ref.title}`)
         break
       }
     }

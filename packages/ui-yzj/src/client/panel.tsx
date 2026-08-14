@@ -45,6 +45,8 @@ export interface YzjDragRef {
   title: string
   url?: string
   sub?: string
+  /** Owning session id for message refs (required for re-fetching the body). */
+  group?: string
 }
 
 /** MIME type carrying the structured drag payload. */
@@ -543,6 +545,7 @@ export function YzjPanel(props: YzjPanelProps) {
                         kind: 'message', id: asString(message.msgId),
                         title: content === '' ? `(${msgType === '' ? '消息' : msgType})` : content,
                         sub: sendTime.slice(5, 16),
+                        group: state.groupId,
                       })
                     }}
                   >
