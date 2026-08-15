@@ -288,6 +288,92 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
+/* @-mention picker above the composer. */
+.mentionPanel {
+  position: absolute;
+  left: 10px;
+  bottom: calc(100% - 4px);
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-base);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.16);
+  z-index: 30;
+}
+
+.mentionSearch {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  outline: none;
+}
+
+.mentionList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.mentionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mentionItem:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.mentionName {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mentionSub {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
+
+.mentionEmpty {
+  padding: 10px 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.atButtonText {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 /* ── Status strips ───────────────────────────────────────────────────── */
 
 /* 全部已读 toolbar above the group list. */

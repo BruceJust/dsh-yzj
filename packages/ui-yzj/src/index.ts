@@ -259,11 +259,16 @@ export function createRpcHandler(ctx: Context, writeGate: YzjWriteGateFace): Con
         const images = Array.isArray(rawImages)
           ? rawImages.filter((item): item is string => typeof item === 'string' && item !== '')
           : []
+        const rawAtOpenIds = record.atOpenIds
+        const atOpenIds = Array.isArray(rawAtOpenIds)
+          ? rawAtOpenIds.filter((item): item is string => typeof item === 'string' && item !== '')
+          : []
+        const atAll = record.atAll === true
         // Mirror the tool's validation: file needs a fileId and nothing else.
         if (msgType === 'file') {
           if (fileId === undefined) return internalError('im-send: msg-type file requires fileId')
-          if (content !== undefined || replyMsgId !== undefined || images.length > 0) {
-            return internalError('im-send: msg-type file does not support content, reply, or images')
+          if (content !== undefined || replyMsgId !== undefined || images.length > 0 || atOpenIds.length > 0 || atAll) {
+            return internalError('im-send: msg-type file does not support content, reply, images, or @')
           }
         } else {
           if (content === undefined || content.trim() === '') {
@@ -279,6 +284,8 @@ export function createRpcHandler(ctx: Context, writeGate: YzjWriteGateFace): Con
         if (fileId !== undefined) command.push('--file-id', fileId)
         if (replyMsgId !== undefined) command.push('--reply-msg-id', replyMsgId)
         for (const image of images) command.push('--image', image)
+        if (atAll) command.push('--at-all')
+        for (const id of atOpenIds) command.push('--at-open-id', id)
         return bridgeResult(ctx, 'im message send', command)
       }
       case 'file-upload': {

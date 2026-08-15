@@ -799,6 +799,12 @@ export function YzjPanel(props: YzjPanelProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const draftRef = useRef<HTMLTextAreaElement | null>(null)
   const messagesRef = useRef<unknown[]>([])
+  const mentionsRef = useRef<{ name: string; openId: string }[]>([])
+  const mentionInputRef = useRef<HTMLInputElement | null>(null)
+  const [mentionOpen, setMentionOpen] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionResults, setMentionResults] = useState<unknown[]>([])
+  const [mentionBusy, setMentionBusy] = useState(false)
 
   // The login user, so "my" messages bubble right with the brand color.
   useEffect(() => {
@@ -1250,6 +1256,70 @@ export function YzjPanel(props: YzjPanelProps) {
     })
   }
 
+  /** Search the directory for @-mention candidates. */
+  const searchMention = (keyword: string): void => {
+    const q = keyword.trim()
+    if (q === '') {
+      setMentionResults([])
+      setMentionBusy(false)
+      return
+    }
+    setMentionBusy(true)
+    void props.fetchSearch(q).then((result) => {
+      setMentionBusy(false)
+      if (result.ok) setMentionResults(asArray(result.value))
+      else setMentionResults([])
+    })
+  }
+
+  /** Insert text at the textarea cursor and move the caret past it. */
+  const insertAtCursor = (text: string): void => {
+    const el = draftRef.current
+    const start = el !== null ? el.selectionStart ?? draft.length : draft.length
+    const end = el !== null ? el.selectionEnd ?? draft.length : draft.length
+    const next = draft.slice(0, start) + text + draft.slice(end)
+    setDraft(next)
+    requestAnimationFrame(() => {
+      if (el !== null) {
+        el.focus()
+        const pos = start + text.length
+        el.setSelectionRange(pos, pos)
+      }
+    })
+  }
+
+  /** Pick a directory member as an @ mention. */
+  const pickMention = (user: Record<string, unknown>): void => {
+    const name = asString(user.name)
+    const openId = asString(user.openId)
+    if (name === '' || openId === '') return
+    insertAtCursor(`@${name} `)
+    if (!mentionsRef.current.some(item => item.openId === openId)) {
+      mentionsRef.current.push({ name, openId })
+    }
+    setMentionOpen(false)
+    setMentionQuery('')
+    setMentionResults([])
+    draftRef.current?.focus()
+  }
+
+  /** Mention all members of the group. */
+  const pickMentionAll = (): void => {
+    insertAtCursor('@all ')
+    setMentionOpen(false)
+    setMentionQuery('')
+    draftRef.current?.focus()
+  }
+
+  /** Collect the openIds whose @name still appears in the draft. */
+  const collectAtOpenIds = (content: string): string[] => {
+    const ids: string[] = []
+    for (const item of mentionsRef.current) {
+      if (content.includes(`@${item.name}`)) ids.push(item.openId)
+    }
+    return ids
+  }
+
   /** Core send: calls the bridge, appends the local message, clears state. */
   const doSend = async (opts: {
     content?: string
@@ -1262,11 +1332,16 @@ export function YzjPanel(props: YzjPanelProps) {
   }): Promise<void> => {
     if (state.groupId === '') return
     const groupId = state.groupId
+    const content = opts.content ?? ''
+    const atOpenIds = collectAtOpenIds(content)
+    const atAll = content.includes('@all')
     const result = await props.sendMessage(groupId, opts.content, {
       ...(opts.msgType === undefined ? {} : { msgType: opts.msgType }),
       ...(opts.fileId === undefined ? {} : { fileId: opts.fileId }),
       ...(opts.images === undefined ? {} : { images: opts.images }),
       ...(opts.replyMsgId === undefined ? {} : { replyMsgId: opts.replyMsgId }),
+      ...(atOpenIds.length > 0 ? { atOpenIds } : {}),
+      ...(atAll ? { atAll: true } : {}),
     })
     if (!result.ok) {
       props.actions.setError(result.error.message)
@@ -1309,6 +1384,7 @@ export function YzjPanel(props: YzjPanelProps) {
     props.actions.setMessages(next)
     putMessageWindow(groupId, next, state.messagesMore)
     setDraft('')
+    mentionsRef.current = []
     setReplyTo(null)
     const list = listRef.current
     if (list !== null) list.scrollTop = list.scrollHeight
@@ -1854,6 +1930,48 @@ export function YzjPanel(props: YzjPanelProps) {
                     ))}
                   </div>
                 )}
+                {mentionOpen && (
+                  <div className={css.mentionPanel} role="dialog" aria-label="提及成员">
+                    <input
+                      ref={mentionInputRef}
+                      className={css.mentionSearch}
+                      value={mentionQuery}
+                      placeholder="搜索成员…"
+                      onChange={(event) => {
+                        const q = event.target.value
+                        setMentionQuery(q)
+                        searchMention(q)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') setMentionOpen(false)
+                      }}
+                    />
+                    <div className={css.mentionList}>
+                      <button type="button" className={css.mentionItem} onClick={pickMentionAll}>
+                        <span className={css.mentionName}>@全体成员</span>
+                        <span className={css.mentionSub}>提醒群内所有人</span>
+                      </button>
+                      {mentionBusy && <div className={css.mentionEmpty}>搜索中…</div>}
+                      {!mentionBusy && mentionResults.length === 0 && mentionQuery.trim() !== '' && (
+                        <div className={css.mentionEmpty}>无匹配成员</div>
+                      )}
+                      {mentionResults.map((item, index) => {
+                        const user = asRecord(item)
+                        return (
+                          <button
+                            key={`m${index}`}
+                            type="button"
+                            className={css.mentionItem}
+                            onClick={() => pickMention(user)}
+                          >
+                            <span className={css.mentionName}>{asString(user.name)}</span>
+                            <span className={css.mentionSub}>{asString(user.department)}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className={css.composerRow}>
                   <textarea
                     ref={draftRef}
@@ -1905,6 +2023,23 @@ export function YzjPanel(props: YzjPanelProps) {
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <IconClip14 />
+                  </button>
+                  <button
+                    type="button"
+                    className={css.toolButton}
+                    title="@ 提及成员"
+                    aria-label="@ 提及成员"
+                    disabled={sending || uploading}
+                    onClick={() => {
+                      setEmojiOpen(false)
+                      const next = !mentionOpen
+                      setMentionOpen(next)
+                      setMentionQuery('')
+                      setMentionResults([])
+                      if (next) requestAnimationFrame(() => mentionInputRef.current?.focus())
+                    }}
+                  >
+                    <span className={css.atButtonText}>@</span>
                   </button>
                   <button
                     type="button"
