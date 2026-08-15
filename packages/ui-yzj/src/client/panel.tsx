@@ -5,12 +5,19 @@
  * fetch face and the shared store; verbs are the injected face and store
  * actions.
  */
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
 import {
   IconChecklistOutline14,
   IconFolderOpenOutline16,
   IconNewChatOutline16,
-  Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { BakedActions } from '@deepseek-ai/dsh-client-ui-slots'
 import type { YzjPanelActions, YzjPanelState, YzjTab } from './stores.ts'
@@ -42,6 +49,64 @@ function asString(value: unknown): string {
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
+}
+
+/** Desktop panel width bounds: default 760, min 480, viewport-clamped max. */
+const PANEL_MIN_WIDTH = 480
+const PANEL_MAX_WIDTH = 1080
+const PANEL_DEFAULT_WIDTH = 760
+/** Below this clamped desktop width the two-pane flows collapse to single-pane. */
+const PANEL_COMPACT_WIDTH = 620
+/** Desktop panel height cap (matches the CSS min(720px, 94vh) ceiling). */
+const PANEL_MAX_HEIGHT = 720
+/** Keep the panel at least 8px inside the viewport on every edge. */
+const PANEL_EDGE_MARGIN = 8
+
+/** The viewport-derived max desktop width (never below the min). */
+function maxPanelWidth(viewportWidth: number): number {
+  return Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, viewportWidth - PANEL_EDGE_MARGIN * 2))
+}
+
+/** Resolve a persisted width to a finite desktop width within [480, max]. */
+function clampPanelWidth(width: number, viewportWidth: number): number {
+  const base = Number.isFinite(width) && width > 0 ? width : PANEL_DEFAULT_WIDTH
+  return Math.min(Math.max(Math.round(base), PANEL_MIN_WIDTH), maxPanelWidth(viewportWidth))
+}
+
+/** Clamp a number into [min, max]; max is coerced to never fall below min. */
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max))
+}
+
+/** Desktop panel height: the CSS min(720px, 94vh) ceiling. */
+function panelHeightOf(viewportHeight: number): number {
+  return Math.min(PANEL_MAX_HEIGHT, viewportHeight * 0.94)
+}
+
+/** Subscribe to a CSS media query (viewport / touch detection for the panel). */
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(query).matches
+      : false,
+  )
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const mql = window.matchMedia(query)
+    const onChange = (event: MediaQueryListEvent): void => setMatches(event.matches)
+    setMatches(mql.matches)
+    // Modern browsers use addEventListener; older WebViews/Safari only expose
+    // the deprecated addListener/removeListener pair.
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', onChange)
+      return () => mql.removeEventListener('change', onChange)
+    }
+    if (typeof mql.addListener === 'function') {
+      mql.addListener(onChange)
+      return () => mql.removeListener(onChange)
+    }
+  }, [query])
+  return matches
 }
 
 /** One draggable reference payload shared by drag sources and the drop dock. */
@@ -297,12 +362,12 @@ function MessageBody({ message, onOpenImage, onOpenPdf, inject }: {
       )
     }
     const isPdf = ext === 'pdf'
-    const icon = isPdf ? '📕'
-      : /^(mp4|mov|avi|mkv|webm)$/.test(ext) ? '🎬'
-        : /^(xls|xlsx|csv)$/.test(ext) ? '📊'
-          : /^(doc|docx|txt|md)$/.test(ext) ? '📄'
-            : /^(zip|rar|7z|tar|gz)$/.test(ext) ? '📦'
-              : '📎'
+    const typeBadge = isPdf ? 'PDF'
+      : /^(mp4|mov|avi|mkv|webm)$/.test(ext) ? 'VIDEO'
+        : /^(xls|xlsx|csv)$/.test(ext) ? 'XLS'
+          : /^(doc|docx|txt|md)$/.test(ext) ? 'DOC'
+            : /^(zip|rar|7z|tar|gz)$/.test(ext) ? 'ZIP'
+              : ext === '' ? 'FILE' : ext.toUpperCase().slice(0, 5)
     const download = (): void => {
       if (fileId === '') return
       void resolveFileData(fileId, inject).then(dataUrl => {
@@ -336,7 +401,7 @@ function MessageBody({ message, onOpenImage, onOpenPdf, inject }: {
               })
             }}
           >
-            <span className={css.msgFileIcon}>{icon}</span>
+            <span className={css.msgFileBadge}>{typeBadge}</span>
             <span className={css.msgFileMeta}>
               <span className={css.msgFileName}>{name}</span>
               <span className={css.msgFileSize}>{size === '' ? ext === '' ? '文件' : ext.toUpperCase() : size}</span>
@@ -483,16 +548,6 @@ const TABS: { key: YzjTab; label: string; icon: () => ReactNode }[] = [
   { key: 'chat', label: '会话', icon: () => <IconNewChatOutline16 /> },
 ]
 
-/** The sidebar-foot toggle; label and open state ride the store shares. */
-export interface YzjPanelButtonProps {
-  useStore: <R>(selector: (state: YzjPanelState) => R) => R
-  actions: BakedActions<YzjPanelState, YzjPanelActions>
-  /** Sidebar column state: wide renders the labeled row, rail the icon. */
-  wide: boolean
-  /** Fresh recent-session window for the unread badge poll. */
-  fetchGroups: (limit?: number, page?: number) => Promise<{ ok: true; value: unknown } | { ok: false; error: { message: string } }>
-}
-
 /** Sum the effective (read-aware) unread counts of a recent-session window. */
 function unreadTotalOf(value: unknown): number {
   const list = asArray(asRecord(value).list)
@@ -567,57 +622,6 @@ function requestNotificationPermission(): void {
   if (Notification.permission === 'default' && typeof Notification.requestPermission === 'function') {
     void Notification.requestPermission()
   }
-}
-
-/** The sidebar-foot Yunzhijia toggle (labeled row or rail icon). */
-export function YzjPanelButton(props: YzjPanelButtonProps) {  const open = props.useStore(state => state.open)
-  const unreadTotal = props.useStore(state => state.unreadTotal)
-  // Poll cadence follows the design: ~30s while the panel is open, ~5min
-  // while collapsed. New unread counts raise the badge and fire a browser
-  // notification once per increase.
-  useEffect(() => {
-    let last = unreadTotal
-    const poll = (): void => {
-      void props.fetchGroups(20).then((result) => {
-        if (!result.ok) return
-        const total = unreadTotalOf(result.value)
-        props.actions.setUnreadTotal(total)
-        if (total > last && total > 0) notifyUnread(total, () => props.actions.setOpen(true))
-        last = total
-      })
-    }
-    poll()
-    const interval = window.setInterval(poll, open ? 30_000 : 300_000)
-    return () => window.clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
-
-  const button = (
-    <button
-      type="button"
-      className={open ? `${css.toggle} ${css.toggleActive}` : css.toggle}
-      aria-expanded={open}
-      onClick={() => {
-        requestNotificationPermission()
-        props.actions.setOpen(!open)
-      }}
-      aria-label="云之家"
-    >
-      <YzjCloudIcon size={props.wide ? 16 : 18} />
-      {props.wide && <span className={css.toggleLabel}>云之家</span>}
-      {unreadTotal > 0 && (
-        <span className={css.unreadBadge} title={`${unreadTotal} 条未读`}>
-          {unreadTotal > 99 ? '99+' : unreadTotal}
-        </span>
-      )}
-    </button>
-  )
-  if (props.wide) return button
-  return (
-    <Tooltip label="云之家" delayMs={500} side="right">
-      {button}
-    </Tooltip>
-  )
 }
 
 /** Shortcut order for the floating ball's hover quick-dock. */
@@ -774,10 +778,12 @@ export function YzjPanel(props: YzjPanelProps) {
   const tab = props.useStore(state => state.tab)
   // Persisted tabs may hold the removed 'me'; fall back to the docs tab.
   const activeTab: YzjTab = tab === 'docs' || tab === 'calendar' || tab === 'chat' ? tab : 'docs'
+  const activeLabel = TABS.find(item => item.key === activeTab)?.label ?? '知识库'
   const anchorActive = props.useStore(state => state.anchorMsgId !== '')
   const state = props.useStore(s => s)
   const panelRef = useRef<HTMLDivElement | null>(null)
-  const dragOffset = useRef<{ dx: number; dy: number } | null>(null)
+  const dragOffset = useRef<{ dx: number; dy: number; w: number; h: number } | null>(null)
+  const resizeSession = useRef<{ edge: 'left' | 'right'; startX: number; startWidth: number; startLeft: number; startTop: number } | null>(null)
   const anchorRef = useRef<HTMLDivElement | null>(null)
   const [anchorToast, setAnchorToast] = useState('')
   const [senderNames, setSenderNames] = useState<Record<string, string>>({})
@@ -805,6 +811,12 @@ export function YzjPanel(props: YzjPanelProps) {
   const [mentionQuery, setMentionQuery] = useState('')
   const [mentionResults, setMentionResults] = useState<unknown[]>([])
   const [mentionBusy, setMentionBusy] = useState(false)
+
+  // Narrow-window mode: single-column drill-down under 720px. Touch / coarse
+  // pointers disable the desktop drag affordance entirely.
+  const narrow = useMediaQuery('(max-width: 719.98px)')
+  const touch = useMediaQuery('(hover: none), (pointer: coarse)')
+  const dragDisabled = narrow || touch
 
   // The login user, so "my" messages bubble right with the brand color.
   useEffect(() => {
@@ -961,15 +973,15 @@ export function YzjPanel(props: YzjPanelProps) {
     return true
   }
 
-  // Keep the newest messages in view: bottom on group open, panel reopen, and
-  // after sends, unless an anchor jump is active.
+  // Keep the newest messages in view: bottom on group open, panel reopen, tab
+  // switch back to chat, and after sends, unless an anchor jump is active.
   useEffect(() => {
     if (state.groupId === '' || state.anchorMsgId !== '') return
     const list = listRef.current
     if (list === null) return
     list.scrollTop = list.scrollHeight
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, state.groupId, state.messages])
+  }, [open, activeTab, state.groupId, state.messages])
 
   // Resolve sender display names for the loaded message window (cached).
   // The React state mirrors the module cache so newly resolved names
@@ -989,13 +1001,32 @@ export function YzjPanel(props: YzjPanelProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.messages])
 
-  // Esc closes the image lightbox.
+  // Esc closes nested surfaces first (lightbox → mention → emoji), then the
+  // panel itself. It never closes the panel while the composer holds a draft
+  // or an armed reply, and a focused composer only blurs. Only active while
+  // the panel is open.
   useEffect(() => {
-    if (lightbox === null) return
-    const onKey = (event: KeyboardEvent): void => { if (event.key === 'Escape') setLightbox(null) }
+    if (!open) return
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return
+      // Esc inside the composer only leaves the textarea — it never discards
+      // a draft or unmounts the panel.
+      if (draftRef.current !== null && document.activeElement === draftRef.current) {
+        draftRef.current.blur()
+        return
+      }
+      if (lightbox !== null) { setLightbox(null); return }
+      if (mentionOpen) { setMentionOpen(false); return }
+      if (emojiOpen) { setEmojiOpen(false); return }
+      // A non-empty draft or an armed reply keeps the panel open: Esc must
+      // never destroy in-progress input.
+      if (draft.trim() !== '' || replyTo !== null) return
+      props.actions.setOpen(false)
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [lightbox])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, lightbox, mentionOpen, emojiOpen, draft, replyTo])
 
   // Scroll the jump anchor into view once its group's messages land.
   useEffect(() => {
@@ -1011,8 +1042,11 @@ export function YzjPanel(props: YzjPanelProps) {
     if (!open) return
     const move = (event: PointerEvent): void => {
       if (dragOffset.current === null) return
-      const x = Math.max(8, Math.min(event.clientX - dragOffset.current.dx, Math.max(8, window.innerWidth - 880)))
-      const y = Math.max(8, Math.min(event.clientY - dragOffset.current.dy, window.innerHeight - 60))
+      const { dx, dy, w, h } = dragOffset.current
+      const maxX = Math.max(8, window.innerWidth - w - 8)
+      const maxY = Math.max(8, window.innerHeight - h - 8)
+      const x = Math.max(8, Math.min(event.clientX - dx, maxX))
+      const y = Math.max(8, Math.min(event.clientY - dy, maxY))
       props.actions.setPanelPosition(x, y)
     }
     const up = (): void => { dragOffset.current = null }
@@ -1021,6 +1055,47 @@ export function YzjPanel(props: YzjPanelProps) {
     return () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  // Horizontal resize via the left/right edge handles. The window-level
+  // lifecycle mirrors the drag handler: pointermove/up/cancel attach once
+  // while open, and the session ref gates whether a resize is in flight.
+  useEffect(() => {
+    if (!open) return
+    const move = (event: PointerEvent): void => {
+      const session = resizeSession.current
+      if (session === null) return
+      const viewportWidth = window.innerWidth
+      const maxWidth = maxPanelWidth(viewportWidth)
+      const delta = event.clientX - session.startX
+      let width: number
+      let left: number
+      if (session.edge === 'right') {
+        // Right edge: left edge is anchored.
+        width = clampNumber(session.startWidth + delta, PANEL_MIN_WIDTH, Math.min(maxWidth, viewportWidth - session.startLeft - PANEL_EDGE_MARGIN))
+        left = session.startLeft
+      } else {
+        // Left edge: right edge is anchored; the left coordinate moves.
+        const rightEdge = session.startLeft + session.startWidth
+        width = clampNumber(session.startWidth - delta, PANEL_MIN_WIDTH, Math.min(maxWidth, rightEdge - PANEL_EDGE_MARGIN))
+        left = rightEdge - width
+      }
+      props.actions.setPanelWidth(Math.round(width))
+      props.actions.setPanelPosition(
+        Math.round(clampNumber(left, PANEL_EDGE_MARGIN, viewportWidth - Math.round(width) - PANEL_EDGE_MARGIN)),
+        Math.round(clampNumber(session.startTop, PANEL_EDGE_MARGIN, window.innerHeight - panelHeightOf(window.innerHeight) - PANEL_EDGE_MARGIN)),
+      )
+    }
+    const up = (): void => { resizeSession.current = null }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -1036,22 +1111,91 @@ export function YzjPanel(props: YzjPanelProps) {
   if (!open) return null
 
   const startDrag = (event: ReactPointerEvent<HTMLElement>): void => {
-    if (event.button !== 0) return
+    if (dragDisabled || event.button !== 0) return
     const rect = panelRef.current?.getBoundingClientRect()
     if (rect === undefined) return
-    dragOffset.current = { dx: event.clientX - rect.left, dy: event.clientY - rect.top }
+    dragOffset.current = { dx: event.clientX - rect.left, dy: event.clientY - rect.top, w: rect.width, h: rect.height }
     event.preventDefault()
   }
 
-  // Stale persisted positions (saved for the old 460px panel) can push the
-  // wide panel off-screen; clamp so it always stays reachable.
-  const dockStyle = state.panelX >= 0 && state.panelY >= 0
-    ? {
-        left: Math.min(state.panelX, Math.max(0, window.innerWidth - 860)),
-        top: Math.min(state.panelY, Math.max(0, window.innerHeight - 80)),
-        margin: 0,
-      }
-    : undefined
+  // The current live panel geometry, or a centered fallback when the DOM has
+  // not measured yet (used by keyboard resize, which has no pointer origin).
+  const panelGeometry = (): { left: number; top: number; width: number; height: number } => {
+    const rect = panelRef.current?.getBoundingClientRect()
+    if (rect !== undefined) return { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+    const width = clampPanelWidth(state.panelWidth, window.innerWidth)
+    const height = panelHeightOf(window.innerHeight)
+    return {
+      left: Math.max(PANEL_EDGE_MARGIN, (window.innerWidth - width) / 2),
+      top: Math.max(PANEL_EDGE_MARGIN, (window.innerHeight - height) / 2),
+      width,
+      height,
+    }
+  }
+
+  /** Start a pointer resize from one edge (desktop/non-touch only). */
+  const startResize = (edge: 'left' | 'right') => (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (dragDisabled || event.button !== 0) return
+    const rect = panelRef.current?.getBoundingClientRect()
+    if (rect === undefined) return
+    resizeSession.current = {
+      edge,
+      startX: event.clientX,
+      startWidth: rect.width,
+      startLeft: rect.left,
+      startTop: rect.top,
+    }
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  /** Keyboard resize: ArrowLeft/ArrowRight move the active edge by 24px while
+      anchoring the opposite edge. */
+  const nudgeResize = (edge: 'left' | 'right', delta: number): void => {
+    if (dragDisabled) return
+    const geo = panelGeometry()
+    const viewportWidth = window.innerWidth
+    const maxWidth = maxPanelWidth(viewportWidth)
+    let width: number
+    let left: number
+    if (edge === 'right') {
+      width = clampNumber(geo.width + delta, PANEL_MIN_WIDTH, Math.min(maxWidth, viewportWidth - geo.left - PANEL_EDGE_MARGIN))
+      left = geo.left
+    } else {
+      const rightEdge = geo.left + geo.width
+      width = clampNumber(geo.width - delta, PANEL_MIN_WIDTH, Math.min(maxWidth, rightEdge - PANEL_EDGE_MARGIN))
+      left = rightEdge - width
+    }
+    props.actions.setPanelWidth(Math.round(width))
+    props.actions.setPanelPosition(Math.round(left), Math.round(geo.top))
+  }
+
+  const onResizeKeyDown = (edge: 'left' | 'right') => (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === 'ArrowLeft') { event.preventDefault(); nudgeResize(edge, -24) }
+    else if (event.key === 'ArrowRight') { event.preventDefault(); nudgeResize(edge, 24) }
+  }
+
+  // The actual clamped desktop width, computed once for both the inline style
+  // and the compact single-pane attribute. `compact` collapses the two-pane
+  // flows below 620px while keeping the top navigation and resize handles.
+  const clampedWidth = narrow ? 0 : clampPanelWidth(state.panelWidth, window.innerWidth)
+  const compact = !narrow && clampedWidth > 0 && clampedWidth < PANEL_COMPACT_WIDTH
+  const resizeMaxWidth = maxPanelWidth(window.innerWidth)
+  const resizeNowWidth = clampedWidth > 0 ? clampedWidth : window.innerWidth
+
+  // Clamp the persisted position against the actual clamped width/height so a
+  // stale save (from an older panel size) can never push it off-screen. The
+  // width always applies — even when the panel is still centered.
+  const panelStyle = ((): CSSProperties | undefined => {
+    if (narrow) return undefined
+    const style: CSSProperties = { width: clampedWidth }
+    if (state.panelX >= 0 && state.panelY >= 0) {
+      style.left = Math.max(PANEL_EDGE_MARGIN, Math.min(state.panelX, window.innerWidth - clampedWidth - PANEL_EDGE_MARGIN))
+      style.top = Math.max(PANEL_EDGE_MARGIN, Math.min(state.panelY, window.innerHeight - panelHeightOf(window.innerHeight) - PANEL_EDGE_MARGIN))
+      style.margin = 0
+    }
+    return style
+  })()
 
   const openWorkspace = (id: string): void => {
     props.actions.setWorkspaceId(id)
@@ -1067,6 +1211,13 @@ export function YzjPanel(props: YzjPanelProps) {
       }
       props.actions.setLoading(false)
     })
+  }
+
+  /** Narrow-window back: leave a workspace's docs for the knowledge list. */
+  const backToWorkspaces = (): void => {
+    props.actions.setWorkspaceId('')
+    props.actions.setDocId('')
+    setDocPreview(null)
   }
 
   /** Right-pane doc preview: info + first blocks as text. */
@@ -1218,6 +1369,12 @@ export function YzjPanel(props: YzjPanelProps) {
       }
       props.actions.setLoading(false)
     })
+  }
+
+  /** Narrow-window back: leave a conversation for the recent-session list. */
+  const backToGroups = (): void => {
+    props.actions.setGroupId('')
+    props.actions.setAnchorMsgId('')
   }
 
   const loadMoreGroups = (): void => {
@@ -1444,11 +1601,14 @@ export function YzjPanel(props: YzjPanelProps) {
       className={css.panel}
       role="dialog"
       aria-label="云之家"
-      style={dockStyle}
+      style={panelStyle}
+      data-compact={compact ? 'true' : undefined}
     >
       <header className={css.header} onPointerDown={startDrag}>
         <span className={css.brand}><YzjCloudIcon size={18} /></span>
-        <span className={css.title}>云之家</span>
+        <span className={css.title}>云之家工作台</span>
+        <span className={css.headerDivider} aria-hidden="true" />
+        <span className={css.moduleLabel}>{activeLabel}</span>
         <span className={css.headerSpacer} />
         <button
           type="button"
@@ -1472,40 +1632,57 @@ export function YzjPanel(props: YzjPanelProps) {
           <IconClose14 />
         </button>
       </header>
-      <nav className={css.tabs} aria-label="云之家功能" onPointerDown={(event) => { event.stopPropagation() }}>
-        {TABS.map(item => (
-          <button
-            key={item.key}
-            type="button"
-            className={activeTab === item.key ? `${css.tab} ${css.tabActive}` : css.tab}
-            aria-current={activeTab === item.key ? 'page' : undefined}
-            onClick={() => { props.actions.setTab(item.key) }}
-          >
-            {item.icon()}
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </nav>
-
-      {state.error !== '' && (
-        <div className={css.error} role="alert">
-          <span className={css.errorText}>{state.error}</span>
-          <button
-            type="button"
-            className={css.errorDismiss}
-            onClick={() => { props.actions.setError('') }}
-            aria-label="忽略错误"
-          >
-            <IconClose14 />
-          </button>
-        </div>
-      )}
-      {state.loading && <div className={css.loading}>加载中…</div>}
+      <div className={css.shell}>
+        <nav className={css.navRail} aria-label="云之家功能" onPointerDown={(event) => { event.stopPropagation() }}>
+          {TABS.map(item => {
+            const active = activeTab === item.key
+            const unread = item.key === 'chat' ? state.unreadTotal : 0
+            return (
+              <button
+                key={item.key}
+                type="button"
+                className={active ? `${css.navItem} ${css.navItemActive}` : css.navItem}
+                aria-current={active ? 'page' : undefined}
+                onClick={() => { props.actions.setTab(item.key) }}
+              >
+                <span className={css.navItemIcon}>
+                  {item.icon()}
+                  {unread > 0 && (
+                    <span className={css.navItemBadge}>{unread > 99 ? '99+' : unread}</span>
+                  )}
+                </span>
+                <span className={css.navItemLabel}>{item.label}</span>
+              </button>
+            )
+          })}
+        </nav>
+        <div className={css.content}>
+          {state.error !== '' && (
+            <div className={css.error} role="alert">
+              <span className={css.errorText}>{state.error}</span>
+              <button
+                type="button"
+                className={css.errorDismiss}
+                onClick={() => { props.actions.setError('') }}
+                aria-label="忽略错误"
+              >
+                <IconClose14 />
+              </button>
+            </div>
+          )}
+          {state.loading && <div className={css.loading}>加载中…</div>}
 
       {activeTab === 'docs' && (
         <div className={css.body}>
-          <div className={css.twoPane}>
+          <div
+            className={css.twoPane}
+            data-drilldown={state.workspaceId === '' ? 'root' : state.docId === '' ? 'list' : 'detail'}
+          >
             <div className={css.paneLeft}>
+              <div className={css.sectionHeader}>
+                <span className={css.sectionTitle}>知识库</span>
+                <span className={css.sectionCount}>{state.workspaces.length}</span>
+              </div>
               <div className={css.paneList}>
                 {state.workspaces.length === 0 && !state.loading && state.error === '' && (
                   <div className={css.empty}><YzjCloudIcon size={28} /><span>暂无知识库</span></div>
@@ -1532,7 +1709,7 @@ export function YzjPanel(props: YzjPanelProps) {
                         <IconFolderOpenOutline16 />
                         <span className={css.itemTitleText}>{name}</span>
                       </span>
-                      <span className={css.itemSub}>文档 {count} · 成员 {members}</span>
+                      <span className={`${css.itemSub} ${css.itemSubIconSm}`}>文档 {count} · 成员 {members}</span>
                     </button>
                   )
                 })}
@@ -1541,7 +1718,19 @@ export function YzjPanel(props: YzjPanelProps) {
             <div className={css.paneRight}>
               {state.docId !== '' ? (
                 docPreview === null ? (
-                  <div className={css.paneEmpty}>加载中…</div>
+                  <div className={css.paneList}>
+                    <div className={css.paneHead}>
+                      <button
+                        type="button"
+                        className={css.back}
+                        onClick={() => { props.actions.setDocId('') }}
+                      >
+                        <IconChevronLeft14 /> 返回文档
+                      </button>
+                      <span className={css.paneTitle}>文档</span>
+                    </div>
+                    <div className={css.paneEmpty}>加载中…</div>
+                  </div>
                 ) : (
                   <div className={css.paneList}>
                     <div className={css.paneHead}>
@@ -1563,6 +1752,14 @@ export function YzjPanel(props: YzjPanelProps) {
               ) : (
                 <div className={css.paneList}>
                   <div className={css.paneHead}>
+                    <button
+                      type="button"
+                      className={css.backNarrow}
+                      aria-label="返回知识库列表"
+                      onClick={backToWorkspaces}
+                    >
+                      <IconChevronLeft14 /> 知识库
+                    </button>
                     <span className={css.paneTitle}>
                       {asString(state.workspaces.map(asRecord).find(ws => asString(ws.id) === state.workspaceId)?.name ?? '知识库')}
                     </span>
@@ -1592,7 +1789,7 @@ export function YzjPanel(props: YzjPanelProps) {
                           <span className={css.docGlyph}>{suffix === 'dbt' ? '表' : '文'}</span>
                           <span className={css.itemTitleText}>{title}</span>
                         </span>
-                        <span className={css.itemSub}>{suffix === 'dbt' ? '多维表格' : '在线文档'} · {asString(node.updateTime).slice(0, 10)}</span>
+                        <span className={`${css.itemSub} ${css.itemSubIcon}`}>{suffix === 'dbt' ? '多维表格' : '在线文档'} · {asString(node.updateTime).slice(0, 10)}</span>
                       </button>
                     )
                   })}
@@ -1605,7 +1802,7 @@ export function YzjPanel(props: YzjPanelProps) {
 
       {activeTab === 'calendar' && (
         <div className={css.body}>
-          <div className={css.twoPane}>
+          <div className={css.twoPane} data-drilldown="stack">
             <div className={css.paneLeft}>
               <div className={css.calHead}>
                 <button type="button" className={css.calNav} aria-label="上个月" onClick={() => moveMonth(-1)}>‹</button>
@@ -1718,9 +1915,21 @@ export function YzjPanel(props: YzjPanelProps) {
                   {eventDetail !== null && state.calEventId !== '' && (
                     <div className={css.eventDetail}>
                       <div className={css.eventDetailTitle}>{eventDetail.title}</div>
-                      {eventDetail.time !== '' && <div className={css.eventDetailRow}>🕐 {eventDetail.time}</div>}
-                      {eventDetail.person !== '' && <div className={css.eventDetailRow}>👤 {eventDetail.person}</div>}
-                      {eventDetail.place !== '' && <div className={css.eventDetailRow}>📍 {eventDetail.place}</div>}
+                      {eventDetail.time !== '' && (
+                        <div className={css.eventDetailRow}>
+                          <span className={css.eventDetailLabel}>时间</span>{eventDetail.time}
+                        </div>
+                      )}
+                      {eventDetail.person !== '' && (
+                        <div className={css.eventDetailRow}>
+                          <span className={css.eventDetailLabel}>参与人</span>{eventDetail.person}
+                        </div>
+                      )}
+                      {eventDetail.place !== '' && (
+                        <div className={css.eventDetailRow}>
+                          <span className={css.eventDetailLabel}>地点</span>{eventDetail.place}
+                        </div>
+                      )}
                       {eventDetail.content !== '' && <div className={css.eventDetailContent}>{eventDetail.content}</div>}
                     </div>
                   )}
@@ -1733,12 +1942,14 @@ export function YzjPanel(props: YzjPanelProps) {
 
       {activeTab === 'chat' && (
         <div className={css.body}>
-          <div className={css.twoPane}>
+          <div className={css.twoPane} data-drilldown={state.groupId === '' ? 'root' : 'detail'}>
             <div className={css.paneLeft}>
-              <div className={css.readAllRow}>
-                <span className={css.readAllHint}>
-                  {state.unreadTotal > 0 ? `共 ${state.unreadTotal > 99 ? '99+' : state.unreadTotal} 条未读` : '没有未读消息'}
+              <div className={css.sectionHeader}>
+                <span className={css.sectionTitle}>最近会话</span>
+                <span className={css.sectionCount}>
+                  {state.unreadTotal > 0 ? `${state.unreadTotal > 99 ? '99+' : state.unreadTotal} 条未读` : '已全部读完'}
                 </span>
+                <span className={css.sectionSpacer} />
                 <button
                   type="button"
                   className={css.readAll}
@@ -1783,7 +1994,7 @@ export function YzjPanel(props: YzjPanelProps) {
                       {lastTime !== '' && <span className={css.itemTime}>{lastTime}</span>}
                       {unread > 0 && <span className={css.badge}>{unread > 99 ? '99+' : unread}</span>}
                     </span>
-                    <span className={css.itemSub}>{preview}</span>
+                    <span className={`${css.itemSub} ${css.itemSubIcon}`}>{preview}</span>
                   </button>
                 )
               })}
@@ -1800,6 +2011,14 @@ export function YzjPanel(props: YzjPanelProps) {
             ) : (
             <>
               <div className={css.chatHeader}>
+                <button
+                  type="button"
+                  className={css.backNarrow}
+                  aria-label="返回会话列表"
+                  onClick={backToGroups}
+                >
+                  <IconChevronLeft14 /> 会话
+                </button>
                 <GroupHead groups={state.groups} groupId={state.groupId} />
               </div>
               {anchorActive && (
@@ -1942,9 +2161,6 @@ export function YzjPanel(props: YzjPanelProps) {
                         setMentionQuery(q)
                         searchMention(q)
                       }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Escape') setMentionOpen(false)
-                      }}
                     />
                     <div className={css.mentionList}>
                       <button type="button" className={css.mentionItem} onClick={pickMentionAll}>
@@ -2079,6 +2295,34 @@ export function YzjPanel(props: YzjPanelProps) {
           </div>
         </div>
       )}
+
+        </div>
+      </div>
+
+      <div
+        className={css.resizeHandle}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="从左侧调整宽度"
+        aria-valuemin={PANEL_MIN_WIDTH}
+        aria-valuenow={Math.round(resizeNowWidth)}
+        aria-valuemax={Math.round(resizeMaxWidth)}
+        tabIndex={0}
+        onPointerDown={startResize('left')}
+        onKeyDown={onResizeKeyDown('left')}
+      />
+      <div
+        className={css.resizeHandleRight}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="从右侧调整宽度"
+        aria-valuemin={PANEL_MIN_WIDTH}
+        aria-valuenow={Math.round(resizeNowWidth)}
+        aria-valuemax={Math.round(resizeMaxWidth)}
+        tabIndex={0}
+        onPointerDown={startResize('right')}
+        onKeyDown={onResizeKeyDown('right')}
+      />
 
       {dropToast !== '' && (
         <div className={css.dropToast} role="status">{dropToast}</div>
