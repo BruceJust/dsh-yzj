@@ -961,15 +961,15 @@ export function YzjPanel(props: YzjPanelProps) {
     return true
   }
 
-  // Keep the newest messages in view: bottom on group open and after sends,
-  // unless an anchor jump is active.
+  // Keep the newest messages in view: bottom on group open, panel reopen, and
+  // after sends, unless an anchor jump is active.
   useEffect(() => {
     if (state.groupId === '' || state.anchorMsgId !== '') return
     const list = listRef.current
     if (list === null) return
     list.scrollTop = list.scrollHeight
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.groupId, state.messages])
+  }, [open, state.groupId, state.messages])
 
   // Resolve sender display names for the loaded message window (cached).
   // The React state mirrors the module cache so newly resolved names
