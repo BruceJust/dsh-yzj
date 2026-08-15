@@ -10,7 +10,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { YzjWriteRecord } from '../write-gate.ts'
 import { YzjToolCard } from './cards.tsx'
-import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/src/client/contract/slots.ts'
+import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import { decodeRef } from './input-source.ts'
 import css from './cards.module.css'
 

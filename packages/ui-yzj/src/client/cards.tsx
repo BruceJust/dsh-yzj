@@ -18,7 +18,7 @@ import {
   IconUserOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
-import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/src/client/contract/slots.ts'
+import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import css from './cards.module.css'
 
 /** Every wire tool name this package renders. */

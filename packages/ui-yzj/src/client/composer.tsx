@@ -9,7 +9,7 @@
  */
 import { useEffect } from 'react'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { InsertReferenceRequest } from '@deepseek-ai/dsh-client-ui-input-trigger/src/types.ts'
+import type { InsertReferenceRequest } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type { YzjDragRef } from './panel.tsx'
 import { SOURCE_NAME, encodeRef } from './input-source.ts'
 import { onYzjDropRequest } from './drop-bus.ts'
