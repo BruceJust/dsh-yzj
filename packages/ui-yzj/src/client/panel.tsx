@@ -514,14 +514,31 @@ const EMOJI_MAP: Record<string, string> = {
   庆祝: '🎉', 烟花: '🎆', 红包: '🧧', 礼物: '🎁', 飞机: '✈️', 汽车: '🚗', 太阳: '☀️', 月亮: '🌙',
   星星: '⭐', 闪电: '⚡', 雨: '🌧️', 雪: '❄️', 云: '☁️', 风: '🍃', 西瓜: '🍉', 苹果: '🍎',
   米饭: '🍚', 面: '🍜', 收到: '✅', 求抱抱: '🤗', 比心: '💗', 花朵: '🌸',
+  困: '😪', 犯困: '🥱', 哈欠: '🥱', 打瞌睡: '😪', 睡: '😴', 睡着: '😴',
+  委屈: '🥺', 可怜: '🥺', 撒娇: '🥰', 可爱: '🥰', 爱你: '😍', 亲亲: '😘', 吻: '😘', 抱抱: '🤗',
+  晕: '😵', 头晕: '😵‍💫', 尴尬: '😅', 冷汗: '😰', 汗: '😓', 汗颜: '😅',
+  吐: '🤮', 白眼: '🙄', 斜眼: '🙄', 无语: '😑', 闭嘴: '🤐', 嘘: '🤫', 捂嘴: '🤭', 偷笑: '🤭',
+  坏笑: '😏', 奸笑: '😏', 酷: '😎', 囧: '😳', 脸红: '😳',
+  心碎: '💔', 碎心: '💔', 哭泣: '😭', 泪奔: '😭',
+  蜡烛: '🕯️', 祈祷: '🙏', 感谢: '🙏', 谢谢: '🙏',
+  累: '😩', 压力: '😫', 郁闷: '😞', 抓狂: '😫',
+  生病: '🤒', 发烧: '🤒', 感冒: '🤧', 打喷嚏: '🤧', 口罩: '😷', 药: '💊', 打针: '💉',
+  钱: '💰', 金钱: '💰', 发财: '🤑',
+  再见: '👋', 拜拜: '👋', 你好: '👋', 嗨: '👋',
+  棒: '👍', 顶: '👍', 踩: '👎', 赞一个: '👍',
+  流口水: '🤤', 馋: '🤤', 醉了: '🥴',
+  炸弹: '💣', 火: '🔥', 火箭: '🚀', 灯泡: '💡', 问号: '❓', 感叹号: '❗', 叹号: '❗',
 }
 
 /** Render message text with [token] emoticons mapped to real emoji. */
 function emojiText(text: string): ReactNode[] {
   return text.split(/(\[[^\]\n]{1,10}\])/).map((part, index) => {
     if (part.length > 2 && part.startsWith('[') && part.endsWith(']')) {
-      const emoji = EMOJI_MAP[part.slice(1, -1)]
+      const token = part.slice(1, -1)
+      const emoji = EMOJI_MAP[token]
       if (emoji !== undefined) return <span key={index}>{emoji}</span>
+      // Unmapped token: show the emoticon name as a subtle chip, never raw [xxx].
+      return <span key={index} className={css.emojiFallback}>{token}</span>
     }
     return part
   })
@@ -781,6 +798,7 @@ export function YzjPanel(props: YzjPanelProps) {
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const draftRef = useRef<HTMLTextAreaElement | null>(null)
+  const messagesRef = useRef<unknown[]>([])
 
   // The login user, so "my" messages bubble right with the brand color.
   useEffect(() => {
@@ -809,6 +827,35 @@ export function YzjPanel(props: YzjPanelProps) {
     props.actions.setGroups(state.groups.map(item =>
       asString(asRecord(item).groupId) === state.groupId ? { ...asRecord(item), unreadCount: 0 } : item))
     props.actions.setUnreadTotal(unreadTotalOf({ list: state.groups }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.groupId])
+
+  // Keep the latest window in a ref so the sync poll never reads a stale
+  // closure (the interval re-arms only when the open group changes).
+  useEffect(() => { messagesRef.current = state.messages }, [state.messages])
+
+  // Near-real-time sync for the open conversation: poll for messages newer
+  // than the latest known id and append the delta, so app-side chatter shows
+  // up without a manual reopen.
+  useEffect(() => {
+    if (state.groupId === '') return
+    const poll = (): void => {
+      const list = messagesRef.current
+      const latest = list.length > 0 ? asRecord(list[list.length - 1]) : undefined
+      const anchor = latest === undefined ? '' : asString(latest.msgId)
+      if (anchor === '' || anchor.startsWith('local-')) return
+      void props.fetchMessages(state.groupId, 30, { type: 'new', msgId: anchor }).then((result) => {
+        if (!result.ok) return
+        const incoming = asArray(asRecord(result.value).list)
+        if (incoming.length === 0) return
+        const merged = [...messagesRef.current, ...incoming]
+        messagesRef.current = merged
+        props.actions.setMessages(merged)
+        putMessageWindow(state.groupId, merged, state.messagesMore)
+      })
+    }
+    const interval = window.setInterval(poll, 15_000)
+    return () => window.clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.groupId])
 

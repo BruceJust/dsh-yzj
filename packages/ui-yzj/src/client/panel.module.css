@@ -260,13 +260,32 @@
   white-space: nowrap;
 }
 
-/* Active row in the left list. */
+/* Active row in the left list: tint + left accent bar + bolder title so the
+   currently open conversation is obvious at a glance. */
 .itemActive {
   background: var(--dsw-static-deepseek-100);
+  box-shadow: inset 3px 0 0 var(--dsw-static-deepseek-600);
 }
 
 .itemActive:hover {
   background: var(--dsw-static-deepseek-100);
+}
+
+.itemActive .itemTitleText {
+  font-weight: 600;
+  color: var(--dsw-static-deepseek-600);
+}
+
+/* Unmapped [token] emoticon: show its name as a subtle chip, never raw brackets. */
+.emojiFallback {
+  display: inline-block;
+  padding: 0 5px;
+  margin: 0 1px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--dsw-alias-label-tertiary);
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 /* ── Status strips ───────────────────────────────────────────────────── */
