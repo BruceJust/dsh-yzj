@@ -1,56 +1,12 @@
 /*
- * Yunzhijia floating panel + sidebar toggle, redesigned on the dsh native
- * visual language: semantic --dsw-alias-* tokens, 16px rhythm, layered
- * borders, card-like list entries, chat bubbles for the message stream.
+ * Yunzhijia floating panel + floating ball, redesigned on a Fluent/Webex
+ * enterprise substrate while keeping the GUI's --dsw-* tokens as the color
+ * authority: layered neutral surfaces, one precise blue action, 8px rhythm,
+ * restrained (<=8px) radii on lists/cards/controls, three weights
+ * (400/500/600), visible focus rings and pressed states, reduced-motion
+ * support, and a single-column drill-down under 720px. No gradients, blobs,
+ * or external fonts.
  */
-
-/* Sidebar-foot toggle: a labeled pill in the wide column, a centered rail
-   icon when the sidebar is collapsed. The occupant owns its geometry. */
-.toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: 6px 10px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-  transition: background-color 120ms var(--ds-ease-in-out, ease), color 120ms var(--ds-ease-in-out, ease);
-}
-
-.toggle:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
-}
-
-.toggleActive {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-static-deepseek-500);
-}
-
-.toggleLabel {
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-/* Floating-ball unread badge on the sidebar toggle. */
-.unreadBadge {
-  position: relative;
-  flex: none;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: var(--dsw-static-red-500);
-  color: #ffffff;
-  font-size: 10px;
-  line-height: 16px;
-  text-align: center;
-}
 
 /* ── Panel frame ─────────────────────────────────────────────────────── */
 
@@ -60,38 +16,81 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  width: min(880px, 96vw);
-  height: min(700px, 94vh);
+  width: min(760px, 96vw);
+  height: min(720px, 94vh);
   margin: auto;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-alias-label-primary);
   box-shadow: 0 16px 48px rgb(0 0 0 / 0.18);
   font-size: 14px;
   line-height: 20px;
+  letter-spacing: 0;
+  box-sizing: border-box;
   overflow: hidden;
+  animation: panelIn 160ms var(--ds-ease-out, ease-out);
 }
 
-/* Header row: brand + title + spacer + icon actions. */
+/* Subtle panel-open entrance: fade + slight rise/scale, collapsed to an
+   instant swap under reduced-motion. */
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Header command bar: brand + title + divider + active module + spacer +
+   icon actions, a restrained layer-1 surface with a bottom divider and a
+   stable 48px height. */
 .header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  min-height: 48px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-specific-sidebar-fill, var(--dsw-alias-bg-layer-1));
+  box-sizing: border-box;
   flex: none;
 }
 
+/* Brand mark: a 28px blue-tint square (<=8px radius) holding the cloud icon. */
 .brand {
   display: inline-flex;
   align-items: center;
-  color: var(--dsw-static-deepseek-500);
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--dsw-static-deepseek-100);
+  color: var(--dsw-static-deepseek-600);
   flex: none;
 }
 
 .title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
+  flex: none;
+}
+
+/* Vertical hairline separating the product title from the active module. */
+.headerDivider {
+  width: 1px;
+  height: 20px;
+  background: var(--dsw-alias-border-l2);
+  flex: none;
+}
+
+.moduleLabel {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  font-weight: 500;
   flex: none;
 }
 
@@ -99,46 +98,108 @@
   flex: 1;
 }
 
-/* Tab rail: its own row under the header, pill segmented control. */
-.tabs {
+/* Workbench shell: a compact top navigation beneath the command bar with the
+   active module content filling the rest. On narrow screens the same nav
+   element becomes a bottom navigation (see the media query). */
+.shell {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  gap: 2px;
-  padding: 2px 12px 8px;
-  border-bottom: 1px solid var(--dsw-alias-border-l1);
-  flex: none;
+  flex-direction: column;
   overflow: hidden;
 }
 
-.tab {
-  display: inline-flex;
+/* Compact full-width top navigation (desktop): horizontal icon + label. */
+.navRail {
+  flex: none;
+  display: flex;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  flex: 1;
-  padding: 5px 8px;
+  gap: 2px;
+  min-height: 44px;
+  padding: 0 8px;
+  border-right: none;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-module-platform, var(--dsw-alias-bg-layer-1));
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+/* Horizontal icon + label nav item (desktop top navigation). */
+.navItem {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
   cursor: pointer;
   transition: background-color 120ms var(--ds-ease-in-out, ease), color 120ms var(--ds-ease-in-out, ease);
 }
 
-.tab:hover {
+.navItem:hover {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
 
-.tabActive {
-  background: var(--dsw-static-deepseek-100);
-  color: var(--dsw-static-deepseek-600);
+.navItemIcon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex: none;
+}
+
+.navItemLabel {
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+/* Selected item: verified active-accent fill, business-primary icon/label —
+   no rounded-card + colored edge anti-pattern. */
+.navItemActive {
+  background: var(--dsw-specific-sidebar-nav-item-active-accent, var(--dsw-alias-interactive-bg-hover-solid));
+}
+
+.navItemActive:hover {
+  background: var(--dsw-specific-sidebar-nav-item-active-accent, var(--dsw-alias-interactive-bg-hover-solid));
+}
+
+.navItemActive .navItemIcon {
+  color: var(--dsw-alias-state-business-primary, var(--dsw-static-deepseek-600));
+}
+
+.navItemActive .navItemLabel {
+  color: var(--dsw-alias-state-business-primary, var(--dsw-static-deepseek-600));
   font-weight: 600;
 }
 
-.tabActive:hover {
-  background: var(--dsw-static-deepseek-100);
-  color: var(--dsw-static-deepseek-600);
+.navItemBadge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--dsw-static-red-500);
+  color: var(--dsw-static-neutral-bluish-00);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .iconButton {
@@ -188,12 +249,83 @@
   cursor: default;
 }
 
+/* Content column: error/loading strip + the active tab body. */
+.content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .body {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* ── Horizontal resize handles (desktop) ─────────────────────────────── */
+
+/* Direct panel children pinned to the left/right edges; the visible grip is
+   a 2px center line revealed on hover/focus. Hidden on narrow and touch. */
+.resizeHandle,
+.resizeHandleRight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  z-index: 120;
+  cursor: ew-resize;
+  touch-action: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.resizeHandle {
+  left: 0;
+}
+
+.resizeHandleRight {
+  right: 0;
+}
+
+.resizeHandle::after,
+.resizeHandleRight::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: transparent;
+  border-radius: 1px;
+  transition: background-color 120ms var(--ds-ease-in-out, ease);
+}
+
+.resizeHandle::after {
+  right: 1px;
+}
+
+.resizeHandleRight::after {
+  left: 1px;
+}
+
+.resizeHandle:hover::after,
+.resizeHandleRight:hover::after,
+.resizeHandle:focus-visible::after,
+.resizeHandleRight:focus-visible::after {
+  background: var(--dsw-alias-state-business-primary, var(--dsw-static-deepseek-500));
+}
+
+.resizeHandle:focus-visible,
+.resizeHandleRight:focus-visible {
+  outline: 2px solid var(--dsw-static-deepseek-500);
+  outline-offset: -2px;
 }
 
 /* ── Wide two-pane layout: left list, right content ──────────────────── */
@@ -205,12 +337,13 @@
 }
 
 .paneLeft {
-  width: 250px;
+  width: clamp(220px, 34%, 260px);
   flex: none;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--dsw-alias-border-l1);
+  border-right: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-specific-sidebar-fill, var(--dsw-alias-bg-layer-1));
 }
 
 .paneRight {
@@ -219,6 +352,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  background: var(--dsw-alias-bg-base);
 }
 
 .paneList {
@@ -249,6 +383,8 @@
   align-items: center;
   gap: 8px;
   padding: 4px 10px 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-specific-sidebar-fill, var(--dsw-alias-bg-layer-1));
 }
 
 .paneTitle {
@@ -260,20 +396,19 @@
   white-space: nowrap;
 }
 
-/* Active row in the left list: tint + left accent bar + bolder title so the
-   currently open conversation is obvious at a glance. */
+/* Active row in the left list: verified active-accent fill + business-primary
+   title emphasis — visible against the gray list surface, no colored stripe. */
 .itemActive {
-  background: var(--dsw-static-deepseek-100);
-  box-shadow: inset 3px 0 0 var(--dsw-static-deepseek-600);
+  background: var(--dsw-specific-sidebar-nav-item-active-accent, var(--dsw-alias-interactive-bg-hover-solid));
 }
 
 .itemActive:hover {
-  background: var(--dsw-static-deepseek-100);
+  background: var(--dsw-specific-sidebar-nav-item-active-accent, var(--dsw-alias-interactive-bg-hover-solid));
 }
 
 .itemActive .itemTitleText {
   font-weight: 600;
-  color: var(--dsw-static-deepseek-600);
+  color: var(--dsw-alias-state-business-primary, var(--dsw-static-deepseek-600));
 }
 
 /* Unmapped [token] emoticon: show its name as a subtle chip, never raw brackets. */
@@ -299,7 +434,7 @@
   gap: 6px;
   padding: 8px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-base);
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.16);
   z-index: 30;
@@ -370,34 +505,52 @@
 
 .atButtonText {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
 }
 
 /* ── Status strips ───────────────────────────────────────────────────── */
 
-/* 全部已读 toolbar above the group list. */
-.readAllRow {
+/* Compact list section header (docs workspaces / recent chats): title +
+   count, optionally a trailing action. */
+.sectionHeader {
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  min-height: 40px;
   padding: 6px 12px;
-  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-specific-sidebar-fill, var(--dsw-alias-bg-layer-1));
+  box-sizing: border-box;
 }
 
-.readAllHint {
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  flex: none;
+}
+
+.sectionCount {
+  flex: none;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.sectionSpacer {
+  flex: 1;
 }
 
 .readAll {
   flex: none;
   padding: 3px 12px;
   border: 1px solid var(--dsw-static-deepseek-500);
-  border-radius: 999px;
+  border-radius: 8px;
   background: transparent;
   color: var(--dsw-static-deepseek-500);
   font-size: 12px;
@@ -472,20 +625,24 @@
   gap: 3px;
 }
 
-/* Generic entry: icon block + title + sub, hover-revealed surface. */
+/* Generic entry: icon block + title + sub, hover-revealed surface, a stable
+   48px+ row height. */
 .item {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 3px;
-  padding: 8px 10px;
+  min-height: 48px;
+  padding: 8px 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: 6px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   text-align: left;
   cursor: pointer;
   min-width: 0;
+  box-sizing: border-box;
   transition: background-color 120ms var(--ds-ease-in-out, ease);
 }
 
@@ -521,10 +678,19 @@
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 16px;
-  padding-left: 42px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Sub-line alignment for icon-bearing entries (explicit, not the old
+   universal 42px indent): a 32px glyph slot and a 16px icon slot. */
+.itemSubIcon {
+  padding-left: 42px;
+}
+
+.itemSubIconSm {
+  padding-left: 26px;
 }
 
 /* First-letter glyph blocks (docs, groups, contacts) — avatar-sized. */
@@ -548,7 +714,7 @@
   padding: 0 6px;
   border-radius: 999px;
   background: var(--dsw-static-red-500);
-  color: #ffffff;
+  color: var(--dsw-static-neutral-bluish-00);
   font-size: 11px;
   line-height: 16px;
   flex: none;
@@ -578,7 +744,7 @@
   align-items: flex-start;
   gap: 8px;
   padding: 4px 10px 4px 18px;
-  border-radius: 10px;
+  border-radius: 8px;
   min-width: 0;
 }
 
@@ -709,7 +875,7 @@
   gap: 5px;
   padding: 3px 10px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
@@ -734,7 +900,7 @@
   padding: 0 5px;
   border-radius: 999px;
   background: var(--dsw-static-red-500);
-  color: #ffffff;
+  color: var(--dsw-static-neutral-bluish-00);
   font-size: 10px;
   line-height: 14px;
 }
@@ -767,7 +933,7 @@
   display: table;
   margin: 6px auto 2px;
   padding: 1px 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
@@ -807,15 +973,16 @@
   align-items: center;
   gap: 4px;
   padding: 2px 4px 0;
-  border-bottom: 1px solid var(--dsw-alias-border-l1);
-  background: var(--dsw-alias-bg-base);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-specific-sidebar-fill, var(--dsw-alias-bg-layer-1));
 }
 
 .chatHeader .groupHead {
   padding: 2px 6px 6px;
 }
 
-.back {
+.back,
+.backNarrow {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -831,15 +998,22 @@
   transition: background-color 120ms var(--ds-ease-in-out, ease);
 }
 
-.back:hover {
+.back:hover,
+.backNarrow:hover {
   background: var(--dsw-static-deepseek-100);
+}
+
+/* The drill-down back control is mobile-only: the wide layout shows both
+   panes, so there is nothing to return to. */
+.backNarrow {
+  display: none;
 }
 
 .more {
   margin: 6px auto 2px;
   padding: 5px 14px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-static-deepseek-500);
   font-size: 12px;
@@ -901,7 +1075,7 @@
   margin: 6px 10px 8px;
   padding: 12px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-layer-1);
   flex: none;
 }
@@ -950,9 +1124,16 @@
    so mouseleave never fires while moving between them. */
 .floatWrap {
   position: fixed;
-  right: 26px;
-  bottom: 26px;
+  right: calc(26px + env(safe-area-inset-right, 0px));
+  bottom: calc(26px + env(safe-area-inset-bottom, 0px));
   z-index: 90;
+}
+
+/* Keyboard focus keeps the quick-dock open (it is hover-revealed on mouse). */
+.floatWrap:focus-within .floatDock {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
 }
 
 .floatBall {
@@ -991,9 +1172,9 @@
   border-radius: 999px;
   border: 2px solid var(--dsw-alias-bg-base);
   background: var(--dsw-static-red-500);
-  color: #ffffff;
+  color: var(--dsw-static-neutral-bluish-00);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 16px;
   display: flex;
   align-items: center;
@@ -1010,7 +1191,7 @@
   gap: 2px;
   padding: 6px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-layer-1);
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
   opacity: 0;
@@ -1061,9 +1242,9 @@
   border-radius: 999px;
   border: 1px solid var(--dsw-alias-bg-layer-1);
   background: var(--dsw-static-red-500);
-  color: #ffffff;
+  color: var(--dsw-static-neutral-bluish-00);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 14px;
   display: flex;
   align-items: center;
@@ -1084,7 +1265,7 @@
   transition: opacity 120ms var(--ds-ease-in-out, ease);
 }
 
-.msgItem:hover .grip {
+.msgRow:hover .grip {
   opacity: 1;
 }
 
@@ -1096,7 +1277,7 @@
   line-height: 16px;
   text-align: center;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: 8px;
 }
 
 /* Transient "已插入到输入框" confirmation after a panel-wide drop. */
@@ -1111,7 +1292,7 @@
   font-size: 12px;
   line-height: 18px;
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: 8px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
   white-space: nowrap;
   animation: bandIn 150ms var(--ds-ease-out, ease-out);
@@ -1136,7 +1317,7 @@
   position: absolute;
   inset: 14px;
   border: 2px dashed var(--dsw-static-deepseek-500);
-  border-radius: 14px;
+  border-radius: 8px;
   pointer-events: none;
 }
 
@@ -1146,7 +1327,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 22px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-static-deepseek-600);
   font-size: 14px;
@@ -1300,10 +1481,23 @@
   color: var(--dsw-static-deepseek-500);
 }
 
-.msgFileIcon {
-  font-size: 20px;
-  line-height: 20px;
+/* File type badge: compact literal label (PDF / VIDEO / XLS / DOC / ZIP /
+   FILE) replacing the old emoji-as-icon. */
+.msgFileBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
+  min-width: 34px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
 }
 
 .msgFileMeta {
@@ -1413,7 +1607,7 @@
   height: min(90vh, 900px);
   border: none;
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--dsw-static-neutral-bluish-00);
   box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
 }
 
@@ -1425,7 +1619,8 @@
   flex-direction: column;
   gap: 6px;
   padding: 8px 10px;
-  border-top: 1px solid var(--dsw-alias-border-l1);
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-specific-sidebar-fill, var(--dsw-alias-bg-layer-1));
   flex: none;
 }
 
@@ -1440,7 +1635,7 @@
   min-width: 0;
   padding: 7px 10px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
@@ -1469,9 +1664,9 @@
   flex: none;
   padding: 7px 14px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--dsw-static-deepseek-500);
-  color: #ffffff;
+  color: var(--dsw-static-neutral-bluish-00);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -1570,7 +1765,7 @@
   gap: 2px;
   padding: 8px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-base);
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.16);
   z-index: 30;
@@ -1703,7 +1898,7 @@
   margin-top: 4px;
   padding: 10px 12px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-layer-1);
   display: flex;
   flex-direction: column;
@@ -1717,9 +1912,19 @@
 }
 
 .eventDetailRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   line-height: 18px;
+}
+
+/* Labeled metadata replaces the old emoji-prefixed rows (no emoji-as-icons). */
+.eventDetailLabel {
+  flex: none;
+  min-width: 40px;
+  color: var(--dsw-alias-label-tertiary);
 }
 
 .eventDetailContent {
@@ -1756,4 +1961,273 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* ── Focus / pressed / motion ────────────────────────────────────────── */
+
+/* Keyboard focus ring: a 2px blue halo. WCAG 2.4.13 Focus Appearance is an
+   enhanced/AAA criterion (not AA); the halo still meets its >=3:1 contrast. */
+.panel button:focus-visible,
+.panel a:focus-visible,
+.panel input:focus-visible,
+.panel textarea:focus-visible {
+  outline: 2px solid var(--dsw-static-deepseek-500);
+  outline-offset: 1px;
+}
+
+/* The floating ball/dock live outside .panel, so they get their own ring. */
+.floatBall:focus-visible,
+.floatDockItem:focus-visible {
+  outline: 2px solid var(--dsw-static-deepseek-500);
+  outline-offset: 2px;
+}
+
+/* Pressed states: a physical push, no layout shift. */
+.item:active,
+.navItem:active,
+.iconButton:active,
+.headerButton:active,
+.back:active,
+.backNarrow:active,
+.mentionItem:active,
+.emojiCell:active,
+.floatDockItem:active {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.composerSend:active:not(:disabled) {
+  background: var(--dsw-static-deepseek-600);
+}
+
+.floatBall:active {
+  transform: scale(0.96);
+}
+
+.readAll:active:not(:disabled) {
+  background: var(--dsw-static-deepseek-200);
+  color: var(--dsw-static-deepseek-600);
+}
+
+.more:active:not(:disabled),
+.groupChip:active {
+  background: var(--dsw-static-deepseek-100);
+}
+
+.calCell:active,
+.calNav:active {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.msgFile:active:not(:disabled) {
+  background: var(--dsw-static-deepseek-200);
+}
+
+/* Reduced motion: collapse transitions/animations to an instant swap. */
+@media (prefers-reduced-motion: reduce) {
+  .panel *,
+  .panel *::before,
+  .panel *::after,
+  .floatWrap *,
+  .floatWrap *::before,
+  .floatWrap *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ── Narrow window (< 720px): full-viewport, single-column drill-down ── */
+
+@media (max-width: 719.98px) {
+  .panel {
+    inset: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: 0;
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+
+  /* 44px+ touch targets on the primary controls. */
+  .header {
+    min-height: 48px;
+    padding: 0 8px;
+  }
+
+  .iconButton {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Desktop top navigation becomes a fixed bottom navigation: after the
+     content, three equal horizontal icon-over-label items, safe-area aware. */
+  .shell {
+    flex-direction: column;
+  }
+
+  .navRail {
+    order: 2;
+    width: 100%;
+    flex: none;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
+    padding: 0 6px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-right: none;
+    border-bottom: none;
+    border-top: 1px solid var(--dsw-alias-border-l2);
+    overflow: visible;
+  }
+
+  .navItem {
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 7px 4px 9px;
+    border-radius: 0;
+    min-height: 56px;
+  }
+
+  .navItemIcon {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* The desktop resize grips have no meaning in full-viewport narrow mode. */
+  .resizeHandle,
+  .resizeHandleRight {
+    display: none;
+  }
+
+  .toolButton {
+    width: 44px;
+    height: 44px;
+  }
+
+  .composerSend {
+    min-height: 44px;
+  }
+
+  .back,
+  .backNarrow {
+    min-height: 44px;
+  }
+
+  .mentionItem {
+    min-height: 44px;
+  }
+
+  .calNav {
+    width: 44px;
+    height: 44px;
+  }
+
+  .item {
+    min-height: 44px;
+  }
+
+  .floatDockItem {
+    min-height: 44px;
+  }
+
+  .readAll {
+    min-height: 40px;
+  }
+
+  /* Single-column drill-down: exactly one pane is visible at a time. */
+  .twoPane {
+    flex-direction: column;
+  }
+
+  .paneLeft {
+    width: 100%;
+    flex: none;
+    border-right: none;
+  }
+
+  .paneRight {
+    flex: 1;
+  }
+
+  .twoPane[data-drilldown='root'] .paneLeft {
+    flex: 1;
+  }
+
+  .twoPane[data-drilldown='root'] .paneRight {
+    display: none;
+  }
+
+  .twoPane[data-drilldown='list'] .paneLeft,
+  .twoPane[data-drilldown='detail'] .paneLeft {
+    display: none;
+  }
+
+  /* Calendar stacks the month grid above the agenda; the month stays compact. */
+  .twoPane[data-drilldown='stack'] .paneLeft {
+    flex: none;
+    border-bottom: 1px solid var(--dsw-alias-border-l2);
+  }
+
+  /* Reveal the mobile-only drill-down back controls. */
+  .backNarrow {
+    display: inline-flex;
+  }
+}
+
+/* ── Compact desktop (< 620px panel width): single-pane drill-down while
+   keeping the top navigation and resize handles. Mirrors the narrow drill-down
+   semantics without the full-viewport frame or bottom navigation. ── */
+.panel[data-compact='true'] .twoPane {
+  flex-direction: column;
+}
+
+.panel[data-compact='true'] .paneLeft {
+  width: 100%;
+  flex: none;
+  border-right: none;
+}
+
+.panel[data-compact='true'] .paneRight {
+  flex: 1;
+}
+
+.panel[data-compact='true'] .twoPane[data-drilldown='root'] .paneLeft {
+  flex: 1;
+}
+
+.panel[data-compact='true'] .twoPane[data-drilldown='root'] .paneRight {
+  display: none;
+}
+
+.panel[data-compact='true'] .twoPane[data-drilldown='list'] .paneLeft,
+.panel[data-compact='true'] .twoPane[data-drilldown='detail'] .paneLeft {
+  display: none;
+}
+
+/* Calendar stacks the month grid above the agenda with a visible separator. */
+.panel[data-compact='true'] .twoPane[data-drilldown='stack'] .paneLeft {
+  flex: none;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+/* Reveal the drill-down back controls in compact single-pane mode. */
+.panel[data-compact='true'] .backNarrow {
+  display: inline-flex;
+}
+
+/* Coarse/touch pointers get no edge-resize grips (drag gestures conflict).
+   The comma matches the component's `touch` detection (hover:none OR coarse). */
+@media (hover: none), (pointer: coarse) {
+  .resizeHandle,
+  .resizeHandleRight {
+    display: none;
+  }
 }

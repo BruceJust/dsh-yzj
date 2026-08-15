@@ -8,12 +8,12 @@ Registers the `/yzj` Connection RPC channel over `ctx.yzjBridge` (authority `loo
 
 ## Browser half
 
-Registers into existing slots (`tool.call.toolview`, `sidebar.footer.action`, `shell.overlay`):
+Registers into existing slots (`tool.call.toolview`, `shell.overlay`, `conversation.input.dock`):
 
 - **Tool cards** — one keyed view per yzj tool name: pending calls render the family title from args; settled calls render the structured `meta` payload (doc details/lists, sheet schema/records, calendar timeline, message/group rows, contact cards) with the digest text as fallback, and an error summary on failure.
-- **Workspace panel** — sidebar-foot 云之家 toggle plus a frame overlay with four tabs: 知识库 (workspace → doc tree drill-down), 日程 (today), 会话 (recent groups → messages), 我的 (identity card + directory search). All data flows through the `/yzj` RPC channel; components receive facts and verbs through the four props shares only.
+- **Floating-ball panel** — a permanent bottom-right 云之家 floating ball (hover quick-dock for tab shortcuts) opens a product command bar (`云之家工作台` + active module label) over a workbench shell with three applications: 知识库 (workspace → doc drill-down), 日程 (calendar month + day agenda), 会话 (recent groups → messages). On wide viewports a compact full-width top navigation (horizontal icon + label, 会话 shows an unread badge) sits beneath the command bar, and the panel is horizontally resizable from both left and right edges (desktop 480–1080px, default 760; keyboard or pointer; width persists across close/reopen and refresh). Below a 620px panel width the top navigation and resize grips remain, but the two-pane flows collapse to the single-pane drill-down (back controls revealed) and the calendar stacks vertically; wider panels keep the two-pane layout. Under a 720px viewport the same navigation becomes a fixed safe-area-aware bottom bar (icon-over-label) and the content remains a full-viewport single-column drill-down with mobile back controls; resize grips are hidden. All data flows through the `/yzj` RPC channel; components receive facts and verbs through the props shares only.
 
-Styling uses the GUI's `--dsw-*` semantic tokens with local fallbacks; product copy is Chinese.
+Styling keeps the GUI's `--dsw-*` tokens as the color authority under a Fluent/Webex enterprise layer (neutral surfaces, one blue action, 8px rhythm, restrained radii, three weights); product copy is Chinese.
 
 ## Model Experience
 

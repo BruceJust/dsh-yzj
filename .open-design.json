@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "designSystem": {
+    "slug": "webex",
+    "path": "design-systems/webex"
+  },
+  "skill": {
+    "slug": "redesign-skill",
+    "path": "skills/redesign-skill",
+    "kind": "skill",
+    "mode": "prototype"
+  },
+  "boundAt": "2026-08-15T10:18:54Z"
+}

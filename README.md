@@ -10,7 +10,7 @@
 |---|---|---|
 | [`packages/bridge`](packages/bridge/README.md) | `@dsh-yzj/bridge` → `ctx.yzjBridge` | 有界子进程通道：argv 数组直启 `yzj-cli`，无 shell 插值；复用机器上 `yzj-cli auth login` 的登录态与 keychain 凭据，harness 全程不接触 appSecret/accessToken |
 | [`packages/tool-yzj`](packages/tool-yzj/README.md) | `@dsh-yzj/tool-yzj`（注册到 `ctx.tools`） | 41 个模型面工具：doc（16）/ sheet（10）/ calendar（7）/ contact（3）/ im（3）/ file（2）；每个工具输出有界 digest，并把裁剪后的结构化载荷经 `output.presentationMeta` 投影给 UI |
-| [`packages/ui-yzj`](packages/ui-yzj/README.md) | `@dsh-yzj/ui-yzj`（`dsh.client` 双面包） | node half：`/yzj` Connection RPC 通道；browser half：`tool.call.toolview` keyed 富卡片 + 侧边栏「云之家」按钮 + 工作台 overlay 面板 |
+| [`packages/ui-yzj`](packages/ui-yzj/README.md) | `@dsh-yzj/ui-yzj`（`dsh.client` 双面包） | node half：`/yzj` Connection RPC 通道；browser half：`tool.call.toolview` keyed 富卡片 + 右下角「云之家」悬浮球 + 工作台 overlay 面板（三应用：知识库/日程/会话，桌面顶部导航 + 左右水平调宽 + 窄屏底部导航，响应式窄窗单列钻取） |
 | [`packages/bundle`](packages/bundle/README.md) | `@dsh-yzj/bundle` | 可安装的 profile patch 层（`cordis.patch.yml`），挂载上面三行 |
 
 ## 安装
@@ -23,7 +23,7 @@ pnpm dsh plugin --profile web add -w link:/Users/guoxinshan/dev/dsh-yzj/packages
 dsh plugin --profile web add <npm 包名或路径>
 ```
 
-安装后重启 GUI（源码启动时重启 `node --import tsx/esm apps/cli/src/bin.ts web`），侧边栏底部出现「云之家」按钮。
+安装后重启 GUI（源码启动时重启 `node --import tsx/esm apps/cli/src/bin.ts web`），页面右下角出现「云之家」悬浮球。
 
 > 本地开发用 `link:` 依赖指向 harness checkout；对外发布时把各包的 `link:` 依赖换成已发布的 `@deepseek-ai/dsh-*` 版本范围。
 
@@ -51,7 +51,7 @@ bundle 交付**改造版 skill**（`packages/bundle/skills/yzj-cli/SKILL.md`）�
 ### UI 设计
 
 - **工具结果富卡片**：`tool.call.toolview` keyed 注册全部 41 个工具名。pending 态从参数渲染标题；settled 态优先渲染结构化 `meta`（文档详情/列表、数据表 schema、记录表、日程时间线、消息气泡、联系人卡片），无结构时回退到 digest 文本。失败态显示错误摘要。
-- **云之家工作台**：侧边栏底部按钮 + 浮层面板，四个 tab——知识库（工作区 → 文档树钻取）、日程（今日）、会话（最近群 → 消息气泡）、我的（身份卡片 + 通讯录搜索）。数据经 `/yzj` RPC 通道实时拉取，与工具调用互不依赖。全条目可拖拽进 composer（chip + 上下文回源 + 拖入即处理快捷动作）。
+- **云之家工作台**：右下角悬浮球（hover 快捷 dock）打开命令栏 + 工作台面板，三个应用——知识库（工作区 → 文档树钻取）、日程（月历 + 当日议程）、会话（最近群 → 消息，未读徽标）。桌面端命令栏下方为全宽顶部导航（图标 + 标签，蓝色选中态），面板可从左右两侧水平调整宽度（桌面 480–1080px、默认 760；指针或键盘，宽度跨关闭/重开与刷新持久化）；面板宽度低于 620px 时仍保留顶部导航与调宽手柄，内容自动切换为单列钻取（返回按钮），宽于 620px 恢复双栏；720px 以下同一导航切换为固定在面板底部的三栏底部导航（图标上标签、安全区适配），内容保持全视口单列钻取（移动端返回按钮）；悬浮窗拖拽与调宽手柄在窄窗/触屏下禁用。全条目可拖拽进 composer（chip + 上下文回源 + 拖入即处理快捷动作）。
 
 ## 开发
 

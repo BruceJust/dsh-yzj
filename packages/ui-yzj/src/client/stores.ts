@@ -15,6 +15,8 @@ export type YzjPanelState = {
   /** Floating-window position (CSS px, viewport-relative). */
   panelX: number
   panelY: number
+  /** Floating-window width (CSS px, desktop only; min 480, viewport-clamped). */
+  panelWidth: number
   workspaces: unknown[]
   workspaceId: string
   docs: unknown[]
@@ -48,6 +50,7 @@ export type YzjPanelActions = {
   setOpen: (draft: YzjPanelState, open: boolean) => void
   setTab: (draft: YzjPanelState, tab: YzjTab) => void
   setPanelPosition: (draft: YzjPanelState, x: number, y: number) => void
+  setPanelWidth: (draft: YzjPanelState, width: number) => void
   setWorkspaces: (draft: YzjPanelState, workspaces: unknown[]) => void
   setWorkspaceId: (draft: YzjPanelState, id: string) => void
   setDocs: (draft: YzjPanelState, docs: unknown[]) => void
@@ -80,6 +83,7 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
       tab: 'docs',
       panelX: -1,
       panelY: -1,
+      panelWidth: 760,
       workspaces: [],
       workspaceId: '',
       docs: [],
@@ -110,6 +114,7 @@ export function createYzjStore(): EngineStoreHandle<YzjPanelState, YzjPanelActio
       setOpen: (d: YzjPanelState, open: boolean) => { d.open = open },
       setTab: (d: YzjPanelState, tab: YzjTab) => { d.tab = tab },
       setPanelPosition: (d: YzjPanelState, x: number, y: number) => { d.panelX = x; d.panelY = y },
+      setPanelWidth: (d: YzjPanelState, width: number) => { d.panelWidth = width },
       setWorkspaces: (d: YzjPanelState, workspaces: unknown[]) => { d.workspaces = workspaces },
       setWorkspaceId: (d: YzjPanelState, id: string) => { d.workspaceId = id },
       setDocs: (d: YzjPanelState, docs: unknown[]) => { d.docs = docs },

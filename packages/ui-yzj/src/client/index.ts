@@ -1,5 +1,5 @@
 /**
- * Browser half: the sidebar-foot 云之家 toggle plus the frame-overlay
+ * Browser half: the floating-ball 云之家 entry plus the frame-overlay
  * workspace panel, sharing one store, and the keyed tool-result cards for
  * every yzj tool. All data flows through the Connection RPC channel (`/yzj`)
  * registered by this package's node half; components receive every fact and
@@ -71,9 +71,9 @@ function insertDraftText(actx: import('@deepseek-ai/dsh-client-runtime/client').
 }
 
 /**
- * Client plugin body: register the sidebar toggle, the overlay panel, the
- * keyed tool views, and the write-confirmation cards. All registrations are
- * fiber-scoped effects.
+ * Client plugin body: register the floating-ball entry, the overlay panel,
+ * the keyed tool views, and the write-confirmation cards. All registrations
+ * are fiber-scoped effects.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
