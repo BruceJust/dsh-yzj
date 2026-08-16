@@ -38,6 +38,8 @@ export interface YzjPanelProps extends YzjPanelInject {
 }
 
 type UnknownRecord = Record<string, unknown>
+type PendingImage = { file: File; previewUrl: string }
+type MessageMenuState = { x: number; y: number; message: UnknownRecord }
 
 function asRecord(value: unknown): UnknownRecord {
   return typeof value === 'object' && value !== null ? value as UnknownRecord : {}
@@ -49,6 +51,34 @@ function asString(value: unknown): string {
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
+}
+
+/** Return the first pasted image file without consuming ordinary text paste. */
+export function clipboardImageFile(data: Pick<DataTransfer, 'items' | 'files'>): File | undefined {
+  for (const item of Array.from(data.items)) {
+    if (item.kind !== 'file') continue
+    const file = item.getAsFile()
+    if (file !== null && (item.type.startsWith('image/') || file.type.startsWith('image/'))) return file
+  }
+  return Array.from(data.files).find(file => file.type.startsWith('image/'))
+}
+
+function fileBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const base64 = typeof reader.result === 'string' ? reader.result.split(',')[1] ?? '' : ''
+      if (base64 === '') reject(new Error('empty file data'))
+      else resolve(base64)
+    }
+    reader.onerror = () => reject(reader.error ?? new Error('file read failed'))
+    reader.readAsDataURL(file)
+  })
+}
+
+/** Preserve the old viewport anchor when older rows are inserted above it. */
+export function scrollTopAfterPrepend(previousTop: number, previousHeight: number, nextHeight: number): number {
+  return Math.max(0, previousTop + Math.max(0, nextHeight - previousHeight))
 }
 
 /** Desktop panel width bounds: default 760, min 480, viewport-clamped max. */
@@ -200,6 +230,60 @@ function dragTitleOf(message: Record<string, unknown>): string {
   if (msgType === 'richText') return '图文消息'
   const content = asString(message.content)
   return content === '' ? '(消息)' : content
+}
+
+/** Textual clipboard representation of one rendered message. */
+export function messageCopyText(message: Record<string, unknown>): string {
+  const msgType = asString(message.msgType)
+  const content = asString(message.content).trim()
+  const param = asRecord(message.param)
+  if (msgType === 'file') return asString(param.name) || content || '文件消息'
+  if (msgType === 'other' && asString(param.title) !== '') {
+    return [asString(param.title), content, asString(param.webpageUrl)].filter(part => part !== '').join('\n')
+  }
+  return content === '' ? dragTitleOf(message) : content
+}
+
+export interface ForwardMessagePayload {
+  content?: string
+  opts: NonNullable<YzjPanelInject['sendMessageOpts']>
+}
+
+/** Map a rendered message back onto the supported Yunzhijia send surface. */
+export function forwardMessagePayload(message: Record<string, unknown>): ForwardMessagePayload | undefined {
+  const msgType = asString(message.msgType)
+  const content = asString(message.content)
+  const param = asRecord(message.param)
+  if (msgType === 'file') {
+    const fileId = asString(param.file_id ?? param.fileId)
+    return fileId === '' ? undefined : { opts: { msgType: 'file', fileId } }
+  }
+  if (msgType === 'richText') {
+    const images = asArray(param.desc)
+      .map(item => asRecord(item))
+      .filter(item => asString(item.type) === 'image')
+      .map(item => asString(item.data))
+      .filter(fileId => fileId !== '')
+    const richContent = content === '' && images.length > 0 ? '[图片]' : content
+    return richContent === '' ? undefined : {
+      content: richContent,
+      opts: { msgType: 'richText', ...(images.length === 0 ? {} : { images }) },
+    }
+  }
+  if (msgType === 'other') {
+    const text = messageCopyText(message)
+    return text === '' ? undefined : { content: text, opts: { msgType: 'text' } }
+  }
+  return content.trim() === '' ? undefined : { content, opts: { msgType: 'text' } }
+}
+
+function isSystemMessage(message: Record<string, unknown>): boolean {
+  const msgType = asString(message.msgType)
+  const param = asRecord(message.param)
+  if (asString(param.sysType) === 'withdrawMsg') return true
+  return msgType === 'other'
+    && asString(param.title) === ''
+    && asString(asRecord(param.interactiveCard).cardJson) === ''
 }
 
 /** Group avatar: headerUrl image with first-letter fallback. */
@@ -799,9 +883,14 @@ export function YzjPanel(props: YzjPanelProps) {
   const [senderNames, setSenderNames] = useState<Record<string, string>>({})
   const [lightbox, setLightbox] = useState<{ src: string; kind: 'image' | 'pdf' } | null>(null)
   const [draft, setDraft] = useState('')
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null)
   const [sending, setSending] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [replyTo, setReplyTo] = useState<{ msgId: string; summary: string } | null>(null)
+  const [messageMenu, setMessageMenu] = useState<MessageMenuState | null>(null)
+  const [forwardingMessage, setForwardingMessage] = useState<UnknownRecord | null>(null)
+  const [forwarding, setForwarding] = useState(false)
+  const [actionToast, setActionToast] = useState('')
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [myProfile, setMyProfile] = useState<{ openId: string; name: string }>({ openId: '', name: '' })
   const [dropToast, setDropToast] = useState('')
@@ -810,6 +899,8 @@ export function YzjPanel(props: YzjPanelProps) {
   const [docPreview, setDocPreview] = useState<{ title: string; meta: string; lines: string[] } | null>(null)
   const [eventDetail, setEventDetail] = useState<{ title: string; time: string; person: string; place: string; content: string } | null>(null)
   const dropToastTimer = useRef<number | null>(null)
+  const actionToastTimer = useRef<number | null>(null)
+  const messageMenuRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -827,6 +918,48 @@ export function YzjPanel(props: YzjPanelProps) {
   const narrow = useMediaQuery('(max-width: 719.98px)')
   const touch = useMediaQuery('(hover: none), (pointer: coarse)')
   const dragDisabled = narrow || touch
+
+  const showActionToast = (text: string): void => {
+    setActionToast(text)
+    if (actionToastTimer.current !== null) window.clearTimeout(actionToastTimer.current)
+    actionToastTimer.current = window.setTimeout(() => setActionToast(''), 2400)
+  }
+
+  const scrollMessagesToBottom = (): void => {
+    window.requestAnimationFrame(() => {
+      const list = listRef.current
+      if (list !== null) list.scrollTop = list.scrollHeight
+    })
+  }
+
+  const messagesNearBottom = (): boolean => {
+    const list = listRef.current
+    return list === null || list.scrollHeight - list.scrollTop - list.clientHeight < 48
+  }
+
+  useEffect(() => () => {
+    if (actionToastTimer.current !== null) window.clearTimeout(actionToastTimer.current)
+  }, [])
+
+  useEffect(() => {
+    if (pendingImage === null) return
+    return () => URL.revokeObjectURL(pendingImage.previewUrl)
+  }, [pendingImage])
+
+  useEffect(() => {
+    if (messageMenu === null) return
+    const dismiss = (event: PointerEvent): void => {
+      if (messageMenuRef.current?.contains(event.target as Node) !== true) setMessageMenu(null)
+    }
+    const frame = window.requestAnimationFrame(() => {
+      messageMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus()
+    })
+    document.addEventListener('pointerdown', dismiss)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      document.removeEventListener('pointerdown', dismiss)
+    }
+  }, [messageMenu])
 
   // The login user, so "my" messages bubble right with the brand color.
   useEffect(() => {
@@ -876,10 +1009,12 @@ export function YzjPanel(props: YzjPanelProps) {
         if (!result.ok) return
         const incoming = asArray(asRecord(result.value).list)
         if (incoming.length === 0) return
+        const followNewest = messagesNearBottom()
         const merged = [...messagesRef.current, ...incoming]
         messagesRef.current = merged
         props.actions.setMessages(merged)
         putMessageWindow(state.groupId, merged, state.messagesMore)
+        if (followNewest) scrollMessagesToBottom()
       })
     }
     const interval = window.setInterval(poll, 15_000)
@@ -983,15 +1118,13 @@ export function YzjPanel(props: YzjPanelProps) {
     return true
   }
 
-  // Keep the newest messages in view: bottom on group open, panel reopen, tab
-  // switch back to chat, and after sends, unless an anchor jump is active.
+  // Move to the newest message only when entering/re-entering a conversation.
+  // Appends and history prepends manage their own scroll intent explicitly.
   useEffect(() => {
     if (state.groupId === '' || state.anchorMsgId !== '') return
-    const list = listRef.current
-    if (list === null) return
-    list.scrollTop = list.scrollHeight
+    scrollMessagesToBottom()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, activeTab, state.groupId, state.messages])
+  }, [open, activeTab, state.groupId])
 
   // Resolve sender display names for the loaded message window (cached).
   // The React state mirrors the module cache so newly resolved names
@@ -1011,16 +1144,17 @@ export function YzjPanel(props: YzjPanelProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.messages])
 
-  // Esc closes nested surfaces first (lightbox → mention → emoji), then the
-  // panel itself. It never closes the panel while the composer holds a draft
-  // or an armed reply, and a focused composer only blurs. Only active while
-  // the panel is open.
+  // Esc closes nested surfaces first (message menu → forward chooser → lightbox
+  // → mention → emoji), then the panel itself. It never discards a draft,
+  // staged image, or armed reply.
   useEffect(() => {
     if (!open) return
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return
+      if (messageMenu !== null) { setMessageMenu(null); return }
+      if (forwardingMessage !== null) { setForwardingMessage(null); return }
       // Esc inside the composer only leaves the textarea — it never discards
-      // a draft or unmounts the panel.
+      // in-progress input or unmounts the panel.
       if (draftRef.current !== null && document.activeElement === draftRef.current) {
         draftRef.current.blur()
         return
@@ -1028,15 +1162,13 @@ export function YzjPanel(props: YzjPanelProps) {
       if (lightbox !== null) { setLightbox(null); return }
       if (mentionOpen) { setMentionOpen(false); return }
       if (emojiOpen) { setEmojiOpen(false); return }
-      // A non-empty draft or an armed reply keeps the panel open: Esc must
-      // never destroy in-progress input.
-      if (draft.trim() !== '' || replyTo !== null) return
+      if (draft.trim() !== '' || pendingImage !== null || replyTo !== null) return
       props.actions.setOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, lightbox, mentionOpen, emojiOpen, draft, replyTo])
+  }, [open, messageMenu, forwardingMessage, lightbox, mentionOpen, emojiOpen, draft, pendingImage, replyTo])
 
   // Scroll the jump anchor into view once its group's messages land.
   useEffect(() => {
@@ -1350,6 +1482,9 @@ export function YzjPanel(props: YzjPanelProps) {
     props.actions.setGroupId(id)
     props.actions.setAnchorMsgId('')
     setDraft('')
+    setPendingImage(null)
+    setMessageMenu(null)
+    setForwardingMessage(null)
     // Rendered window is cached ~60s: revisiting a group is instant.
     const cached = getMessageWindow(id)
     if (cached !== undefined) {
@@ -1361,6 +1496,7 @@ export function YzjPanel(props: YzjPanelProps) {
         cached.messages.length > 0 ? asString(asRecord(cached.messages[0]).msgId) : '',
       )
       props.actions.setLoading(false)
+      scrollMessagesToBottom()
       return
     }
     props.actions.setMessages([])
@@ -1375,6 +1511,7 @@ export function YzjPanel(props: YzjPanelProps) {
         props.actions.setMessages(messages)
         props.actions.setMessagesMore(asRecord(result.value).more === true)
         props.actions.setMessagesAnchor(messages.length > 0 ? asString(asRecord(messages[0]).msgId) : '')
+        scrollMessagesToBottom()
       } else {
         props.actions.setError(result.error.message)
       }
@@ -1405,17 +1542,60 @@ export function YzjPanel(props: YzjPanelProps) {
 
   const loadOlderMessages = (): void => {
     if (state.loading || state.messagesAnchor === '') return
+    const viewport = listRef.current
+    const previousTop = viewport?.scrollTop ?? 0
+    const previousHeight = viewport?.scrollHeight ?? 0
+    const anchorId = state.messages.length > 0 ? asString(asRecord(state.messages[0]).msgId) : ''
+    const anchorElement = viewport === null ? undefined : Array.from(viewport.querySelectorAll<HTMLElement>('[data-message-id]'))
+      .find(element => element.dataset.messageId === anchorId)
+    const anchorTop = anchorElement?.getBoundingClientRect().top
     props.actions.setLoading(true)
     void props.fetchMessages(state.groupId, 20, { type: 'old', msgId: state.messagesAnchor }).then((result) => {
       if (result.ok) {
-        // type 'old' returns messages OLDER than the anchor, oldest-first —
-        // prepend as-is so the top of the list stays the oldest message.
+        // type 'old' returns messages OLDER than the anchor, oldest-first.
         const older = asArray(asRecord(result.value).list)
         props.actions.prependMessages(older)
         putMessageWindow(state.groupId, [...older, ...state.messages], asRecord(result.value).more === true)
         props.actions.setMessagesMore(asRecord(result.value).more === true)
         if (older.length > 0) {
           props.actions.setMessagesAnchor(asString(asRecord(older[0]).msgId))
+          window.requestAnimationFrame(() => {
+            if (viewport === null || listRef.current !== viewport) return
+            viewport.scrollTop = scrollTopAfterPrepend(previousTop, previousHeight, viewport.scrollHeight)
+
+            let observer: ResizeObserver | undefined
+            let cancelled = false
+            const findAnchor = (): HTMLElement | undefined => Array.from(viewport.querySelectorAll<HTMLElement>('[data-message-id]'))
+              .find(element => element.dataset.messageId === anchorId)
+            const restoreAnchor = (): void => {
+              if (cancelled || anchorTop === undefined) return
+              const anchor = findAnchor()
+              if (anchor !== undefined) viewport.scrollTop += anchor.getBoundingClientRect().top - anchorTop
+            }
+            const cancel = (): void => {
+              cancelled = true
+              observer?.disconnect()
+            }
+            viewport.addEventListener('wheel', cancel, { once: true })
+            viewport.addEventListener('pointerdown', cancel, { once: true })
+            viewport.addEventListener('keydown', cancel, { once: true })
+            restoreAnchor()
+
+            if (typeof ResizeObserver !== 'undefined') {
+              observer = new ResizeObserver(restoreAnchor)
+              for (const row of Array.from(viewport.querySelectorAll<HTMLElement>('[data-message-id]'))) {
+                if (row.dataset.messageId === anchorId) break
+                observer.observe(row.parentElement ?? row)
+              }
+            }
+            window.setTimeout(() => {
+              restoreAnchor()
+              observer?.disconnect()
+              viewport.removeEventListener('wheel', cancel)
+              viewport.removeEventListener('pointerdown', cancel)
+              viewport.removeEventListener('keydown', cancel)
+            }, 1_000)
+          })
         }
       } else {
         props.actions.setError(result.error.message)
@@ -1488,7 +1668,7 @@ export function YzjPanel(props: YzjPanelProps) {
     return ids
   }
 
-  /** Core send: calls the bridge, appends the local message, clears state. */
+  /** Core send: calls the bridge, appends the local message, clears text state. */
   const doSend = async (opts: {
     content?: string
     msgType?: 'text' | 'richText' | 'file'
@@ -1497,8 +1677,8 @@ export function YzjPanel(props: YzjPanelProps) {
     replyMsgId?: string
     fileName?: string
     fileSize?: number
-  }): Promise<void> => {
-    if (state.groupId === '') return
+  }): Promise<boolean> => {
+    if (state.groupId === '') return false
     const groupId = state.groupId
     const content = opts.content ?? ''
     const atOpenIds = collectAtOpenIds(content)
@@ -1513,7 +1693,7 @@ export function YzjPanel(props: YzjPanelProps) {
     })
     if (!result.ok) {
       props.actions.setError(result.error.message)
-      return
+      return false
     }
     const profile = await ensureMyProfile(props)
     const payload = asRecord(result.value)
@@ -1554,22 +1734,76 @@ export function YzjPanel(props: YzjPanelProps) {
     setDraft('')
     mentionsRef.current = []
     setReplyTo(null)
-    const list = listRef.current
-    if (list !== null) list.scrollTop = list.scrollHeight
+    scrollMessagesToBottom()
+    return true
   }
 
-  /** Plain-text send (Enter / 发送 button). */
+  /** Send text and an optional staged image only on an explicit send action. */
   const submitMessage = (): void => {
     const content = draft.trim()
-    if (content === '' || sending || uploading || state.groupId === '') return
+    if ((content === '' && pendingImage === null) || sending || uploading || state.groupId === '') return
     setSending(true)
     const replyMsgId = replyTo?.msgId
-    void doSend(replyMsgId === undefined ? { content } : { content, replyMsgId })
-      .finally(() => setSending(false))
+    const run = async (): Promise<void> => {
+      if (pendingImage === null) {
+        await doSend(replyMsgId === undefined ? { content } : { content, replyMsgId })
+        return
+      }
+      const image = pendingImage
+      setUploading(true)
+      let base64: string
+      try {
+        base64 = await fileBase64(image.file)
+      } catch {
+        props.actions.setError('无法读取剪贴板图片')
+        return
+      }
+      const result = await props.uploadFile(image.file.name || 'pasted-image', base64, image.file.size)
+      if (!result.ok) {
+        props.actions.setError(result.error.message)
+        return
+      }
+      const payload = asRecord(result.value)
+      const fileId = asString(payload.fileId ?? payload.file_id ?? payload.id)
+      if (fileId === '') {
+        props.actions.setError('上传失败：未返回文件 ID')
+        return
+      }
+      const richContent = content === '' ? '[图片]' : `${content}\n[图片]`
+      const sent = await doSend(replyMsgId === undefined
+        ? { content: richContent, msgType: 'richText', images: [fileId] }
+        : { content: richContent, msgType: 'richText', images: [fileId], replyMsgId })
+      if (sent) setPendingImage(current => current === image ? null : current)
+    }
+    void run().finally(() => {
+      setUploading(false)
+      setSending(false)
+    })
   }
 
-  /** Upload a picked file, then send it as an image (richText) or file. */
+  /** Stage one image locally; upload happens only after an explicit send. */
+  const stageImage = (file: File | undefined): void => {
+    if (file === undefined) return
+    if (file.size > 24 * 1024 * 1024) {
+      props.actions.setError('文件超过 24MB，请压缩后重试')
+      return
+    }
+    try {
+      setPendingImage({ file, previewUrl: URL.createObjectURL(file) })
+      setEmojiOpen(false)
+      setMentionOpen(false)
+      draftRef.current?.focus()
+    } catch {
+      props.actions.setError('无法读取剪贴板图片')
+    }
+  }
+
+  /** Picked images are staged; ordinary files retain the existing direct send. */
   const handlePickFile = (kind: 'image' | 'file', file: File | undefined): void => {
+    if (kind === 'image') {
+      stageImage(file)
+      return
+    }
     if (file === undefined) return
     if (file.size > 24 * 1024 * 1024) {
       props.actions.setError('文件超过 24MB，请压缩后重试')
@@ -1591,19 +1825,53 @@ export function YzjPanel(props: YzjPanelProps) {
           props.actions.setError('上传失败：未返回文件 ID')
           return
         }
-        if (kind === 'image') {
-          const text = draft.trim()
-          const content = text === '' ? '[图片]' : `${text}\n[图片]`
-          const replyMsgId = replyTo?.msgId
-          await doSend(replyMsgId === undefined
-            ? { content, msgType: 'richText', images: [fileId] }
-            : { content, msgType: 'richText', images: [fileId], replyMsgId })
-        } else {
-          await doSend({ msgType: 'file', fileId, fileName: file.name, fileSize: file.size })
-        }
+        await doSend({ msgType: 'file', fileId, fileName: file.name, fileSize: file.size })
       }).finally(() => setUploading(false))
     }
     reader.readAsDataURL(file)
+  }
+
+  const copyMessage = async (message: UnknownRecord): Promise<void> => {
+    const text = messageCopyText(message)
+    if (text === '') return
+    try {
+      if (navigator.clipboard?.writeText !== undefined) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        const input = document.createElement('textarea')
+        input.value = text
+        input.style.position = 'fixed'
+        input.style.opacity = '0'
+        document.body.appendChild(input)
+        input.select()
+        const copied = document.execCommand('copy')
+        input.remove()
+        if (!copied) throw new Error('copy command rejected')
+      }
+      showActionToast('已复制消息')
+    } catch {
+      props.actions.setError('复制失败，请检查浏览器剪贴板权限')
+    }
+  }
+
+  const forwardToGroup = async (groupId: string): Promise<void> => {
+    if (forwardingMessage === null || forwarding) return
+    const payload = forwardMessagePayload(forwardingMessage)
+    if (payload === undefined) {
+      props.actions.setError('这条消息暂不支持转发')
+      setForwardingMessage(null)
+      return
+    }
+    setForwarding(true)
+    const result = await props.sendMessage(groupId, payload.content, payload.opts)
+    setForwarding(false)
+    if (!result.ok) {
+      props.actions.setError(result.error.message)
+      return
+    }
+    const target = state.groups.map(asRecord).find(group => asString(group.groupId) === groupId)
+    showActionToast(`已转发到 ${target === undefined ? '会话' : asString(target.groupName)}`)
+    setForwardingMessage(null)
   }
 
   return (
@@ -2037,7 +2305,7 @@ export function YzjPanel(props: YzjPanelProps) {
                   已定位到锚点消息（来自「查看上下文」）
                 </div>
               )}
-              <div className={css.list} ref={listRef}>
+              <div className={css.list} ref={listRef} onScroll={() => setMessageMenu(null)}>
               {state.loading && state.messages.length === 0 && <div className={css.listLoading}>加载中…</div>}
               {state.messages.length === 0 && !state.loading && state.error === '' && <div className={css.empty}>暂无消息</div>}
               {state.messagesMore && (
@@ -2058,7 +2326,7 @@ export function YzjPanel(props: YzjPanelProps) {
                 const dayKey = String(message.sendTime).slice(0, 10)
                 const prevDay = index > 0 ? String(asRecord(state.messages[index - 1]).sendTime).slice(0, 10) : ''
                 const dayLabel = dayKey === '' ? '' : formatListTime(`${dayKey} 00:00:00`)
-                const isSystem = msgType === 'other' || asString(asRecord(message.param).sysType) === 'withdrawMsg'
+                const isSystem = isSystemMessage(message)
                 return (
                   <div key={`m${index}`}>
                     {dayKey !== '' && dayKey !== prevDay && (
@@ -2071,7 +2339,21 @@ export function YzjPanel(props: YzjPanelProps) {
                         isSystem ? css.msgRowSystem : '',
                         anchored ? css.itemAnchored : '',
                       ].filter(Boolean).join(' ')}
+                      data-message-id={msgId}
                       draggable
+                      tabIndex={isSystem ? undefined : 0}
+                      onContextMenu={isSystem ? undefined : (event) => {
+                        event.preventDefault()
+                        setForwardingMessage(null)
+                        setMessageMenu({ x: event.clientX, y: event.clientY, message })
+                      }}
+                      onKeyDown={isSystem ? undefined : (event) => {
+                        if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
+                        event.preventDefault()
+                        const rect = event.currentTarget.getBoundingClientRect()
+                        setForwardingMessage(null)
+                        setMessageMenu({ x: rect.left + 32, y: rect.top + 24, message })
+                      }}
                       onDragStart={(event) => {
                         startDragTransfer(event, {
                           kind: 'message', id: msgId,
@@ -2129,6 +2411,9 @@ export function YzjPanel(props: YzjPanelProps) {
               {anchorToast !== '' && (
                 <div className={css.panelToast} role="status">{anchorToast}</div>
               )}
+              {actionToast !== '' && (
+                <div className={css.panelToast} role="status">{actionToast}</div>
+              )}
               </div>
               <div className={css.composer}>
                 {replyTo !== null && (
@@ -2139,6 +2424,24 @@ export function YzjPanel(props: YzjPanelProps) {
                       className={css.replyCancel}
                       aria-label="取消回复"
                       onClick={() => setReplyTo(null)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                {pendingImage !== null && (
+                  <div className={css.pendingImage} data-testid="pending-image">
+                    <img className={css.pendingImageThumb} src={pendingImage.previewUrl} alt="待发送图片" />
+                    <span className={css.pendingImageMeta}>
+                      <span className={css.pendingImageName}>{pendingImage.file.name || '剪贴板图片'}</span>
+                      <span className={css.pendingImageSize}>{formatSize(pendingImage.file.size)}</span>
+                    </span>
+                    <button
+                      type="button"
+                      className={css.pendingImageRemove}
+                      aria-label="移除待发送图片"
+                      disabled={sending || uploading}
+                      onClick={() => setPendingImage(null)}
                     >
                       ✕
                     </button>
@@ -2212,6 +2515,12 @@ export function YzjPanel(props: YzjPanelProps) {
                       el.style.height = 'auto'
                       el.style.height = `${Math.min(el.scrollHeight, 120)}px`
                     }}
+                    onPaste={(event) => {
+                      const image = clipboardImageFile(event.clipboardData)
+                      if (image === undefined) return
+                      event.preventDefault()
+                      handlePickFile('image', image)
+                    }}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && !event.nativeEvent.isComposing && !event.shiftKey) {
                         event.preventDefault()
@@ -2226,7 +2535,7 @@ export function YzjPanel(props: YzjPanelProps) {
                     type="button"
                     className={css.composerSend}
                     onClick={submitMessage}
-                    disabled={sending || uploading || draft.trim() === ''}
+                    disabled={sending || uploading || (draft.trim() === '' && pendingImage === null)}
                   >
                     {sending || uploading ? '发送中…' : '发送'}
                   </button>
@@ -2310,6 +2619,112 @@ export function YzjPanel(props: YzjPanelProps) {
 
         </div>
       </div>
+
+      {messageMenu !== null && (
+        <div
+          ref={messageMenuRef}
+          className={css.messageMenu}
+          role="menu"
+          aria-label="消息操作"
+          style={{
+            left: Math.max(8, Math.min(messageMenu.x, window.innerWidth - 168)),
+            top: Math.max(8, Math.min(messageMenu.y, window.innerHeight - 150)),
+          }}
+          onContextMenu={(event) => event.preventDefault()}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+            event.preventDefault()
+            const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'))
+            const current = items.indexOf(document.activeElement as HTMLButtonElement)
+            const delta = event.key === 'ArrowDown' ? 1 : -1
+            items[(current + delta + items.length) % items.length]?.focus()
+          }}
+        >
+          <button
+            type="button"
+            className={css.messageMenuItem}
+            role="menuitem"
+            onClick={() => {
+              const message = messageMenu.message
+              setMessageMenu(null)
+              void copyMessage(message)
+            }}
+          >
+            复制
+          </button>
+          <button
+            type="button"
+            className={css.messageMenuItem}
+            role="menuitem"
+            onClick={() => {
+              const message = messageMenu.message
+              setReplyTo({ msgId: asString(message.msgId), summary: dragTitleOf(message).slice(0, 80) })
+              setMessageMenu(null)
+              window.requestAnimationFrame(() => draftRef.current?.focus())
+            }}
+          >
+            回复
+          </button>
+          <button
+            type="button"
+            className={css.messageMenuItem}
+            role="menuitem"
+            disabled={forwardMessagePayload(messageMenu.message) === undefined}
+            onClick={() => {
+              setForwardingMessage(messageMenu.message)
+              setMessageMenu(null)
+            }}
+          >
+            转发
+          </button>
+        </div>
+      )}
+
+      {forwardingMessage !== null && (
+        <div
+          className={css.forwardOverlay}
+          role="presentation"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget && !forwarding) setForwardingMessage(null)
+          }}
+        >
+          <div className={css.forwardDialog} role="dialog" aria-modal="true" aria-label="转发消息">
+            <div className={css.forwardHeader}>
+              <span className={css.forwardTitle}>转发到</span>
+              <button
+                type="button"
+                className={css.forwardClose}
+                aria-label="关闭转发"
+                disabled={forwarding}
+                onClick={() => setForwardingMessage(null)}
+              >
+                <IconClose14 />
+              </button>
+            </div>
+            <div className={css.forwardPreview}>{messagePreview(forwardingMessage)}</div>
+            <div className={css.forwardGroups}>
+              {state.groups.map((item, index) => {
+                const group = asRecord(item)
+                const id = asString(group.groupId)
+                const name = asString(group.groupName) || '未命名会话'
+                return (
+                  <button
+                    key={`forward-${id || index}`}
+                    type="button"
+                    className={css.forwardGroup}
+                    disabled={forwarding || id === ''}
+                    onClick={() => { void forwardToGroup(id) }}
+                  >
+                    <GroupAvatar url={asString(group.headerUrl)} name={name} />
+                    <span>{name}</span>
+                  </button>
+                )
+              })}
+              {state.groups.length === 0 && <div className={css.forwardEmpty}>暂无可转发会话</div>}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className={css.resizeHandle}

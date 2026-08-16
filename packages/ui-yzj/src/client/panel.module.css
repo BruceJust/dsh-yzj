@@ -293,6 +293,9 @@
 
 .resizeHandleRight {
   right: 0;
+  bottom: auto;
+  width: 10px;
+  height: 92px;
 }
 
 .resizeHandle::after,
@@ -934,6 +937,160 @@
 
 .msgReply:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.messageMenu {
+  position: fixed;
+  z-index: 760;
+  width: 160px;
+  padding: 4px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 7px;
+  background: var(--dsw-alias-bg-base);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.22);
+  box-sizing: border-box;
+}
+
+.messageMenuItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.messageMenuItem:hover:not(:disabled),
+.messageMenuItem:focus-visible {
+  outline: none;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.messageMenuItem:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
+}
+
+.forwardOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 740;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.28);
+  box-sizing: border-box;
+}
+
+.forwardDialog {
+  display: flex;
+  flex-direction: column;
+  width: min(360px, 100%);
+  max-height: min(520px, 82%);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.28);
+  overflow: hidden;
+}
+
+.forwardHeader {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.forwardTitle {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.forwardClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.forwardClose:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.forwardClose:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.forwardPreview {
+  flex: none;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 17px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forwardGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.forwardGroup {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.forwardGroup:hover:not(:disabled),
+.forwardGroup:focus-visible {
+  outline: none;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.forwardGroup:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.forwardEmpty {
+  padding: 24px 10px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  text-align: center;
 }
 
 /* Date separator between message days. */
@@ -1630,6 +1787,70 @@
   border-top: 1px solid var(--dsw-alias-border-l2);
   background: var(--dsw-specific-sidebar-fill, var(--dsw-alias-bg-layer-1));
   flex: none;
+}
+
+.pendingImage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 5px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  box-sizing: border-box;
+}
+
+.pendingImageThumb {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 5px;
+  flex: none;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.pendingImageMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.pendingImageName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.pendingImageSize {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.pendingImageRemove {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.pendingImageRemove:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.pendingImageRemove:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .composerRow {
