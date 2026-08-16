@@ -24,8 +24,8 @@ import type { YzjPanelActions, YzjPanelState, YzjTab } from './stores.ts'
 import type { YzjPanelInject } from './rpc.ts'
 import {
   effectiveUnread, ensureMyProfile, formatListTime, formatMsgTime, formatSize, getGroupWindow,
-  getMessageWindow, markAllRead, markGroupRead, putGroupWindow, putMessageWindow, resolveFileData, resolveSenders,
-  senderNameOf, senderPhotoOf,
+  getMessageWindow, markAllRead, markGroupRead, mergeGroupWindow, putGroupWindow, putMessageWindow, resolveFileData,
+  resolveSenders, senderNameOf, senderPhotoOf,
 } from './im-cache.ts'
 import { emitYzjDropRequest } from './drop-bus.ts'
 import { registerPanelController } from './panel-controller.ts'
@@ -647,7 +647,11 @@ export interface YzjFloatBallProps {
 export function YzjFloatBall(props: YzjFloatBallProps) {
   const open = props.useStore(state => state.open)
   const unreadTotal = props.useStore(state => state.unreadTotal)
+  const groups = props.useStore(state => state.groups)
+  const groupsRef = useRef(groups)
   const [hover, setHover] = useState(false)
+
+  useEffect(() => { groupsRef.current = groups }, [groups])
 
   // The unread poll used to live on the sidebar button; the ball is now the
   // only entry, so it owns the poll. ~60s cadence; an increase raises the
@@ -657,7 +661,13 @@ export function YzjFloatBall(props: YzjFloatBallProps) {
     const poll = (): void => {
       void props.fetchGroups(20).then((result) => {
         if (!result.ok) return
-        const total = unreadTotalOf(result.value)
+        const value = asRecord(result.value)
+        const latestGroups = asArray(value.list)
+        const mergedGroups = mergeGroupWindow(groupsRef.current, latestGroups)
+        groupsRef.current = mergedGroups
+        putGroupWindow(latestGroups, value.more === true)
+        props.actions.setGroups(mergedGroups)
+        const total = unreadTotalOf(value)
         props.actions.setUnreadTotal(total)
         if (total > last && total > 0) notifyUnread(total, () => props.actions.setOpen(true))
         last = total

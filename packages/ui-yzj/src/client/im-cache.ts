@@ -7,6 +7,10 @@
  */
 import type { YzjPanelInject } from './rpc.ts'
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
+}
+
 export interface MessageWindow {
   /** Oldest-first, as rendered by the chat list. */
   messages: unknown[]
@@ -50,6 +54,28 @@ export function getGroupWindow(): { groups: unknown[]; more: boolean } | undefin
 export function putGroupWindow(groups: unknown[], more: boolean): void {
   groupCache = { groups, more, fetchedAt: Date.now() }
   scheduleSave()
+}
+
+/**
+ * Refresh the recent-session head without discarding pages already loaded.
+ * Incoming groups win and define the current order; older tail entries remain
+ * available until the user explicitly reloads the paginated list.
+ */
+export function mergeGroupWindow(current: unknown[], incoming: unknown[]): unknown[] {
+  const incomingIds = new Set<string>()
+  const merged = incoming.map((item) => {
+    const group = asRecord(item)
+    const id = typeof group.groupId === 'string' ? group.groupId : ''
+    if (id === '') return item
+    incomingIds.add(id)
+    const previous = current.find(candidate => asRecord(candidate).groupId === id)
+    return previous === undefined ? item : { ...asRecord(previous), ...group }
+  })
+  for (const item of current) {
+    const id = asRecord(item).groupId
+    if (typeof id !== 'string' || id === '' || !incomingIds.has(id)) merged.push(item)
+  }
+  return merged
 }
 
 /* ── Local read state: the CLI has no mark-read, so opening a group marks
