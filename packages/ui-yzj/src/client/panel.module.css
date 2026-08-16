@@ -614,6 +614,14 @@
   flex: none;
 }
 
+.listLoading {
+  padding: 12px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  flex: none;
+}
+
 /* ── Lists ───────────────────────────────────────────────────────────── */
 
 .list {

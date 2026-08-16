@@ -1353,6 +1353,7 @@ export function YzjPanel(props: YzjPanelProps) {
       props.actions.setLoading(false)
       return
     }
+    props.actions.setMessages([])
     props.actions.setLoading(true)
     props.actions.setError('')
     void props.fetchMessages(id, 20).then((result) => {
@@ -1670,7 +1671,7 @@ export function YzjPanel(props: YzjPanelProps) {
               </button>
             </div>
           )}
-          {state.loading && <div className={css.loading}>加载中…</div>}
+          {state.loading && activeTab !== 'chat' && <div className={css.loading}>加载中…</div>}
 
       {activeTab === 'docs' && (
         <div className={css.body}>
@@ -2027,6 +2028,7 @@ export function YzjPanel(props: YzjPanelProps) {
                 </div>
               )}
               <div className={css.list} ref={listRef}>
+              {state.loading && state.messages.length === 0 && <div className={css.listLoading}>加载中…</div>}
               {state.messages.length === 0 && !state.loading && state.error === '' && <div className={css.empty}>暂无消息</div>}
               {state.messagesMore && (
                 <button type="button" className={css.more} onClick={loadOlderMessages} disabled={state.loading}>
