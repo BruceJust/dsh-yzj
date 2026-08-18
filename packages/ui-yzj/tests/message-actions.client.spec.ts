@@ -6,6 +6,7 @@ import {
   forwardMessagePayload, messageCopyText, YzjPanel, type YzjPanelProps,
 } from '../src/client/panel.tsx'
 import type { YzjPanelInject } from '../src/client/rpc.ts'
+import { putMessageWindow } from '../src/client/im-cache.ts'
 import type { YzjPanelState } from '../src/client/stores.ts'
 
 describe('message action payloads', () => {
@@ -36,7 +37,10 @@ describe('message action payloads', () => {
 
 const ok = async (value: unknown = {}): Promise<{ ok: true; value: unknown }> => ({ ok: true, value })
 
-function panelProps(sendMessage: YzjPanelInject['sendMessage']): YzjPanelProps {
+function panelProps(
+  sendMessage: YzjPanelInject['sendMessage'],
+  fetchMessages: YzjPanelInject['fetchMessages'] = async () => ok({ list: [] }),
+): YzjPanelProps {
   const state: YzjPanelState = {
     open: true, tab: 'chat', panelX: 20, panelY: 20, panelWidth: 760,
     workspaces: [], workspaceId: '', docs: [], docId: '', events: [],
@@ -56,7 +60,7 @@ function panelProps(sendMessage: YzjPanelInject['sendMessage']): YzjPanelProps {
   const inject: YzjPanelInject = {
     fetchWorkspaces: async () => ok([]), fetchDocs: async () => ok([]),
     fetchEvents: async () => ok([]), fetchGroups: async () => ok({ list: [] }),
-    fetchMessages: async () => ok({ list: [] }),
+    fetchMessages,
     fetchWhoami: async () => ok([{ openId: 'me', name: '我' }]),
     fetchSearch: async () => ok([]), fetchDoc: async () => ok({}),
     fetchDocBlocks: async () => ok([]), fetchSheet: async () => ok({}),
@@ -113,6 +117,36 @@ describe('YzjPanel message context menu', () => {
     await act(async () => {
       target?.click()
       await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith('g2', '需要转发', { msgType: 'text' }))
+    })
+
+    act(() => root.unmount())
+    container.remove()
+  })
+})
+
+describe('YzjPanel cached conversation sync', () => {
+  it('requests newer messages immediately when a cached group opens', async () => {
+    putMessageWindow('g1', [{ msgId: 'cached-1', content: '缓存消息', msgType: 'text' }], true)
+    const fetchMessages = vi.fn<YzjPanelInject['fetchMessages']>(async () => ({
+      ok: true,
+      value: { list: [{ msgId: 'new-1', content: '最新消息', msgType: 'text' }] },
+    }))
+    const sendMessage = vi.fn<YzjPanelInject['sendMessage']>(async () => ({ ok: true, value: {} }))
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(createElement(YzjPanel, panelProps(sendMessage, fetchMessages)))
+      await Promise.resolve()
+    })
+
+    const group = Array.from(container.querySelectorAll('button'))
+      .find(button => button.textContent?.includes('当前群'))
+    await act(async () => {
+      group?.click()
+      await vi.waitFor(() => {
+        expect(fetchMessages).toHaveBeenCalledWith('g1', 30, { type: 'new', msgId: 'cached-1' })
+      })
     })
 
     act(() => root.unmount())

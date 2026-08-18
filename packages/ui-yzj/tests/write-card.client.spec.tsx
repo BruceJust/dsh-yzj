@@ -5,7 +5,7 @@
  * shows the executing state; ungated or settled records delegate to the
  * ordinary tool card.
  */
-import { act } from 'react-dom/test-utils'
+import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { describe, expect, it, vi } from 'vitest'
 import type { ToolResultNode } from '@deepseek-ai/dsh-client-runtime/client'

@@ -479,6 +479,15 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
+.mentionAgent {
+  background: var(--dsw-static-deepseek-100);
+  color: var(--dsw-static-deepseek-600);
+}
+
+.mentionAgent:hover {
+  background: var(--dsw-static-deepseek-200);
+}
+
 .mentionName {
   flex: none;
   font-size: 13px;
@@ -916,9 +925,17 @@
   line-height: 14px;
 }
 
-/* Hover-revealed 回复 action on a message row. */
-.msgReply {
+/* Hover-revealed reply and Agent actions on a message row. */
+.msgActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   margin-top: 2px;
+  opacity: 0;
+  transition: opacity 120ms var(--ds-ease-in-out, ease);
+}
+
+.msgReply {
   padding: 2px 8px;
   border: none;
   border-radius: 6px;
@@ -927,16 +944,20 @@
   font-size: 11px;
   line-height: 16px;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 120ms var(--ds-ease-in-out, ease), background-color 120ms var(--ds-ease-in-out, ease);
+  transition: background-color 120ms var(--ds-ease-in-out, ease);
 }
 
-.msgRow:hover .msgReply {
+.msgRow:hover .msgActions,
+.msgActions:focus-within {
   opacity: 1;
 }
 
 .msgReply:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.msgAgent {
+  font-weight: 600;
 }
 
 .messageMenu {
@@ -1105,6 +1126,28 @@
   line-height: 18px;
 }
 
+.unreadDivider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 5px;
+  color: var(--dsw-static-red-500);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.unreadDivider::before,
+.unreadDivider::after {
+  content: '';
+  height: 1px;
+  background: color-mix(in srgb, var(--dsw-static-red-500) 45%, transparent);
+  flex: 1;
+}
+
+.unreadDivider span {
+  flex: none;
+}
+
 /* Group header inside the chat view: avatar + name. */
 .groupHead {
   display: flex;
@@ -1144,6 +1187,15 @@
 
 .chatHeader .groupHead {
   padding: 2px 6px 6px;
+}
+
+.chatSync {
+  margin-left: auto;
+  padding: 0 8px 4px 4px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
 }
 
 .back,
@@ -2458,5 +2510,9 @@
   .resizeHandle,
   .resizeHandleRight {
     display: none;
+  }
+
+  .msgActions {
+    opacity: 1;
   }
 }

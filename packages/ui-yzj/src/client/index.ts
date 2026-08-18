@@ -18,6 +18,7 @@ import { YzjPanel, YzjFloatBall } from './panel.tsx'
 import { createYzjStore } from './stores.ts'
 import { createYzjPanelInject } from './rpc.ts'
 import { openPanelTarget } from './panel-controller.ts'
+import { projectYzjSessionHierarchy } from './session-hierarchy.ts'
 import {
   YZJ_WRITE_TOOL_NAMES, YzjWriteToolCard,
   type WriteCardInjected,
@@ -77,6 +78,7 @@ function insertDraftText(actx: import('@deepseek-ai/dsh-client-runtime/client').
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  ctx.on('workspace/session-hierarchy', projectYzjSessionHierarchy)
   const connection = ctx.get('connection') as ConnectionHandle | undefined
   const store = createYzjStore()
   const panelInject = createYzjPanelInject(connection)

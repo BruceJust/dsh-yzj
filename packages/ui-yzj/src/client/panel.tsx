@@ -40,6 +40,7 @@ export interface YzjPanelProps extends YzjPanelInject {
 type UnknownRecord = Record<string, unknown>
 type PendingImage = { file: File; previewUrl: string }
 type MessageMenuState = { x: number; y: number; message: UnknownRecord }
+type UnreadMarker = { groupId: string; count: number; firstMsgId: string }
 
 function asRecord(value: unknown): UnknownRecord {
   return typeof value === 'object' && value !== null ? value as UnknownRecord : {}
@@ -79,6 +80,52 @@ function fileBase64(file: File): Promise<string> {
 /** Preserve the old viewport anchor when older rows are inserted above it. */
 export function scrollTopAfterPrepend(previousTop: number, previousHeight: number, nextHeight: number): number {
   return Math.max(0, previousTop + Math.max(0, nextHeight - previousHeight))
+}
+
+/** Last server-backed id, ignoring optimistic local rows. */
+export function latestServerMessageId(messages: unknown[]): string {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const id = asString(asRecord(messages[index]).msgId)
+    if (id !== '' && !id.startsWith('local-')) return id
+  }
+  return ''
+}
+
+/** Merge an oldest-first incremental response without duplicating message ids. */
+export function mergeMessageWindow(current: unknown[], incoming: unknown[]): unknown[] {
+  const merged = [...current]
+  const positions = new Map<string, number>()
+  merged.forEach((item, index) => {
+    const id = asString(asRecord(item).msgId)
+    if (id !== '') positions.set(id, index)
+  })
+  for (const item of incoming) {
+    const id = asString(asRecord(item).msgId)
+    const position = id === '' ? undefined : positions.get(id)
+    if (position === undefined) {
+      if (id !== '') positions.set(id, merged.length)
+      merged.push(item)
+    } else {
+      merged[position] = { ...asRecord(merged[position]), ...asRecord(item) }
+    }
+  }
+  return merged
+}
+
+/** First visible id in the last `count` messages of an oldest-first window. */
+export function firstUnreadMessageId(messages: unknown[], count: number): string {
+  if (count <= 0 || messages.length === 0) return ''
+  for (let index = Math.max(0, messages.length - count); index < messages.length; index += 1) {
+    const id = asString(asRecord(messages[index]).msgId)
+    if (id !== '') return id
+  }
+  return ''
+}
+
+/** Keep explicit Agent commands at the start so self-authored messages trigger. */
+export function withAgentAlias(draft: string): string {
+  if (/^\s*@(agent|智能体)(?=\s|[，。！？,:;]|$)/iu.test(draft)) return draft
+  return draft.trim() === '' ? '@agent ' : `@agent ${draft.trimStart()}`
 }
 
 /** Desktop panel width bounds: default 760, min 480, viewport-clamped max. */
@@ -737,9 +784,9 @@ export function YzjFloatBall(props: YzjFloatBallProps) {
 
   useEffect(() => { groupsRef.current = groups }, [groups])
 
-  // The unread poll used to live on the sidebar button; the ball is now the
-  // only entry, so it owns the poll. ~60s cadence; an increase raises the
-  // badge and fires one browser notification (design §5.3 layer 3).
+  // Poll immediately on mount, then every minute. Opening the panel must not
+  // restart this request because a concurrent message-list CLI call can return
+  // an empty window for the just-selected conversation.
   useEffect(() => {
     let last = unreadTotal
     const poll = (): void => {
@@ -761,7 +808,7 @@ export function YzjFloatBall(props: YzjFloatBallProps) {
     const interval = window.setInterval(poll, 60_000)
     return () => window.clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [])
 
   const openTab = (tab: YzjTab): void => {
     props.actions.setTab(tab)
@@ -891,6 +938,8 @@ export function YzjPanel(props: YzjPanelProps) {
   const [forwardingMessage, setForwardingMessage] = useState<UnknownRecord | null>(null)
   const [forwarding, setForwarding] = useState(false)
   const [actionToast, setActionToast] = useState('')
+  const [syncingMessages, setSyncingMessages] = useState(false)
+  const [unreadMarker, setUnreadMarker] = useState<UnreadMarker | null>(null)
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [myProfile, setMyProfile] = useState<{ openId: string; name: string }>({ openId: '', name: '' })
   const [dropToast, setDropToast] = useState('')
@@ -906,6 +955,7 @@ export function YzjPanel(props: YzjPanelProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const draftRef = useRef<HTMLTextAreaElement | null>(null)
   const messagesRef = useRef<unknown[]>([])
+  const messageSyncToken = useRef(0)
   const mentionsRef = useRef<{ name: string; openId: string }[]>([])
   const mentionInputRef = useRef<HTMLInputElement | null>(null)
   const [mentionOpen, setMentionOpen] = useState(false)
@@ -1002,15 +1052,14 @@ export function YzjPanel(props: YzjPanelProps) {
     if (state.groupId === '') return
     const poll = (): void => {
       const list = messagesRef.current
-      const latest = list.length > 0 ? asRecord(list[list.length - 1]) : undefined
-      const anchor = latest === undefined ? '' : asString(latest.msgId)
-      if (anchor === '' || anchor.startsWith('local-')) return
+      const anchor = latestServerMessageId(list)
+      if (anchor === '') return
       void props.fetchMessages(state.groupId, 30, { type: 'new', msgId: anchor }).then((result) => {
         if (!result.ok) return
         const incoming = asArray(asRecord(result.value).list)
         if (incoming.length === 0) return
         const followNewest = messagesNearBottom()
-        const merged = [...messagesRef.current, ...incoming]
+        const merged = mergeMessageWindow(messagesRef.current, incoming)
         messagesRef.current = merged
         props.actions.setMessages(merged)
         putMessageWindow(state.groupId, merged, state.messagesMore)
@@ -1478,49 +1527,110 @@ export function YzjPanel(props: YzjPanelProps) {
     }).catch(() => setEventDetail(base))
   }
 
+  const applyUnreadMarker = (groupId: string, unreadCount: number, messages: unknown[]): void => {
+    const firstMsgId = firstUnreadMessageId(messages, unreadCount)
+    setUnreadMarker(firstMsgId === '' ? null : { groupId, count: unreadCount, firstMsgId })
+  }
+
+  const refreshCachedMessages = (
+    groupId: string,
+    cachedMessages: unknown[],
+    more: boolean,
+    unreadCount: number,
+    token: number,
+  ): void => {
+    const anchor = latestServerMessageId(cachedMessages)
+    const page = anchor === '' ? { type: 'newest' as const } : { type: 'new' as const, msgId: anchor }
+    setSyncingMessages(true)
+    void props.fetchMessages(groupId, 30, page).then((result) => {
+      if (messageSyncToken.current !== token) return
+      if (!result.ok) {
+        applyUnreadMarker(groupId, unreadCount, cachedMessages)
+        return
+      }
+      const incoming = asArray(asRecord(result.value).list)
+      const merged = anchor === '' ? incoming : mergeMessageWindow(cachedMessages, incoming)
+      messagesRef.current = merged
+      props.actions.setMessages(merged)
+      props.actions.setMessagesMore(more)
+      props.actions.setMessagesAnchor(merged.length > 0 ? asString(asRecord(merged[0]).msgId) : '')
+      putMessageWindow(groupId, merged, more)
+      applyUnreadMarker(groupId, unreadCount, merged)
+      scrollMessagesToBottom()
+    }).finally(() => {
+      if (messageSyncToken.current === token) setSyncingMessages(false)
+    })
+  }
+
   const openGroup = (id: string): void => {
+    const group = state.groups.map(asRecord).find(item => asString(item.groupId) === id)
+    const serverUnread = typeof group?.unreadCount === 'number' ? group.unreadCount : 0
+    const unreadCount = effectiveUnread(id, serverUnread)
+    const lastMessage = asRecord(group?.lastMsg)
+    const previewMessages: unknown[] = asString(lastMessage.msgId) === '' ? [] : [lastMessage]
+    const token = ++messageSyncToken.current
     props.actions.setGroupId(id)
     props.actions.setAnchorMsgId('')
     setDraft('')
     setPendingImage(null)
     setMessageMenu(null)
     setForwardingMessage(null)
-    // Rendered window is cached ~60s: revisiting a group is instant.
+    setUnreadMarker(null)
+    // Render the warm cache (or recent-session preview) immediately, then
+    // reconcile newer/full history now.
     const cached = getMessageWindow(id)
     if (cached !== undefined) {
-      props.actions.setMessages(cached.messages)
+      const visibleCached = cached.messages.length > 0 ? cached.messages : previewMessages
+      messagesRef.current = visibleCached
+      props.actions.setMessages(visibleCached)
       props.actions.setMessagesMore(cached.more)
-      // The CLI returns messages OLDEST-first; the oldest id is the next
-      // anchor for paging further back.
       props.actions.setMessagesAnchor(
-        cached.messages.length > 0 ? asString(asRecord(cached.messages[0]).msgId) : '',
+        visibleCached.length > 0 ? asString(asRecord(visibleCached[0]).msgId) : '',
       )
       props.actions.setLoading(false)
+      applyUnreadMarker(id, unreadCount, visibleCached)
       scrollMessagesToBottom()
+      refreshCachedMessages(id, visibleCached, cached.more, unreadCount, token)
       return
     }
-    props.actions.setMessages([])
+    messagesRef.current = previewMessages
+    props.actions.setMessages(previewMessages)
+    props.actions.setMessagesMore(false)
+    props.actions.setMessagesAnchor(previewMessages.length > 0 ? asString(asRecord(previewMessages[0]).msgId) : '')
     props.actions.setLoading(true)
     props.actions.setError('')
+    applyUnreadMarker(id, unreadCount, previewMessages)
+    setSyncingMessages(true)
+    scrollMessagesToBottom()
     void props.fetchMessages(id, 20).then((result) => {
+      if (messageSyncToken.current !== token) return
       if (result.ok) {
-        // The CLI already returns oldest-first, which is exactly the chat
-        // reading order — do NOT reverse.
-        const messages = asArray(asRecord(result.value).list)
-        putMessageWindow(id, messages, asRecord(result.value).more === true)
+        // The CLI already returns oldest-first. Special notification sessions
+        // may return an empty list; retain their recent-session lastMsg then.
+        const fetched = asArray(asRecord(result.value).list)
+        const messages = fetched.length > 0 ? fetched : previewMessages
+        const more = fetched.length > 0 && asRecord(result.value).more === true
+        messagesRef.current = messages
+        putMessageWindow(id, messages, more)
         props.actions.setMessages(messages)
-        props.actions.setMessagesMore(asRecord(result.value).more === true)
+        props.actions.setMessagesMore(more)
         props.actions.setMessagesAnchor(messages.length > 0 ? asString(asRecord(messages[0]).msgId) : '')
+        applyUnreadMarker(id, unreadCount, messages)
         scrollMessagesToBottom()
       } else {
         props.actions.setError(result.error.message)
       }
       props.actions.setLoading(false)
+    }).finally(() => {
+      if (messageSyncToken.current === token) setSyncingMessages(false)
     })
   }
 
   /** Narrow-window back: leave a conversation for the recent-session list. */
   const backToGroups = (): void => {
+    messageSyncToken.current += 1
+    setSyncingMessages(false)
+    setUnreadMarker(null)
     props.actions.setGroupId('')
     props.actions.setAnchorMsgId('')
   }
@@ -1634,6 +1744,37 @@ export function YzjPanel(props: YzjPanelProps) {
         el.setSelectionRange(pos, pos)
       }
     })
+  }
+
+  const focusDraftAtEnd = (): void => {
+    requestAnimationFrame(() => {
+      const el = draftRef.current
+      if (el === null) return
+      el.focus()
+      const end = el.value.length
+      el.setSelectionRange(end, end)
+    })
+  }
+
+  const prepareAgentDraft = (): void => {
+    setDraft(current => withAgentAlias(current))
+    focusDraftAtEnd()
+  }
+
+  /** Pick the virtual Agent target without creating a Yunzhijia member mention. */
+  const pickMentionAgent = (): void => {
+    prepareAgentDraft()
+    setMentionOpen(false)
+    setMentionQuery('')
+    setMentionResults([])
+  }
+
+  /** Reply to one message through the Agent while preserving any draft text. */
+  const replyWithAgent = (msgId: string, summary: string): void => {
+    setReplyTo({ msgId, summary })
+    setEmojiOpen(false)
+    setMentionOpen(false)
+    prepareAgentDraft()
   }
 
   /** Pick a directory member as an @ mention. */
@@ -2235,6 +2376,7 @@ export function YzjPanel(props: YzjPanelProps) {
                   disabled={state.unreadTotal === 0}
                   onClick={() => {
                     markAllRead(state.groups)
+                    setUnreadMarker(null)
                     props.actions.setGroups(state.groups.map(item => ({ ...asRecord(item), unreadCount: 0 })))
                     props.actions.setUnreadTotal(0)
                   }}
@@ -2299,6 +2441,7 @@ export function YzjPanel(props: YzjPanelProps) {
                   <IconChevronLeft14 /> 会话
                 </button>
                 <GroupHead groups={state.groups} groupId={state.groupId} />
+                {syncingMessages && <span className={css.chatSync} role="status">同步中…</span>}
               </div>
               {anchorActive && (
                 <div className={css.anchorHint} role="status">
@@ -2331,6 +2474,15 @@ export function YzjPanel(props: YzjPanelProps) {
                   <div key={`m${index}`}>
                     {dayKey !== '' && dayKey !== prevDay && (
                       <div className={css.dayDivider}>{dayLabel}</div>
+                    )}
+                    {unreadMarker?.groupId === state.groupId && unreadMarker.firstMsgId === msgId && (
+                      <div className={css.unreadDivider} role="separator">
+                        <span>
+                          {unreadMarker.count > state.messages.length
+                            ? `未读消息 · 共 ${unreadMarker.count} 条`
+                            : `${unreadMarker.count} 条未读消息`}
+                        </span>
+                      </div>
                     )}
                     <div
                       ref={anchored ? anchorRef : undefined}
@@ -2390,18 +2542,29 @@ export function YzjPanel(props: YzjPanelProps) {
                           />
                         </span>
                         {!isSystem && (
-                          <button
-                            type="button"
-                            className={css.msgReply}
-                            title="回复此消息"
-                            aria-label="回复"
-                            onClick={() => {
-                              setReplyTo({ msgId, summary: dragTitleOf(message) })
-                              draftRef.current?.focus()
-                            }}
-                          >
-                            回复
-                          </button>
+                          <span className={css.msgActions}>
+                            <button
+                              type="button"
+                              className={css.msgReply}
+                              title="回复此消息"
+                              aria-label="回复"
+                              onClick={() => {
+                                setReplyTo({ msgId, summary: dragTitleOf(message) })
+                                draftRef.current?.focus()
+                              }}
+                            >
+                              回复
+                            </button>
+                            <button
+                              type="button"
+                              className={`${css.msgReply} ${css.msgAgent}`}
+                              title="让 Agent 处理此消息"
+                              aria-label="@agent 回复"
+                              onClick={() => replyWithAgent(msgId, dragTitleOf(message))}
+                            >
+                              @agent
+                            </button>
+                          </span>
                         )}
                       </span>
                     </div>
@@ -2478,6 +2641,9 @@ export function YzjPanel(props: YzjPanelProps) {
                       }}
                     />
                     <div className={css.mentionList}>
+                      <button type="button" className={`${css.mentionItem} ${css.mentionAgent}`} onClick={pickMentionAgent}>
+                        <span className={css.mentionName}>@agent</span>
+                      </button>
                       <button type="button" className={css.mentionItem} onClick={pickMentionAll}>
                         <span className={css.mentionName}>@全体成员</span>
                         <span className={css.mentionSub}>提醒群内所有人</span>
