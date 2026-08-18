@@ -1,6 +1,6 @@
 {
   "name": "@dsh-yzj/bundle",
-  "description": "Installable dsh profile bundle for 云之家: mounts the yzj-cli bridge, the model-facing tool family, and the browser UI (rich tool cards + workspace panel)",
+  "description": "Installable dsh profile bundle for 云之家: mounts the yzj-cli bridge, model-facing tools, inbound @agent gateway, and browser UI",
   "version": "0.1.0",
   "type": "module",
   "main": "lib/types/index.js",
@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@dsh-yzj/bridge": "workspace:^",
+    "@dsh-yzj/agent-gateway": "workspace:^",
     "@dsh-yzj/tool-yzj": "workspace:^",
     "@dsh-yzj/ui-yzj": "workspace:^"
   }

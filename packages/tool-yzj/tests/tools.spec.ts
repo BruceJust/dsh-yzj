@@ -108,10 +108,18 @@ describe('read-only tools over the real CLI', () => {
 
 describe('approval guard', () => {
   type PreToolDecision = { kind: 'allow' } | { kind: 'ask'; reason: string } | { kind: 'deny'; reason: string }
-  type Listener = (exec: { name: string; callId: string; arguments: unknown }, next: () => Promise<PreToolDecision>) => Promise<PreToolDecision>
+  type Listener = (exec: {
+    name: string
+    callId: string
+    arguments: unknown
+    agent?: { session: { events: readonly unknown[] } }
+  }, next: () => Promise<PreToolDecision>) => Promise<PreToolDecision>
   interface Pending { callId: string; toolName: string; level: string; reason: string; args: Record<string, unknown> }
 
-  function guard(): { listener: Listener; pending: Pending[] } {
+  function guard(revocations?: { isRevoked(messageId: string): boolean }): {
+    listener: Listener
+    pending: Pending[]
+  } {
     let listener: Listener = async () => ({ kind: 'allow' })
     const pending: Pending[] = []
     const ctx = {
@@ -121,9 +129,35 @@ describe('approval guard', () => {
       emit(_event: string, payload: Pending): void {
         pending.push(payload)
       },
+      get(name: string): unknown {
+        return name === 'yzjRevocations' ? revocations : undefined
+      },
+      yzjBridge: {
+        run: async () => ({
+          ok: true, exitCode: 0, stdout: '', stderr: '',
+          json: [{ orgId: 'org-1', openId: 'agent-self' }],
+        }),
+      },
     } as unknown as Context
     applyApprovalGuard(ctx)
     return { listener, pending }
+  }
+
+  function gatewayAgent(openId = 'agent-self'): { session: { events: readonly unknown[] } } {
+    return {
+      session: {
+        events: [
+          { type: 'turn/start', data: { turn: 1 } },
+          {
+            type: 'user/message',
+            data: { source: {
+              kind: 'yzj-agent', writeMode: 'standard', messageId: 'task-1',
+              accountOrgId: 'org-1', accountOpenId: openId,
+            } },
+          },
+        ],
+      },
+    }
   }
 
   it('asks for yzj_doc_delete at strong level', async () => {
@@ -139,6 +173,79 @@ describe('approval guard', () => {
     const decision = await listener({ name: 'yzj_im_message_send', callId: 'c1', arguments: { groupId: 'g' } }, async () => ({ kind: 'allow' }))
     expect(decision.kind).toBe('ask')
     expect(pending[0].level).toBe('standard')
+  })
+
+  it('allows standard writes in a current Yunzhijia gateway turn', async () => {
+    const { listener, pending } = guard()
+    const decision = await listener({
+      name: 'yzj_doc_block_update',
+      callId: 'c-gateway',
+      arguments: { id: 'doc' },
+      agent: gatewayAgent(),
+    }, async () => ({ kind: 'allow' }))
+    expect(decision.kind).toBe('allow')
+    expect(pending).toHaveLength(0)
+  })
+
+  it('rejects a Gateway tool call after the Yunzhijia login changes', async () => {
+    const { listener } = guard()
+    await expect(listener({
+      name: 'yzj_doc_list', callId: 'c-account', arguments: {},
+      agent: gatewayAgent('other-account'),
+    }, async () => ({ kind: 'allow' }))).rejects.toThrow('login account changed')
+  })
+
+  it('denies shell and delegated execution in a Gateway turn', async () => {
+    const { listener } = guard()
+    for (const name of ['bash', 'subagent', 'workflow', 'create_goal']) {
+      const decision = await listener({
+        name, callId: `c-${name}`, arguments: {}, agent: gatewayAgent(),
+      }, async () => ({ kind: 'allow' }))
+      expect(decision.kind, name).toBe('deny')
+    }
+  })
+
+  it('denies Yunzhijia calls after gateway state revokes the task', async () => {
+    const { listener } = guard({ isRevoked: messageId => messageId === 'task-1' })
+    await expect(listener({
+      name: 'yzj_doc_list', callId: 'c-revoked', arguments: {}, agent: gatewayAgent(),
+    }, async () => ({ kind: 'allow' }))).rejects.toThrow('authority was revoked')
+  })
+
+  it('still honors a legacy in-log revocation event without the gateway service', async () => {
+    const { listener } = guard()
+    const current = gatewayAgent()
+    const agent = {
+      session: {
+        events: [
+          ...current.session.events,
+          { type: 'yzj/authority-revoked', data: { messageId: 'task-1' } },
+        ],
+      },
+    }
+    await expect(listener({
+      name: 'yzj_doc_list', callId: 'c-revoked-legacy', arguments: {}, agent,
+    }, async () => ({ kind: 'allow' }))).rejects.toThrow('authority was revoked')
+  })
+
+  it('allows Yunzhijia calls when the gateway service knows no revocation', async () => {
+    const { listener } = guard({ isRevoked: () => false })
+    const decision = await listener({
+      name: 'yzj_doc_block_update', callId: 'c-live', arguments: { id: 'doc' },
+      agent: gatewayAgent(),
+    }, async () => ({ kind: 'allow' }))
+    expect(decision.kind).toBe('allow')
+  })
+
+  it('still asks for strong writes in a Yunzhijia gateway turn', async () => {
+    const { listener } = guard()
+    const decision = await listener({
+      name: 'yzj_doc_delete',
+      callId: 'c-delete',
+      arguments: { id: 'doc' },
+      agent: gatewayAgent(),
+    }, async () => ({ kind: 'allow' }))
+    expect(decision.kind).toBe('ask')
   })
 
   it('asks for yzj_file_download only when overwriting', async () => {

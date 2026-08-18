@@ -12,7 +12,7 @@
 
 import { spawn, execFile } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -39,6 +39,33 @@ export interface YzjRunResult {
   durationMs: number
 }
 
+/** Durable navigation identity projected from one Yunzhijia Agent Session log. */
+export interface YzjSessionIdentityProjection {
+  readonly version: 1
+  readonly accountKey: string
+  readonly accountOrgId: string
+  readonly accountOpenId: string
+  readonly conversationKind: 'group' | 'direct'
+  readonly groupId: string
+  readonly groupName: string
+  readonly channelKey: string
+  readonly topicRootId: string
+  readonly topicKey: string
+  readonly topicLabel: string
+  readonly managedTitle: string
+}
+
+/**
+ * Revocation checkpoint the Agent gateway provides on the Context. Revocations
+ * live in the gateway's own state file, never in the DSH Session log (the
+ * persistence cold-read whitelist rejects unknown event types). Guards consume
+ * this service optionally via `ctx.get('yzjRevocations')`.
+ */
+export interface YzjRevocations {
+  /** True when the Agent authority of this task message id was revoked. */
+  isRevoked(messageId: string): boolean
+}
+
 /** Failed to launch the configured binary (missing executable or bad path). */
 export class YzjSpawnError extends Error {}
 
@@ -58,7 +85,7 @@ export function resolveNpmLauncher(cmdPath: string): string | undefined {
   }
   const match = content.match(/%dp0%\\(node_modules\\[^"]+?\\scripts\\[^"]+)/i)
   if (match === null || match[1] === undefined) return undefined
-  return join(dirname(cmdPath), match[1])
+  return join(dirname(cmdPath), match[1].replaceAll('\\', sep))
 }
 
 /** Cached Windows launcher resolutions: bare command name → [executable, prefix argv]. */
@@ -99,6 +126,7 @@ async function resolveBinary(binary: string): Promise<[string, string[]]> {
 declare module '@deepseek-ai/cordis' {
   interface Context {
     yzjBridge: YzjBridge
+    yzjRevocations?: YzjRevocations
   }
 }
 

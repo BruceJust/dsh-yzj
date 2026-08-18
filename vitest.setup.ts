@@ -4,6 +4,7 @@
  * and silence React act warnings noise.
  */
 if (typeof window !== 'undefined') {
+  ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   const storage = (() => {
     const map = new Map<string, string>()
     return {

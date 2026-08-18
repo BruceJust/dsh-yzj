@@ -1,25 +1,31 @@
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 /**
  * Vitest config: resolve client-half packages to their TS source so specs
- * exercise the browser entry directly (the built lib/client.js artifacts are
- * closure-factory bundles that require the shell's `window.__ModuleLoader__`).
- * The harness checkout is the single source of truth for these paths.
+ * exercise the browser entry directly. The published runtime client is a shell
+ * closure bundle, so defineStore is supplied by a focused local ESM double.
  */
-const HARNESS = fileURLToPath(new URL('../deepseek-harness/packages/client', import.meta.url))
+const RUNTIME_STUB = fileURLToPath(new URL('./vitest.runtime-client.ts', import.meta.url))
 
 export default defineConfig({
   resolve: {
     alias: {
-      // runtime's lib/client.js is a closure-factory artifact requiring the
-      // shell loader; its source is a plain ESM browser entry that vitest can
-      // import directly. ui-primitives' lib/index.js is a plain ESM build and
-      // resolves normally.
-      '@deepseek-ai/dsh-client-runtime/client': `${HARNESS}/runtime/src/client/index.ts`,
+      // The published runtime client is a shell closure, not importable ESM.
+      // Component specs need only defineStore at runtime; types still resolve
+      // from the package's declaration export during tsc.
+      '@deepseek-ai/dsh-client-runtime/client': RUNTIME_STUB,
     },
   },
   test: {
+    // Claude Code worktrees nest under .claude/ inside this repo; their test
+    // copies have no node_modules and must not be collected.
+    exclude: [...configDefaults.exclude, '**/.claude/**'],
+    server: {
+      deps: {
+        inline: ['@deepseek-ai/dsh-client-ui-primitives', 'katex'],
+      },
+    },
     environment: 'node',
     setupFiles: ['./vitest.setup.ts'],
   },

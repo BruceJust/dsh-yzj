@@ -1,6 +1,6 @@
 {
   "name": "dsh-yzj",
-  "description": "云之家 (Yunzhijia) plugin bundle for DeepSeek Harness: yzj-cli bridge, model-facing tools, and a browser UI (rich tool cards + workspace panel)",
+  "description": "云之家 (Yunzhijia) plugin bundle for DeepSeek Harness: yzj-cli bridge, model-facing tools, inbound @agent gateway, and browser UI",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.7.0",
@@ -12,6 +12,7 @@
     "typecheck": "pnpm -r --sort typecheck",
     "test": "vitest run",
     "bundle": "pnpm --filter @dsh-yzj/ui-yzj bundle",
+    "patch:dsh-workspace": "node scripts/patch-dsh-workspace.mjs",
     "clean": "pnpm -r exec rm -rf lib"
   },
   "devDependencies": {

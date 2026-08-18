@@ -1,6 +1,6 @@
-# The dsh-yzj bundle patch: mounts the Yunzhijia bridge, tool family, and
-# browser surface over the dsh-base + web-app layers. All three rows carry
-# their defaults; deployments override per-row config in their own
+# The dsh-yzj bundle patch: mounts the Yunzhijia bridge, tool family, inbound
+# @agent gateway, and browser surface over the dsh-base + web-app layers. All
+# four rows carry their defaults; deployments override per-row config in their
 # cordis.patch.yml (an id-targeted patch replaces the whole config).
 - insert:
     # Host channel to the yzj-cli binary (spawns it directly, reusing the
@@ -12,6 +12,16 @@
     # the approval seam (the GUI approval panel answers).
     - id: tool-yzj
       name: '@dsh-yzj/tool-yzj'
+
+    # Host-side inbound adapter: polls recent chats for explicit @agent aliases,
+    # maps group topics or direct chats to account-isolated persistent DSH
+    # Sessions, and relays progress plus final status back to the triggering
+    # message. Ordinary mentions of the logged-in account are intentionally not
+    # commands.
+    - id: yzj-agent-gateway
+      name: '@dsh-yzj/agent-gateway'
+      config:
+        acceptAccountMentions: false
 
     # Browser surface: /yzj RPC channel (node half) + rich tool cards and the
     # workspace panel (browser half, a dsh.client row scanned into the boot

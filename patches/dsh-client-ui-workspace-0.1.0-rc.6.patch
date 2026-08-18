@@ -1,0 +1,503 @@
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -28,10 +28,11 @@
+ 					groupBy: "workspace",
+ 					orderBy: "updated",
+ 					groupExpansion: {},
++					branchExpansion: {},
+ 					sessionOrderByAccount: {},
+ 					sessionUpdatedAtByAccount: {}
+ 				}),
+-				persist: "dsh.workspace.view.v5",
++				persist: "dsh.workspace.view.v6",
+ 				actions: {
+ 					setGroupBy: (d, mode) => {
+ 						d.groupBy = mode;
+@@ -42,9 +43,13 @@
+ 					setGroupExpanded: (d, key, expanded) => {
+ 						d.groupExpansion[key] = expanded;
+ 					},
++					setBranchExpanded: (d, key, expanded) => {
++						d.branchExpansion[key] = expanded;
++					},
+ 					retainAccountKeys: (d, workspaceKeys) => {
+ 						const retained = new Set(workspaceKeys);
+ 						d.groupExpansion = Object.fromEntries(Object.entries(d.groupExpansion).filter(([key]) => retained.has(key)));
++						d.branchExpansion = Object.fromEntries(Object.entries(d.branchExpansion).filter(([key]) => [...retained].some((workspaceKey) => workspaceKey !== "" && key.startsWith(`${workspaceKey}::`))));
+ 						d.sessionOrderByAccount = Object.fromEntries(Object.entries(d.sessionOrderByAccount).filter(([key]) => retained.has(key)));
+ 						d.sessionUpdatedAtByAccount = Object.fromEntries(Object.entries(d.sessionUpdatedAtByAccount).filter(([key]) => retained.has(key)));
+ 					},
+@@ -162,10 +167,10 @@
+ 			if (stray.length > 0) groups.push(buildGroup("", void 0, void 0, void 0, UNGROUPED_LABEL, ungroupedOrder === void 0 ? stray : orderedUngrouped(stray, ungroupedOrder), ungroupedOrder === void 0 ? "recency" : "account"));
+ 			return groups;
+ 		}
+-		function sessionNode(s, descendants) {
++		function sessionNode(s, descendants, title = sessionTitle(s)) {
+ 			return {
+ 				id: s.id,
+-				title: sessionTitle(s),
++				title,
+ 				blank: s.blank,
+ 				running: s.running,
+ 				runningSubagentCount: descendants.get(s.id)?.runningCount ?? 0,
+@@ -173,6 +178,121 @@
+ 				updatedAt: s.updatedAt,
+ 				...s.pendingInteraction === void 0 ? {} : { pendingInteraction: s.pendingInteraction }
+ 			};
++		}
++		/** Accept one bounded, data-only hierarchy claim from an optional domain provider. */
++		function normalizeHierarchyClaim(value) {
++			if (value === null || typeof value !== "object" || !Array.isArray(value.path) || value.path.length > 3) return void 0;
++			const ids = /* @__PURE__ */ new Set();
++			const path = [];
++			for (const raw of value.path) {
++				if (raw === null || typeof raw !== "object") return void 0;
++				const id = typeof raw.id === "string" ? raw.id.trim() : "";
++				const label = typeof raw.label === "string" ? raw.label.trim() : "";
++				if (id === "" || id.length > 240 || label === "" || label.length > 240 || ids.has(id)) return void 0;
++				ids.add(id);
++				path.push({
++					id,
++					label,
++					...raw.kind === "group" || raw.kind === "direct" || raw.kind === "legacy" ? { kind: raw.kind } : {}
++				});
++			}
++			const leafLabel = typeof value.leafLabel === "string" && value.leafLabel.trim() !== "" ? value.leafLabel.trim().slice(0, 500) : void 0;
++			const aliases = Array.isArray(value.aliases) ? value.aliases.filter((alias) => typeof alias === "string" && alias.trim() !== "").map((alias) => alias.trim().slice(0, 500)).slice(0, 12) : [];
++			return {
++				path,
++				...leafLabel === void 0 ? {} : { leafLabel },
++				aliases
++			};
++		}
++		/** Stable disclosure key scoped by Workspace and the complete opaque branch path. */
++		function hierarchyBranchKey(workspaceId, path) {
++			return `${workspaceId}::${path.map((node) => encodeURIComponent(node.id)).join("/")}`;
++		}
++		/** Fold descendant activity into one native branch-row status summary. */
++		function summarizeHierarchyBranch(branch) {
++			let updatedAt = 0;
++			let pendingInteraction;
++			let running = false;
++			let runningSubagentCount = 0;
++			let completed = false;
++			let sessionCount = 0;
++			let containsCurrent = false;
++			for (const entry of branch.children) {
++				const value = entry.kind === "session" ? entry.node : summarizeHierarchyBranch(entry);
++				updatedAt = Math.max(updatedAt, value.updatedAt);
++				pendingInteraction ??= value.pendingInteraction;
++				running ||= value.running;
++				runningSubagentCount += value.runningSubagentCount;
++				completed ||= value.completed;
++				sessionCount += entry.kind === "session" ? 1 : value.sessionCount;
++				containsCurrent ||= entry.kind === "session" ? entry.current : value.containsCurrent;
++			}
++			Object.assign(branch, {
++				updatedAt,
++				running,
++				runningSubagentCount,
++				completed,
++				sessionCount,
++				containsCurrent,
++				...pendingInteraction === void 0 ? {} : { pendingInteraction }
++			});
++			return branch;
++		}
++		/** Project ordered Workspace members into branches while retaining every unclaimed Session. */
++		function buildHierarchyEntries(group, workspace, descendants, current, projectHierarchy) {
++			if (workspace === void 0 || projectHierarchy === void 0) return void 0;
++			const roots = [];
++			const branches = /* @__PURE__ */ new Map();
++			let claimed = false;
++			for (const session of group.sessions) {
++				let raw;
++				try {
++					raw = projectHierarchy({ session, workspace });
++				} catch (error) {
++					console.warn("workspace hierarchy provider rejected a Session:", error);
++				}
++				const claim = normalizeHierarchyClaim(raw);
++				const node = sessionNode(session, descendants, claim?.leafLabel ?? sessionTitle(session));
++				if (claim === void 0) {
++					roots.push({
++						kind: "session",
++						key: session.id,
++						node,
++						current: session.id === current
++					});
++					continue;
++				}
++				claimed = true;
++				node.hierarchyAliases = claim.aliases;
++				let children = roots;
++				const traversed = [];
++				for (const segment of claim.path) {
++					traversed.push(segment);
++					const key = hierarchyBranchKey(workspace.workspaceId, traversed);
++					let branch = branches.get(key);
++					if (branch === void 0) {
++						branch = {
++							kind: "branch",
++							key,
++							label: segment.label,
++							nodeKind: segment.kind,
++							children: []
++						};
++						branches.set(key, branch);
++						children.push(branch);
++					}
++					children = branch.children;
++				}
++				children.push({
++					kind: "session",
++					key: session.id,
++					node,
++					current: session.id === current
++				});
++			}
++			if (!claimed) return void 0;
++			for (const entry of roots) if (entry.kind === "branch") summarizeHierarchyBranch(entry);
++			return roots;
+ 		}
+ 		/**
+ 		* Derive the workspace browser groups with every session as a top-level row.
+@@ -188,7 +308,7 @@
+ 		* @param view - local expansion arrays.
+ 		* @returns group sections in render order.
+ 		*/
+-		function deriveGroups(list, workspaces, archivedSessionIds, view) {
++		function deriveGroups(list, workspaces, archivedSessionIds, view, projectHierarchy) {
+ 			const archived = new Set(archivedSessionIds);
+ 			const expandedGroups = new Set(view.expandedGroups);
+ 			const descendants = (0, _deepseek_ai_dsh_client_runtime_client.indexSubagentDescendants)(list.byId);
+@@ -196,6 +316,8 @@
+ 			const groups = [];
+ 			for (const g of groupByWorkspace(list, workspaces, archived, view.ungroupedOrder)) {
+ 				const expanded = expandedGroups.has(g.key);
++				const workspace = g.workspaceId === void 0 ? void 0 : workspaces.find((candidate) => candidate.workspaceId === g.workspaceId);
++				const hierarchyEntries = expanded ? buildHierarchyEntries(g, workspace, descendants, list.current, projectHierarchy) : void 0;
+ 				groups.push({
+ 					key: g.key,
+ 					workspaceId: g.workspaceId,
+@@ -205,7 +327,8 @@
+ 					sessionCount: g.sessions.length,
+ 					expanded,
+ 					containsCurrent: g.key === currentGroup,
+-					sessions: expanded ? g.sessions.map((session) => sessionNode(session, descendants)) : []
++					sessions: expanded ? g.sessions.map((session) => sessionNode(session, descendants)) : [],
++					...hierarchyEntries === void 0 ? {} : { hierarchyEntries }
+ 				});
+ 			}
+ 			return groups;
+@@ -243,7 +366,7 @@
+ 		* @param limit - protocol-owned maximum merged row count.
+ 		* @returns bounded deduplicated flat rows and a refine-query hint bit.
+ 		*/
+-		function deriveSearchResults(list, workspaces, query, archivedSessionIds, content, limit) {
++		function deriveSearchResults(list, workspaces, query, archivedSessionIds, content, limit, projectHierarchy) {
+ 			const q = query.trim().toLowerCase();
+ 			if (q === "") return {
+ 				items: [],
+@@ -252,15 +375,36 @@
+ 			const archived = new Set(archivedSessionIds);
+ 			const descendants = (0, _deepseek_ai_dsh_client_runtime_client.indexSubagentDescendants)(list.byId);
+ 			const workspaceBySession = /* @__PURE__ */ new Map();
+-			for (const workspace of workspaces) for (const sessionId of workspace.sessionIds) if (!workspaceBySession.has(sessionId)) workspaceBySession.set(sessionId, workspace.title);
+-			const labelOf = (summary) => workspaceBySession.get(summary.id) ?? workspaceLabel(summary.cwd);
++			for (const workspace of workspaces) for (const sessionId of workspace.sessionIds) if (!workspaceBySession.has(sessionId)) workspaceBySession.set(sessionId, workspace);
++			const claimBySession = /* @__PURE__ */ new Map();
++			const claimOf = (summary) => {
++				if (claimBySession.has(summary.id)) return claimBySession.get(summary.id);
++				const workspace = workspaceBySession.get(summary.id);
++				let claim;
++				try {
++					claim = workspace === void 0 || projectHierarchy === void 0 ? void 0 : normalizeHierarchyClaim(projectHierarchy({ session: summary, workspace }));
++				} catch (error) {
++					console.warn("workspace hierarchy provider rejected a search row:", error);
++				}
++				claimBySession.set(summary.id, claim);
++				return claim;
++			};
++			const titleOf = (summary) => claimOf(summary)?.leafLabel ?? sessionTitle(summary);
++			const labelOf = (summary) => {
++				const workspace = workspaceBySession.get(summary.id);
++				const base = workspace?.title ?? workspaceLabel(summary.cwd);
++				const path = claimOf(summary)?.path.map((node) => node.label) ?? [];
++				return path.length === 0 ? base : `${base} / ${path.join(" / ")}`;
++			};
+ 			const contentBySession = /* @__PURE__ */ new Map();
+ 			for (const item of content.items) if (!contentBySession.has(item.sessionId)) contentBySession.set(item.sessionId, item);
+ 			const local = [];
+ 			for (const id of list.ids) {
+ 				const summary = list.byId[id];
+ 				if (summary === void 0 || summary.blank || !sessionVisible(summary, list.current, archived)) continue;
+-				if (sessionTitle(summary).toLowerCase().includes(q) || labelOf(summary).toLowerCase().includes(q)) local.push(summary);
++				const claim = claimOf(summary);
++				const localText = [titleOf(summary), labelOf(summary), ...(claim?.aliases ?? [])].join("\n").toLowerCase();
++				if (localText.includes(q)) local.push(summary);
+ 			}
+ 			local.sort(byRecency);
+ 			const ordered = [];
+@@ -280,7 +424,7 @@
+ 					const match = contentBySession.get(summary.id);
+ 					return {
+ 						id: summary.id,
+-						title: sessionTitle(summary),
++						title: titleOf(summary),
+ 						workspace: labelOf(summary),
+ 						running: summary.running,
+ 						runningSubagentCount: descendants.get(summary.id)?.runningCount ?? 0,
+@@ -1012,6 +1156,15 @@
+ 			"headerActionsHidden": "qDHVXG_headerActionsHidden",
+ 			"renameError": "qDHVXG_renameError"
+ 		};
++		const hierarchyCss = ".dshWorkspaceHierarchyBranch{box-sizing:border-box;cursor:pointer;user-select:none;color:var(--dsw-alias-label-primary);width:100%;height:32px;background:transparent;border:0;border-radius:8px;align-items:center;gap:4px;padding:0 8px;display:flex}.dshWorkspaceHierarchyBranch:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshWorkspaceHierarchyBranchIcon{width:16px;height:20px;color:var(--dsw-alias-label-tertiary);flex:none;justify-content:center;align-items:center;display:inline-flex}.dshWorkspaceHierarchyBranchArrow{transition:transform .15s var(--ds-ease-in-out)}.dshWorkspaceHierarchyBranchArrowOpen{transform:rotate(90deg)}.dshWorkspaceHierarchyBranchTitle{text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;font-size:13px;line-height:20px;overflow:hidden}.dshWorkspaceHierarchyBranchCount{color:var(--dsw-alias-label-tertiary);width:24px;text-align:right;flex:none;font-size:11px;line-height:18px}.dshWorkspaceHierarchyChildren{margin-left:14px}.dshWorkspaceHierarchyStatus{width:12px;flex:none;justify-content:center;display:flex}.dshWorkspaceHierarchyOverflow{cursor:pointer;color:var(--dsw-alias-label-secondary);height:28px;background:transparent;border:0;padding:0 8px;font-size:12px}.dshWorkspaceHierarchyOverflow:hover{color:var(--dsw-alias-label-primary)}";
++		const hierarchyTagId = "@deepseek-ai/dsh-client-ui-workspace/SessionHierarchy.css";
++		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(hierarchyTagId) + "]") === null) {
++			const tag = document.createElement("style");
++			tag.dataset.plugin = "@deepseek-ai/dsh-client-ui-workspace";
++			tag.dataset.pluginCss = hierarchyTagId;
++			tag.textContent = hierarchyCss;
++			document.head.appendChild(tag);
++		}
+ 		//#endregion
+ 		//#region lib/types/client/WorkspaceBrowser.js
+ 		/**
+@@ -1190,13 +1343,95 @@
+ 				})
+ 			});
+ 		}
++		/** Native branch row: disclosure, semantic icon, aggregate state, label, and descendant count. */
++		function HierarchyBranchItem({ branch, expanded, onToggle, t }) {
++			const statuses = sessionStatuses(branch, t);
++			const showStatus = statuses[0].state !== "done" || branch.completed;
++			const BranchIcon = branch.nodeKind === "direct" ? _deepseek_ai_dsh_client_ui_primitives.IconUserOutline16 : expanded ? _deepseek_ai_dsh_client_ui_primitives.IconFolderOpen16 : _deepseek_ai_dsh_client_ui_primitives.IconFolderClose16;
++			return (0, react_jsx_runtime.jsxs)("button", {
++				type: "button",
++				className: "dshWorkspaceHierarchyBranch",
++				role: "treeitem",
++				"aria-expanded": expanded,
++				onClick: onToggle,
++				children: [
++					(0, react_jsx_runtime.jsx)("span", {
++						className: "dshWorkspaceHierarchyBranchIcon",
++						children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconTriangleRightFill14, { className: clsx("dshWorkspaceHierarchyBranchArrow", expanded && "dshWorkspaceHierarchyBranchArrowOpen") })
++					}),
++					(0, react_jsx_runtime.jsx)("span", {
++						className: "dshWorkspaceHierarchyBranchIcon",
++						children: (0, react_jsx_runtime.jsx)(BranchIcon, {})
++					}),
++					(0, react_jsx_runtime.jsx)("span", {
++						className: "dshWorkspaceHierarchyStatus",
++						children: showStatus && (0, react_jsx_runtime.jsx)(SessionStatusDots, { statuses })
++					}),
++					(0, react_jsx_runtime.jsx)("span", {
++						className: "dshWorkspaceHierarchyBranchTitle",
++						children: branch.label
++					}),
++					(0, react_jsx_runtime.jsx)("span", {
++						className: "dshWorkspaceHierarchyBranchCount",
++						children: branch.sessionCount
++					})
++				]
++			});
++		}
++		/** Recursively render validated data branches; Session leaves keep the stock row component. */
++		function HierarchyEntries({ entries, branchExpansion, setBranchExpanded, expandedOverflow, setExpandedOverflow, renderSession, t }) {
++			return entries.map((entry) => {
++				if (entry.kind === "session") return renderSession(entry.node, entry.key);
++				const expanded = branchExpansion[entry.key] === true;
++				const overflowKey = `branch:${entry.key}`;
++				const showAll = expandedOverflow.includes(overflowKey);
++				const visible = showAll ? entry.children : entry.children.slice(0, COLLAPSED_SESSION_LIMIT);
++				return (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
++					children: [
++						(0, react_jsx_runtime.jsx)(HierarchyBranchItem, {
++							branch: entry,
++							expanded,
++							onToggle: () => {
++								if (expanded) setExpandedOverflow((keys) => keys.filter((key) => key !== overflowKey));
++								setBranchExpanded(entry.key, !expanded);
++							},
++							t
++						}),
++						expanded && (0, react_jsx_runtime.jsxs)("div", {
++							className: "dshWorkspaceHierarchyChildren",
++							role: "group",
++							children: [
++								(0, react_jsx_runtime.jsx)(HierarchyEntries, {
++									entries: visible,
++									branchExpansion,
++									setBranchExpanded,
++									expandedOverflow,
++									setExpandedOverflow,
++									renderSession,
++									t
++								}),
++								entry.children.length > COLLAPSED_SESSION_LIMIT && (0, react_jsx_runtime.jsx)("button", {
++									type: "button",
++									className: "dshWorkspaceHierarchyOverflow",
++									"aria-expanded": showAll,
++									onClick: () => {
++										setExpandedOverflow((keys) => toggled(keys, overflowKey));
++									},
++									children: showAll ? t("sessions.collapse") : t("sessions.expand", { n: entry.children.length - COLLAPSED_SESSION_LIMIT })
++								})
++							]
++						})
++					]
++				}, entry.key);
++			});
++		}
+ 		/** Resolve an insertion side from the full rendered workspace group. */
+ 		function workspaceGroupHalf(e) {
+ 			const rect = e.currentTarget.getBoundingClientRect();
+ 			return e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+ 		}
+ 		/** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
+-		function SessionTree({ useSessions, startSession, open, forkSession, workspaces, archivedSessionIds, onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive, insertWorkspaceBefore, insertSessionBefore, orderBy, groupExpansion, setGroupExpanded, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t }) {
++		function SessionTree({ useSessions, startSession, open, forkSession, workspaces, archivedSessionIds, onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive, insertWorkspaceBefore, insertSessionBefore, orderBy, groupExpansion, setGroupExpanded, branchExpansion, setBranchExpanded, projectSessionHierarchy, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t }) {
+ 			const list = useSessions((s) => s);
+ 			const current = list.current;
+ 			const [expandedSessionGroups, setExpandedSessionGroups] = (0, react.useState)([]);
+@@ -1267,13 +1502,24 @@
+ 			const groups = (0, react.useMemo)(() => deriveGroups(list, orderedWorkspaces, archivedSessionIds, {
+ 				expandedGroups,
+ 				...sessionOrderByAccount[""] === void 0 ? {} : { ungroupedOrder: sessionOrderByAccount[""] }
+-			}), [
++			}, projectSessionHierarchy), [
+ 				list,
+ 				orderedWorkspaces,
+ 				archivedSessionIds,
+ 				expandedGroups,
+-				sessionOrderByAccount
++				sessionOrderByAccount,
++				projectSessionHierarchy
+ 			]);
++			(0, react.useEffect)(() => {
++				const visit = (entries) => {
++					for (const entry of entries ?? []) {
++						if (entry.kind !== "branch") continue;
++						if (entry.containsCurrent) setBranchExpanded(entry.key, true);
++						visit(entry.children);
++					}
++				};
++				for (const group of groups) visit(group.hierarchyEntries);
++			}, [groups, setBranchExpanded]);
+ 			const now = Date.now();
+ 			const commitSessionDrag = (activeDrag, over) => {
+ 				if (sessionDropCommitted.current) return;
+@@ -1399,7 +1645,25 @@
+ 											}
+ 										}
+ 									}),
+-									(expandedSessionGroups.includes(group.key) ? group.sessions : group.sessions.slice(0, COLLAPSED_SESSION_LIMIT)).map((node) => {
++									group.hierarchyEntries !== void 0 && (0, react_jsx_runtime.jsx)(HierarchyEntries, {
++										entries: group.hierarchyEntries,
++										branchExpansion,
++										setBranchExpanded,
++										expandedOverflow: expandedSessionGroups,
++										setExpandedOverflow: setExpandedSessionGroups,
++										renderSession: (node, key) => (0, react_jsx_runtime.jsx)(SessionNodeItem, {
++											node,
++											currentId: current,
++											now,
++											onOpen: open,
++											onRename: onSessionRename,
++											onFork: forkSession,
++											onArchive: onSessionArchive,
++											t
++										}, key),
++										t
++									}),
++									group.hierarchyEntries === void 0 && (expandedSessionGroups.includes(group.key) ? group.sessions : group.sessions.slice(0, COLLAPSED_SESSION_LIMIT)).map((node) => {
+ 										const sameGroupDrag = drag !== null && drag.accountKey === group.key;
+ 										return (0, react_jsx_runtime.jsx)(SessionNodeItem, {
+ 											node,
+@@ -1447,7 +1711,7 @@
+ 											t
+ 										}, node.id);
+ 									}),
+-									group.sessions.length > COLLAPSED_SESSION_LIMIT && (0, react_jsx_runtime.jsx)("button", {
++									group.hierarchyEntries === void 0 && group.sessions.length > COLLAPSED_SESSION_LIMIT && (0, react_jsx_runtime.jsx)("button", {
+ 										type: "button",
+ 										className: WorkspaceBrowser_module_css_default.sessionOverflowButton,
+ 										"aria-expanded": expandedSessionGroups.includes(group.key),
+@@ -1583,7 +1847,7 @@
+ 			});
+ 		}
+ 		/** Flat search body: local metadata matches plus the current Host result page. */
+-		function SearchResults({ useSessions, open, workspaces, archivedSessionIds, query, remote, resultLimit, t }) {
++		function SearchResults({ useSessions, open, workspaces, archivedSessionIds, query, remote, resultLimit, projectSessionHierarchy, t }) {
+ 			const list = useSessions((s) => s);
+ 			const currentRemote = remote.query === query ? remote : {
+ 				query,
+@@ -1591,13 +1855,14 @@
+ 				items: [],
+ 				hasMore: false
+ 			};
+-			const results = (0, react.useMemo)(() => deriveSearchResults(list, workspaces, query, archivedSessionIds, currentRemote, resultLimit), [
++			const results = (0, react.useMemo)(() => deriveSearchResults(list, workspaces, query, archivedSessionIds, currentRemote, resultLimit, projectSessionHierarchy), [
+ 				list,
+ 				workspaces,
+ 				query,
+ 				archivedSessionIds,
+ 				currentRemote,
+-				resultLimit
++				resultLimit,
++				projectSessionHierarchy
+ 			]);
+ 			const pending = currentRemote.status === "loading";
+ 			const failed = currentRemote.status === "error";
+@@ -1644,7 +1909,7 @@
+ 		* @param props - composed slot props (shell owner share + store + injected actions).
+ 		* @returns the region element tree.
+ 		*/
+-		function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, renderSlot, t }) {
++		function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, projectSessionHierarchy, useDirectoryFlow, renderSlot, t }) {
+ 			const workspaces = useWorkspaces((state) => state.items);
+ 			const workspacePhase = useWorkspaces((state) => state.phase);
+ 			const archivedSessionIds = useWorkspaces((state) => state.archivedSessionIds);
+@@ -1652,6 +1917,7 @@
+ 			const groupBy = useStore((s) => s.groupBy);
+ 			const orderBy = useStore((s) => s.orderBy);
+ 			const groupExpansion = useStore((s) => s.groupExpansion);
++			const branchExpansion = useStore((s) => s.branchExpansion);
+ 			const sessionOrderByAccount = useStore((s) => s.sessionOrderByAccount);
+ 			const sessionUpdatedAtByAccount = useStore((s) => s.sessionUpdatedAtByAccount);
+ 			(0, react.useEffect)(() => {
+@@ -1990,6 +2256,7 @@
+ 							query: normalizedQuery,
+ 							remote: remoteSearch,
+ 							resultLimit: searchResultLimit,
++							projectSessionHierarchy,
+ 							t
+ 						}) : groupBy === "flat" ? (0, react_jsx_runtime.jsx)(FlatList, {
+ 							useSessions,
+@@ -2012,6 +2279,9 @@
+ 							workspaces,
+ 							groupExpansion,
+ 							setGroupExpanded: actions.setGroupExpanded,
++							branchExpansion,
++							setBranchExpanded: actions.setBranchExpanded,
++							projectSessionHierarchy,
+ 							sessionOrderByAccount,
+ 							sessionUpdatedAtByAccount,
+ 							syncSessionOrderAccount: actions.syncSessionOrderAccount,
+@@ -2359,6 +2629,7 @@
+ 				},
+ 				searchSessions,
+ 				searchResultLimit: ctx.sessions.searchResultLimit,
++				projectSessionHierarchy: (input) => ctx.bail("workspace/session-hierarchy", input),
+ 				renameSession: async (sessionId, title) => {
+ 					const session = ctx.sessions.binding(sessionId)?.session;
+ 					if (session === void 0) throw new Error(`unknown session "${sessionId}"`);
+@@ -2416,6 +2687,7 @@
+ 			}, WorkspacePicker));
+ 		}
+ 		//#endregion
++		exports.__workspaceHierarchyForTests = { normalizeHierarchyClaim, buildHierarchyEntries };
+ 		exports.apply = apply;
+ 		exports.inject = inject;
+ 		return module.exports;
