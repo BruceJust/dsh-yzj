@@ -970,15 +970,6 @@ export function boardFrame(ctx: Context): BoardView {
     per goal would re-scan the whole lineage log for every row on screen, on a
     view that refreshes every six seconds.
   */
-  /** topicKey → the distinct goals whose work lives there. */
-  const goalsPerTopic = new Map<string, Set<string>>()
-  for (const row of sorted) {
-    const topicKey = topicOfRow.get(row.id)
-    if (topicKey === undefined || row.goalRef === undefined) continue
-    const set = goalsPerTopic.get(topicKey) ?? new Set<string>()
-    set.add(row.goalRef)
-    goalsPerTopic.set(topicKey, set)
-  }
   const artifactsByTopic = new Map<string, GoalArtifactRow[]>()
   for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
     const data = asRecord(event.data)

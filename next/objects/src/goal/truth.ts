@@ -59,12 +59,14 @@ export function docIdOf(goalRef: string): string | undefined {
  * 更新时间。两条路的取值不在一个量纲上,所以指纹里写明是哪一条。
  */
 async function fingerprint(
-  ctx: Context, docId: string,
+  ctx: Context, docId: string, prefetched?: { ok: boolean; json?: JsonValue; error?: string },
 ): Promise<{ mark: string; note: string } | { error: string }> {
   const bridge = ctx.get('yzjBridge')
   if (bridge === undefined) return { error: '云之家通道未就绪' }
 
-  const body = await bridge.run(['doc', 'block', 'list', '--id', docId], { timeoutMs: 20_000 })
+  // 调用方已经读过一次就用那一次——指纹和正文必须出自同一次观察。
+  const body = prefetched
+    ?? await bridge.run(['doc', 'block', 'list', '--id', docId], { timeoutMs: 20_000 })
   if (body.ok) {
     const version = asNumber(asRecord(asRecord(body.json)?.data)?.version)
     if (version !== undefined) return { mark: `blocks:${String(version)}`, note: `正文版本 ${String(version)}` }
@@ -89,12 +91,14 @@ async function fingerprint(
  * 无论变没变,都把这次看到的版本记回目标上:不记的话,下一次比对的基准就还是
  * 上上次,同一个改动会被反复报出来,而反复报出来的警告等于没有警告。
  */
-export async function checkGoalTruth(ctx: Context, goalRef: string): Promise<TruthVerdict> {
+export async function checkGoalTruth(
+  ctx: Context, goalRef: string, prefetched?: { ok: boolean; json?: JsonValue; error?: string },
+): Promise<TruthVerdict> {
   const docId = docIdOf(goalRef)
   if (docId === undefined) {
     return { kind: 'unknown', why: '这个目标引用不是一个云之家知识库链接，看不了它的版本' }
   }
-  const seen = await fingerprint(ctx, docId)
+  const seen = await fingerprint(ctx, docId, prefetched)
   if ('error' in seen) return { kind: 'unknown', why: seen.error }
 
   const goalId = goalCommitmentIdFor(goalRef)
@@ -143,23 +147,54 @@ export type TruthBody =
   | { readonly ok: true; readonly text: string }
   | { readonly ok: false; readonly why: string }
 
-/** 一个块里的文字。块的形状各家不同，所以只认「像文字的字段」，认不出就跳过。 */
-function textOfBlock(block: JsonValue | undefined): string {
-  const record = asRecord(block)
+/**
+ * 一个富文本节点里的全部文字。**形状是实测出来的，不是猜的。**
+ *
+ * 真实返回（`doc block list` 打在一份真文档上）：`data.blocks` 只有一个块，
+ * `type: 'doc'`，它的 `content` 是节点数组；每个节点形如
+ *
+ * ```
+ * { type: 'heading', content: [{ type: 'text', content: '🏠 认识知识空间' }],
+ *   childNodes: [ …同一份内容… ], textContent: null }
+ * ```
+ *
+ * 三处容易读错，每一处都会让这个函数**安静地返回空串**——而空串会被上层当成
+ * 「这份文档没有正文」，于是退回签发时的副本，一切看起来正常：
+ *
+ * - 文字挂在 **`content`** 上，不是 `text`。第一版按 `text` 取，对着真文档跑
+ *   出来的是一片空白，而单元测试是照着我自己的假设写的夹具——**测试和代码在一个
+ *   谁都没验过的形状上达成了一致**。这个仓库里已经有一条注释在讲同一件事了。
+ * - `content` 既可能是字符串（叶子）也可能是数组（容器），得递归。
+ * - `childNodes` 与 `content` 在返回里是**同一份内容的两个副本**，两个都走会把
+ *   每段文字读成两遍。所以有 `content` 就只走 `content`。
+ */
+function textOfNode(node: JsonValue | undefined): string {
+  const record = asRecord(node)
   if (record === undefined) return ''
-  for (const key of ['text', 'content', 'plainText', 'title']) {
-    const value = record[key]
-    if (typeof value === 'string' && value.trim() !== '') return value.trim()
-    // 富文本块常把文字装进一个数组：`content: [{text: '…'}]`。
-    if (Array.isArray(value)) {
-      const joined = value
-        .map(item => asString(asRecord(item)?.text) ?? '')
-        .join('')
-        .trim()
-      if (joined !== '') return joined
-    }
+  const content = record.content
+  if (typeof content === 'string') return content
+  const children = Array.isArray(content)
+    ? content
+    : Array.isArray(record.childNodes) ? record.childNodes : undefined
+  if (children === undefined) {
+    // 有些叶子把文字放在 `textContent` 上（返回里多为 null，但不是永远）。
+    return asString(record.textContent) ?? ''
   }
-  return ''
+  return children.map(child => textOfNode(child)).join('')
+}
+
+/**
+ * 一个块拆成若干行。
+ *
+ * 顶层那个 `doc` 块的每个直接子节点（标题、段落、列表项）各占一行——把整篇拼成
+ * 一行会让「三家竞品各一页」和它下一条标准粘成同一句话，而成功标准是**逐条**判的。
+ */
+function linesOfBlock(block: JsonValue | undefined): string[] {
+  const record = asRecord(block)
+  if (record === undefined) return []
+  const content = record.content
+  if (!Array.isArray(content)) return [textOfNode(block)]
+  return content.map(node => textOfNode(node))
 }
 
 /**
@@ -181,16 +216,45 @@ export async function readGoalBody(ctx: Context, goalRef: string): Promise<Truth
   const bridge = ctx.get('yzjBridge')
   if (bridge === undefined) return { ok: false, why: '云之家通道未就绪' }
   const result = await bridge.run(['doc', 'block', 'list', '--id', docId], { timeoutMs: 20_000 })
-  if (!result.ok) {
-    return { ok: false, why: asString(asRecord(result)?.error) ?? '读不到这份文档的正文' }
-  }
+  return bodyOf(result)
+}
+
+/** 把一次 `doc block list` 的回包读成正文。分出来，是为了让指纹和正文共用同一次读。 */
+function bodyOf(result: { ok: boolean; json?: JsonValue; error?: string }): TruthBody {
+  if (!result.ok) return { ok: false, why: result.error ?? '读不到这份文档的正文' }
   const blocks = asRecord(asRecord(result.json)?.data)?.blocks
   if (!Array.isArray(blocks)) {
     return { ok: false, why: '这份文档没有可读的正文块（可能是上传的文件，不是在线文档）' }
   }
-  const text = blocks.map(block => textOfBlock(block)).filter(line => line !== '').join('\n').trim()
+  const text = blocks
+    .flatMap(block => linesOfBlock(block))
+    .map(line => line.trim())
+    .filter(line => line !== '')
+    .join('\n')
   if (text === '') return { ok: false, why: '这份文档的正文是空的' }
   return { ok: true, text }
+}
+
+/**
+ * 看一眼真身，**同一次读**里把指纹和正文都取回来。
+ *
+ * 分两次读的后果不只是多打一次 CLI：两次之间有人改了正文，指纹会说「没变」而正文
+ * 是新的那一版——一个自相矛盾的回合，而且矛盾的方向恰好是最坏的（说没变，却按新
+ * 正文判）。既然同一个接口一次就把两样都给了，就没有理由问两遍。
+ */
+export async function inspectGoalTruth(
+  ctx: Context, goalRef: string,
+): Promise<{ readonly verdict: TruthVerdict; readonly body: TruthBody }> {
+  const docId = docIdOf(goalRef)
+  const bridge = ctx.get('yzjBridge')
+  if (docId === undefined || bridge === undefined) {
+    return { verdict: await checkGoalTruth(ctx, goalRef), body: await readGoalBody(ctx, goalRef) }
+  }
+  const result = await bridge.run(['doc', 'block', 'list', '--id', docId], { timeoutMs: 20_000 })
+  return {
+    verdict: await checkGoalTruth(ctx, goalRef, result),
+    body: bodyOf(result),
+  }
 }
 
 /**

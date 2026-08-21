@@ -222,18 +222,58 @@ describe('说给 agent 听的那一句', () => {
  * `doc block list` 一直都在。
  */
 describe('读真身正文', () => {
-  it('把正文块拼成可判断的文本', async () => {
-    body = {
-      ok: true,
-      json: { data: { version: 4, blocks: [
-        { text: '三家竞品各一页' },
-        { content: [{ text: '每页含定价与差异' }] },
-        { text: '   ' },
-      ] } },
-    }
+  /**
+   * 夹具是**从真实返回里抄下来的**，不是照我的假设编的。
+   *
+   * 第一版按 `text` 取文字，单元测试照着同一个假设写夹具、顺利通过——而对着真文档
+   * 跑出来的是一片空白：文字挂在 `content` 上。**测试和代码在一个谁都没验过的形状上
+   * 达成了一致**，那种一致什么都不证明。这个仓库里已经有一条注释在讲同一件事。
+   *
+   * 下面这一段的形状取自 `yzj-cli doc block list` 打在一份真文档上的输出：一个
+   * `type: 'doc'` 的块，`content` 是节点数组，叶子的文字在 `content` 这个键下的
+   * 字符串里，`childNodes` 是同一份内容的第二个副本。
+   */
+  const REAL_SHAPE = [{
+    id: 'blk-1',
+    type: 'doc',
+    content: [
+      { type: 'title', attrs: { align: 1 }, content: null, childNodes: null, textContent: null },
+      {
+        type: 'heading',
+        attrs: { align: 1, level: 2 },
+        content: [{ type: 'text', content: '三家竞品各一页' }],
+        childNodes: [{ type: 'text', content: '三家竞品各一页' }],
+        textContent: null,
+      },
+      {
+        type: 'paragraph',
+        attrs: { align: 1 },
+        content: [
+          { type: 'text', content: '每页含定价' },
+          { type: 'text', content: '与差异' },
+        ],
+        childNodes: [
+          { type: 'text', content: '每页含定价' },
+          { type: 'text', content: '与差异' },
+        ],
+        textContent: null,
+      },
+    ],
+  }]
+
+  it('按真实形状把正文拼成可判断的文本', async () => {
+    body = { ok: true, json: { data: { version: 4, blocks: REAL_SHAPE } } }
     const read = await readGoalBody(ctx, GOAL)
     expect(read.ok).toBe(true)
+    // 每个顶层节点一行；空节点不占行；同一段里的多个 text 片段拼回一句。
     expect(read.ok && read.text).toBe('三家竞品各一页\n每页含定价与差异')
+  })
+
+  /** `childNodes` 是 `content` 的副本，两个都走会把每段文字读成两遍。 */
+  it('不把同一段文字读两遍', async () => {
+    body = { ok: true, json: { data: { version: 4, blocks: REAL_SHAPE } } }
+    const read = await readGoalBody(ctx, GOAL)
+    expect(read.ok && read.text.split('三家竞品各一页')).toHaveLength(2)
   })
 
   it('读不到就说读不到——不退回副本假装判得了', async () => {

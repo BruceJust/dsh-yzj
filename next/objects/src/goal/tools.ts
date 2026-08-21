@@ -28,7 +28,7 @@ import { goalEvidence, visibleGoals } from './evidence.ts'
 import {
   assessmentIdFor, goalCommitmentIdFor, proposalIdFor, proposalSettled, type ProposalState,
 } from './family.ts'
-import { checkGoalTruth, readGoalBody, truthLine } from './truth.ts'
+import { inspectGoalTruth, truthLine } from './truth.ts'
 
 const output = {
   schema: {
@@ -333,7 +333,7 @@ export function applyGoalTools(ctx: Context): () => void {
         已经过时——把这句话留到人自己去发现,就是让一个过期的结论继续看起来
         成立。
       */
-      const verdict = await checkGoalTruth(ctx, args.goalRef)
+      const { verdict, body } = await inspectGoalTruth(ctx, args.goalRef)
       /*
         判据是**此刻的正文**，不是签发时抄下的副本 (v3.10 4h②).
 
@@ -344,7 +344,6 @@ export function applyGoalTools(ctx: Context): () => void {
         读不到就说读不到，不退回副本假装判得了：这一族的第一条纪律（看不了 ≠ 没变）
         在这里是同一条。
       */
-      const body = await readGoalBody(ctx, args.goalRef)
       const lines = [
         truthLine(verdict, body.ok),
         `目标：${evidence.goalName ?? evidence.goalRef} [${evidence.status}]`,
@@ -436,7 +435,7 @@ export function applyGoalTools(ctx: Context): () => void {
         副本判出「达成」,是这套设计最不愿意犯的错。看一眼的副作用正好是我们
         要的:变了就写下 `truth/changed`,并且把这次看到的版本记进简报里。
       */
-      const verdict = await checkGoalTruth(ctx, args.goalRef)
+      const { verdict, body } = await inspectGoalTruth(ctx, args.goalRef)
       const truthMark = verdict.kind === 'unknown' ? undefined : verdict.note
 
       let assessmentId = assessmentIdFor(anchor, args.goalRef)
@@ -459,10 +458,18 @@ export function applyGoalTools(ctx: Context): () => void {
             evidence: line.evidence,
           })),
           sourceAnchor: anchor,
-          // 依据的那一版标准跟着简报一起落库——见 family 里的 `criteriaBasis`。
-          ...(asString(asRecord(goal.state)?.criteria) === undefined
-            ? {}
-            : { criteriaBasis: asString(asRecord(goal.state)?.criteria) as string }),
+          /*
+            记下**这份结论到底是照着什么判的** (v3.10 4h②).
+
+            优先记此刻的真身正文,读不到才退回签发时的副本——记错了比不记更糟:
+            三周后回头看这条结论,`criteriaBasis` 是唯一能回答「当时的标准是哪一份」
+            的东西,而「照副本判的」与「照正文判的」是两种可信度完全不同的结论。
+          */
+          ...(body.ok
+            ? { criteriaBasis: body.text }
+            : asString(asRecord(goal.state)?.criteria) === undefined
+              ? {}
+              : { criteriaBasis: `（读不到真身正文，照签发时副本判）${asString(asRecord(goal.state)?.criteria) as string}` }),
           /*
             连真身的版本号一起记 (环境快照律 §1.9-5).
 
