@@ -1,0 +1,17 @@
+import { chromium } from 'playwright'
+const browser = await chromium.launch()
+const page = await browser.newPage({ viewport: { width: 1560, height: 940 } })
+const errors = []
+page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
+page.on('pageerror', e => errors.push('pageerror: ' + e.message))
+await page.goto('http://127.0.0.1:3090/', { waitUntil: 'networkidle' })
+await page.waitForTimeout(3000)
+const items = page.locator('nav[aria-label="收件箱"] [class*="sidebar_item"]')
+console.log('sidebar items:', await items.count())
+await items.first().click()
+await page.waitForTimeout(6000)
+await page.screenshot({ path: '.acceptance/m0/v12-topic.png' })
+const classes = await page.evaluate(() => [...new Set([...document.querySelectorAll('div')].map(d => d.className).filter(c => typeof c === 'string' && c.includes('column')))].slice(0, 12))
+console.log('column classes:', classes)
+console.log('errors:', errors.length ? errors.slice(0,3) : 'none')
+await browser.close()

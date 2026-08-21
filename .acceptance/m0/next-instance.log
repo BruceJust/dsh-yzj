@@ -1,0 +1,86 @@
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+[yzj-next-channel] Error: yzj channel recent groups page 2 failed: error: transport error: transport request failed: error decoding response body for url (https://www.yunzhijia.com/gateway/xtinterface/group/recentGroups)
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:256:10)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:288:28)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2042:24)
+dsh web: http://127.0.0.1:3090
+[yzj-next-channel] Error: yzj channel recent groups page 1 failed: error: transport error: transport request failed: error decoding response body for url (https://www.yunzhijia.com/gateway/xtinterface/group/recentGroups)
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:269:10)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:313:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2132:24)
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+[yzj-next-channel] conversation list page 2 unavailable Error: yzj channel recent groups page 2 failed: error: transport error: transport request failed: error decoding response body for url (https://www.yunzhijia.com/gateway/xtinterface/group/recentGroups)
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:269:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:313:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2444:24)
+[yzj-next-channel] failed to resolve display names Error: yzj channel contact user get failed: error: API error: errorCode=1001001, Invalid openIds
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:269:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async YzjChannelClient.usersByOpenId (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:410:16)
+    at async YzjTopicReader.resolveNames (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:1210:18)
+    at async YzjTopicReader.messagesInPlace (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:1158:3)
+    at async placeView (file:///Users/Apple/Documents/project/dsh-yzj/next/surface/lib/index.js:156:20)
+    at async scoped.connection.rpc.handle.authority (file:///Users/Apple/Documents/project/dsh-yzj/next/surface/lib/index.js:743:14)
+    at async Object.fetch (file:///Users/Apple/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/index.js:295:19)
+    at async bridge (file:///Users/Apple/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/index.js:71:19)
+    at async Object.handler (file:///Users/Apple/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/index.js:254:5)
+dsh web: http://127.0.0.1:3090
+[yzj-next-channel] conversation list page 2 unavailable Error: yzj channel recent groups page 2 failed: error: transport error: transport request failed: error decoding response body for url (https://www.yunzhijia.com/gateway/xtinterface/group/recentGroups)
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:269:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:313:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2444:24)
+dsh web: http://127.0.0.1:3090
+[yzj-next-channel] Error: yzj channel recent groups page 1 failed: error: transport error: transport request failed: error decoding response body for url (https://www.yunzhijia.com/gateway/xtinterface/group/recentGroups)
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:280:10)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:324:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2474:24)
+[yzj-next-channel] conversation list page 2 unavailable Error: yzj channel recent groups page 2 failed: error: transport error: transport request failed: error decoding response body for url (https://www.yunzhijia.com/gateway/xtinterface/group/recentGroups)
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:280:10)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:324:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2474:24)
+[yzj-next-channel] Error: yzj channel recent groups page 1 failed: error: API error: code=10000508, 下游服务调用异常
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:280:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:324:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2474:24)
+[yzj-next-channel] conversation list page 2 unavailable Error: yzj channel recent groups page 2 failed: error: API error: code=11003007, 无效令牌
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:280:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:324:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2474:24)
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+[yzj-next-channel] conversation list page 3 unavailable Error: yzj channel recent groups page 3 failed: error: transport error: transport request failed: error decoding response body for url (https://www.yunzhijia.com/gateway/xtinterface/group/recentGroups)
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:280:10)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:324:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2474:24)
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+[yzj-next-channel] Error: yzj channel recent groups page 1 failed: error: transport error: transport request failed: error decoding response body for url (https://www.yunzhijia.com/gateway/xtinterface/group/recentGroups)
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:280:10)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:324:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2478:24)
+dsh web: http://127.0.0.1:3090
+dsh web: http://127.0.0.1:3090
+dsh web: opening the default browser; pass --no-open to disable
+[yzj-next-channel] Error: yzj channel recent groups page 1 failed: error: transport error: transport request failed: error decoding response body for url (https://www.yunzhijia.com/gateway/xtinterface/group/recentGroups)
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:280:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:324:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2478:24)
+[yzj-next-channel] Error: yzj channel recent groups page 1 failed: error: transport error: transport request failed: error decoding response body for url (https://www.yunzhijia.com/gateway/xtinterface/group/recentGroups)
+    at YzjChannelClient.run (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:280:10)
+    at async YzjChannelClient.recentGroups (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:324:23)
+    at async YzjPoller.poll (file:///Users/Apple/Documents/project/dsh-yzj/next/channel/lib/index.js:2478:24)

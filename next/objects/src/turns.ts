@@ -30,6 +30,17 @@ export interface TurnBinding {
   /** The inbound Yunzhijia message that admitted this turn, when there was one. */
   readonly messageId?: string
   /**
+   * 这一回合的活 —— 产出归属的精确锚 (v3.10 4h⑤).
+   *
+   * 没有它，工件只能按**话题**归集：一个同时服务两个目标的会话里产出的任何东西，
+   * 都会同时算进两个目标的产出栏，而没有任何办法说清哪一份是哪一份的。有了它，
+   * 精确归属成为常态、话题级归集降为兜底，兜底那些才标「共用会话」——把共用从
+   * 常态变兜底，正是这一条要买的东西。
+   *
+   * 桌面自发的回合没有它（没有活，只有一次对话），那时的归集照旧走话题级兜底。
+   */
+  readonly taskId?: string
+  /**
    * `write mode` granted by the gateway admission, when there was one.
    *
    * `read-only` is not a weaker grant — it is a REFUSAL, issued by 轻问: a

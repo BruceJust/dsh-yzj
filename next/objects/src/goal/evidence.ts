@@ -31,6 +31,15 @@ export interface GoalArtifact {
   readonly time: number
   /** The child commitment whose topic produced it — the second hop. */
   readonly viaCommitmentId?: string
+  /**
+   * 哪一件活留下的 (4h⑤)。
+   *
+   * 有它 = 精确归属；没有 = 只知道产在哪个话题里，而一个话题可以同时服务好几个
+   * 目标——那时这条工件对每个目标都只是「可能是我的」。
+   */
+  readonly viaTaskId?: string
+  /** 归属是兜底来的：只知道话题，不知道是哪件活。 */
+  readonly shared?: boolean
 }
 
 /** One child commitment as the evidence bundle sees it. */
@@ -156,6 +165,7 @@ export function goalEvidence(
     const uri = asString(artifact?.uri)
     if (uri === undefined || seen.has(uri)) continue
     seen.add(uri)
+    const taskId = asString(data?.taskId)
     artifacts.push({
       uri,
       title: asString(artifact?.title) ?? uri,
@@ -164,6 +174,8 @@ export function goalEvidence(
       ...(topics.get(topicKey) === undefined
         ? {}
         : { viaCommitmentId: topics.get(topicKey) as string }),
+      // 说得出是哪件活留下的就是精确归属；说不出就标出来，别让兜底冒充精确。
+      ...(taskId === undefined ? { shared: true } : { viaTaskId: taskId }),
     })
   }
   artifacts.sort((left, right) => right.time - left.time)

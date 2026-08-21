@@ -992,7 +992,15 @@ export function boardFrame(ctx: Context): BoardView {
       title: asString(artifact?.title) ?? uri,
       action: asString(data?.action) ?? '产出',
       time: event.time,
-      ...((goalsPerTopic.get(topicKey)?.size ?? 0) > 1 ? { shared: true } : {}),
+      /*
+        精确归属是常态，话题级是兜底 (v3.10 4h⑤)。
+
+        带着 `taskId` 的产出说得出自己是**哪一件活**留下的；不带的只能按话题归集,
+        而一个会话可以同时服务好几个目标——那时这条工件同时算进每一个，谁也说不清
+        哪一份是哪一份的。所以「共用」从此不再取决于「这个话题恰好挂了几个目标」
+        （那是一个碰巧为真的条件），而取决于**这条边自己有没有说清出处**。
+      */
+      ...(asString(data?.taskId) === undefined ? { shared: true } : {}),
     })
     artifactsByTopic.set(topicKey, bucket)
   }

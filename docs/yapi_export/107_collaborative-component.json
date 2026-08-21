@@ -1,0 +1,1924 @@
+{
+ "projectId": 107,
+ "projectName": "collaborative-component",
+ "basepath": "/api/collaborative",
+ "desc": "协同组件",
+ "categories": [
+  {
+   "name": "公共分类",
+   "desc": "公共分类",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/api/collaborative/component/getFlowInfo",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "done",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 22371,
+     "method": "POST",
+     "catid": 1948,
+     "title": "协作流-获取审批详情",
+     "path": "/api/collaborative/component/getFlowInfo",
+     "project_id": 107,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 44,
+     "add_time": 1649227878,
+     "up_time": 1649228705,
+     "req_query": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "624d3ba19c54873c991aeb8c",
+       "name": "Content-Type",
+       "value": "application/json"
+      },
+      {
+       "required": "1",
+       "_id": "624d3ba19c54873c991aeb8b",
+       "name": "X-Requested-jwt",
+       "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlaWQiOiIxMDEwOSIsImlzcyI6ImF1dGhzZXJ2ZXJfY29udGV4dCIsIm9pZCI6IjYwMTI1M2Q3ZTRiMDU0ZDA2ZWNkZWQ3MyIsInNjb3BlcyI6WyJjb2xsYWJvcmF0aXZlIl0sInR5cGUiOiJ5emoiLCJqYXQiOiI1MzE1MWQyMy0zODBkLTQ4NmMtOTYzYS04YjhkMTZlZmZiOWMifQ.04L3s700IwSNkYcIo_wKZCj3ha5-lzFwy0OomYnR9pY:",
+       "desc": "jwt鉴权参数"
+      }
+     ],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "req_body_other": "{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"type\":\"object\",\"properties\":{\"dsId\":{\"type\":\"string\",\"description\":\"数据源id 没有可以不传\"},\"dsType\":{\"type\":\"string\",\"description\":\"数据源类型：智能审批 cloudflow 星空 xingkong\"},\"formId\":{\"type\":\"string\",\"description\":\"表单id 必传\"},\"modelCode\":{\"type\":\"string\",\"description\":\"模型id 必传\"}}}",
+     "req_body_type": "json",
+     "res_body": "{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"type\":\"object\",\"properties\":{\"success\":{\"type\":\"boolean\"},\"error\":{\"type\":\"null\"},\"errorCode\":{\"type\":\"number\"},\"data\":{\"type\":\"object\",\"properties\":{\"imgUrl\":{\"type\":\"string\"},\"importantInfo\":{\"type\":\"object\",\"properties\":{\"流水号\":{\"type\":\"string\"},\"提交人\":{\"type\":\"string\"},\"所属部门\":{\"type\":\"string\"}}},\"flowDetailUrl\":{\"type\":\"string\"},\"title\":{\"type\":\"string\"}}}}}",
+     "username": "lin_liu"
+    }
+   ]
+  },
+  {
+   "name": "业务素材库接口",
+   "desc": "",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/material/listMaterialGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": false,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 32172,
+     "method": "GET",
+     "catid": 3486,
+     "title": "获取素材分组",
+     "path": "/material/listMaterialGroup",
+     "project_id": 107,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 68,
+     "add_time": 1670895575,
+     "up_time": 1671171923,
+     "req_query": [
+      {
+       "required": "1",
+       "_id": "639c0f533edb991a72474437",
+       "name": "businessId",
+       "example": "businessId=1001!portal!63944239cc485110dc6ffe39",
+       "desc": ""
+      }
+     ],
+     "req_headers": [],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "res_body": "{\n  \"success\": true,\n  \"error\": null,\n  \"errorCode\": 0,\n  \"data\": {\n    \"systemGroup\": [              //系统素材分组\n      {\n        \"id\": \"6396c2e2cc48514e04222e45\",\n        \"name\": \"系统图标\",\n        \"order\": 2,\n        \"groupType\": 0,\n        \"resourceKey\": [\n          \"1001\"\n        ],\n        \"materialCount\": 0,\n        \"businessId\": null,\n        \"createDate\": 1670824674131,\n        \"updateDate\": 1670834460655\n      }\n    ],\n    \"businessGroup\": [             //业务素材分组\n      {\n        \"id\": \"6397d63c71de07940cbbe075\",\n        \"name\": \"门户素材\",\n        \"order\": 1,\n        \"groupType\": 1,\n        \"resourceKey\": null,\n        \"materialCount\": 0,\n        \"businessId\": \"1001!portal!63944239cc485110dc6ffe39\",\n        \"createDate\": 1670824674131,\n        \"updateDate\": 1670834460655\n      }\n    ]\n  }\n}",
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/addBusinessMaterialGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": false,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 32282,
+     "method": "POST",
+     "catid": 3486,
+     "title": "添加业务素材组",
+     "path": "/material/addBusinessMaterialGroup",
+     "project_id": 107,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 68,
+     "add_time": 1671171948,
+     "up_time": 1671258629,
+     "req_query": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639d62053edb991a72477cf2",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "<p><span class=\"colour\" style=\"color: rgb(0, 0, 0);\">1001:智能门户,1002:新闻公告,1003:智能会议,1004:智能审批,1005:应用管理,1006:人员组织,1009:公共号列表,1010:工作汇报,1013:电子签约</span></p>\n<p><span class=\"colour\" style=\"color: rgb(0, 0, 0);\">businessId规则</span><br>\n<span class=\"colour\" style=\"color: rgb(0, 0, 0);\">门户就传1001!portal!xxxxxxxxxxxxxxxxxx 知识中心就传1002!catalogue!xxxxxxxxxxxxxxx</span><br>\n<span class=\"colour\" style=\"color: rgb(0, 0, 0);\">resouceKey是素材库给的每个业务都会给一个</span><br>\n<span class=\"colour\" style=\"color: rgb(0, 0, 0);\">custom是业务自定义的，id是业务对应具体使用素材库的地方传的id</span></p>\n",
+     "markdown": "<span class=\"colour\" style=\"color: rgb(0, 0, 0);\">1001:智能门户,1002:新闻公告,1003:智能会议,1004:智能审批,1005:应用管理,1006:人员组织,1009:公共号列表,1010:工作汇报,1013:电子签约</span>\n\n<span class=\"colour\" style=\"color: rgb(0, 0, 0);\">businessId规则</span>\n<span class=\"colour\" style=\"color: rgb(0, 0, 0);\">门户就传1001!portal!xxxxxxxxxxxxxxxxxx 知识中心就传1002!catalogue!xxxxxxxxxxxxxxx</span>\n<span class=\"colour\" style=\"color: rgb(0, 0, 0);\">resouceKey是素材库给的每个业务都会给一个</span>\n<span class=\"colour\" style=\"color: rgb(0, 0, 0);\">custom是业务自定义的，id是业务对应具体使用素材库的地方传的id</span>",
+     "req_body_other": "{\n    \"name\":\"门户素材2\",\n    \"businessId\":\"1001!portal!63944239cc485110dc6ffe39\", //业务标识  resourceKey!custom!id\n    \"order\":1 \n}",
+     "req_body_type": "json",
+     "res_body": "{\n   \"success\": true,\n   \"error\": null,\n   \"errorCode\": 0,\n   \"data\": true\n}",
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/updateBusinessMaterialGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": false,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 32287,
+     "method": "POST",
+     "catid": 3486,
+     "title": "更新业务素材分组",
+     "path": "/material/updateBusinessMaterialGroup",
+     "project_id": 107,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 68,
+     "add_time": 1671172036,
+     "up_time": 1671172050,
+     "req_query": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639c0fd23edb991a7247443a",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "req_body_other": "{\n   \"id\": \"6397d63c71de07940cbbe075\",\n   \"name\": \"门户卡片素材\",\n   \"order\": \"2\"\n}",
+     "req_body_type": "json",
+     "res_body": "{\n   \"success\": true,\n   \"error\": null,\n   \"errorCode\": 0,\n   \"data\": true\n}",
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/deleteBusinessMaterialGroup",
+      "params": [
+       {
+        "_id": "639c0ffd3edb991a7247443d",
+        "name": "id",
+        "value": "6397de0b71de0762ac7a49ad"
+       }
+      ]
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": false,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 32292,
+     "method": "GET",
+     "catid": 3486,
+     "title": "删除业务素材分组",
+     "path": "/material/deleteBusinessMaterialGroup?id=6397de0b71de0762ac7a49ad",
+     "project_id": 107,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 68,
+     "add_time": 1671172072,
+     "up_time": 1671172093,
+     "req_query": [
+      {
+       "required": "1",
+       "_id": "639c0ffd3edb991a7247443c",
+       "name": "id",
+       "example": "id=6397de0b71de0762ac7a49ad",
+       "desc": ""
+      }
+     ],
+     "req_headers": [],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "res_body": "{\n   \"success\": true,\n   \"error\": null,\n   \"errorCode\": 0,\n   \"data\": true\n}",
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/batchAddBusinessMaterial",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": false,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 32297,
+     "method": "POST",
+     "catid": 3486,
+     "title": "批量添加业务素材",
+     "path": "/material/batchAddBusinessMaterial",
+     "project_id": 107,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 68,
+     "add_time": 1671172114,
+     "up_time": 1671172155,
+     "req_query": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639c103b3edb991a7247443e",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "req_body_other": "{\n    \"materialGroupId\":\"6397d63c71de07940cbbe075\", //素材组id\n    \"materialList\":[\n            {\n                \"fileId\":\"886\",             //文件id\n                \"fileName\":\"图3\"            //文件名称\n            },\n            {\n                \"fileId\":\"997\",\n                \"fileName\":\"图4\"\n            }\n        \n        ]\n}",
+     "req_body_type": "json",
+     "res_body": "{\n   \"success\": true,\n   \"error\": null,\n   \"errorCode\": 0,\n   \"data\": true\n}",
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/listBusinessMaterial",
+      "params": [
+       {
+        "_id": "639c10ab3edb991a72474447",
+        "name": "page",
+        "value": "1"
+       },
+       {
+        "_id": "639c10ab3edb991a72474446",
+        "name": "size",
+        "value": "10"
+       },
+       {
+        "_id": "639c10ab3edb991a72474445",
+        "name": "materialGroupId",
+        "value": "6397d63c71de07940cbbe075"
+       }
+      ]
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": false,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 32302,
+     "method": "GET",
+     "catid": 3486,
+     "title": "获取业务素材列表",
+     "path": "/material/listBusinessMaterial?page=1&size=10&materialGroupId=6397d63c71de07940cbbe075",
+     "project_id": 107,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 68,
+     "add_time": 1671172182,
+     "up_time": 1671172267,
+     "req_query": [
+      {
+       "required": "1",
+       "_id": "639c10ab3edb991a72474444",
+       "name": "page",
+       "desc": "页码"
+      },
+      {
+       "required": "1",
+       "_id": "639c10ab3edb991a72474443",
+       "name": "size",
+       "example": "",
+       "desc": "显示条数"
+      },
+      {
+       "required": "1",
+       "_id": "639c10ab3edb991a72474442",
+       "name": "materialGroupId",
+       "example": "",
+       "desc": "素材组id"
+      }
+     ],
+     "req_headers": [],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "res_body": "{\n\t\"success\": true,\n\t\"error\": null,\n\t\"errorCode\": 0,\n\t\"data\": {\n\t\t\"total\": 2,   //总条数\n\t\t\"data\": [\n\t\t\t{\n\t\t\t\t\"id\": \"6397eb2f71de0702c4265bb0\",  //素材id\n\t\t\t\t\"fileId\": \"886\",                   //文件id\n\t\t\t\t\"fileName\": \"图3\",                 //文件名称\n\t\t\t\t\"materialGroupId\": \"6397de0b71de0762ac7a49ad\",   //素材组id\n\t\t\t\t\"createDate\": null,\n\t\t\t\t\"updateDate\": null\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"id\": \"6397eb2f71de0702c4265bb1\",\n\t\t\t\t\"fileId\": \"997\",\n\t\t\t\t\"fileName\": \"图4\",\n\t\t\t\t\"materialGroupId\": \"6397de0b71de0762ac7a49ad\",\n\t\t\t\t\"createDate\": null,\n\t\t\t\t\"updateDate\": null\n\t\t\t}\n\t\t]\n\t}\n}",
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/moveMaterialToGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": false,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 32307,
+     "method": "POST",
+     "catid": 3486,
+     "title": "移动业务素材到分组",
+     "path": "/material/moveMaterialToGroup",
+     "project_id": 107,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 68,
+     "add_time": 1671172290,
+     "up_time": 1671172330,
+     "req_query": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639c10ea3edb991a7247444a",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "req_body_other": "{\n    \"materialGroupId\":\"6397de0b71de0762ac7a49ad\",  //素材组id\n    \"ids\":[\n        \"6397eb2f71de0702c4265bb0\",                 //素材id\n        \"6397eb2f71de0702c4265bb1\"\n        ]\n}",
+     "req_body_type": "json",
+     "res_body": "{\n   \"success\": true,\n   \"error\": null,\n   \"errorCode\": 0,\n   \"data\": true\n}",
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/batchDelBusinessMaterial",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": false,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 32312,
+     "method": "POST",
+     "catid": 3486,
+     "title": "批量删除业务素材",
+     "path": "/material/batchDelBusinessMaterial",
+     "project_id": 107,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 68,
+     "add_time": 1671172499,
+     "up_time": 1671172545,
+     "req_query": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639c11c13edb991a7247444f",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "req_body_other": "{\n    \"ids\":[\n        \"6397eb2f71de0702c4265bb0\",                 //素材id\n        \"6397eb2f71de0702c4265bb1\"\n        ]\n}",
+     "req_body_type": "json",
+     "res_body": "{\n   \"success\": true,\n   \"error\": null,\n   \"errorCode\": 0,\n   \"data\": true\n}",
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/batchOrderBusinessGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": false,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 32392,
+     "method": "POST",
+     "catid": 3486,
+     "title": "批量排序业务素材分组",
+     "path": "/material/batchOrderBusinessGroup",
+     "project_id": 107,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 68,
+     "add_time": 1672367731,
+     "up_time": 1672368315,
+     "req_query": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "63ae50bb3edb991a72528989",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "req_body_other": "{\n   \"groups\": [\n      {\n         \"id\": \"63abf6de55790100019e33b9\",\n         \"order\": 3\n      },\n      {\n         \"id\": \"63abf6de55790100019e33b8\",\n         \"order\": 2\n      },\n      {\n         \"id\": \"63a162ac1ca1600001d1228b\",\n         \"order\": 1\n      }\n   ]\n}",
+     "req_body_type": "json",
+     "res_body": "{\n   \"success\": true,\n   \"error\": null,\n   \"errorCode\": 0,\n   \"data\": true\n}",
+     "username": "zhannan_deng"
+    }
+   ]
+  },
+  {
+   "name": "素材组件接口",
+   "desc": "素材组件接口",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/material/addSystemMaterial",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32082,
+     "method": "POST",
+     "title": "新增系统素材",
+     "path": "/material/addSystemMaterial",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987333edb991a7246bc52",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"files\": {\n      \"type\": \"array\",\n      \"description\": \"素材内容\",\n      \"items\": {\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件id\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"素材名称\"\n          }\n        },\n        \"$$ref\": \"#/definitions/MaterialBody\"\n      }\n    },\n    \"materialGroupId\": {\n      \"type\": \"string\",\n      \"description\": \"当前素材所属分类\"\n    }\n  },\n  \"$$ref\": \"#/definitions/素材\"\n}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006003,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/allResource",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32087,
+     "method": "GET",
+     "title": "业务列表",
+     "path": "/material/allResource",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987333edb991a7246bc58",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"properties\": {\n          \"delete\": {\n            \"type\": \"boolean\"\n          },\n          \"id\": {\n            \"type\": \"string\"\n          },\n          \"name\": {\n            \"type\": \"string\"\n          },\n          \"resourceKey\": {\n            \"type\": \"string\"\n          }\n        },\n        \"$$ref\": \"#/definitions/Resource\"\n      }\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«List«Resource»»\"\n}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006003,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/delResource",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32092,
+     "method": "POST",
+     "title": "删除系统分组所属业务维护",
+     "path": "/material/delResource",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987333edb991a7246bc68",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"id\": {\n      \"type\": \"string\"\n    }\n  },\n  \"$$ref\": \"#/definitions/IdRequest\"\n}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006003,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/delSystemMaterial",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32097,
+     "method": "POST",
+     "title": "删除系统素材",
+     "path": "/material/delSystemMaterial",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987333edb991a7246bc6c",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"ids\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"$$ref\": \"#/definitions/IdsRequest\"\n}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006003,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/delSystemMaterialGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32102,
+     "method": "POST",
+     "title": "删除系统分组",
+     "path": "/material/delSystemMaterialGroup",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987333edb991a7246bc70",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"id\": {\n      \"type\": \"string\"\n    }\n  },\n  \"$$ref\": \"#/definitions/IdRequest\"\n}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006003,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/listSystemMaterialGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32107,
+     "method": "GET",
+     "title": "系统分组列表",
+     "path": "/material/listSystemMaterialGroup",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639d751f3edb991a72478e16",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\"properties\":{\"data\":{\"type\":\"array\",\"items\":{\"properties\":{\"businessId\":{\"type\":\"string\",\"description\":\"业务标识\"},\"groupType\":{\"type\":\"integer\",\"format\":\"int32\",\"description\":\"素材分组类别 0:系统素材 1:业务素材\"},\"id\":{\"type\":\"string\",\"description\":\"主键\"},\"name\":{\"type\":\"string\",\"description\":\"分组名称\"},\"resourceKey\":{\"type\":\"array\",\"description\":\"所属业务\",\"items\":{\"type\":\"string\"}}},\"$$ref\":\"#/definitions/素材分组响应\",\"type\":\"object\"}},\"error\":{\"type\":\"string\"},\"errorCode\":{\"type\":\"integer\",\"format\":\"int32\"},\"success\":{\"type\":\"boolean\"}},\"$$ref\":\"#/definitions/Result«List«素材分组响应»»\",\"type\":\"object\"}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671263519,
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/materialList",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32112,
+     "method": "GET",
+     "title": "分组对应素材列表",
+     "path": "/material/materialList",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639d72a93edb991a72478c29",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [
+      {
+       "required": "1",
+       "_id": "639d72a93edb991a72478c28",
+       "name": "id",
+       "example": "",
+       "desc": "分组id"
+      },
+      {
+       "required": "1",
+       "_id": "639d72a93edb991a72478c27",
+       "name": "page",
+       "example": "",
+       "desc": "页数"
+      },
+      {
+       "required": "1",
+       "_id": "639d72a93edb991a72478c26",
+       "name": "size",
+       "example": "",
+       "desc": "每页展示条数"
+      }
+     ],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"type\":\"object\",\"properties\":{\"success\":{\"type\":\"boolean\"},\"error\":{\"type\":\"string\"},\"errorCode\":{\"type\":\"number\"},\"data\":{\"type\":\"object\",\"properties\":{\"total\":{\"type\":\"number\"},\"data\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"fileId\":{\"type\":\"string\"},\"fileName\":{\"type\":\"string\"},\"materialGroupId\":{\"type\":\"string\"}},\"required\":[\"id\",\"fileId\",\"fileName\",\"materialGroupId\"]}}}}}}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671262889,
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/mvSystemMaterial",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32117,
+     "method": "POST",
+     "title": "移动系统素材",
+     "path": "/material/mvSystemMaterial",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987343edb991a7246bc8c",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"materialGroupId\": {\n      \"type\": \"string\",\n      \"description\": \"移动至素材所属分类\"\n    },\n    \"materialIds\": {\n      \"type\": \"array\",\n      \"description\": \"文件id\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"$$ref\": \"#/definitions/素材移动\"\n}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006004,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/saveSystemMaterialGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32122,
+     "method": "POST",
+     "title": "【新建|修改】系统素材分组",
+     "path": "/material/saveSystemMaterialGroup",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987343edb991a7246bc90",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"businessId\": {\n      \"type\": \"string\",\n      \"description\": \"业务标识\"\n    },\n    \"id\": {\n      \"type\": \"string\",\n      \"description\": \"主键,有值代表修改.无值代表新增\"\n    },\n    \"name\": {\n      \"type\": \"string\",\n      \"description\": \"分组名称\"\n    },\n    \"order\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"排序\"\n    },\n    \"resourceKey\": {\n      \"type\": \"array\",\n      \"description\": \"所属业务\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"$$ref\": \"#/definitions/素材分组\"\n}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006004,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/saveSystemResource",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32127,
+     "method": "POST",
+     "title": "[新增|修改]系统分组所属业务维护",
+     "path": "/material/saveSystemResource",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987343edb991a7246bc94",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"name\": {\n      \"type\": \"string\",\n      \"description\": \"业务名称\"\n    },\n    \"resourceKey\": {\n      \"type\": \"string\",\n      \"description\": \"业务标识\"\n    }\n  },\n  \"$$ref\": \"#/definitions/业务\"\n}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006004,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/systemMaterialGroupOrder",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32132,
+     "method": "POST",
+     "title": "系统分组排序",
+     "path": "/material/systemMaterialGroupOrder",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987343edb991a7246bc97",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"ids\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"$$ref\": \"#/definitions/IdsRequest\"\n}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006004,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/material/saveSystemResource_1672912458600",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "素材组件接口"
+     ],
+     "_id": 32442,
+     "method": "POST",
+     "title": "[新增|修改]系统分组所属业务维护_copy",
+     "path": "/material/saveSystemResource_1672912458600",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987343edb991a7246bc94",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"name\": {\n      \"type\": \"string\",\n      \"description\": \"业务名称\"\n    },\n    \"resourceKey\": {\n      \"type\": \"string\",\n      \"description\": \"业务标识\"\n    }\n  },\n  \"$$ref\": \"#/definitions/业务\"\n}",
+     "project_id": 107,
+     "catid": 3498,
+     "uid": 684,
+     "add_time": 1672912458,
+     "up_time": 1672912458,
+     "__v": 0,
+     "username": "baoding_zhang"
+    }
+   ]
+  },
+  {
+   "name": "协同组件接口,-opentoken方式",
+   "desc": "协同组件接口, openToken方式",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/open_component/sendMessage",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口,-opentoken方式"
+     ],
+     "_id": 32137,
+     "method": "POST",
+     "title": "发送消息",
+     "path": "/open_component/sendMessage",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987343edb991a7246bca2",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"string\"\n}",
+     "req_body_other": "{\n  \"type\": \"string\"\n}",
+     "project_id": 107,
+     "catid": 3504,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006004,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/open_component/share_collaboration",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口,-opentoken方式"
+     ],
+     "_id": 32142,
+     "method": "POST",
+     "title": "分享协作流",
+     "path": "/open_component/share_collaboration",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987343edb991a7246bca4",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«object»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"curEid\": {\n      \"type\": \"string\"\n    },\n    \"curOid\": {\n      \"type\": \"string\"\n    },\n    \"groupId\": {\n      \"type\": \"string\",\n      \"description\": \"群组id\"\n    },\n    \"msgId\": {\n      \"type\": \"string\",\n      \"description\": \"消息id\"\n    },\n    \"webpageUrl\": {\n      \"type\": \"string\",\n      \"description\": \"webpageUrl, 跳转链接， 冗余字段，非必传\"\n    }\n  },\n  \"$$ref\": \"#/definitions/分享协作流\"\n}",
+     "project_id": 107,
+     "catid": 3504,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006004,
+     "__v": 0,
+     "username": "zhannan_deng"
+    }
+   ]
+  },
+  {
+   "name": "转发选人桥接口",
+   "desc": "转发选人桥接口",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/bridge/getPersonInfo",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "转发选人桥接口"
+     ],
+     "_id": 31987,
+     "method": "POST",
+     "title": "获取用户信息",
+     "path": "/bridge/getPersonInfo",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987303edb991a7246bbd9",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"properties\": {\n          \"active\": {\n            \"type\": \"string\"\n          },\n          \"activeTime\": {\n            \"type\": \"string\"\n          },\n          \"birthday\": {\n            \"type\": \"string\"\n          },\n          \"companyName\": {\n            \"type\": \"string\"\n          },\n          \"contact\": {\n            \"properties\": {\n              \"privateContact\": {\n                \"type\": \"array\",\n                \"items\": {\n                  \"properties\": {\n                    \"name\": {\n                      \"type\": \"string\"\n                    },\n                    \"type\": {\n                      \"type\": \"string\"\n                    },\n                    \"value\": {\n                      \"type\": \"string\"\n                    }\n                  },\n                  \"$$ref\": \"#/definitions/PrivateContact\"\n                }\n              },\n              \"publicContact\": {\n                \"type\": \"array\",\n                \"items\": {\n                  \"properties\": {\n                    \"publicid\": {\n                      \"type\": \"string\"\n                    },\n                    \"value\": {\n                      \"type\": \"string\"\n                    }\n                  },\n                  \"$$ref\": \"#/definitions/PublicContact\"\n                }\n              }\n            },\n            \"$$ref\": \"#/definitions/Contact\"\n          },\n          \"createTime\": {\n            \"type\": \"string\"\n          },\n          \"department\": {\n            \"type\": \"string\"\n          },\n          \"eid\": {\n            \"type\": \"string\"\n          },\n          \"email\": {\n            \"type\": \"string\"\n          },\n          \"fullPinyin\": {\n            \"type\": \"string\"\n          },\n          \"gender\": {\n            \"type\": \"string\"\n          },\n          \"hide\": {\n            \"type\": \"boolean\"\n          },\n          \"id\": {\n            \"type\": \"string\"\n          },\n          \"isAdmin\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          },\n          \"isHidePhone\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          },\n          \"jobNo\": {\n            \"type\": \"string\"\n          },\n          \"jobTitle\": {\n            \"type\": \"string\"\n          },\n          \"name\": {\n            \"type\": \"string\"\n          },\n          \"oId\": {\n            \"type\": \"string\"\n          },\n          \"openId\": {\n            \"type\": \"string\"\n          },\n          \"orgId\": {\n            \"type\": \"string\"\n          },\n          \"orgInfoId\": {\n            \"type\": \"string\"\n          },\n          \"phone\": {\n            \"type\": \"string\"\n          },\n          \"photoUrl\": {\n            \"type\": \"string\"\n          },\n          \"registerDate\": {\n            \"type\": \"string\"\n          },\n          \"status\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          },\n          \"tid\": {\n            \"type\": \"string\"\n          },\n          \"uid\": {\n            \"type\": \"string\"\n          },\n          \"updateTime\": {\n            \"type\": \"string\"\n          },\n          \"userName\": {\n            \"type\": \"string\"\n          },\n          \"userType\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          },\n          \"wbNetworkId\": {\n            \"type\": \"string\"\n          },\n          \"wbUserId\": {\n            \"type\": \"string\"\n          },\n          \"weights\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          }\n        },\n        \"$$ref\": \"#/definitions/Person\"\n      }\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«List«Person»»\"\n}",
+     "req_body_other": "{\n  \"type\": \"string\"\n}",
+     "project_id": 107,
+     "catid": 3510,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006000,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/bridge/getPersonsUnallot",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "转发选人桥接口"
+     ],
+     "_id": 31992,
+     "method": "POST",
+     "title": "获取无组织人员",
+     "path": "/bridge/getPersonsUnallot",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bbdd",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"properties\": {\n          \"active\": {\n            \"type\": \"string\"\n          },\n          \"activeTime\": {\n            \"type\": \"string\"\n          },\n          \"birthday\": {\n            \"type\": \"string\"\n          },\n          \"city\": {\n            \"type\": \"string\"\n          },\n          \"companyName\": {\n            \"type\": \"string\"\n          },\n          \"contact\": {\n            \"properties\": {\n              \"privateContact\": {\n                \"type\": \"array\",\n                \"items\": {\n                  \"properties\": {\n                    \"name\": {\n                      \"type\": \"string\"\n                    },\n                    \"type\": {\n                      \"type\": \"string\"\n                    },\n                    \"value\": {\n                      \"type\": \"string\"\n                    }\n                  },\n                  \"$$ref\": \"#/definitions/YZJPrivateContact\"\n                }\n              },\n              \"publicContact\": {\n                \"type\": \"array\",\n                \"items\": {\n                  \"properties\": {\n                    \"publicid\": {\n                      \"type\": \"string\"\n                    },\n                    \"value\": {\n                      \"type\": \"string\"\n                    }\n                  },\n                  \"$$ref\": \"#/definitions/YZJPublicContact\"\n                }\n              }\n            },\n            \"$$ref\": \"#/definitions/YZJContact\"\n          },\n          \"createTime\": {\n            \"type\": \"string\"\n          },\n          \"department\": {\n            \"type\": \"string\"\n          },\n          \"eid\": {\n            \"type\": \"string\"\n          },\n          \"email\": {\n            \"type\": \"string\"\n          },\n          \"fullPinyin\": {\n            \"type\": \"string\"\n          },\n          \"gender\": {\n            \"type\": \"string\"\n          },\n          \"hide\": {\n            \"type\": \"boolean\"\n          },\n          \"hireDate\": {\n            \"type\": \"string\"\n          },\n          \"id\": {\n            \"type\": \"string\"\n          },\n          \"identityId\": {\n            \"type\": \"string\"\n          },\n          \"isAdmin\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          },\n          \"isHide\": {\n            \"type\": \"boolean\"\n          },\n          \"isHidePhone\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          },\n          \"isResetPwd\": {\n            \"type\": \"boolean\"\n          },\n          \"jobNo\": {\n            \"type\": \"string\"\n          },\n          \"jobTitle\": {\n            \"type\": \"string\"\n          },\n          \"joinDate\": {\n            \"type\": \"string\"\n          },\n          \"leaveDate\": {\n            \"type\": \"string\"\n          },\n          \"name\": {\n            \"type\": \"string\"\n          },\n          \"oId\": {\n            \"type\": \"string\"\n          },\n          \"openId\": {\n            \"type\": \"string\"\n          },\n          \"orgFlagId\": {\n            \"type\": \"string\"\n          },\n          \"orgFlagName\": {\n            \"type\": \"string\"\n          },\n          \"orgId\": {\n            \"type\": \"string\"\n          },\n          \"orgInfoId\": {\n            \"type\": \"string\"\n          },\n          \"phone\": {\n            \"type\": \"string\"\n          },\n          \"photoUrl\": {\n            \"type\": \"string\"\n          },\n          \"positiveDate\": {\n            \"type\": \"string\"\n          },\n          \"provice\": {\n            \"type\": \"string\"\n          },\n          \"registerDate\": {\n            \"type\": \"string\"\n          },\n          \"resetPwd\": {\n            \"type\": \"boolean\"\n          },\n          \"status\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          },\n          \"tid\": {\n            \"type\": \"string\"\n          },\n          \"uid\": {\n            \"type\": \"string\"\n          },\n          \"updateTime\": {\n            \"type\": \"string\"\n          },\n          \"userName\": {\n            \"type\": \"string\"\n          },\n          \"userType\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          },\n          \"wbNetworkId\": {\n            \"type\": \"string\"\n          },\n          \"wbUserId\": {\n            \"type\": \"string\"\n          },\n          \"weights\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          }\n        },\n        \"$$ref\": \"#/definitions/RPerson\"\n      }\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«List«RPerson»»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"begin\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"orgInfoId\"\n    },\n    \"count\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"orgInfoId\"\n    }\n  },\n  \"$$ref\": \"#/definitions/获取架构无组织人员上行信息\"\n}",
+     "project_id": 107,
+     "catid": 3510,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006001,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/bridge/searchPersonsInfo",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "转发选人桥接口"
+     ],
+     "_id": 31997,
+     "method": "POST",
+     "title": "搜索人员",
+     "path": "/bridge/searchPersonsInfo",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bbe5",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bbe6",
+       "name": "formMap",
+       "desc": "formMap"
+      }
+     ],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"string\"\n}",
+     "project_id": 107,
+     "catid": 3510,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006001,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/bridge/treeOrg",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "转发选人桥接口"
+     ],
+     "_id": 32002,
+     "method": "POST",
+     "title": "组织架构树",
+     "path": "/bridge/treeOrg",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bbec",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bbed",
+       "name": "formMap",
+       "desc": "formMap"
+      }
+     ],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"string\"\n}",
+     "project_id": 107,
+     "catid": 3510,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006001,
+     "__v": 0,
+     "username": "zhannan_deng"
+    }
+   ]
+  },
+  {
+   "name": "协同组件接口",
+   "desc": "协同组件接口",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/coordination/addComent",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32007,
+     "method": "POST",
+     "title": "新增协同流评论",
+     "path": "/coordination/addComent",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bbf2",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"atTodoOids\": {\n      \"type\": \"array\",\n      \"description\": \"协作流@提及进待办的oids列表, 目前方案为只发公共号\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"atTodoUrl\": {\n      \"type\": \"string\",\n      \"description\": \"协作流@提及进待办的跳转链接, 目前方案为只发公共号\"\n    },\n    \"attachFiles\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"properties\": {\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名\"\n          },\n          \"fileSize\": {\n            \"type\": \"string\",\n            \"description\": \"文件大小\"\n          },\n          \"fileUrl\": {\n            \"type\": \"string\",\n            \"description\": \"文件地址\"\n          }\n        },\n        \"$$ref\": \"#/definitions/评论附加的文件\"\n      }\n    },\n    \"attachImgs\": {\n      \"type\": \"array\",\n      \"description\": \"评论附加的图片url\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"content\": {\n      \"type\": \"string\",\n      \"description\": \"前端生成的卡片实例id，与id对应\"\n    },\n    \"params\": {\n      \"type\": \"string\",\n      \"description\": \"点赞评论 自定义参数： 高亮数据自定义json字符串参数/转发数据json字符串格式\"\n    },\n    \"toCommentId\": {\n      \"type\": \"string\",\n      \"description\": \"回复对方评论的Id\"\n    },\n    \"toOId\": {\n      \"type\": \"string\",\n      \"description\": \"回复对方的OId\"\n    },\n    \"toUsername\": {\n      \"type\": \"string\",\n      \"description\": \"回复对方的用户名称\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    },\n    \"transactionName\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务的名称，在苍穹里面则是表单名称\"\n    }\n  },\n  \"$$ref\": \"#/definitions/添加评论或回复信息\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006001,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/comentList",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32012,
+     "method": "POST",
+     "title": "获取协同组件评论列表",
+     "path": "/coordination/comentList",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bbf8",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\",\n      \"additionalProperties\": {\n        \"type\": \"object\"\n      }\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«JSONObject»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"count\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"指定id 之前的拉取内容数量, 默认 20 条\"\n    },\n    \"id\": {\n      \"type\": \"string\",\n      \"description\": \"上一批协同流最后一条内容的 id\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    }\n  },\n  \"$$ref\": \"#/definitions/获取评论列表参数\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006001,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/createGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32017,
+     "method": "POST",
+     "title": "关联群组",
+     "path": "/coordination/createGroup",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bbfe",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"coordinationId\": {\n      \"type\": \"string\",\n      \"description\": \"协同业务id ， 如日程id，会议id， 群组groupId\"\n    },\n    \"eid\": {\n      \"type\": \"string\"\n    },\n    \"oid\": {\n      \"type\": \"string\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    },\n    \"type\": {\n      \"type\": \"string\"\n    }\n  },\n  \"$$ref\": \"#/definitions/关联业务数据\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006001,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/createVideo",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32022,
+     "method": "POST",
+     "title": "关联视频会议",
+     "path": "/coordination/createVideo",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bc04",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"coordinationId\": {\n      \"type\": \"string\",\n      \"description\": \"协同业务id ， 如日程id，会议id， 群组groupId\"\n    },\n    \"eid\": {\n      \"type\": \"string\"\n    },\n    \"oid\": {\n      \"type\": \"string\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    },\n    \"type\": {\n      \"type\": \"string\"\n    }\n  },\n  \"$$ref\": \"#/definitions/关联业务数据\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006001,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/createVoice",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32027,
+     "method": "POST",
+     "title": "关联语音会议",
+     "path": "/coordination/createVoice",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bc08",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"coordinationId\": {\n      \"type\": \"string\",\n      \"description\": \"协同业务id ， 如日程id，会议id， 群组groupId\"\n    },\n    \"eid\": {\n      \"type\": \"string\"\n    },\n    \"oid\": {\n      \"type\": \"string\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    },\n    \"type\": {\n      \"type\": \"string\"\n    }\n  },\n  \"$$ref\": \"#/definitions/关联业务数据\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006001,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/createWork",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32032,
+     "method": "POST",
+     "title": "关联日程",
+     "path": "/coordination/createWork",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987313edb991a7246bc10",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"coordinationId\": {\n      \"type\": \"string\",\n      \"description\": \"协同业务id ， 如日程id，会议id， 群组groupId\"\n    },\n    \"eid\": {\n      \"type\": \"string\"\n    },\n    \"oid\": {\n      \"type\": \"string\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    },\n    \"type\": {\n      \"type\": \"string\"\n    }\n  },\n  \"$$ref\": \"#/definitions/关联业务数据\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006001,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/delComent",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32037,
+     "method": "POST",
+     "title": "删除协同流评论",
+     "path": "/coordination/delComent",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987323edb991a7246bc16",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"commentId\": {\n      \"type\": \"string\",\n      \"description\": \"待删除的评论Id\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    }\n  },\n  \"$$ref\": \"#/definitions/删除协同流评论\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006002,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/getFlowInfo",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32042,
+     "method": "POST",
+     "title": "协作流-获取审批详情",
+     "path": "/coordination/getFlowInfo",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987323edb991a7246bc1c",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"dsId\": {\n      \"type\": \"string\",\n      \"description\": \"数据源id 没有可以不传\"\n    },\n    \"dsType\": {\n      \"type\": \"string\",\n      \"description\": \"数据源类型：智能审批 cloudflow 星空 xingkong\"\n    },\n    \"formId\": {\n      \"type\": \"string\",\n      \"description\": \"表单id 必传\"\n    },\n    \"modelCode\": {\n      \"type\": \"string\",\n      \"description\": \"模型id 必传\"\n    }\n  },\n  \"$$ref\": \"#/definitions/协作流-获取审批详情\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834010,
+     "up_time": 1671006002,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/laud",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32047,
+     "method": "POST",
+     "title": "协同流评论点赞、取消点赞",
+     "path": "/coordination/laud",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987323edb991a7246bc22",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"commentId\": {\n      \"type\": \"string\",\n      \"description\": \"点赞的评论Id\"\n    },\n    \"laud\": {\n      \"type\": \"boolean\",\n      \"description\": \"true 点赞； false 取消点赞\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    }\n  },\n  \"$$ref\": \"#/definitions/协同流评论点赞、取消点赞\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006002,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/listGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32052,
+     "method": "POST",
+     "title": "拉取群组列表",
+     "path": "/coordination/listGroup",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987323edb991a7246bc28",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«object»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"coordinationId\": {\n      \"type\": \"string\",\n      \"description\": \"当前已有数据最新的业务id(获取业务Id以后创建的数据,只有创建后立马获取才需传!)\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    }\n  },\n  \"$$ref\": \"#/definitions/拉取业务数据列表\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006002,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/listReply",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32057,
+     "method": "POST",
+     "title": "获取协同流评论回复的列表",
+     "path": "/coordination/listReply",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987323edb991a7246bc2e",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\",\n      \"additionalProperties\": {\n        \"type\": \"object\"\n      }\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«JSONObject»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"commentId\": {\n      \"type\": \"string\",\n      \"description\": \"主评论Id\"\n    },\n    \"replyId\": {\n      \"type\": \"string\",\n      \"description\": \"回复的commentId\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    }\n  },\n  \"$$ref\": \"#/definitions/获取协同流评论回复的参数\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006002,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/listVideo",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32062,
+     "method": "POST",
+     "title": "拉取视频会议数据列表",
+     "path": "/coordination/listVideo",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987323edb991a7246bc35",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«object»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"coordinationId\": {\n      \"type\": \"string\",\n      \"description\": \"当前已有数据最新的业务id(获取业务Id以后创建的数据,只有创建后立马获取才需传!)\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    }\n  },\n  \"$$ref\": \"#/definitions/拉取业务数据列表\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006002,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/listVoice",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32067,
+     "method": "POST",
+     "title": "拉取语音会议数据列表",
+     "path": "/coordination/listVoice",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987323edb991a7246bc3b",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«object»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"coordinationId\": {\n      \"type\": \"string\",\n      \"description\": \"当前已有数据最新的业务id(获取业务Id以后创建的数据,只有创建后立马获取才需传!)\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    }\n  },\n  \"$$ref\": \"#/definitions/拉取业务数据列表\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006002,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/listWork",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32072,
+     "method": "POST",
+     "title": "拉取日程数据列表",
+     "path": "/coordination/listWork",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987323edb991a7246bc41",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"$$ref\": \"#/definitions/Result«object»\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"code\": {\n      \"type\": \"string\",\n      \"description\": \"表单id的签名code\"\n    },\n    \"coordinationId\": {\n      \"type\": \"string\",\n      \"description\": \"当前已有数据最新的业务id(获取业务Id以后创建的数据,只有创建后立马获取才需传!)\"\n    },\n    \"transactionId\": {\n      \"type\": \"string\",\n      \"description\": \"第三方业务id，该id需要约束，保证唯一。现约束如下： 苍穹appId + 公私有云状态 + 表单id\"\n    }\n  },\n  \"$$ref\": \"#/definitions/拉取业务数据列表\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006002,
+     "__v": 0,
+     "username": "zhannan_deng"
+    },
+    {
+     "query_path": {
+      "path": "/coordination/saveGroup",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "协同组件接口"
+     ],
+     "_id": 32077,
+     "method": "POST",
+     "title": "创建群组",
+     "path": "/coordination/saveGroup",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "639987323edb991a7246bc46",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"string\"\n}",
+     "req_body_other": "{\n  \"properties\": {\n    \"bannerClickUrl\": {\n      \"type\": \"string\",\n      \"description\": \"群主题点击跳转链接\"\n    },\n    \"bannerContent\": {\n      \"type\": \"string\",\n      \"description\": \"群主题内容（在新样式模式下表示次要内容）\"\n    },\n    \"bannerPrimaryContent\": {\n      \"type\": \"string\",\n      \"description\": \"群主题主要内容\"\n    },\n    \"bannerTitle\": {\n      \"type\": \"string\",\n      \"description\": \"群主题\"\n    },\n    \"classifyNameCode\": {\n      \"type\": \"string\",\n      \"description\": \"组名编码 1:苍穹业务群组,2:星空业务群组\"\n    },\n    \"contentUrl\": {\n      \"type\": \"string\",\n      \"description\": \"内容图表url，有此值时优先显示图表\"\n    },\n    \"groupName\": {\n      \"type\": \"string\"\n    },\n    \"lightAppId\": {\n      \"type\": \"string\",\n      \"description\": \"群主题对应的appId\"\n    },\n    \"oids\": {\n      \"type\": \"array\",\n      \"description\": \"oids\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"share\": {\n      \"type\": \"boolean\",\n      \"description\": \"群是否有右键分享协作流功能\"\n    },\n    \"thumbUrl\": {\n      \"type\": \"string\",\n      \"description\": \"缩略图url\"\n    }\n  },\n  \"$$ref\": \"#/definitions/群组\"\n}",
+     "project_id": 107,
+     "catid": 3516,
+     "uid": 68,
+     "add_time": 1670834011,
+     "up_time": 1671006002,
+     "__v": 0,
+     "username": "zhannan_deng"
+    }
+   ]
+  }
+ ]
+}

@@ -210,6 +210,14 @@ export function applyLineage(ctx: Context): () => void {
           artifact: { ...artifact },
           action: spec.action,
           toolName: exec.name,
+          /*
+            哪一件活留下的 (4h⑤).
+
+            字段一直在 schema 里，从来没人填——于是产出只能按**话题**归集，一个同时
+            服务两个目标的会话里产出的任何东西都同时算进两个目标，而没有办法说清
+            哪一份是哪一份的。填上它，精确归属成为常态，话题级降为兜底。
+          */
+          ...(binding?.taskId === undefined ? {} : { taskId: binding.taskId }),
         },
         actor: { kind: 'agent' },
       }).catch((error: unknown) => {

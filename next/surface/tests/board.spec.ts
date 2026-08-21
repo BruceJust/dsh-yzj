@@ -121,13 +121,17 @@ async function child(input: {
   }
 }
 
-async function produced(topicKey: string, uri: string, title: string): Promise<void> {
+async function produced(
+  topicKey: string, uri: string, title: string, taskId?: string,
+): Promise<void> {
   await graph.append({
     type: 'lineage/produced',
     data: {
       topicKey,
       artifact: { uri, title, kind: 'sheet', placeKey: 'yzj-group-g1' },
       action: '产出',
+      // 带上「哪件活留下的」才算精确归属 (v3.10 4h⑤)。
+      ...(taskId === undefined ? {} : { taskId }),
     },
     actor: OPERATOR,
   })
@@ -335,7 +339,7 @@ describe('收件箱的承诺计数（改过循环，锁住）', () => {
   })
 })
 
-describe('产出归属：一个会话服务多个目标时（对抗审查 #2）', () => {
+describe('产出归属：精确是常态，共用是兜底（对抗审查 #2 · v3.10 4h⑤收紧）', () => {
   it('marks output it cannot attribute instead of claiming it', async () => {
     await goal(GOAL)
     await goal(OTHER)
@@ -344,17 +348,35 @@ describe('产出归属：一个会话服务多个目标时（对抗审查 #2）'
     await child({ id: 'c2', what: '服务 B', topicKey: 'tk-1', parentGoalRef: OTHER })
     await produced('tk-1', 'https://s/1', '说不清归谁的产出')
     await child({ id: 'c3', what: '只服务 A', topicKey: 'tk-2', parentGoalRef: GOAL })
-    await produced('tk-2', 'https://s/2', 'A 独有的产出')
+    await produced('tk-2', 'https://s/2', 'A 的活留下的', 'tsk-a')
 
     const frame = boardFrame(ctx)
     const mine = frame.goals.find(entry => entry.goalRef === GOAL)
     const shared = mine?.artifacts.find(artifact => artifact.title === '说不清归谁的产出')
-    const own = mine?.artifacts.find(artifact => artifact.title === 'A 独有的产出')
+    const own = mine?.artifacts.find(artifact => artifact.title === 'A 的活留下的')
     // 丢掉是丢真数据,独占是说假话——标出来才两样都不是。
     expect(shared?.shared).toBe(true)
     expect(own?.shared).toBeUndefined()
     const theirs = frame.goals.find(entry => entry.goalRef === OTHER)
     expect(theirs?.artifacts.find(a => a.title === '说不清归谁的产出')?.shared).toBe(true)
+  })
+
+  /**
+   * 「共用」判的是**这条边说不说得清出处**，不是「这个话题恰好挂了几个目标」。
+   *
+   * 旧规则里，一个此刻只服务一个目标的会话，产出会被当成精确归属——而那只是**碰巧
+   * 为真**：明天在同一个会话里给第二个目标登记一条，昨天那份产出就无声地变成了两个
+   * 目标共有的，而板上不会有任何变化提示。判据换成边自己带不带 `taskId`，同一份数据
+   * 的结论就不再随别处的登记而漂移。
+   */
+  it('说不出是哪件活留下的，就算这个话题只服务一个目标也是共用', async () => {
+    await goal(GOAL)
+    await child({ id: 'c1', what: '只服务 A', topicKey: 'tk-1', parentGoalRef: GOAL })
+    await produced('tk-1', 'https://s/1', '不知出处', undefined)
+    await produced('tk-1', 'https://s/2', '知道出处', 'tsk-a')
+    const mine = boardFrame(ctx).goals.find(entry => entry.goalRef === GOAL)
+    expect(mine?.artifacts.find(a => a.title === '不知出处')?.shared).toBe(true)
+    expect(mine?.artifacts.find(a => a.title === '知道出处')?.shared).toBeUndefined()
   })
 })
 

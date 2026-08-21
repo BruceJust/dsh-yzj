@@ -1,0 +1,461 @@
+{
+ "projectId": 417,
+ "projectName": "日程V12开放平台API",
+ "basepath": "",
+ "desc": "",
+ "categories": [
+  {
+   "name": "获取用户信息",
+   "desc": "",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/gateway/openimport/contacts/getPersonInfos",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "openimport-contacts"
+     ],
+     "_id": 49863,
+     "method": "POST",
+     "title": "批量获取用户信息",
+     "desc": "OAuth2_v12 tenant_personal 接口，bizUnit=contact。X-Requested-personId 由网关注入，服务端使用其作为当前用户；直连 openimport 调试时需要手动传入。personIds 可不传，为空时以 X-Requested-personId 作为唯一查询 ID，最多 50 个。",
+     "path": "/gateway/openimport/contacts/getPersonInfos",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "69fc55ee69c5cb4ba372b95c",
+       "name": "Content-Type",
+       "value": "application/json"
+      },
+      {
+       "required": "0",
+       "_id": "69fc55ee69c5cb4ba372b95b",
+       "name": "X-Requested-personId",
+       "desc": "网关注入的当前授权人 personId；直连 openimport 调试时必传。personIds 为空时同时作为查询目标 ID。"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"success\": {\n      \"type\": \"boolean\",\n      \"description\": \"是否成功。\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"错误码；成功时通常为 100。\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"错误描述；成功时为空字符串。\"\n    },\n    \"data\": {\n      \"type\": \"array\",\n      \"description\": \"用户信息列表。字段由 openorg PersonInfoResp 返回，并会按通讯录可见性与隐私规则脱敏。\",\n      \"items\": {\n        \"type\": \"object\",\n        \"description\": \"人员信息。实际返回字段与 openorg PersonInfoResp 保持一致，且受权限和隐私策略影响。\",\n        \"properties\": {\n          \"id\": {\n            \"type\": \"string\",\n            \"description\": \"personId。\"\n          },\n          \"openId\": {\n            \"type\": \"string\",\n            \"description\": \"用户 openId。\"\n          },\n          \"oId\": {\n            \"type\": \"string\",\n            \"description\": \"兼容字段，通常与 openId 一致。\"\n          },\n          \"eid\": {\n            \"type\": \"string\",\n            \"description\": \"企业 eid。\"\n          },\n          \"name\": {\n            \"type\": \"string\",\n            \"description\": \"人员名称。\"\n          },\n          \"userName\": {\n            \"type\": \"string\",\n            \"description\": \"用户名。\"\n          },\n          \"photoUrl\": {\n            \"type\": \"string\",\n            \"description\": \"头像地址。\"\n          },\n          \"department\": {\n            \"type\": \"string\",\n            \"description\": \"部门名称。\"\n          },\n          \"fulldepartment\": {\n            \"type\": \"string\",\n            \"description\": \"完整部门路径。\"\n          },\n          \"orgId\": {\n            \"type\": \"string\",\n            \"description\": \"主职部门 ID。\"\n          },\n          \"jobTitle\": {\n            \"type\": \"string\",\n            \"description\": \"职位。\"\n          },\n          \"jobNo\": {\n            \"type\": \"string\",\n            \"description\": \"工号。\"\n          },\n          \"phone\": {\n            \"type\": \"string\",\n            \"description\": \"手机号，可能因权限被隐藏。\"\n          },\n          \"email\": {\n            \"type\": \"string\",\n            \"description\": \"邮箱，可能因权限被隐藏。\"\n          },\n          \"status\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\",\n            \"description\": \"人员状态。\"\n          },\n          \"permission\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\",\n            \"description\": \"人员详情权限标识。\"\n          },\n          \"orgInfo\": {\n            \"type\": \"array\",\n            \"description\": \"组织/兼职组织信息。\",\n            \"items\": {\n              \"type\": \"object\"\n            }\n          },\n          \"contact\": {\n            \"type\": \"array\",\n            \"description\": \"联系人扩展字段，可能因权限被隐藏。\",\n            \"items\": {\n              \"type\": \"object\"\n            }\n          }\n        },\n        \"additionalProperties\": true,\n        \"$$ref\": \"#/definitions/PersonInfo\"\n      }\n    }\n  },\n  \"$$ref\": \"#/definitions/GetPersonInfosResult\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"openIds\": {\n      \"type\": \"array\",\n      \"description\": \"待查询人员 openId 列表，最多 50 个。服务端自动将 openId 转换为 personId 后查询。可不传，为空时以请求头 X-Requested-personId 作为唯一查询 ID。\",\n      \"maxItems\": 50,\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"example\": {\n    \"openIds\": [\n      \"openId_001\",\n      \"openId_002\"\n    ]\n  },\n  \"$$ref\": \"#/definitions/GetPersonInfosRequest\"\n}",
+     "project_id": 417,
+     "catid": 5909,
+     "uid": 1168,
+     "add_time": 1778060227,
+     "up_time": 1778144750,
+     "__v": 0,
+     "username": "zhoufeng_wu"
+    }
+   ]
+  },
+  {
+   "name": "会议室查询",
+   "desc": "",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/gateway/calendar/room/queryRoomsByTime",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "ThirdRoomRPCServiceImplV12"
+     ],
+     "_id": 49755,
+     "method": "POST",
+     "title": "查询一段时间内可用的会议室",
+     "desc": "OAuth2_v12 接口，bizUnit=calendar，oauth2GrantType 支持 tenant_app 与 tenant_personal。startTime 和 endTime 支持毫秒时间戳或 ISO-8601 字符串。tenant_app 模式必须在请求体中传入 openid；tenant_personal 模式下 openid 由鉴权上下文自动获取，请求体可不传。",
+     "path": "/gateway/calendar/room/queryRoomsByTime",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "69fc54cc69c5cb4ba372b375",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"success\": {\n      \"type\": \"boolean\",\n      \"description\": \"是否成功\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"错误码，成功时为 200\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"错误信息或错误编码文本，成功时通常为 10200\"\n    },\n    \"data\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"roomId\": {\n            \"type\": \"string\",\n            \"description\": \"会议室 ID\"\n          },\n          \"roomName\": {\n            \"type\": \"string\",\n            \"description\": \"会议室名称\"\n          },\n          \"detail\": {\n            \"type\": \"string\",\n            \"description\": \"会议室地址/详情\"\n          },\n          \"limitCount\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\",\n            \"description\": \"可容纳人数\"\n          },\n          \"approve\": {\n            \"type\": \"boolean\",\n            \"description\": \"是否需要审批\"\n          },\n          \"tagId\": {\n            \"type\": \"string\",\n            \"description\": \"标签 ID\"\n          },\n          \"orgId\": {\n            \"type\": \"string\",\n            \"description\": \"组织 ID\"\n          },\n          \"note\": {\n            \"type\": \"string\",\n            \"description\": \"会议室备注\"\n          }\n        },\n        \"$$ref\": \"#/definitions/RoomsResponseData\"\n      }\n    }\n  },\n  \"$$ref\": \"#/definitions/RpcResultRoomsResponseDataList\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"startTime\",\n    \"endTime\"\n  ],\n  \"properties\": {\n    \"openid\": {\n      \"type\": \"string\",\n      \"description\": \"查询人的企业 openid。仅 tenant_app 模式下必填，此时须显式传入；tenant_personal 模式下由鉴权上下文自动获取，无需传入。示例：o_xxx\"\n    },\n    \"startTime\": {\n      \"type\": \"integer\",\n      \"format\": \"int64\",\n      \"description\": \"开始时间，毫秒时间戳。实现同时兼容 ISO-8601 字符串。\"\n    },\n    \"endTime\": {\n      \"type\": \"integer\",\n      \"format\": \"int64\",\n      \"description\": \"结束时间，毫秒时间戳。实现同时兼容 ISO-8601 字符串。\"\n    },\n    \"pageIndex\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"页码，从 1 开始；传 0 表示不分页。\",\n      \"default\": 1\n    },\n    \"pageSize\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"每页条数；传 0 表示不分页。\",\n      \"default\": 20\n    }\n  },\n  \"example\": {\n    \"openid\": \"o_xxx\",\n    \"startTime\": 1745974800000,\n    \"endTime\": 1745978400000,\n    \"pageIndex\": 1,\n    \"pageSize\": 20\n  },\n  \"$$ref\": \"#/definitions/QueryRoomsByTimeRequest\"\n}",
+     "project_id": 417,
+     "catid": 5918,
+     "uid": 1168,
+     "add_time": 1777427875,
+     "up_time": 1778144460,
+     "__v": 0,
+     "markdown": "OAuth2_v12 接口，bizUnit=calendar。startTime 和 endTime 在实现中支持毫秒时间戳，也支持 ISO-8601 字符串；这里按常用毫秒时间戳示例给出。oid 必须显式从请求体传入。",
+     "username": "zhoufeng_wu"
+    }
+   ]
+  },
+  {
+   "name": "会议/日程查询",
+   "desc": "oauth2Alias=calendarQuery",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/gateway/cloudwork/calendar/detail",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "会议/日程查询"
+     ],
+     "_id": 49914,
+     "method": "POST",
+     "title": "获取会议/日程详情",
+     "path": "/gateway/cloudwork/calendar/detail",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "69fed91a569b4e74bf25bd16",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"description\": \"统一响应包装，data 为对象。\",\n  \"properties\": {\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"错误码；成功时通常为空或为 0\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"错误信息\"\n    },\n    \"data\": {\n      \"type\": \"object\",\n      \"description\": \"成功时返回的业务对象\"\n    }\n  },\n  \"$$ref\": \"#/definitions/RpcResultObject\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"id\"\n  ],\n  \"properties\": {\n    \"id\": {\n      \"type\": \"string\",\n      \"description\": \"会议 ID，用于查询单条会议/日程详情\"\n    }\n  },\n  \"$$ref\": \"#/definitions/DetailRequest\"\n}",
+     "project_id": 417,
+     "catid": 5942,
+     "uid": 1168,
+     "add_time": 1778305926,
+     "up_time": 1778309402,
+     "__v": 0,
+     "username": "zhoufeng_wu"
+    },
+    {
+     "query_path": {
+      "path": "/gateway/cloudwork/calendar/queryByUser",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "会议/日程查询"
+     ],
+     "_id": 49934,
+     "method": "POST",
+     "title": "单个用户会议/日程查询",
+     "path": "/gateway/cloudwork/calendar/queryByUser",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "69fed91a569b4e74bf25bd1a",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"description\": \"统一响应包装，data 为对象数组。\",\n  \"properties\": {\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"错误码；成功时通常为空或为 0\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"错误信息\"\n    },\n    \"data\": {\n      \"type\": \"array\",\n      \"description\": \"成功时返回的业务对象数组\",\n      \"items\": {\n        \"type\": \"object\"\n      }\n    }\n  },\n  \"$$ref\": \"#/definitions/RpcResultArrayObject\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"openId\",\n    \"pageNum\",\n    \"pageSize\"\n  ],\n  \"properties\": {\n    \"openId\": {\n      \"type\": \"string\",\n      \"description\": \"待查询用户 oid\"\n    },\n    \"pageNum\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"页码，从 1 开始\"\n    },\n    \"pageSize\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"每页条数，必须大于 0\"\n    },\n    \"status\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"状态过滤：0 未开始，1 已结束；不传表示不过滤\"\n    }\n  },\n  \"$$ref\": \"#/definitions/QueryByUserRequest\"\n}",
+     "project_id": 417,
+     "catid": 5942,
+     "uid": 1168,
+     "add_time": 1778305926,
+     "up_time": 1778309402,
+     "__v": 0,
+     "username": "zhoufeng_wu"
+    }
+   ]
+  },
+  {
+   "name": "会议/日程修改",
+   "desc": "oauth2Alias=calendarModify",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/gateway/cloudwork/calendar/create",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "会议/日程修改"
+     ],
+     "_id": 49919,
+     "method": "POST",
+     "title": "新增单个会议/日程",
+     "path": "/gateway/cloudwork/calendar/create",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "69fed91a569b4e74bf25bd17",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"description\": \"统一响应包装，data 为创建结果。\",\n  \"properties\": {\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"错误码；成功时通常为空或为 0\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"错误信息\"\n    },\n    \"data\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"meetingId\": {\n          \"type\": \"string\",\n          \"description\": \"新建会议 ID\"\n        }\n      },\n      \"$$ref\": \"#/definitions/CreateMeetingResult\"\n    }\n  },\n  \"$$ref\": \"#/definitions/RpcResultMeetingId\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"openid\",\n    \"title\",\n    \"startDate\",\n    \"endDate\"\n  ],\n  \"properties\": {\n    \"openid\": {\n      \"type\": \"string\",\n      \"description\": \"创建人 oid；当前实现要求显式传入\"\n    },\n    \"title\": {\n      \"type\": \"string\",\n      \"description\": \"会议主题\"\n    },\n    \"startDate\": {\n      \"type\": \"string\",\n      \"description\": \"开始时间，支持毫秒时间戳字符串或可解析的时间字符串\"\n    },\n    \"endDate\": {\n      \"type\": \"string\",\n      \"description\": \"结束时间，支持毫秒时间戳字符串或可解析的时间字符串\"\n    },\n    \"content\": {\n      \"type\": \"string\",\n      \"description\": \"会议内容/正文\"\n    },\n    \"roomId\": {\n      \"type\": \"string\",\n      \"description\": \"会议室 ID；与 meetingPlace 至少传一个，优先按会议室 ID 预定\"\n    },\n    \"meetingPlace\": {\n      \"type\": \"string\",\n      \"description\": \"手填会议地点或会议室名称；未传 roomId 时用于预定\"\n    },\n    \"actors\": {\n      \"type\": \"array\",\n      \"description\": \"与会人 oid 列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"meetOrganizers\": {\n      \"type\": \"array\",\n      \"description\": \"会议组织人 oid 列表；创建人会被服务端自动补入组织人\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"leaders\": {\n      \"type\": \"array\",\n      \"description\": \"领导 oid 列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"noticeTime\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"单次提醒时间，单位分钟；-1 不提醒，0 开始时提醒\"\n    },\n    \"noticeTimes\": {\n      \"type\": \"array\",\n      \"description\": \"多次提醒时间，单位分钟\",\n      \"items\": {\n        \"type\": \"integer\",\n        \"format\": \"int32\"\n      }\n    },\n    \"shareIds\": {\n      \"type\": \"array\",\n      \"description\": \"共享组 ID 列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"images\": {\n      \"type\": \"array\",\n      \"description\": \"会议图片附件列表\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"files\": {\n      \"type\": \"array\",\n      \"description\": \"会议文件附件列表\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"saetImages\": {\n      \"type\": \"array\",\n      \"description\": \"排座图附件，字段名保持当前代码拼写\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"workData\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"attachContent\": {\n          \"type\": \"string\",\n          \"description\": \"附件具体内容\"\n        },\n        \"attachType\": {\n          \"type\": \"string\",\n          \"description\": \"附件类型，例如会议通知、审批、文件、普通文本、图片\"\n        },\n        \"attachUrl\": {\n          \"type\": \"string\",\n          \"description\": \"查看来源 URL\"\n        },\n        \"groupHeaderUrl\": {\n          \"type\": \"string\",\n          \"description\": \"群头像 URL\"\n        },\n        \"groupId\": {\n          \"type\": \"string\",\n          \"description\": \"群组 ID\"\n        },\n        \"groupName\": {\n          \"type\": \"string\",\n          \"description\": \"群组名称\"\n        },\n        \"msgId\": {\n          \"type\": \"string\",\n          \"description\": \"IM 消息 ID\"\n        },\n        \"originateDate\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起时间\"\n        },\n        \"originator\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起人\"\n        },\n        \"originatorPhotoUrl\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起人头像 URL\"\n        }\n      },\n      \"$$ref\": \"#/definitions/WorkDataDto\"\n    },\n    \"meetExtType\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"会议扩展类型：0 默认，1 腾讯会议\"\n    },\n    \"meetingCategory\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"会议分类：0 内部会议，1 外部接待\"\n    },\n    \"sponsorInfo\": {\n      \"type\": \"object\",\n      \"description\": \"当前链路只实际使用 oid 和 orgId\",\n      \"properties\": {\n        \"oid\": {\n          \"type\": \"string\",\n          \"description\": \"主办人 oid\"\n        },\n        \"orgId\": {\n          \"type\": \"string\",\n          \"description\": \"主办部门 orgId\"\n        }\n      },\n      \"$$ref\": \"#/definitions/SponsorInfo\"\n    },\n    \"customSMSNoticeTime\": {\n      \"type\": \"integer\",\n      \"format\": \"int64\",\n      \"description\": \"自定义短信提醒时间戳；0 表示创建后立即提醒\"\n    },\n    \"other\": {\n      \"type\": \"string\",\n      \"description\": \"其他补充描述\"\n    },\n    \"remarks\": {\n      \"type\": \"string\",\n      \"description\": \"备注\"\n    },\n    \"layoutImg\": {\n      \"type\": \"array\",\n      \"description\": \"布局图列表，服务端原样保存\",\n      \"items\": {\n        \"type\": \"object\"\n      }\n    },\n    \"calendarId\": {\n      \"type\": \"string\",\n      \"description\": \"所属日历 ID\"\n    },\n    \"agent\": {\n      \"type\": \"string\",\n      \"description\": \"代建人 oid；传值时会校验是否具备共享日历编辑权限\"\n    },\n    \"redirectUrl\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"detail\": {\n          \"type\": \"string\",\n          \"description\": \"自定义详情跳转地址；通知弹窗和列表场景会优先使用该地址\"\n        }\n      },\n      \"$$ref\": \"#/definitions/RedirectUrl\"\n    },\n    \"meetServicer\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"servicerOids\": {\n          \"type\": \"array\",\n          \"description\": \"会务协作人 oid 列表\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"serviceList\": {\n          \"type\": \"array\",\n          \"description\": \"会务项二维数组，每项形如 [\\\"会务项名称\\\",\\\"数量\\\"]；为空时服务端不会创建或更新会务协作\",\n          \"items\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\"\n            }\n          }\n        }\n      },\n      \"$$ref\": \"#/definitions/MeetServicerRequest\"\n    }\n  },\n  \"$$ref\": \"#/definitions/CreateMeetingRequest\"\n}",
+     "project_id": 417,
+     "catid": 5948,
+     "uid": 1168,
+     "add_time": 1778305926,
+     "up_time": 1778309402,
+     "__v": 0,
+     "username": "zhoufeng_wu"
+    },
+    {
+     "query_path": {
+      "path": "/gateway/cloudwork/calendar/modify",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "会议/日程修改"
+     ],
+     "_id": 49924,
+     "method": "POST",
+     "title": "修改单个会议/日程",
+     "path": "/gateway/cloudwork/calendar/modify",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "69fed91a569b4e74bf25bd18",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"description\": \"统一响应包装，失败时通常返回 errorCode 和 error。\",\n  \"properties\": {\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"错误码；成功时通常为空或为 0\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"错误信息\"\n    },\n    \"data\": {\n      \"type\": \"object\",\n      \"description\": \"成功时的业务数据；本接口通常为空对象\"\n    }\n  },\n  \"$$ref\": \"#/definitions/RpcResultVoid\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"openid\",\n    \"id\",\n    \"title\",\n    \"startDate\",\n    \"endDate\"\n  ],\n  \"properties\": {\n    \"openid\": {\n      \"type\": \"string\",\n      \"description\": \"操作人 oid；当前实现要求显式传入\"\n    },\n    \"id\": {\n      \"type\": \"string\",\n      \"description\": \"会议 ID\"\n    },\n    \"title\": {\n      \"type\": \"string\",\n      \"description\": \"会议主题\"\n    },\n    \"startDate\": {\n      \"type\": \"string\",\n      \"description\": \"开始时间，支持毫秒时间戳字符串或可解析的时间字符串\"\n    },\n    \"endDate\": {\n      \"type\": \"string\",\n      \"description\": \"结束时间，支持毫秒时间戳字符串或可解析的时间字符串\"\n    },\n    \"content\": {\n      \"type\": \"string\",\n      \"description\": \"会议内容/正文\"\n    },\n    \"roomId\": {\n      \"type\": \"string\",\n      \"description\": \"会议室 ID；修改会议室时会进入会议室校验和改签流程\"\n    },\n    \"meetingPlace\": {\n      \"type\": \"string\",\n      \"description\": \"手填会议地点；未使用 roomId 时作为地点文本保存或传给会议室侧\"\n    },\n    \"meetOrganizers\": {\n      \"type\": \"array\",\n      \"description\": \"会议组织人完整列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"actors\": {\n      \"type\": \"array\",\n      \"description\": \"与会人完整列表；与 addActors/delActors 二选一使用\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"addActors\": {\n      \"type\": \"array\",\n      \"description\": \"增量添加与会人 oid\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"delActors\": {\n      \"type\": \"array\",\n      \"description\": \"增量移除与会人 oid\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"leaders\": {\n      \"type\": \"array\",\n      \"description\": \"当前领导 oid 列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"addLeaders\": {\n      \"type\": \"array\",\n      \"description\": \"增量添加领导 oid；主要用于会议室批量修改链路\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"repeat\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"新的重复类型；当前实现按所选会议及其后续重复会议进行修改\"\n    },\n    \"repeatEndDate\": {\n      \"type\": \"string\",\n      \"description\": \"新的重复截止时间；不能超过当前时间后一年的范围\"\n    },\n    \"noticeTime\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"单次提醒时间，单位分钟；-1 不提醒，0 开始时提醒\"\n    },\n    \"noticeTimes\": {\n      \"type\": \"array\",\n      \"description\": \"多次提醒时间，单位分钟\",\n      \"items\": {\n        \"type\": \"integer\",\n        \"format\": \"int32\"\n      }\n    },\n    \"shareIds\": {\n      \"type\": \"array\",\n      \"description\": \"共享组 ID 列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"images\": {\n      \"type\": \"array\",\n      \"description\": \"会议图片附件列表；传值会整体覆盖原图片\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"files\": {\n      \"type\": \"array\",\n      \"description\": \"会议文件附件列表；传值会整体覆盖原文件\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"saetImages\": {\n      \"type\": \"array\",\n      \"description\": \"排座图附件列表；传值会整体覆盖原排座图，字段名保持当前代码拼写\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"workData\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"attachContent\": {\n          \"type\": \"string\",\n          \"description\": \"附件具体内容\"\n        },\n        \"attachType\": {\n          \"type\": \"string\",\n          \"description\": \"附件类型，例如会议通知、审批、文件、普通文本、图片\"\n        },\n        \"attachUrl\": {\n          \"type\": \"string\",\n          \"description\": \"查看来源 URL\"\n        },\n        \"groupHeaderUrl\": {\n          \"type\": \"string\",\n          \"description\": \"群头像 URL\"\n        },\n        \"groupId\": {\n          \"type\": \"string\",\n          \"description\": \"群组 ID\"\n        },\n        \"groupName\": {\n          \"type\": \"string\",\n          \"description\": \"群组名称\"\n        },\n        \"msgId\": {\n          \"type\": \"string\",\n          \"description\": \"IM 消息 ID\"\n        },\n        \"originateDate\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起时间\"\n        },\n        \"originator\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起人\"\n        },\n        \"originatorPhotoUrl\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起人头像 URL\"\n        }\n      },\n      \"$$ref\": \"#/definitions/WorkDataDto\"\n    },\n    \"meetExtType\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"会议扩展类型：0 默认，1 腾讯会议；会影响扩展同步逻辑\"\n    },\n    \"meetingCategory\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"会议分类：0 内部会议，1 外部接待\"\n    },\n    \"sponsorInfo\": {\n      \"type\": \"object\",\n      \"description\": \"当前链路只实际使用 oid 和 orgId\",\n      \"properties\": {\n        \"oid\": {\n          \"type\": \"string\",\n          \"description\": \"主办人 oid\"\n        },\n        \"orgId\": {\n          \"type\": \"string\",\n          \"description\": \"主办部门 orgId\"\n        }\n      },\n      \"$$ref\": \"#/definitions/SponsorInfo\"\n    },\n    \"customSMSNoticeTime\": {\n      \"type\": \"integer\",\n      \"format\": \"int64\",\n      \"description\": \"自定义短信提醒时间戳\"\n    },\n    \"other\": {\n      \"type\": \"string\",\n      \"description\": \"其他补充描述\"\n    },\n    \"remarks\": {\n      \"type\": \"string\",\n      \"description\": \"备注；会同步到会议室链路\"\n    },\n    \"layoutImg\": {\n      \"type\": \"array\",\n      \"description\": \"布局图列表，服务端原样保存\",\n      \"items\": {\n        \"type\": \"object\"\n      }\n    },\n    \"calendarId\": {\n      \"type\": \"string\",\n      \"description\": \"所属日历 ID\"\n    },\n    \"meetServicer\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"servicerOids\": {\n          \"type\": \"array\",\n          \"description\": \"会务协作人 oid 列表\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"serviceList\": {\n          \"type\": \"array\",\n          \"description\": \"会务项二维数组，每项形如 [\\\"会务项名称\\\",\\\"数量\\\"]；为空时服务端不会创建或更新会务协作\",\n          \"items\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\"\n            }\n          }\n        }\n      },\n      \"$$ref\": \"#/definitions/MeetServicerRequest\"\n    }\n  },\n  \"$$ref\": \"#/definitions/ModifyMeetingRequest\"\n}",
+     "project_id": 417,
+     "catid": 5948,
+     "uid": 1168,
+     "add_time": 1778305926,
+     "up_time": 1778309402,
+     "__v": 0,
+     "username": "zhoufeng_wu"
+    },
+    {
+     "query_path": {
+      "path": "/gateway/cloudwork/calendar/cancel",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "会议/日程修改"
+     ],
+     "_id": 49929,
+     "method": "POST",
+     "title": "取消单个会议/日程",
+     "path": "/gateway/cloudwork/calendar/cancel",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "69fed91a569b4e74bf25bd19",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"description\": \"统一响应包装，失败时通常返回 errorCode 和 error。\",\n  \"properties\": {\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"错误码；成功时通常为空或为 0\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"错误信息\"\n    },\n    \"data\": {\n      \"type\": \"object\",\n      \"description\": \"成功时的业务数据；本接口通常为空对象\"\n    }\n  },\n  \"$$ref\": \"#/definitions/RpcResultVoid\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"openid\",\n    \"id\"\n  ],\n  \"properties\": {\n    \"openid\": {\n      \"type\": \"string\",\n      \"description\": \"操作人 oid\"\n    },\n    \"id\": {\n      \"type\": \"string\",\n      \"description\": \"会议 ID\"\n    },\n    \"del\": {\n      \"type\": \"boolean\",\n      \"description\": \"true 表示直接删除会议；false 或不传表示取消会议并保留记录\"\n    }\n  },\n  \"$$ref\": \"#/definitions/CancelMeetingRequest\"\n}",
+     "project_id": 417,
+     "catid": 5948,
+     "uid": 1168,
+     "add_time": 1778305926,
+     "up_time": 1778309402,
+     "__v": 0,
+     "username": "zhoufeng_wu"
+    },
+    {
+     "query_path": {
+      "path": "/gateway/cloudwork/calendar/repeatMeeting",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "会议/日程修改"
+     ],
+     "_id": 49939,
+     "method": "POST",
+     "title": "新增重复会议/日程",
+     "path": "/gateway/cloudwork/calendar/repeatMeeting",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "69fed91a569b4e74bf25bd1b",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"description\": \"统一响应包装，data 为重复创建结果。\",\n  \"properties\": {\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"错误码；成功时通常为空或为 0\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"错误信息\"\n    },\n    \"data\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"meetingIds\": {\n          \"type\": \"array\",\n          \"description\": \"重复创建产生的会议 ID 列表\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        }\n      },\n      \"$$ref\": \"#/definitions/CreateRepeatMeetingResult\"\n    }\n  },\n  \"$$ref\": \"#/definitions/RpcResultMeetingIds\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"openid\",\n    \"title\",\n    \"startDate\",\n    \"endDate\",\n    \"repeat\",\n    \"repeatEndDate\"\n  ],\n  \"properties\": {\n    \"openid\": {\n      \"type\": \"string\",\n      \"description\": \"创建人 oid；当前实现要求显式传入\"\n    },\n    \"title\": {\n      \"type\": \"string\",\n      \"description\": \"会议主题\"\n    },\n    \"startDate\": {\n      \"type\": \"string\",\n      \"description\": \"开始时间，支持毫秒时间戳字符串或可解析的时间字符串\"\n    },\n    \"endDate\": {\n      \"type\": \"string\",\n      \"description\": \"结束时间，支持毫秒时间戳字符串或可解析的时间字符串\"\n    },\n    \"content\": {\n      \"type\": \"string\",\n      \"description\": \"会议内容/正文\"\n    },\n    \"roomId\": {\n      \"type\": \"string\",\n      \"description\": \"会议室 ID；与 meetingPlace 至少传一个，优先按会议室 ID 预定\"\n    },\n    \"meetingPlace\": {\n      \"type\": \"string\",\n      \"description\": \"手填会议地点或会议室名称；未传 roomId 时用于预定\"\n    },\n    \"actors\": {\n      \"type\": \"array\",\n      \"description\": \"与会人 oid 列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"meetOrganizers\": {\n      \"type\": \"array\",\n      \"description\": \"会议组织人 oid 列表；创建人会被服务端自动补入组织人\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"leaders\": {\n      \"type\": \"array\",\n      \"description\": \"领导 oid 列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"noticeTime\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"单次提醒时间，单位分钟；-1 不提醒，0 开始时提醒\"\n    },\n    \"noticeTimes\": {\n      \"type\": \"array\",\n      \"description\": \"多次提醒时间，单位分钟\",\n      \"items\": {\n        \"type\": \"integer\",\n        \"format\": \"int32\"\n      }\n    },\n    \"shareIds\": {\n      \"type\": \"array\",\n      \"description\": \"共享组 ID 列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"images\": {\n      \"type\": \"array\",\n      \"description\": \"会议图片附件列表\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"files\": {\n      \"type\": \"array\",\n      \"description\": \"会议文件附件列表\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"saetImages\": {\n      \"type\": \"array\",\n      \"description\": \"排座图附件，字段名保持当前代码拼写\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"workData\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"attachContent\": {\n          \"type\": \"string\",\n          \"description\": \"附件具体内容\"\n        },\n        \"attachType\": {\n          \"type\": \"string\",\n          \"description\": \"附件类型，例如会议通知、审批、文件、普通文本、图片\"\n        },\n        \"attachUrl\": {\n          \"type\": \"string\",\n          \"description\": \"查看来源 URL\"\n        },\n        \"groupHeaderUrl\": {\n          \"type\": \"string\",\n          \"description\": \"群头像 URL\"\n        },\n        \"groupId\": {\n          \"type\": \"string\",\n          \"description\": \"群组 ID\"\n        },\n        \"groupName\": {\n          \"type\": \"string\",\n          \"description\": \"群组名称\"\n        },\n        \"msgId\": {\n          \"type\": \"string\",\n          \"description\": \"IM 消息 ID\"\n        },\n        \"originateDate\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起时间\"\n        },\n        \"originator\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起人\"\n        },\n        \"originatorPhotoUrl\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起人头像 URL\"\n        }\n      },\n      \"$$ref\": \"#/definitions/WorkDataDto\"\n    },\n    \"meetExtType\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"会议扩展类型：0 默认，1 腾讯会议\"\n    },\n    \"meetingCategory\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"会议分类：0 内部会议，1 外部接待\"\n    },\n    \"sponsorInfo\": {\n      \"type\": \"object\",\n      \"description\": \"当前链路只实际使用 oid 和 orgId\",\n      \"properties\": {\n        \"oid\": {\n          \"type\": \"string\",\n          \"description\": \"主办人 oid\"\n        },\n        \"orgId\": {\n          \"type\": \"string\",\n          \"description\": \"主办部门 orgId\"\n        }\n      },\n      \"$$ref\": \"#/definitions/SponsorInfo\"\n    },\n    \"customSMSNoticeTime\": {\n      \"type\": \"integer\",\n      \"format\": \"int64\",\n      \"description\": \"自定义短信提醒时间戳；0 表示创建后立即提醒\"\n    },\n    \"other\": {\n      \"type\": \"string\",\n      \"description\": \"其他补充描述\"\n    },\n    \"remarks\": {\n      \"type\": \"string\",\n      \"description\": \"备注\"\n    },\n    \"layoutImg\": {\n      \"type\": \"array\",\n      \"description\": \"布局图列表，服务端原样保存\",\n      \"items\": {\n        \"type\": \"object\"\n      }\n    },\n    \"calendarId\": {\n      \"type\": \"string\",\n      \"description\": \"所属日历 ID\"\n    },\n    \"agent\": {\n      \"type\": \"string\",\n      \"description\": \"代建人 oid；传值时会校验是否具备共享日历编辑权限\"\n    },\n    \"redirectUrl\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"detail\": {\n          \"type\": \"string\",\n          \"description\": \"自定义详情跳转地址；通知弹窗和列表场景会优先使用该地址\"\n        }\n      },\n      \"$$ref\": \"#/definitions/RedirectUrl\"\n    },\n    \"meetServicer\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"servicerOids\": {\n          \"type\": \"array\",\n          \"description\": \"会务协作人 oid 列表\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"serviceList\": {\n          \"type\": \"array\",\n          \"description\": \"会务项二维数组，每项形如 [\\\"会务项名称\\\",\\\"数量\\\"]；为空时服务端不会创建或更新会务协作\",\n          \"items\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\"\n            }\n          }\n        }\n      },\n      \"$$ref\": \"#/definitions/MeetServicerRequest\"\n    },\n    \"repeat\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"重复类型：1 每工作日，2 每日，3 每周，4 每两周，5 每月；当前实现不支持跨天重复\"\n    },\n    \"repeatEndDate\": {\n      \"type\": \"string\",\n      \"description\": \"重复截止时间；不能早于 startDate，且不能超过当前时间后一年的范围\"\n    }\n  },\n  \"$$ref\": \"#/definitions/RepeatMeetingRequest\"\n}",
+     "project_id": 417,
+     "catid": 5948,
+     "uid": 1168,
+     "add_time": 1778305926,
+     "up_time": 1778309402,
+     "__v": 0,
+     "username": "zhoufeng_wu"
+    },
+    {
+     "query_path": {
+      "path": "/gateway/cloudwork/calendar/batchModify",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "会议/日程修改"
+     ],
+     "_id": 49944,
+     "method": "POST",
+     "title": "批量修改重复会议/日程",
+     "path": "/gateway/cloudwork/calendar/batchModify",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "69fed91a569b4e74bf25bd1c",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"description\": \"统一响应包装，失败时通常返回 errorCode 和 error。\",\n  \"properties\": {\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"错误码；成功时通常为空或为 0\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"错误信息\"\n    },\n    \"data\": {\n      \"type\": \"object\",\n      \"description\": \"成功时的业务数据；本接口通常为空对象\"\n    }\n  },\n  \"$$ref\": \"#/definitions/RpcResultVoid\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"openid\",\n    \"id\",\n    \"title\",\n    \"startDate\",\n    \"endDate\",\n    \"repeat\",\n    \"repeatEndDate\"\n  ],\n  \"properties\": {\n    \"openid\": {\n      \"type\": \"string\",\n      \"description\": \"操作人 oid；当前实现要求显式传入\"\n    },\n    \"id\": {\n      \"type\": \"string\",\n      \"description\": \"会议 ID\"\n    },\n    \"title\": {\n      \"type\": \"string\",\n      \"description\": \"会议主题\"\n    },\n    \"startDate\": {\n      \"type\": \"string\",\n      \"description\": \"开始时间，支持毫秒时间戳字符串或可解析的时间字符串\"\n    },\n    \"endDate\": {\n      \"type\": \"string\",\n      \"description\": \"结束时间，支持毫秒时间戳字符串或可解析的时间字符串\"\n    },\n    \"content\": {\n      \"type\": \"string\",\n      \"description\": \"会议内容/正文\"\n    },\n    \"roomId\": {\n      \"type\": \"string\",\n      \"description\": \"会议室 ID；修改会议室时会进入会议室校验和改签流程\"\n    },\n    \"meetingPlace\": {\n      \"type\": \"string\",\n      \"description\": \"手填会议地点；未使用 roomId 时作为地点文本保存或传给会议室侧\"\n    },\n    \"meetOrganizers\": {\n      \"type\": \"array\",\n      \"description\": \"会议组织人完整列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"actors\": {\n      \"type\": \"array\",\n      \"description\": \"与会人完整列表；与 addActors/delActors 二选一使用\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"addActors\": {\n      \"type\": \"array\",\n      \"description\": \"增量添加与会人 oid\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"delActors\": {\n      \"type\": \"array\",\n      \"description\": \"增量移除与会人 oid\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"leaders\": {\n      \"type\": \"array\",\n      \"description\": \"当前领导 oid 列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"addLeaders\": {\n      \"type\": \"array\",\n      \"description\": \"增量添加领导 oid；主要用于会议室批量修改链路\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"repeat\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"新的重复类型；当前实现按所选会议及其后续重复会议进行修改\"\n    },\n    \"repeatEndDate\": {\n      \"type\": \"string\",\n      \"description\": \"新的重复截止时间；不能超过当前时间后一年的范围\"\n    },\n    \"noticeTime\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"单次提醒时间，单位分钟；-1 不提醒，0 开始时提醒\"\n    },\n    \"noticeTimes\": {\n      \"type\": \"array\",\n      \"description\": \"多次提醒时间，单位分钟\",\n      \"items\": {\n        \"type\": \"integer\",\n        \"format\": \"int32\"\n      }\n    },\n    \"shareIds\": {\n      \"type\": \"array\",\n      \"description\": \"共享组 ID 列表\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"images\": {\n      \"type\": \"array\",\n      \"description\": \"会议图片附件列表；传值会整体覆盖原图片\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"files\": {\n      \"type\": \"array\",\n      \"description\": \"会议文件附件列表；传值会整体覆盖原文件\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"saetImages\": {\n      \"type\": \"array\",\n      \"description\": \"排座图附件列表；传值会整体覆盖原排座图，字段名保持当前代码拼写\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"fileId\": {\n            \"type\": \"string\",\n            \"description\": \"文件 ID\"\n          },\n          \"fileName\": {\n            \"type\": \"string\",\n            \"description\": \"文件名称\"\n          },\n          \"FileExt\": {\n            \"type\": \"string\",\n            \"description\": \"文件扩展名；字段名大小写保持与当前代码一致\"\n          },\n          \"fileSize\": {\n            \"type\": \"integer\",\n            \"format\": \"int64\",\n            \"description\": \"文件大小\"\n          },\n          \"fileType\": {\n            \"type\": \"string\",\n            \"description\": \"文件类型\"\n          }\n        },\n        \"$$ref\": \"#/definitions/FileInfoDto\"\n      }\n    },\n    \"workData\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"attachContent\": {\n          \"type\": \"string\",\n          \"description\": \"附件具体内容\"\n        },\n        \"attachType\": {\n          \"type\": \"string\",\n          \"description\": \"附件类型，例如会议通知、审批、文件、普通文本、图片\"\n        },\n        \"attachUrl\": {\n          \"type\": \"string\",\n          \"description\": \"查看来源 URL\"\n        },\n        \"groupHeaderUrl\": {\n          \"type\": \"string\",\n          \"description\": \"群头像 URL\"\n        },\n        \"groupId\": {\n          \"type\": \"string\",\n          \"description\": \"群组 ID\"\n        },\n        \"groupName\": {\n          \"type\": \"string\",\n          \"description\": \"群组名称\"\n        },\n        \"msgId\": {\n          \"type\": \"string\",\n          \"description\": \"IM 消息 ID\"\n        },\n        \"originateDate\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起时间\"\n        },\n        \"originator\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起人\"\n        },\n        \"originatorPhotoUrl\": {\n          \"type\": \"string\",\n          \"description\": \"第三方基础数据发起人头像 URL\"\n        }\n      },\n      \"$$ref\": \"#/definitions/WorkDataDto\"\n    },\n    \"meetExtType\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"会议扩展类型：0 默认，1 腾讯会议；会影响扩展同步逻辑\"\n    },\n    \"meetingCategory\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"会议分类：0 内部会议，1 外部接待\"\n    },\n    \"sponsorInfo\": {\n      \"type\": \"object\",\n      \"description\": \"当前链路只实际使用 oid 和 orgId\",\n      \"properties\": {\n        \"oid\": {\n          \"type\": \"string\",\n          \"description\": \"主办人 oid\"\n        },\n        \"orgId\": {\n          \"type\": \"string\",\n          \"description\": \"主办部门 orgId\"\n        }\n      },\n      \"$$ref\": \"#/definitions/SponsorInfo\"\n    },\n    \"customSMSNoticeTime\": {\n      \"type\": \"integer\",\n      \"format\": \"int64\",\n      \"description\": \"自定义短信提醒时间戳\"\n    },\n    \"other\": {\n      \"type\": \"string\",\n      \"description\": \"其他补充描述\"\n    },\n    \"remarks\": {\n      \"type\": \"string\",\n      \"description\": \"备注；会同步到会议室链路\"\n    },\n    \"layoutImg\": {\n      \"type\": \"array\",\n      \"description\": \"布局图列表，服务端原样保存\",\n      \"items\": {\n        \"type\": \"object\"\n      }\n    },\n    \"calendarId\": {\n      \"type\": \"string\",\n      \"description\": \"所属日历 ID\"\n    },\n    \"meetServicer\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"servicerOids\": {\n          \"type\": \"array\",\n          \"description\": \"会务协作人 oid 列表\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"serviceList\": {\n          \"type\": \"array\",\n          \"description\": \"会务项二维数组，每项形如 [\\\"会务项名称\\\",\\\"数量\\\"]；为空时服务端不会创建或更新会务协作\",\n          \"items\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\"\n            }\n          }\n        }\n      },\n      \"$$ref\": \"#/definitions/MeetServicerRequest\"\n    }\n  },\n  \"$$ref\": \"#/definitions/BatchModifyMeetingRequest\"\n}",
+     "project_id": 417,
+     "catid": 5948,
+     "uid": 1168,
+     "add_time": 1778305926,
+     "up_time": 1778309402,
+     "__v": 0,
+     "username": "zhoufeng_wu"
+    },
+    {
+     "query_path": {
+      "path": "/gateway/cloudwork/calendar/batchCancel",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "会议/日程修改"
+     ],
+     "_id": 49949,
+     "method": "POST",
+     "title": "批量取消重复会议/日程",
+     "path": "/gateway/cloudwork/calendar/batchCancel",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "69fed91a569b4e74bf25bd1d",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"description\": \"统一响应包装，失败时通常返回 errorCode 和 error。\",\n  \"properties\": {\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\",\n      \"description\": \"错误码；成功时通常为空或为 0\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"错误信息\"\n    },\n    \"data\": {\n      \"type\": \"object\",\n      \"description\": \"成功时的业务数据；本接口通常为空对象\"\n    }\n  },\n  \"$$ref\": \"#/definitions/RpcResultVoid\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"required\": [\n    \"openid\",\n    \"id\"\n  ],\n  \"properties\": {\n    \"openid\": {\n      \"type\": \"string\",\n      \"description\": \"操作人 oid\"\n    },\n    \"id\": {\n      \"type\": \"string\",\n      \"description\": \"选中的那条会议 ID；服务端据此定位当前及后续重复会议\"\n    }\n  },\n  \"$$ref\": \"#/definitions/BatchCancelMeetingRequest\"\n}",
+     "project_id": 417,
+     "catid": 5948,
+     "uid": 1168,
+     "add_time": 1778305926,
+     "up_time": 1778309402,
+     "__v": 0,
+     "username": "zhoufeng_wu"
+    }
+   ]
+  }
+ ]
+}

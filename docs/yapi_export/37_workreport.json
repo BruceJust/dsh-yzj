@@ -1,0 +1,190 @@
+{
+ "projectId": 37,
+ "projectName": "workreport",
+ "basepath": "",
+ "desc": "",
+ "categories": [
+  {
+   "name": "按部门查询（包含子部门）",
+   "desc": "",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/workreport/rest/v1/info-flow/team/reports",
+      "params": [
+       {
+        "_id": "62382ad29c54873c9910ab4d",
+        "name": "startDate",
+        "value": "1647792000000"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab4c",
+        "name": "endDate",
+        "value": "1647878399999"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab4b",
+        "name": "templateId",
+        "value": "f54829db8ced4ad3aac8a080640e76c9"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab4a",
+        "name": "limit",
+        "value": "10"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab49",
+        "name": "page",
+        "value": "1"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab48",
+        "name": "isInclude",
+        "value": "false"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab47",
+        "name": "dataSourceType",
+        "value": "THIRDPARTY"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab46",
+        "name": "startIndexId",
+        "value": ""
+       },
+       {
+        "_id": "62382ad29c54873c9910ab45",
+        "name": "sourceType",
+        "value": "1"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab44",
+        "name": "deptIds",
+        "value": "3519e4ae-870a-40d0-8e2f-41de3a4fd219"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab43",
+        "name": "ticket",
+        "value": "APPURLWITHTICKET7aa10b13068f52b31e5e33d0f63ba90a"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab42",
+        "name": "appId",
+        "value": "101091429"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab41",
+        "name": "lappName",
+        "value": "workreport"
+       },
+       {
+        "_id": "62382ad29c54873c9910ab40",
+        "name": "includeSub",
+        "value": "true"
+       }
+      ]
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 22143,
+     "method": "POST",
+     "catid": 1930,
+     "title": "移动端按部门查询",
+     "path": "/workreport/rest/v1/info-flow/team/reports?startDate=1647792000000&endDate=1647878399999&templateId=f54829db8ced4ad3aac8a080640e76c9&limit=10&page=1&isInclude=false&dataSourceType=THIRDPARTY&startIndexId=&sourceType=1&deptIds=3519e4ae-870a-40d0-8e2f-41de3a4fd219&ticket=APPURLWITHTICKET7aa10b13068f52b31e5e33d0f63ba90a&appId=101091429&lappName=workreport&includeSub=true",
+     "project_id": 37,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 396,
+     "add_time": 1647847883,
+     "up_time": 1647848146,
+     "req_query": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "62382ad29c54873c9910ab3f",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "req_body_other": "{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"type\":\"object\",\"properties\":{\"codeId\":{\"type\":\"string\"},\"deptIds\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"startTime\":{\"type\":\"number\"},\"endTime\":{\"type\":\"number\"},\"minTime\":{\"type\":\"number\"},\"pageable\":{\"type\":\"object\",\"properties\":{\"pageSize\":{\"type\":\"number\"},\"type\":{\"type\":\"string\"},\"id\":{\"type\":\"null\"}}}}}",
+     "req_body_type": "json",
+     "res_body": "{\"type\":\"object\",\"title\":\"empty object\",\"properties\":{}}",
+     "username": "xueyuz_zheng"
+    },
+    {
+     "query_path": {
+      "path": "/workreport/rest/v1/pc/dept/reports",
+      "params": [
+       {
+        "_id": "6238301a9c54873c9910ab56",
+        "name": "ticket",
+        "value": "APPURLWITHTICKETc5dbe6bb0199b9f28b8bda3e17565499"
+       },
+       {
+        "_id": "6238301a9c54873c9910ab55",
+        "name": "lappName",
+        "value": "workreport"
+       },
+       {
+        "_id": "6238301a9c54873c9910ab54",
+        "name": "appId",
+        "value": "101091429"
+       },
+       {
+        "_id": "6238301a9c54873c9910ab53",
+        "name": "includeSub",
+        "value": "true"
+       }
+      ]
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [],
+     "_id": 22149,
+     "method": "POST",
+     "catid": 1930,
+     "title": "web端按部门查询",
+     "path": "/workreport/rest/v1/pc/dept/reports?ticket=APPURLWITHTICKETc5dbe6bb0199b9f28b8bda3e17565499&lappName=workreport&appId=101091429&includeSub=true",
+     "project_id": 37,
+     "req_params": [],
+     "res_body_type": "json",
+     "uid": 396,
+     "add_time": 1647849479,
+     "up_time": 1647849498,
+     "req_query": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "6238301a9c54873c9910ab52",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_body_form": [],
+     "__v": 0,
+     "desc": "",
+     "markdown": "",
+     "req_body_other": "{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"type\":\"object\",\"properties\":{\"codeId\":{\"type\":\"string\"},\"deptIds\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"endTime\":{\"type\":\"number\"},\"minTime\":{\"type\":\"number\"},\"pageable\":{\"type\":\"object\",\"properties\":{\"pageSize\":{\"type\":\"number\"},\"type\":{\"type\":\"string\"},\"id\":{\"type\":\"null\"}}},\"startTime\":{\"type\":\"number\"}}}",
+     "req_body_type": "json",
+     "res_body": "",
+     "username": "xueyuz_zheng"
+    }
+   ]
+  }
+ ]
+}

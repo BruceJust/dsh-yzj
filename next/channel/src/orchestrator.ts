@@ -312,9 +312,10 @@ export class YzjOrchestrator {
       return
     }
 
-    const binding = this.bindingOf(route, trigger)
-    this.activeTurns.set(agent, { binding, group, trigger, route })
     const taskId = taskIdFor(trigger.msgId)
+    // 绑定里带上这一回合的活：产出归属的精确锚（4h⑤——把共用从常态变兜底）。
+    const binding: TurnBinding = { ...this.bindingOf(route, trigger), taskId }
+    this.activeTurns.set(agent, { binding, group, trigger, route })
     const startedAt = Date.now()
     let timer: ReturnType<typeof setTimeout> | undefined
     try {

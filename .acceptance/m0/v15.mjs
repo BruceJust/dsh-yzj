@@ -1,0 +1,18 @@
+import { chromium } from 'playwright'
+const browser = await chromium.launch()
+const page = await browser.newPage({ viewport: { width: 1560, height: 940 } })
+const errors = []
+page.on('pageerror', e => errors.push('pageerror: ' + e.message))
+await page.goto('http://127.0.0.1:3090/', { waitUntil: 'networkidle' })
+await page.waitForTimeout(3500)
+await page.locator('nav[aria-label="收件箱"] button[title*="群视图"]').first().click()
+await page.waitForTimeout(6000)
+await page.locator('textarea').first().fill('@next 一句话说说这个群最近在忙什么。')
+await page.screenshot({ path: '.acceptance/m0/v15-ignite-preview.png' })
+console.log('send label:', await page.locator('[class*="place_send"]').innerText().catch(()=>'?'))
+await page.getByRole('button', { name: /发送并交给 agent|发到群里/ }).first().click()
+await page.waitForTimeout(75000)
+console.log('toast:', await page.locator('[class*="toast"]').innerText().catch(()=>'none'))
+await page.screenshot({ path: '.acceptance/m0/v15-ignited.png' })
+console.log('errors:', errors.length ? errors.slice(0,3) : 'none')
+await browser.close()

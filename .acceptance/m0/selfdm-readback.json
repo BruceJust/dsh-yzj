@@ -1,0 +1,55 @@
+{
+  "count": 3,
+  "groupId": "67f334ade4b0b97fa155f48f-67f334ade4b0b97fa155f48f",
+  "list": [
+    {
+      "content": "172.19.80.78:8080/ierp",
+      "extFields": null,
+      "fromOpenId": "67f334ade4b0b97fa155f4a6",
+      "msgId": "68188cb3e4b0c2fed61ebd82",
+      "msgType": "text",
+      "param": {
+        "desc": []
+      },
+      "sendTime": "2025-05-05 18:02:27.148"
+    },
+    {
+      "content": "[图片]\n[图片]\n回车就这样了",
+      "extFields": null,
+      "fromOpenId": "67f334ade4b0b97fa155f4a6",
+      "msgId": "68188ce7e4b0179f6a6e6d61",
+      "msgType": "richText",
+      "param": {
+        "desc": [
+          {
+            "data": "68188ce7da718a0001a794aa",
+            "h": 303,
+            "length": 4,
+            "start": 0,
+            "type": "image",
+            "w": 925
+          },
+          {
+            "data": "68188ce7567f800001fd877b",
+            "h": 774,
+            "length": 4,
+            "start": 5,
+            "type": "image",
+            "w": 860
+          }
+        ]
+      },
+      "sendTime": "2025-05-05 18:03:19.977"
+    },
+    {
+      "content": "[dsh-next M0] 自聊通道冒烟测试，忽略即可",
+      "extFields": null,
+      "fromOpenId": "67f334ade4b0b97fa155f4a6",
+      "msgId": "6a8403c7e4b0ed2a7638dd83",
+      "msgType": "text",
+      "param": null,
+      "sendTime": "2026-08-18 15:03:35.027"
+    }
+  ],
+  "more": true
+}

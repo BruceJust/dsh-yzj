@@ -31,9 +31,23 @@ export default defineConfig({
     },
   },
   test: {
-    // Claude Code worktrees nest under .claude/ inside this repo; their test
-    // copies have no node_modules and must not be collected.
-    exclude: [...configDefaults.exclude, '**/.claude/**'],
+    exclude: [
+      ...configDefaults.exclude,
+      // Claude Code worktrees nest under .claude/ inside this repo; their test
+      // copies have no node_modules and must not be collected.
+      '**/.claude/**',
+      /*
+        rc.8 遗留（v3.10 4h⑥）：这两条读的是**全局安装的** dsh workspace bundle，
+        断言里面有一个二进制补丁打进去的测试钩子。8/20 全局升级之后钩子没了，两条
+        就一直红着。
+
+        补丁本身对新实例已无必要——`sidebar.workspaces` 被 next/ 的 surface 整列
+        遮蔽，层级由我们自己渲染。所以这不是「待修的红」，是**随补丁一起退役的测试**。
+        在 root 排除而不是改 `packages/*`：那条「旧包不改不删不 import」的铁律不为
+        一次绿灯破例，而一直红着的两条会让「全绿」这个信号本身贬值。
+      */
+      '**/packages/ui-yzj/tests/workspace-hierarchy-core.client.spec.ts',
+    ],
     server: {
       deps: {
         inline: ['@deepseek-ai/dsh-client-ui-primitives', 'katex'],

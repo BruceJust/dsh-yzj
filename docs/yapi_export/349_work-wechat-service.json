@@ -1,0 +1,626 @@
+{
+ "projectId": 349,
+ "projectName": "work-wechat-service",
+ "basepath": "/workwechat",
+ "desc": "",
+ "categories": [
+  {
+   "name": "微信APP",
+   "desc": "Wechat App Controller",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/wechat/app/save",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信APP"
+     ],
+     "_id": 45795,
+     "method": "POST",
+     "title": "保存微信App信息",
+     "path": "/wechat/app/save",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "675a9c393a12c83497424022",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424024",
+       "name": "appid",
+       "desc": "appid"
+      },
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424023",
+       "name": "secret",
+       "desc": "secret"
+      }
+     ],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«string»\",\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "project_id": 349,
+     "catid": 5142,
+     "uid": 28,
+     "add_time": 1732172335,
+     "up_time": 1733991481,
+     "__v": 0,
+     "username": "zhujun_lu"
+    }
+   ]
+  },
+  {
+   "name": "微信用户鉴权",
+   "desc": "Wechat Auth Controller",
+   "interfaces": [
+    {
+     "query_path": {
+      "path": "/wechat/auth/getOidByWechatTicket",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45798,
+     "method": "GET",
+     "title": "获取用户oid",
+     "path": "/wechat/auth/getOidByWechatTicket",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [],
+     "req_query": [
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424025",
+       "name": "wechatTicket",
+       "desc": "wechatTicket"
+      }
+     ],
+     "req_body_type": "raw",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«string»\",\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732172335,
+     "up_time": 1733991481,
+     "__v": 0,
+     "username": "zhujun_lu"
+    },
+    {
+     "query_path": {
+      "path": "/wechat/auth/h5",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45801,
+     "method": "GET",
+     "title": "微信用户鉴权(h5)",
+     "path": "/wechat/auth/h5",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [],
+     "req_query": [
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424027",
+       "name": "appid",
+       "desc": "appid"
+      },
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424026",
+       "name": "code",
+       "desc": "code"
+      }
+     ],
+     "req_body_type": "raw",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"wechatOpenid\": {\n          \"type\": \"string\",\n          \"description\": \"微信openid\"\n        },\n        \"wechatSessionKey\": {\n          \"type\": \"string\",\n          \"description\": \"微信sessionKey\"\n        },\n        \"wechatTicket\": {\n          \"type\": \"string\",\n          \"description\": \"微信ticket\"\n        }\n      },\n      \"title\": \"微信鉴权\",\n      \"$$ref\": \"#/definitions/微信鉴权\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«微信鉴权»\",\n  \"$$ref\": \"#/definitions/Result«微信鉴权»\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732172335,
+     "up_time": 1733991481,
+     "__v": 0,
+     "username": "zhujun_lu"
+    },
+    {
+     "query_path": {
+      "path": "/wechat/auth/mini",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45804,
+     "method": "GET",
+     "title": "微信用户鉴权(小程序)",
+     "path": "/wechat/auth/mini",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [],
+     "req_query": [
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424029",
+       "name": "appid",
+       "desc": "appid"
+      },
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424028",
+       "name": "code",
+       "desc": "code"
+      }
+     ],
+     "req_body_type": "raw",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"wechatOpenid\": {\n          \"type\": \"string\",\n          \"description\": \"微信openid\"\n        },\n        \"wechatSessionKey\": {\n          \"type\": \"string\",\n          \"description\": \"微信sessionKey\"\n        },\n        \"wechatTicket\": {\n          \"type\": \"string\",\n          \"description\": \"微信ticket\"\n        }\n      },\n      \"title\": \"微信鉴权\",\n      \"$$ref\": \"#/definitions/微信鉴权\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«微信鉴权»\",\n  \"$$ref\": \"#/definitions/Result«微信鉴权»\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732172335,
+     "up_time": 1733991481,
+     "__v": 0,
+     "username": "zhujun_lu"
+    },
+    {
+     "query_path": {
+      "path": "/wechat/auth/mini/accessToken",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45807,
+     "method": "GET",
+     "title": "获取微信accessToken(小程序)",
+     "path": "/wechat/auth/mini/accessToken",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [],
+     "req_query": [
+      {
+       "required": "0",
+       "_id": "675a9c393a12c8349742402a",
+       "name": "appid",
+       "desc": "appid"
+      }
+     ],
+     "req_body_type": "raw",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«string»\",\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732172335,
+     "up_time": 1733991481,
+     "__v": 0,
+     "username": "zhujun_lu"
+    },
+    {
+     "query_path": {
+      "path": "/wechat/auth/registeredUserWithPhoneCheckCode",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45810,
+     "method": "GET",
+     "title": "注册用户(手机验证码)",
+     "path": "/wechat/auth/registeredUserWithPhoneCheckCode",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [],
+     "req_query": [
+      {
+       "required": "0",
+       "_id": "675a9c393a12c8349742402f",
+       "name": "appid",
+       "desc": "appid"
+      },
+      {
+       "required": "0",
+       "_id": "675a9c393a12c8349742402e",
+       "name": "checkCode",
+       "desc": "checkCode"
+      },
+      {
+       "required": "0",
+       "_id": "675a9c393a12c8349742402d",
+       "name": "phone",
+       "desc": "phone"
+      },
+      {
+       "required": "0",
+       "_id": "675a9c393a12c8349742402c",
+       "name": "wechatOpenid",
+       "desc": "wechatOpenid"
+      }
+     ],
+     "req_body_type": "raw",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«string»\",\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732172335,
+     "up_time": 1733991481,
+     "__v": 0,
+     "username": "zhujun_lu"
+    },
+    {
+     "query_path": {
+      "path": "/wechat/auth/registeredUserWithWechatPhone",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45813,
+     "method": "GET",
+     "title": "注册用户(微信手机号)",
+     "path": "/wechat/auth/registeredUserWithWechatPhone",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [],
+     "req_query": [
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424034",
+       "name": "appid",
+       "desc": "appid"
+      },
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424033",
+       "name": "encryptedData",
+       "desc": "encryptedData"
+      },
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424032",
+       "name": "sessionKey",
+       "desc": "sessionKey"
+      },
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424031",
+       "name": "vi",
+       "desc": "vi"
+      },
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424030",
+       "name": "wechatOpenid",
+       "desc": "wechatOpenid"
+      }
+     ],
+     "req_body_type": "raw",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«string»\",\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732172335,
+     "up_time": 1733991481,
+     "__v": 0,
+     "username": "zhujun_lu"
+    },
+    {
+     "query_path": {
+      "path": "/wechat/auth/sendCheckCode",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": false,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45816,
+     "method": "GET",
+     "title": "发送短信验证码",
+     "path": "/wechat/auth/sendCheckCode",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [],
+     "req_query": [
+      {
+       "required": "0",
+       "_id": "675a9c393a12c83497424035",
+       "name": "phone",
+       "desc": "phone"
+      }
+     ],
+     "req_body_type": "raw",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«string»\",\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732172335,
+     "up_time": 1733991481,
+     "__v": 0,
+     "username": "zhujun_lu"
+    },
+    {
+     "query_path": {
+      "path": "/wechat/auth/mini/sendTemplateMessage",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45819,
+     "method": "POST",
+     "title": "微信发送模板消息(小程序)",
+     "path": "/wechat/auth/mini/sendTemplateMessage",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "675a9c393a12c8349742402b",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«string»\",\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"appid\": {\n      \"type\": \"string\"\n    },\n    \"data\": {\n      \"type\": \"object\"\n    },\n    \"emphasisKeyword\": {\n      \"type\": \"string\"\n    },\n    \"formId\": {\n      \"type\": \"string\"\n    },\n    \"page\": {\n      \"type\": \"string\"\n    },\n    \"templateId\": {\n      \"type\": \"string\"\n    },\n    \"touser\": {\n      \"type\": \"string\"\n    }\n  },\n  \"title\": \"WechatTemplateMessage\",\n  \"$$ref\": \"#/definitions/WechatTemplateMessage\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732172410,
+     "up_time": 1733991481,
+     "__v": 0,
+     "username": "zhujun_lu"
+    },
+    {
+     "query_path": {
+      "path": "/wechat/auth/web/bind",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45822,
+     "method": "POST",
+     "title": "注册用户(手机验证码)",
+     "path": "/wechat/auth/web/bind",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "673f1c113a12c83497f0265a",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"bindToken\": {\n          \"type\": \"string\",\n          \"description\": \"用于绑定微信账号的token\"\n        },\n        \"url\": {\n          \"type\": \"string\",\n          \"description\": \"跳转url\"\n        },\n        \"wechatOpenid\": {\n          \"type\": \"string\",\n          \"description\": \"微信openid\"\n        },\n        \"wechatSessionKey\": {\n          \"type\": \"string\",\n          \"description\": \"微信sessionKey\"\n        },\n        \"wechatTicket\": {\n          \"type\": \"string\",\n          \"description\": \"微信ticket\"\n        }\n      },\n      \"title\": \"微信鉴权\",\n      \"$$ref\": \"#/definitions/微信鉴权\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«微信鉴权»\",\n  \"$$ref\": \"#/definitions/Result«微信鉴权»\"\n}",
+     "req_body_other": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"bindToken\": {\n      \"type\": \"string\"\n    },\n    \"phone\": {\n      \"type\": \"string\"\n    },\n    \"phoneCode\": {\n      \"type\": \"string\"\n    }\n  },\n  \"title\": \"WechatBindVo\",\n  \"$$ref\": \"#/definitions/WechatBindVo\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732172411,
+     "up_time": 1732189201,
+     "__v": 0,
+     "username": "zhujun_lu"
+    },
+    {
+     "query_path": {
+      "path": "/wechat/auth/web/login",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45825,
+     "method": "POST",
+     "title": "微信用户鉴权(web)",
+     "path": "/wechat/auth/web/login",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "673f1c113a12c83497f0265b",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [
+      {
+       "required": "1",
+       "_id": "673f1c113a12c83497f02661",
+       "name": "appId",
+       "desc": "云之家appid"
+      },
+      {
+       "required": "1",
+       "_id": "673f1c113a12c83497f02660",
+       "name": "code",
+       "desc": "微信单点返回的CODE"
+      },
+      {
+       "required": "0",
+       "_id": "673f1c113a12c83497f0265f",
+       "name": "deviceType",
+       "desc": "终端类型,对应lappAccess、1：移动端，2：web端，3：桌面端"
+      },
+      {
+       "required": "0",
+       "_id": "673f1c113a12c83497f0265e",
+       "name": "rebind",
+       "desc": "是否重新绑定账号"
+      },
+      {
+       "required": "0",
+       "_id": "673f1c113a12c83497f0265d",
+       "name": "redirectUrl",
+       "desc": "应用URL"
+      },
+      {
+       "required": "1",
+       "_id": "673f1c113a12c83497f0265c",
+       "name": "wxAppId",
+       "desc": "微信appId"
+      }
+     ],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"bindToken\": {\n          \"type\": \"string\",\n          \"description\": \"用于绑定微信账号的token\"\n        },\n        \"url\": {\n          \"type\": \"string\",\n          \"description\": \"跳转url\"\n        },\n        \"wechatOpenid\": {\n          \"type\": \"string\",\n          \"description\": \"微信openid\"\n        },\n        \"wechatSessionKey\": {\n          \"type\": \"string\",\n          \"description\": \"微信sessionKey\"\n        },\n        \"wechatTicket\": {\n          \"type\": \"string\",\n          \"description\": \"微信ticket\"\n        }\n      },\n      \"title\": \"微信鉴权\",\n      \"$$ref\": \"#/definitions/微信鉴权\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«微信鉴权»\",\n  \"$$ref\": \"#/definitions/Result«微信鉴权»\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732172411,
+     "up_time": 1732189201,
+     "__v": 0,
+     "req_body_other": "{\n  \"type\": \"string\"\n}",
+     "username": "zhujun_lu"
+    },
+    {
+     "query_path": {
+      "path": "/wechat/auth/web/sendPhoneCode",
+      "params": []
+     },
+     "edit_uid": 0,
+     "status": "undone",
+     "type": "static",
+     "req_body_is_json_schema": true,
+     "res_body_is_json_schema": true,
+     "api_opened": false,
+     "index": 0,
+     "tag": [
+      "微信用户鉴权"
+     ],
+     "_id": 45834,
+     "method": "POST",
+     "title": "发送短信验证码",
+     "path": "/wechat/auth/web/sendPhoneCode",
+     "req_params": [],
+     "req_body_form": [],
+     "req_headers": [
+      {
+       "required": "1",
+       "_id": "673f1c113a12c83497f02662",
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ],
+     "req_query": [
+      {
+       "required": "0",
+       "_id": "673f1c113a12c83497f02663",
+       "name": "phone",
+       "desc": "phone"
+      }
+     ],
+     "req_body_type": "json",
+     "res_body_type": "json",
+     "res_body": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"data\": {\n      \"type\": \"string\"\n    },\n    \"error\": {\n      \"type\": \"string\"\n    },\n    \"errorCode\": {\n      \"type\": \"integer\",\n      \"format\": \"int32\"\n    },\n    \"success\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"title\": \"Result«string»\",\n  \"$$ref\": \"#/definitions/Result«string»\"\n}",
+     "project_id": 349,
+     "catid": 5148,
+     "uid": 28,
+     "add_time": 1732189201,
+     "up_time": 1732189201,
+     "__v": 0,
+     "username": "zhujun_lu"
+    }
+   ]
+  }
+ ]
+}

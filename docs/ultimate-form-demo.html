@@ -1,0 +1,1305 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>云之家 × DSH · 终极形态交互 Demo</title>
+<style>
+/* ============================================================
+   云之家 × DSH 终极形态 · 可交互模拟
+   语义主轴：公（云之家蓝，群内可见）vs 私（暖纸色，仅 cockpit 可见）
+   ============================================================ */
+:root {
+  --bg: #EDEFF2;
+  --surface: #FFFFFF;
+  --ink: #20242C;
+  --ink-2: #5A6272;
+  --ink-3: #8B93A3;
+  --line: #E2E5EA;
+
+  --pub: #2E63D9;
+  --pub-deep: #1E4FBD;
+  --pub-tint: #EEF4FF;
+  --pub-line: #C9DBFA;
+  --pub-rail: #D8E5FB;
+
+  --paper: #FAF6EC;
+  --paper-line: #E9DFC8;
+  --paper-rail: #EFE6D0;
+  --paper-ink: #6B5A36;
+
+  --amber: #B45309;
+  --amber-bg: #FDF1E0;
+  --amber-line: #F0D9B4;
+  --green: #15803D;
+  --green-bg: #E8F6EE;
+  --green-line: #C4E6D1;
+  --red: #B91C1C;
+
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(24,30,42,.05), 0 4px 16px rgba(24,30,42,.06);
+  --shadow-pop: 0 6px 32px rgba(24,30,42,.18);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--bg);
+  overflow: hidden;
+}
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+:focus-visible { outline: 2px solid var(--pub); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  height: 46px;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 16px;
+  background: #171B22;
+  color: #E8EAEF;
+}
+.wordmark { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14px; font-weight: 700; letter-spacing: .08em; }
+.wordmark em { font-style: normal; color: #7FA7F5; }
+.topbar .crumb { font-size: 12.5px; color: #9AA3B5; }
+.topbar .crumb b { color: #D5DAE4; font-weight: 600; }
+.topbar .spacer { flex: 1; }
+.annotate-toggle {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: #C4CAD6;
+  padding: 5px 10px; border-radius: 8px;
+  border: 1px solid #333B48;
+  transition: background .15s, border-color .15s;
+}
+.annotate-toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: #4A5364; transition: background .15s; }
+body.annotate .annotate-toggle { background: #24304A; border-color: #3E5AA6; color: #E8EEFF; }
+body.annotate .annotate-toggle .dot { background: #7FA7F5; }
+.top-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, #46536B, #2B3345);
+  color: #DFE5F0; font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ---------- 引导条 ---------- */
+.hintbar {
+  height: 34px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px;
+  font-size: 12.5px; color: var(--ink-2);
+  background: #F7F8FA;
+  border-bottom: 1px solid var(--line);
+}
+.hintbar .k {
+  font-size: 11.5px; padding: 2px 8px; border-radius: 20px;
+  background: #EDF1F6; border: 1px solid var(--line); color: var(--ink-2);
+}
+.hintbar .close { margin-left: auto; color: var(--ink-3); font-size: 15px; padding: 2px 6px; }
+.hintbar .close:hover { color: var(--ink); }
+
+/* ---------- 三栏布局 ---------- */
+.app {
+  display: grid;
+  grid-template-columns: 268px minmax(520px, 1fr) 300px;
+  grid-template-rows: minmax(0, 1fr);
+  height: calc(100vh - 80px);
+  transition: grid-template-columns .2s ease;
+}
+body.no-hint .app { height: calc(100vh - 46px); }
+body.res-collapsed .app { grid-template-columns: 268px minmax(520px, 1fr) 0px; }
+
+/* ---------- 侧栏：统一收件箱 ---------- */
+.sidebar {
+  background: #F3F4F6;
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.side-head {
+  padding: 14px 14px 8px;
+  display: flex; align-items: baseline; gap: 8px;
+  position: relative;
+}
+.side-head h2 { font-size: 13px; font-weight: 700; }
+.side-head .sub { font-size: 11px; color: var(--ink-3); }
+.triage {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 0 12px 10px;
+  position: relative;
+}
+.triage-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; padding: 3px 9px; border-radius: 20px;
+  border: 1px solid transparent;
+  transition: transform .12s;
+}
+.triage-chip:hover { transform: translateY(-1px); }
+.triage-chip .n { font-weight: 700; }
+.triage-chip.t-confirm { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-line); }
+.triage-chip.t-review  { background: var(--green-bg); color: var(--green); border-color: var(--green-line); }
+.triage-chip.t-running { background: var(--pub-tint); color: var(--pub); border-color: var(--pub-line); }
+.triage-chip[data-zero="1"] { opacity: .38; filter: grayscale(.4); }
+
+.tree { padding: 2px 8px 20px; }
+.tree-group {
+  margin-top: 10px;
+  font-size: 11px; font-weight: 600; color: var(--ink-3);
+  padding: 0 8px 4px;
+  letter-spacing: .04em;
+  display: flex; align-items: center; gap: 6px;
+}
+.tree-group .gline { flex: 1; height: 1px; background: var(--line); }
+.item {
+  width: 100%;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  text-align: left;
+  position: relative;
+  transition: background .12s;
+}
+.item:hover { background: #E9EBEF; }
+.item.active { background: #FFFFFF; box-shadow: var(--shadow); }
+.item .ic {
+  width: 26px; height: 26px; border-radius: 7px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: #fff;
+}
+.item .tcol { flex: 1; min-width: 0; }
+.item .t1 { font-size: 12.8px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .t2 { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.badge {
+  flex: none;
+  font-size: 10.5px; font-weight: 600;
+  padding: 2px 7px; border-radius: 20px;
+}
+.badge.b-confirm { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line); }
+.badge.b-review  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-line); }
+.badge.b-running { background: var(--pub-tint); color: var(--pub); border: 1px solid var(--pub-line); display: inline-flex; align-items: center; gap: 4px; }
+.badge.b-unread  { background: #E5E8ED; color: var(--ink-2); }
+.pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--pub); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: .35; transform: scale(.75);} }
+
+/* ---------- 中栏：融合时间线 ---------- */
+.main {
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  min-width: 0; min-height: 0;
+}
+.sess-head {
+  padding: 12px 20px 10px;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+}
+.sess-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sess-meta { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.chip {
+  font-size: 11px; padding: 2.5px 8px; border-radius: 6px;
+  background: #F1F3F6; color: var(--ink-2); border: 1px solid var(--line);
+}
+.chip.mono { font-size: 10.5px; }
+.chip.agent-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #1D2432; color: #DCE4F5; border-color: #1D2432;
+}
+.chip.agent-chip .pulse { background: #7FA7F5; }
+.chip.agent-chip.off { background: #F1F3F6; color: var(--ink-3); border-color: var(--line); }
+
+.timeline {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 0 18px;
+  scroll-behavior: smooth;
+  position: relative;
+}
+@media (prefers-reduced-motion: reduce) {
+  .timeline { scroll-behavior: auto; }
+  .pulse { animation: none; }
+  .msg.enter { animation: none !important; }
+}
+
+.divider {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 20px; font-size: 11px; color: var(--ink-3);
+}
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.divider.unread { color: var(--red); font-weight: 600; }
+.divider.unread::before, .divider.unread::after { background: #F3CBCB; }
+
+.msg {
+  display: grid; grid-template-columns: 40px 1fr;
+  gap: 0 10px;
+  padding: 5px 20px 5px 14px;
+  position: relative;
+}
+.msg.enter { animation: slidein .28s ease; }
+@keyframes slidein { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
+.rail { display: flex; flex-direction: column; align-items: center; gap: 5px; padding-top: 3px; }
+.rail-tag {
+  font-size: 10px; font-weight: 700; line-height: 1;
+  padding: 3.5px 6px; border-radius: 5px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.msg--pub .rail-tag { background: var(--pub-tint); color: var(--pub); border: 1px solid var(--pub-line); }
+.msg--pri .rail-tag { background: var(--paper); color: var(--paper-ink); border: 1px solid var(--paper-line); }
+.rail .rline { flex: 1; width: 2px; border-radius: 2px; }
+.msg--pub .rline { background: var(--pub-rail); }
+.msg--pri .rline { background: var(--paper-rail); }
+
+.mbody { min-width: 0; max-width: 720px; position: relative; }
+.mhead { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.avatar {
+  width: 22px; height: 22px; border-radius: 6px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: #fff;
+}
+.mhead .name { font-size: 12.5px; font-weight: 650; }
+.mhead .name .state { color: var(--pub); font-weight: 600; }
+.mhead .meta { font-size: 10.5px; color: var(--ink-3); }
+.bubble {
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  line-height: 1.65;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  width: fit-content; max-width: 100%;
+}
+.msg--pub .bubble { border-color: var(--pub-line); background: #FDFEFF; }
+.msg--pub.mine .bubble { background: var(--pub-tint); }
+.msg--pri .bubble { background: var(--paper); border-color: var(--paper-line); }
+.mfoot { font-size: 10.5px; color: var(--ink-3); margin-top: 4px; }
+.msg--pri .mfoot { color: #A08D5F; }
+.at { color: var(--pub); font-weight: 650; background: rgba(46,99,217,.09); padding: 0 3px; border-radius: 4px; }
+
+.sysline {
+  padding: 4px 20px 4px 64px;
+  font-size: 11.5px; color: var(--ink-3);
+}
+.sysline .inner {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #F6F7F9; border: 1px dashed var(--line);
+  border-radius: 8px; padding: 5px 10px;
+}
+
+/* 私有工作块（工具调用折叠） */
+.workblock { border-radius: var(--radius); border: 1px solid var(--paper-line); background: var(--paper); overflow: hidden; max-width: 100%; width: fit-content; min-width: 320px; }
+.workblock summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; font-size: 12px; color: var(--paper-ink); font-weight: 600;
+}
+.workblock summary::-webkit-details-marker { display: none; }
+.workblock summary .tw { transition: transform .15s; font-size: 10px; }
+.workblock[open] summary .tw { transform: rotate(90deg); }
+.wsteps { padding: 2px 12px 10px 30px; display: flex; flex-direction: column; gap: 5px; }
+.wstep { font-size: 11.5px; color: var(--ink-2); display: flex; gap: 7px; align-items: baseline; }
+.wstep .st { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; flex: none; width: 14px; }
+.wstep.done .st { color: var(--green); }
+.wstep.run .st { color: var(--pub); }
+.wstep.wait .st { color: var(--amber); }
+.wstep .tool { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; color: var(--ink-3); background: #F2EDDF; padding: 1px 5px; border-radius: 4px; }
+
+/* 确认卡 */
+.confirm-card {
+  border-radius: 12px;
+  border: 1px solid var(--amber-line);
+  border-top: 3px solid var(--amber);
+  background: #FFFDF8;
+  box-shadow: var(--shadow);
+  max-width: 560px;
+  overflow: hidden;
+  transition: border-color .3s;
+}
+.confirm-card.approved { border-color: var(--green-line); border-top-color: var(--green); background: #FCFFFD; }
+.cc-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px 9px; }
+.cc-domain {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .05em;
+  padding: 2.5px 7px; border-radius: 5px;
+  background: var(--amber-bg); color: var(--amber);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.confirm-card.approved .cc-domain { background: var(--green-bg); color: var(--green); }
+.cc-title { font-size: 13px; font-weight: 700; flex: 1; }
+.cc-risk { font-size: 10.5px; color: var(--amber); background: var(--amber-bg); padding: 2px 7px; border-radius: 20px; border: 1px solid var(--amber-line); }
+.cc-fields { padding: 0 14px 10px; display: grid; grid-template-columns: 84px 1fr; gap: 4px 10px; font-size: 12px; }
+.cc-fields .k { color: var(--ink-3); }
+.cc-fields .v b { font-weight: 650; }
+.cc-actions { display: flex; gap: 8px; padding: 10px 14px 12px; border-top: 1px solid #F4EBDB; }
+.confirm-card.approved .cc-actions { border-top-color: #E2F2E8; }
+.btn {
+  font-size: 12.5px; font-weight: 600;
+  padding: 6px 14px; border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff; color: var(--ink-2);
+  transition: transform .1s, box-shadow .15s;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.btn.primary:hover { background: #000; }
+.cc-done-note { display: flex; align-items: center; gap: 7px; padding: 10px 14px 12px; font-size: 12.5px; color: var(--green); font-weight: 600; }
+
+/* 工件卡 */
+.artifact {
+  display: flex; align-items: center; gap: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--pub-line);
+  background: linear-gradient(160deg, #FDFEFF, #F4F8FF);
+  padding: 12px 14px;
+  max-width: 480px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform .12s, box-shadow .15s;
+}
+.artifact:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(46,99,217,.15); }
+.af-icon {
+  width: 38px; height: 38px; border-radius: 9px; flex: none;
+  background: var(--pub); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+}
+.af-body { flex: 1; min-width: 0; }
+.af-t { font-size: 13px; font-weight: 700; }
+.af-m { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.af-arrow { color: var(--pub); font-size: 15px; }
+
+/* 空态引导（冷会话） */
+.coldhint {
+  margin: 14px 20px 6px 64px;
+  max-width: 560px;
+  border: 1px dashed #C9CFDA;
+  border-radius: 12px;
+  background: #FAFBFC;
+  padding: 14px 16px;
+  font-size: 12.5px; color: var(--ink-2); line-height: 1.7;
+  position: relative;
+}
+.coldhint b { color: var(--ink); }
+
+/* ---------- Composer：双语态 ---------- */
+.composer { border-top: 1px solid var(--line); padding: 10px 20px 14px; background: var(--surface); position: relative; }
+.voice-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.voice-seg { display: inline-flex; background: #EFF1F4; border-radius: 9px; padding: 3px; gap: 2px; }
+.voice-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+  padding: 5px 12px; border-radius: 7px;
+  color: var(--ink-2);
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.voice-btn .vdot { width: 7px; height: 7px; border-radius: 50%; }
+.voice-btn[data-voice="pri"] .vdot { background: #C9B98C; }
+.voice-btn[data-voice="pub"] .vdot { background: var(--pub); }
+.voice-btn[disabled] { opacity: .4; cursor: not-allowed; }
+.composer.v-pri .voice-btn[data-voice="pri"],
+.composer.v-pub .voice-btn[data-voice="pub"] {
+  background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(24,30,42,.12);
+}
+.voice-hint { font-size: 11.5px; color: var(--ink-3); }
+.composer.v-pub .voice-hint { color: var(--pub); }
+.composer.v-pub .voice-hint.delegate { font-weight: 650; }
+
+.chips-row { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.ref-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; padding: 3px 9px; border-radius: 7px;
+  background: #F1F4F9; border: 1px solid var(--line); color: var(--ink-2);
+}
+.ref-chip .x { cursor: pointer; color: var(--ink-3); font-size: 13px; line-height: 1; }
+.ref-chip .x:hover { color: var(--red); }
+
+.cbox {
+  display: flex; align-items: flex-end; gap: 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  transition: border-color .2s, background .2s;
+}
+.composer.v-pri .cbox { border-color: var(--paper-line); background: var(--paper); }
+.composer.v-pub .cbox { border-color: var(--pub); background: #FBFDFF; }
+.cbox textarea {
+  flex: 1; border: none; background: transparent; resize: none;
+  font: inherit; line-height: 1.6; min-height: 40px; max-height: 120px;
+  outline: none; color: var(--ink);
+}
+.send {
+  flex: none;
+  font-size: 12.5px; font-weight: 650;
+  padding: 7px 16px; border-radius: 9px;
+  color: #fff;
+  transition: transform .1s, opacity .15s;
+}
+.composer.v-pri .send { background: #8A744A; }
+.composer.v-pub .send { background: var(--pub); }
+.send:hover { transform: translateY(-1px); }
+.send:active { transform: none; }
+
+/* ---------- 右栏：资源面板 ---------- */
+.resources {
+  background: #F7F8FA;
+  border-left: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+}
+body.res-collapsed .resources { border-left: none; }
+.res-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px 8px;
+}
+.res-head h3 { font-size: 12.5px; font-weight: 700; }
+.res-head .sub { font-size: 10.5px; color: var(--ink-3); }
+.res-head .collapse { margin-left: auto; color: var(--ink-3); font-size: 14px; padding: 2px 6px; }
+.res-tabs { display: flex; gap: 4px; padding: 0 12px 10px; }
+.res-tab {
+  font-size: 12px; font-weight: 600; color: var(--ink-3);
+  padding: 4px 11px; border-radius: 20px;
+  transition: background .15s, color .15s;
+}
+.res-tab.active { background: #fff; color: var(--ink); box-shadow: var(--shadow); }
+.res-body { flex: 1; overflow-y: auto; padding: 2px 10px 16px; }
+.res-sec { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; color: var(--ink-3); padding: 10px 6px 5px; }
+.res-item {
+  width: 100%;
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 8px; border-radius: 8px;
+  text-align: left;
+  transition: background .12s;
+}
+.res-item:hover { background: #EDEFF3; }
+.res-item .ri {
+  width: 26px; height: 26px; border-radius: 7px; flex: none;
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+  background: #fff; border: 1px solid var(--line);
+}
+.res-item .rt { flex: 1; min-width: 0; }
+.res-item .rt1 { font-size: 12.3px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.res-item .rt2 { font-size: 10.5px; color: var(--ink-3); }
+.res-item .plus { color: var(--ink-3); font-size: 14px; opacity: 0; transition: opacity .12s; }
+.res-item:hover .plus { opacity: 1; }
+.cal-item { display: flex; gap: 9px; padding: 7px 8px; border-radius: 8px; align-items: flex-start; }
+.cal-item .ct { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; color: var(--pub); padding-top: 2px; flex: none; width: 40px; }
+.cal-item .cb { font-size: 12.3px; }
+.cal-item .cb .cm { font-size: 10.5px; color: var(--ink-3); margin-top: 1px; }
+
+/* ---------- 悬浮球 ---------- */
+.floatball {
+  position: fixed; right: 22px; bottom: 24px; z-index: 40;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: linear-gradient(150deg, #3B74E8, #1E4FBD);
+  color: #fff; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 18px rgba(30,79,189,.35);
+  transition: transform .15s;
+}
+.floatball:hover { transform: translateY(-2px) scale(1.04); }
+.fb-badges { position: absolute; top: -5px; right: -7px; display: flex; gap: 3px; }
+.fb-b {
+  min-width: 17px; height: 17px; border-radius: 20px;
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px; border: 2px solid #fff;
+}
+.fb-b.amber { background: #E08908; color: #fff; }
+.fb-b.green { background: #1E9E52; color: #fff; }
+.fb-b[data-zero="1"] { display: none; }
+
+/* ---------- 设计注解 ---------- */
+.pin {
+  position: absolute; z-index: 30;
+  width: 21px; height: 21px; border-radius: 50%;
+  background: #171B22; color: #FFD666;
+  font-size: 11px; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3);
+  transition: transform .12s;
+}
+.pin:hover { transform: scale(1.18); }
+body.annotate .pin { display: flex; }
+.pin.inline { position: relative; display: none; vertical-align: middle; margin-left: 6px; flex: none; }
+body.annotate .pin.inline { display: inline-flex; }
+
+.popover {
+  position: fixed; z-index: 60;
+  width: 320px;
+  background: #171B22; color: #E5E9F2;
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-pop);
+  font-size: 12.5px; line-height: 1.75;
+  display: none;
+}
+.popover.show { display: block; animation: popin .16s ease; }
+@keyframes popin { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none; } }
+.popover h4 { font-size: 13px; color: #FFD666; margin-bottom: 5px; display: flex; gap: 7px; align-items: center; }
+.popover h4 .no { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; opacity: .8; }
+.popover .body b { color: #fff; }
+.popover .close { position: absolute; top: 8px; right: 10px; color: #7B8496; font-size: 14px; }
+.popover .close:hover { color: #fff; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+  z-index: 70;
+  background: #171B22; color: #E5E9F2;
+  font-size: 12.5px;
+  padding: 9px 18px; border-radius: 10px;
+  box-shadow: var(--shadow-pop);
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- 窄屏 ---------- */
+@media (max-width: 1180px) {
+  .app { grid-template-columns: 240px minmax(420px, 1fr) 0px; }
+  .resources { display: none; }
+}
+@media (max-width: 820px) {
+  .app { grid-template-columns: 200px 1fr 0; }
+}
+</style>
+</head>
+<body class="annotate">
+
+<!-- 顶栏 -->
+<header class="topbar">
+  <span class="wordmark">DSH<em>_</em></span>
+  <span class="crumb">工作区 · <b>云之家 Agent</b></span>
+  <span class="spacer"></span>
+  <button class="annotate-toggle" id="annotateToggle" aria-pressed="true">
+    <span class="dot"></span>设计注解
+  </button>
+  <span class="top-avatar" title="Bruce">B</span>
+</header>
+
+<!-- 引导条 -->
+<div class="hintbar" id="hintbar">
+  <span>「终极形态」可交互模拟</span>
+  <span class="k">① 点侧栏切换会话</span>
+  <span class="k">② 在「竞品调研」里确认那张卡</span>
+  <span class="k">③ 去「设计评审群」发一句 @agent</span>
+  <span class="k">④ 黄色数字是设计注解，点开看理由</span>
+  <button class="close" id="hintClose" aria-label="关闭引导">×</button>
+</div>
+
+<div class="app">
+
+  <!-- 侧栏：统一收件箱 -->
+  <nav class="sidebar" aria-label="统一收件箱">
+    <div class="side-head">
+      <h2>收件箱</h2><span class="sub">按注意力排序，不按时间</span>
+      <button class="pin" data-note="1" style="right: 10px; top: 12px;" aria-label="设计注解 1">1</button>
+    </div>
+    <div class="triage" id="triage"></div>
+    <div class="tree" id="tree"></div>
+  </nav>
+
+  <!-- 中栏：融合时间线 -->
+  <main class="main">
+    <div class="sess-head" id="sessHead"></div>
+    <div class="timeline" id="timeline"></div>
+    <div class="composer v-pri" id="composer">
+      <div class="voice-row">
+        <div class="voice-seg" role="tablist" aria-label="语态">
+          <button class="voice-btn" data-voice="pri" id="voicePri" role="tab"><span class="vdot"></span>对 Agent 说 · 私</button>
+          <button class="voice-btn" data-voice="pub" id="voicePub" role="tab"><span class="vdot"></span>发到群里 · 公</button>
+        </div>
+        <span class="voice-hint" id="voiceHint"></span>
+        <button class="pin inline" data-note="5" aria-label="设计注解 5">5</button>
+      </div>
+      <div class="chips-row" id="chipsRow" hidden></div>
+      <div class="cbox">
+        <textarea id="input" rows="1" aria-label="输入消息" placeholder=""></textarea>
+        <button class="send" id="send">发送</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 右栏：资源面板 -->
+  <aside class="resources" aria-label="资源面板">
+    <div class="res-head">
+      <h3>资源</h3><span class="sub">上下文来源，不是第二个聊天</span>
+      <button class="pin" data-note="7" style="right: 34px; top: 10px;" aria-label="设计注解 7">7</button>
+      <button class="collapse" id="resCollapse" aria-label="收起资源面板">⇥</button>
+    </div>
+    <div class="res-tabs">
+      <button class="res-tab active" data-tab="docs">知识库</button>
+      <button class="res-tab" data-tab="cal">日程</button>
+    </div>
+    <div class="res-body" id="resBody"></div>
+  </aside>
+</div>
+
+<!-- 悬浮球 -->
+<button class="floatball" id="floatball" title="云之家 · 注意力汇总">
+  云
+  <span class="fb-badges">
+    <span class="fb-b amber" id="fbAmber">1</span>
+    <span class="fb-b green" id="fbGreen">1</span>
+  </span>
+</button>
+
+<!-- 注解弹层 -->
+<div class="popover" id="popover" role="dialog">
+  <button class="close" id="popClose" aria-label="关闭">×</button>
+  <h4><span class="no" id="popNo"></span><span id="popTitle"></span></h4>
+  <div class="body" id="popBody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   数据模型：会话 = 唯一实体；IM 与 agent turn 是同一条流的两个投影
+   ============================================================ */
+const AV = {
+  me:    { t: 'B',  c: '#46536B' },
+  liting:{ t: '李', c: '#C2703D' },
+  wang:  { t: '王', c: '#5B8A72' },
+  zhang: { t: '张', c: '#7D6BAA' },
+  agent: { t: 'A',  c: '#171B22' },
+};
+
+const state = { current: 'competitor', voice: 'pri', chips: [] };
+
+const sessions = {
+  competitor: {
+    group: '产品讨论群', kind: 'topic',
+    title: '竞品调研摸底',
+    status: 'confirm',              // confirm | running | review | unread | idle
+    agentState: '整理竞品调研中',
+    sid: 'session-yzj-topic-8f3a…',
+    icon: { t: '产', c: '#2E63D9' },
+    preview: '待确认：创建多维表格并写入 12 条记录',
+    voiceDefault: 'pri',
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'im', who: 'liting', name: '李婷', time: '10:02', text: '下周一要给管理层过竞品对比，Notion、飞书多维表格、Airtable 这三家的协作能力谁来梳理一下？' },
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: '10:04', mine: true, delegate: true, pin: 4,
+        text: '<span class="at">@agent</span> 按功能维度做一张对比表：实时协作、权限模型、自动化、API 开放度、定价。放到产品组工作区。' },
+      { type: 'agent-pub', time: '10:04', kind: 'ack', text: '已接收，正在处理。' },
+      { type: 'work', time: '10:05', summary: 'Agent 工作过程 · 4 个步骤', open: true, steps: [
+        { st: 'done', tool: 'contact whoami', desc: '确认当前登录身份与组织' },
+        { st: 'done', tool: 'doc workspace list', desc: '定位「产品组」工作区' },
+        { st: 'done', tool: 'doc / web 检索', desc: '汇总三家产品的协作能力资料' },
+        { st: 'wait', tool: 'sheet create', desc: '创建对比表并写入记录 —— 等待确认' },
+      ]},
+      { type: 'confirm', id: 'cc1', state: 'pending',
+        domain: 'sheet', title: '创建多维表格并写入记录', risk: '标准写 · 可逆',
+        fields: [
+          ['工作区', '<b>产品组</b>'],
+          ['新建表格', '<b>竞品调研 · 对比表</b>'],
+          ['数据表', '协作能力对比（5 个维度字段）'],
+          ['写入记录', '<b>12 条</b>（Notion 4 / 飞书 4 / Airtable 4）'],
+        ]},
+    ],
+  },
+
+  roadmap: {
+    group: '产品讨论群', kind: 'topic',
+    title: 'Q3 路线图整理',
+    status: 'running',
+    agentState: '整理 Q3 路线图中',
+    sid: 'session-yzj-topic-c27e…',
+    icon: { t: '产', c: '#2E63D9' },
+    preview: '运行中：正在生成草稿文档（2/3）',
+    voiceDefault: 'pri',
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'im', who: 'wang', name: '王超', time: '09:31', text: 'Q3 路线图今天能出个初稿吗？下午例会想过一遍。' },
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: '09:33', mine: true, delegate: true,
+        text: '<span class="at">@agent</span> 把最近三周的周会结论整理成 Q3 路线图草稿，输出到知识库「产品组」，例会前发到群里。' },
+      { type: 'agent-pub', time: '09:33', kind: 'ack', text: '已接收，正在处理。' },
+      { type: 'work', time: '09:34', summary: 'Agent 工作过程 · 进行中', open: true, steps: [
+        { st: 'done', tool: 'doc list', desc: '读取近三周周会纪要 ×3' },
+        { st: 'done', tool: 'doc get', desc: '提取决议与结论 17 条' },
+        { st: 'run',  tool: 'doc create', desc: '正在生成《Q3 路线图 · 草稿》…' },
+      ]},
+      { type: 'agent-pub', time: '09:41', kind: 'progress', text: '进度：会议纪要梳理完成（3/3），正在生成草稿文档，预计 10 分钟内回帖。' },
+    ],
+  },
+
+  zhangsan: {
+    group: '私聊', kind: 'dm',
+    title: '张三',
+    status: 'review',
+    agentState: null,
+    sid: 'session-yzj-topic-e91b…',
+    icon: { t: '张', c: '#7D6BAA' },
+    preview: '待验收：走访汇总文档已生成',
+    voiceDefault: 'pri',
+    timeline: [
+      { type: 'divider', text: '昨天' },
+      { type: 'im', who: 'zhang', name: '张三', time: '17:20', text: '麻烦把上周的客户走访记录汇总一下，明早晨会要用。' },
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: '17:22', mine: true, delegate: true,
+        text: '<span class="at">@agent</span> 汇总上周走访记录：按客户分组，标出待跟进事项，生成文档发这里。' },
+      { type: 'agent-pub', time: '17:22', kind: 'ack', text: '已接收，正在处理。' },
+      { type: 'work', time: '17:26', summary: 'Agent 工作过程 · 3 个步骤', open: false, steps: [
+        { st: 'done', tool: 'sheet record list', desc: '读取走访记录表 9 条' },
+        { st: 'done', tool: 'doc create', desc: '生成《客户走访汇总 · 8月第2周》' },
+        { st: 'done', tool: 'doc import', desc: '写入汇总正文与待跟进清单' },
+      ]},
+      { type: 'artifact', pin: 6, icon: '📄', title: '客户走访汇总 · 8月第2周', meta: '云之家文档 · 产品组工作区 · 刚刚更新' },
+      { type: 'agent-pub', time: '17:31', kind: 'done', text: '【Agent完成】汇总文档已生成并回帖：9 条走访记录，2 个待跟进事项。' },
+      { type: 'im', who: 'zhang', name: '张三', time: '17:40', text: '辛苦！第 3 条的客户名帮我核对一下，应该是「宏图科技」不是「宏途」。' },
+      { type: 'agent-pub', time: '17:41', kind: 'progress', text: '已修正：第 3 条客户名更新为「宏图科技」，文档已同步。' },
+    ],
+  },
+
+  designreview: {
+    group: '设计评审群', kind: 'cold',
+    title: '设计评审群',
+    status: 'unread', unread: 2,
+    agentState: null,
+    sid: null,
+    icon: { t: '设', c: '#5B8A72' },
+    preview: '王超：标注收到，两个 P1 的间距问题…',
+    voiceDefault: 'pub',
+    timeline: [
+      { type: 'divider', text: '昨天' },
+      { type: 'im', who: 'wang', name: '王超', time: '16:02', text: '新版工作台面板的间距问题今天过一下。' },
+      { type: 'im', who: 'liting', name: '李婷', time: '16:05', text: '我下午 3 点前把标注发群里。' },
+      { type: 'divider', text: '以下为未读', unread: true },
+      { type: 'im', who: 'wang', name: '王超', time: '09:12', text: '标注收到，两个 P1 的间距问题 @Bruce 看一下优先级。' },
+      { type: 'im', who: 'liting', name: '李婷', time: '09:15', text: '顺便把滚动条样式也统一了吧，三个 tab 现在各长各的。' },
+      { type: 'coldhint', pin: 2, html: '这个会话还没有 Agent 参与——它只是一个普通的云之家群，但和 Session 同列在收件箱里。<br>切到「<b>发到群里 · 公</b>」并 <b>@agent</b> 布置任务，它就会被"焐热"成一个任务会话（topic ↔ session 自动锚定）。' },
+    ],
+  },
+
+  local: {
+    group: '本地', kind: 'local',
+    title: '重构 bridge 超时逻辑',
+    status: 'idle',
+    agentState: null,
+    sid: 'session-a3f81c…',
+    icon: { t: '⌘', c: '#8B93A3' },
+    preview: '已完成：timeoutMs 可配置 · 测试 12/12',
+    voiceDefault: 'pri',
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'user-pri', time: '11:02', text: '把 bridge 的 run() 超时改成可配置，默认 60s，补上测试。' },
+      { type: 'work', time: '11:03', summary: 'Agent 工作过程 · 3 个步骤', open: false, steps: [
+        { st: 'done', tool: 'read', desc: 'packages/bridge/src/index.ts' },
+        { st: 'done', tool: 'edit', desc: 'timeoutMs 提升为构造配置项，保留 60s 默认' },
+        { st: 'done', tool: 'vitest', desc: 'bridge 单测 12 passed' },
+      ]},
+      { type: 'agent-pri', time: '11:07', text: '已完成：`timeoutMs` 提升为 YzjBridge 构造配置项，默认 60000ms 不变；新增 3 个超时边界用例，bridge 单测 12/12 通过。' },
+    ],
+  },
+};
+
+/* 注解内容 */
+const NOTES = {
+  1: { title: '统一收件箱 = 注意力路由',
+       body: '排序按「是否需要我」，不按时间：<b>待确认 > 待验收 > 运行中 > 未读</b>。人的注意力是系统里唯一稀缺资源，收件箱的本质是注意力调度器。IM 会话、agent 会话、本地会话在同一棵树里——因为它们本来就是同一个原语。' },
+  2: { title: '会话即任务，冷热同列',
+       body: '这是一个还没有 Agent 的普通云之家群（冷节点）。它不需要被"导入"或"绑定"——公开 <b>@agent</b> 一次，它就热成一个持久 Session（群聊按话题、私聊按联系人锚定，对应 <b>topicKey ↔ sessionId</b>）。会话 = 潜在的任务；任务 = 会话。' },
+  3: { title: '融合时间线：一个 Session，两个投影',
+       body: '同事的 IM 消息和 Agent 的工作过程在<b>同一条流</b>里，不再左右分屏。数据上它们是同一个 Session 的两个投影：完整细节留在 cockpit（私），关键节点回帖到群（公）。' },
+  4: { title: '公 / 私色轨',
+       body: '左缘的色轨标记「这句话谁听得见」：<b>蓝 = 群内所有人可见</b>（经 gateway 回帖）；<b>纸色 = 仅你可见</b>（cockpit 私有）。应用边界溶解之后，唯一该保留并锐化的是这条<b>社交边界</b>。' },
+  5: { title: '双语态 Composer：权限跟语态走',
+       body: '默认「对 Agent 说」——本地 followup，即时、群里不可见，写操作出确认卡（Web 语义）。显式切到「发到群里」——以你的身份公开发言，含 @agent 即构成<b>公开委派</b>（gateway 语义：触发消息预授权标准写）。语态必须显式切换，不做智能推断——防止「以为在私语，实际在公言」。' },
+  6: { title: '工件落云之家，聊天只留链接',
+       body: '业界最硬的共识：聊天赢得了 steering，输掉了 artifact。超过一屏的产出由 Agent 写成<b>云之家文档 / 多维表格</b>（41 个工具已就位），群里只回链接。沙箱和会话可以易失，工件活在组织的持久系统里，权限跟云之家原生 ACL 走。' },
+  7: { title: '资源面板降维',
+       body: '原来的小窗不再是「第二个聊天世界」，而是<b>上下文来源</b>：知识库、日程可点选 / 拖入成引用 chip 喂给 Agent。聊天已经回归主对话列，这里只剩资源。' },
+  8: { title: 'Agent 身份即状态',
+       body: '工作中的 Agent 显示名携带任务态（借鉴 Claude Tag 的 <b>Claude [task]</b>）。终局是给 Agent 一个<b>专用云之家账号</b>：结构化 @mention 触发、清晰归因、权限跟场所走——它成为通讯录里的真实成员，而不是借用你的身份说话。' },
+};
+
+/* ============================================================ */
+const $ = (id) => document.getElementById(id);
+const timelineEl = $('timeline');
+const esc = (s) => s;
+
+function avatarHtml(who) {
+  const a = AV[who];
+  return `<span class="avatar" style="background:${a.c}">${a.t}</span>`;
+}
+
+/* ---------- 时间线渲染 ---------- */
+function renderItem(item, sess) {
+  if (item.type === 'divider')
+    return `<div class="divider${item.unread ? ' unread' : ''}">${item.text}</div>`;
+
+  if (item.type === 'im') {
+    const mine = item.mine ? ' mine' : '';
+    const pinH = item.pin ? `<button class="pin inline" data-note="${item.pin}" aria-label="设计注解 ${item.pin}">${item.pin}</button>` : '';
+    const foot = item.delegate
+      ? `<div class="mfoot">公开委派 · 经 gateway · 群内所有人可见</div>`
+      : `<div class="mfoot">云之家 · ${sess.group}</div>`;
+    return `<div class="msg msg--pub${mine} enter">
+      <div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="mhead">${avatarHtml(item.who)}<span class="name">${item.name}</span><span class="meta">${item.time}</span>${pinH}</div>
+        <div class="bubble">${item.text}</div>${foot}
+      </div></div>`;
+  }
+
+  if (item.type === 'agent-pub') {
+    const stateName = sess.agentState ? ` <span class="state">[${sess.agentState}]</span>` : '';
+    const kindFoot = { ack: '经 gateway 回帖 · 群内可见', progress: 'checkpoint · 群内可见（上限 5 条）', done: '终态回帖 · 群内可见' }[item.kind];
+    return `<div class="msg msg--pub enter">
+      <div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="mhead">${avatarHtml('agent')}<span class="name">云之家 Agent${stateName}</span><span class="meta">${item.time}</span>${item.kind === 'ack' ? '<button class="pin inline" data-note="8" aria-label="设计注解 8">8</button>' : ''}</div>
+        <div class="bubble">${item.text}</div>
+        <div class="mfoot">${kindFoot}</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'agent-pri') {
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="mhead">${avatarHtml('agent')}<span class="name">云之家 Agent</span><span class="meta">${item.time}</span></div>
+        <div class="bubble">${item.text}</div>
+        <div class="mfoot">仅你可见 · cockpit</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'user-pri') {
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="mhead">${avatarHtml('me')}<span class="name">Bruce（我）</span><span class="meta">${item.time}</span></div>
+        <div class="bubble">${item.text}</div>
+        <div class="mfoot">本地 followup · 即时 · 群内不可见</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'work') {
+    const steps = item.steps.map(s => {
+      const mark = { done: '✓', run: '◐', wait: '⏸' }[s.st];
+      return `<div class="wstep ${s.st}"><span class="st">${mark}</span><span class="tool">${s.tool}</span><span>${s.desc}</span></div>`;
+    }).join('');
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <details class="workblock"${item.open ? ' open' : ''}>
+          <summary><span class="tw">▶</span>${item.summary}<span style="margin-left:auto;font-weight:400;font-size:10.5px;color:#A08D5F">仅你可见</span></summary>
+          <div class="wsteps">${steps}</div>
+        </details>
+      </div></div>`;
+  }
+
+  if (item.type === 'confirm') {
+    const fields = item.fields.map(([k, v]) => `<span class="k">${k}</span><span class="v">${v}</span>`).join('');
+    const approved = item.state === 'approved';
+    const actions = approved
+      ? `<div class="cc-done-note">✓ 已确认 · sheet 创建与 12 条记录写入已执行</div>`
+      : `<div class="cc-actions">
+           <button class="btn primary" data-cc="${item.id}" data-act="approve">确认执行</button>
+           <button class="btn" data-cc="${item.id}" data-act="cancel">取消</button>
+           <button class="btn" data-cc="${item.id}" data-act="context">查看上下文</button>
+           <button class="btn" data-cc="${item.id}" data-act="edit">编辑参数</button>
+         </div>`;
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="confirm-card${approved ? ' approved' : ''}" id="card-${item.id}">
+          <div class="cc-head"><span class="cc-domain">sheet</span><span class="cc-title">${item.title}</span><span class="cc-risk">${item.risk}</span></div>
+          <div class="cc-fields">${fields}</div>
+          ${actions}
+        </div>
+        <div class="mfoot">确认卡 · 仅你可见 —— 授权是 cockpit 的私有动作</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'artifact') {
+    const pinH = item.pin ? `<button class="pin inline" data-note="${item.pin}" aria-label="设计注解 ${item.pin}">${item.pin}</button>` : '';
+    return `<div class="msg msg--pub enter">
+      <div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="artifact" role="link" tabindex="0" data-artifact="1">
+          <span class="af-icon">${item.icon}</span>
+          <span class="af-body"><span class="af-t">${item.title}${pinH}</span><span class="af-m" style="display:block">${item.meta}</span></span>
+          <span class="af-arrow">↗</span>
+        </div>
+        <div class="mfoot">工件已落云之家 · 群里回帖的是链接</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'coldhint') {
+    const pinH = item.pin ? `<button class="pin" data-note="${item.pin}" style="right:-9px;top:-9px" aria-label="设计注解 ${item.pin}">${item.pin}</button>` : '';
+    return `<div class="coldhint enter">${item.html}${pinH}</div>`;
+  }
+
+  if (item.type === 'sys') {
+    return `<div class="sysline enter"><span class="inner">${item.text}</span></div>`;
+  }
+  return '';
+}
+
+function renderTimeline() {
+  const sess = sessions[state.current];
+  timelineEl.innerHTML =
+    `<button class="pin" data-note="3" style="right:26px;top:10px;position:sticky;float:right;margin-right:6px" aria-label="设计注解 3">3</button>` +
+    sess.timeline.map(i => renderItem(i, sess)).join('');
+  timelineEl.scrollTop = timelineEl.scrollHeight;
+}
+
+/* ---------- 会话头 ---------- */
+function renderHead() {
+  const sess = sessions[state.current];
+  let kindChip = '';
+  if (sess.kind === 'topic') kindChip = `<span class="chip">群 · ${sess.group}</span><span class="chip">话题</span>`;
+  else if (sess.kind === 'dm') kindChip = `<span class="chip">私聊</span>`;
+  else if (sess.kind === 'cold') kindChip = `<span class="chip">云之家群 · 未接入</span>`;
+  else kindChip = `<span class="chip">本地会话</span>`;
+
+  const sidChip = sess.sid ? `<span class="chip mono">${sess.sid}</span>` : '';
+  let agentChip;
+  if (sess.agentState) agentChip = `<span class="chip agent-chip"><span class="pulse"></span>云之家 Agent · ${sess.agentState}</span>`;
+  else if (sess.kind === 'cold') agentChip = `<span class="chip agent-chip off">未接入 Agent —— @agent 即可开始</span>`;
+  else if (sess.status === 'review') agentChip = `<span class="chip agent-chip off">云之家 Agent · 空闲（可随时唤起）</span>`;
+  else agentChip = '';
+
+  $('sessHead').innerHTML = `
+    <div class="sess-title">${sess.title}${agentChip}</div>
+    <div class="sess-meta">${kindChip}${sidChip}</div>`;
+}
+
+/* ---------- 侧栏 ---------- */
+const STATUS_RANK = { confirm: 0, review: 1, running: 2, unread: 3, idle: 4 };
+function badgeHtml(sess) {
+  switch (sess.status) {
+    case 'confirm': return `<span class="badge b-confirm">待确认</span>`;
+    case 'review':  return `<span class="badge b-review">待验收</span>`;
+    case 'running': return `<span class="badge b-running"><span class="pulse"></span>运行中</span>`;
+    case 'unread':  return `<span class="badge b-unread">${sess.unread}</span>`;
+    default: return '';
+  }
+}
+function renderSidebar() {
+  const groups = [
+    { label: '产品讨论群', keys: ['competitor', 'roadmap'] },
+    { label: '私聊', keys: ['zhangsan'] },
+    { label: '其他群', keys: ['designreview'] },
+    { label: '本地', keys: ['local'] },
+  ];
+  $('tree').innerHTML = groups.map(g => {
+    const items = g.keys
+      .slice()
+      .sort((a, b) => STATUS_RANK[sessions[a].status] - STATUS_RANK[sessions[b].status])
+      .map(k => {
+        const s = sessions[k];
+        return `<button class="item${k === state.current ? ' active' : ''}" data-sess="${k}">
+          <span class="ic" style="background:${s.icon.c}">${s.icon.t}</span>
+          <span class="tcol"><span class="t1">${s.title}</span><span class="t2">${s.preview}</span></span>
+          ${badgeHtml(s)}
+        </button>`;
+      }).join('');
+    return `<div class="tree-group">${g.label}<span class="gline"></span></div>${items}`;
+  }).join('');
+
+  const counts = { confirm: 0, review: 0, running: 0 };
+  Object.values(sessions).forEach(s => { if (counts[s.status] !== undefined) counts[s.status]++; });
+  $('triage').innerHTML = `
+    <button class="triage-chip t-confirm" data-goto="confirm" data-zero="${counts.confirm ? 0 : 1}">✋ <span class="n">${counts.confirm}</span> 待确认</button>
+    <button class="triage-chip t-review" data-goto="review" data-zero="${counts.review ? 0 : 1}">✓ <span class="n">${counts.review}</span> 待验收</button>
+    <button class="triage-chip t-running" data-goto="running" data-zero="${counts.running ? 0 : 1}">● <span class="n">${counts.running}</span> 运行中</button>`;
+  $('fbAmber').textContent = counts.confirm;
+  $('fbAmber').dataset.zero = counts.confirm ? 0 : 1;
+  $('fbGreen').textContent = counts.review;
+  $('fbGreen').dataset.zero = counts.review ? 0 : 1;
+}
+
+/* ---------- Composer ---------- */
+function setVoice(v, opts = {}) {
+  const sess = sessions[state.current];
+  state.voice = v;
+  const c = $('composer');
+  c.classList.toggle('v-pri', v === 'pri');
+  c.classList.toggle('v-pub', v === 'pub');
+  updateVoiceHint();
+  if (!opts.silent) $('input').focus();
+}
+function updateVoiceHint() {
+  const sess = sessions[state.current];
+  const input = $('input');
+  const hint = $('voiceHint');
+  const hasAt = /@agent|@智能体/i.test(input.value);
+  if (state.voice === 'pri') {
+    hint.textContent = '即时 · 仅本会话可见 · 写操作需确认卡';
+    hint.className = 'voice-hint';
+    input.placeholder = sess.kind === 'cold' ? '' : '对 Agent 说点什么（群里不可见）…';
+  } else {
+    hint.textContent = hasAt
+      ? '将发起公开委派（gateway 授权：本 turn 预授权标准写）'
+      : `以 Bruce 的身份发言 · ${sess.kind === 'dm' ? '对方' : '群内所有人'}可见`;
+    hint.className = 'voice-hint' + (hasAt ? ' delegate' : '');
+    input.placeholder = '发到群里（所有人可见）· 含 @agent 即公开委派…';
+  }
+}
+function refreshVoiceAvail() {
+  const sess = sessions[state.current];
+  const pri = $('voicePri'), pub = $('voicePub');
+  pri.disabled = sess.kind === 'cold';
+  pub.disabled = sess.kind === 'local';
+  pri.title = pri.disabled ? '尚无 Session —— 先 @agent 建立' : '';
+  pub.title = pub.disabled ? '此会话未锚定外部通道（本地会话）' : '';
+  setVoice(sess.kind === 'cold' ? 'pub' : (sess.kind === 'local' ? 'pri' : sess.voiceDefault), { silent: true });
+}
+
+function nowStr() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function appendItems(sessKey, items, delayBase = 0) {
+  const sess = sessions[sessKey];
+  items.forEach((it, i) => {
+    setTimeout(() => {
+      sess.timeline.push(it);
+      if (state.current === sessKey) {
+        timelineEl.insertAdjacentHTML('beforeend', renderItem(it, sess));
+        timelineEl.scrollTop = timelineEl.scrollHeight;
+      }
+    }, delayBase + i * 750);
+  });
+}
+
+function handleSend() {
+  const input = $('input');
+  const text = input.value.trim();
+  if (!text) return;
+  const sessKey = state.current;
+  const sess = sessions[sessKey];
+  const chips = state.chips.slice();
+  const chipNote = chips.length ? `<div class="mfoot">引用：${chips.join(' · ')}</div>` : '';
+  input.value = '';
+  state.chips = [];
+  renderChips();
+  updateVoiceHint();
+
+  const hasAt = /@agent|@智能体/i.test(text);
+  const safe = text.replace(/@agent|@智能体/gi, m => `<span class="at">${m}</span>`);
+
+  if (state.voice === 'pub') {
+    appendItems(sessKey, [{ type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, delegate: hasAt, text: safe + chipNote }]);
+    if (sess.kind === 'cold' && hasAt) { warmUp(sessKey); return; }
+    if (hasAt) {
+      appendItems(sessKey, [{ type: 'agent-pub', time: nowStr(), kind: 'ack', text: '已接收（并入当前话题队列，串行执行）。' }], 900);
+    }
+  } else {
+    appendItems(sessKey, [{ type: 'user-pri', time: nowStr(), text: safe + chipNote }]);
+    if (sess.kind !== 'cold') {
+      appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: '收到，已并入当前任务上下文。' }], 1000);
+    }
+  }
+}
+
+/* 冷会话焐热剧本 */
+function warmUp(sessKey) {
+  const sess = sessions[sessKey];
+  appendItems(sessKey, [
+    { type: 'sys', text: '⚡ 识别到公开委派 · 正在建立 Session（topic ↔ session 锚定）…' },
+  ], 700);
+  setTimeout(() => {
+    sess.kind = 'topic';
+    sess.status = 'running';
+    sess.agentState = '处理面板走查任务中';
+    sess.sid = 'session-yzj-topic-a41f…';
+    sess.title = '设计评审群 › 面板走查';
+    sess.preview = '运行中：Agent 已接收任务';
+    delete sess.unread;
+    appendItems(sessKey, [
+      { type: 'agent-pub', time: nowStr(), kind: 'ack', text: '已接收，正在处理。' },
+    ]);
+    renderSidebar(); renderHead(); refreshVoiceAvail();
+    toast('会话已焐热：设计评审群 → 持久 Session（后续 @agent 复用同一上下文）');
+  }, 1700);
+}
+
+/* 确认卡剧本 */
+function handleCardAction(ccId, act) {
+  const sess = sessions.competitor;
+  const item = sess.timeline.find(i => i.type === 'confirm' && i.id === ccId);
+  if (!item || item.state !== 'pending') return;
+
+  if (act === 'context') { toast('真实实现：锚定打开资源面板对应位置（工作区 · 产品组）'); return; }
+  if (act === 'edit') { toast('真实实现：把参数回填进 composer 供修改后重发'); return; }
+  if (act === 'cancel') { toast('已取消（demo 未实现取消分支——试试「确认执行」）'); return; }
+
+  item.state = 'approved';
+  const lastWork = sess.timeline.filter(i => i.type === 'work').pop();
+  if (lastWork) lastWork.steps.forEach(s => s.st = 'done');
+  renderTimeline();
+
+  appendItems('competitor', [
+    { type: 'work', time: nowStr(), summary: '执行确认后的写入 · 2 个步骤', open: true, steps: [
+      { st: 'done', tool: 'sheet table create', desc: '创建「协作能力对比」数据表' },
+      { st: 'done', tool: 'sheet record create', desc: '写入 12 条记录（3 家 × 4 组能力）' },
+    ]},
+    { type: 'artifact', pin: 6, icon: '▦', title: '竞品调研 · 对比表', meta: '云之家多维表格 · 产品组工作区 · 12 条记录 · 5 个维度' },
+    { type: 'agent-pub', time: nowStr(), kind: 'done', text: '【Agent完成】对比表已建好并回帖：12 条记录、5 个维度。周一评审前如需增删维度，直接在这里说。' },
+  ], 500);
+
+  sess.status = 'running';
+  renderSidebar();
+  setTimeout(() => {
+    sess.status = 'review';
+    sess.preview = '待验收：对比表已生成（12 条记录）';
+    sess.agentState = null;
+    renderSidebar();
+    if (state.current === 'competitor') renderHead();
+    toast('任务完成 → 状态流转：待确认 → 运行中 → 待验收');
+  }, 3200);
+}
+
+/* ---------- 资源面板 ---------- */
+const RES = {
+  docs: [
+    { sec: '产品组工作区' },
+    { icon: '📄', t: '客户走访汇总 · 8月第2周', m: '文档 · 昨天' },
+    { icon: '📄', t: 'Q2 复盘会议纪要', m: '文档 · 8月12日' },
+    { icon: '▦', t: '需求池 · 多维表格', m: '表格 · 46 条记录' },
+    { sec: '最近打开' },
+    { icon: '📄', t: '工作台面板走查标注', m: '文档 · 今天 09:14' },
+  ],
+  cal: [
+    { time: '14:00', t: '产品例会', m: '会议室 A · 6 人' },
+    { time: '16:30', t: '设计评审：工作台面板', m: '线上 · 王超发起' },
+    { time: '明 10:00', t: '管理层竞品评审', m: '会议室 C · 需要对比表' },
+  ],
+};
+let resTab = 'docs';
+function renderRes() {
+  const body = $('resBody');
+  if (resTab === 'docs') {
+    body.innerHTML = RES.docs.map(r => r.sec
+      ? `<div class="res-sec">${r.sec}</div>`
+      : `<button class="res-item" data-ref="${r.t}"><span class="ri">${r.icon}</span><span class="rt"><span class="rt1">${r.t}</span><span class="rt2">${r.m}</span></span><span class="plus">＋</span></button>`
+    ).join('');
+  } else {
+    body.innerHTML = `<div class="res-sec">今天 · 8月17日</div>` + RES.cal.map(r =>
+      `<div class="cal-item"><span class="ct">${r.time}</span><span class="cb">${r.t}<div class="cm">${r.m}</div></span></div>`
+    ).join('');
+  }
+}
+
+/* ---------- chips ---------- */
+function renderChips() {
+  const row = $('chipsRow');
+  if (!state.chips.length) { row.hidden = true; row.innerHTML = ''; return; }
+  row.hidden = false;
+  row.innerHTML = state.chips.map((c, i) =>
+    `<span class="ref-chip">☁ ${c}<span class="x" data-chip="${i}" role="button" aria-label="移除引用">×</span></span>`).join('');
+}
+
+/* ---------- 注解弹层 / toast ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+function showNote(no, anchorRect) {
+  const n = NOTES[no];
+  if (!n) return;
+  $('popNo').textContent = `注 ${no}`;
+  $('popTitle').textContent = n.title;
+  $('popBody').innerHTML = n.body;
+  const pop = $('popover');
+  pop.classList.add('show');
+  const w = 320, pad = 12;
+  let x = anchorRect.left + anchorRect.width / 2 - w / 2;
+  x = Math.max(pad, Math.min(x, window.innerWidth - w - pad));
+  let y = anchorRect.bottom + 10;
+  if (y > window.innerHeight - 260) y = Math.max(pad, anchorRect.top - 10 - 240);
+  pop.style.left = x + 'px';
+  pop.style.top = y + 'px';
+}
+
+/* ---------- 切换会话 ---------- */
+function openSession(key) {
+  state.current = key;
+  renderSidebar(); renderHead(); renderTimeline(); refreshVoiceAvail();
+  if (sessions[key].status === 'unread' && key === 'designreview') {
+    /* 打开即读：徽标保留到用户看过（demo 简化为保留） */
+  }
+}
+
+/* ---------- 事件绑定 ---------- */
+document.addEventListener('click', (e) => {
+  const pin = e.target.closest('.pin');
+  if (pin) { showNote(pin.dataset.note, pin.getBoundingClientRect()); e.stopPropagation(); return; }
+  if (!e.target.closest('.popover')) $('popover').classList.remove('show');
+
+  const item = e.target.closest('[data-sess]');
+  if (item) { openSession(item.dataset.sess); return; }
+
+  const cc = e.target.closest('[data-cc]');
+  if (cc) { handleCardAction(cc.dataset.cc, cc.dataset.act); return; }
+
+  const goto = e.target.closest('[data-goto]');
+  if (goto) {
+    const target = Object.keys(sessions).find(k => sessions[k].status === goto.dataset.goto);
+    if (target) openSession(target);
+    return;
+  }
+
+  const ref = e.target.closest('[data-ref]');
+  if (ref) {
+    if (!state.chips.includes(ref.dataset.ref)) state.chips.push(ref.dataset.ref);
+    renderChips();
+    toast('已加入引用 chip —— 发送时作为上下文喂给 Agent');
+    $('input').focus();
+    return;
+  }
+  const chipX = e.target.closest('[data-chip]');
+  if (chipX) { state.chips.splice(+chipX.dataset.chip, 1); renderChips(); return; }
+
+  const art = e.target.closest('[data-artifact]');
+  if (art) { toast('真实实现：在云之家 / 资源面板中打开该文档'); return; }
+
+  const tab = e.target.closest('.res-tab');
+  if (tab) {
+    resTab = tab.dataset.tab;
+    document.querySelectorAll('.res-tab').forEach(t => t.classList.toggle('active', t === tab));
+    renderRes();
+    return;
+  }
+});
+
+$('voicePri').addEventListener('click', () => !$('voicePri').disabled && setVoice('pri'));
+$('voicePub').addEventListener('click', () => !$('voicePub').disabled && setVoice('pub'));
+$('input').addEventListener('input', updateVoiceHint);
+$('input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+});
+$('send').addEventListener('click', handleSend);
+
+$('annotateToggle').addEventListener('click', () => {
+  const on = document.body.classList.toggle('annotate');
+  $('annotateToggle').setAttribute('aria-pressed', on);
+  if (!on) $('popover').classList.remove('show');
+});
+$('hintClose').addEventListener('click', () => {
+  $('hintbar').remove();
+  document.body.classList.add('no-hint');
+});
+$('popClose').addEventListener('click', () => $('popover').classList.remove('show'));
+$('resCollapse').addEventListener('click', () => document.body.classList.add('res-collapsed'));
+$('floatball').addEventListener('click', () => {
+  document.body.classList.remove('res-collapsed');
+  const confirmKey = Object.keys(sessions).find(k => sessions[k].status === 'confirm');
+  const reviewKey = Object.keys(sessions).find(k => sessions[k].status === 'review');
+  const target = confirmKey || reviewKey;
+  if (target) { openSession(target); toast('悬浮球 = 注意力汇总：优先跳到最需要你的会话'); }
+});
+
+/* ---------- 启动 ---------- */
+renderSidebar(); renderHead(); renderTimeline(); renderRes(); refreshVoiceAvail();
+</script>
+</body>
+</html>

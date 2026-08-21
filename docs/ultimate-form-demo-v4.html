@@ -1,0 +1,3348 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>云之家 × DSH · 终极形态 v4.1 —— 图的居民补全</title>
+<style>
+/* ============================================================
+   终极形态 v4 · 桌面端完整价值沙盘（六剧本压测后修订）
+   图的四类居民：会话（交互）· 工件（产物）· 承诺（工作）· 流程（复利）
+   新增：承诺板取景框、轻问（F-read 一次性投影）、裁决卡、授权租约
+   ============================================================ */
+:root {
+  --bg: #EDEFF2;
+  --surface: #FFFFFF;
+  --ink: #20242C;
+  --ink-2: #5A6272;
+  --ink-3: #8B93A3;
+  --line: #E2E5EA;
+
+  --pub: #2E63D9;
+  --pub-deep: #1E4FBD;
+  --pub-tint: #EEF4FF;
+  --pub-line: #C9DBFA;
+  --pub-rail: #D8E5FB;
+
+  --paper: #FAF6EC;
+  --paper-line: #E9DFC8;
+  --paper-rail: #EFE6D0;
+  --paper-ink: #6B5A36;
+
+  --amber: #B45309;
+  --amber-bg: #FDF1E0;
+  --amber-line: #F0D9B4;
+  --green: #15803D;
+  --green-bg: #E8F6EE;
+  --green-line: #C4E6D1;
+  --red: #B91C1C;
+
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(24,30,42,.05), 0 4px 16px rgba(24,30,42,.06);
+  --shadow-pop: 0 6px 32px rgba(24,30,42,.18);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--bg);
+}
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+:focus-visible { outline: 2px solid var(--pub); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  height: 46px;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 16px;
+  background: #171B22; color: #E8EAEF;
+}
+.wordmark { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14px; font-weight: 700; letter-spacing: .08em; }
+.wordmark em { font-style: normal; color: #7FA7F5; }
+.topbar .crumb { font-size: 12.5px; color: #9AA3B5; }
+.topbar .crumb b { color: #D5DAE4; font-weight: 600; }
+.topbar .spacer { flex: 1; }
+.topbar a.xlink {
+  font-size: 11.5px; color: #9AA3B5; text-decoration: none;
+  padding: 4px 9px; border: 1px solid #333B48; border-radius: 8px;
+}
+.topbar a.xlink:hover { color: #E8EEFF; border-color: #3E5AA6; }
+.annotate-toggle {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: #C4CAD6;
+  padding: 5px 10px; border-radius: 8px;
+  border: 1px solid #333B48;
+  transition: background .15s, border-color .15s;
+}
+.annotate-toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: #4A5364; transition: background .15s; }
+body.annotate .annotate-toggle { background: #24304A; border-color: #3E5AA6; color: #E8EEFF; }
+body.annotate .annotate-toggle .dot { background: #7FA7F5; }
+.top-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, #46536B, #2B3345);
+  color: #DFE5F0; font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ---------- 引导条 ---------- */
+.hintbar {
+  height: 34px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px;
+  font-size: 12.5px; color: var(--ink-2);
+  background: #F7F8FA;
+  border-bottom: 1px solid var(--line);
+}
+.hintbar .k {
+  font-size: 11.5px; padding: 2px 8px; border-radius: 20px;
+  background: #EDF1F6; border: 1px solid var(--line); color: var(--ink-2);
+}
+.hintbar .close { margin-left: auto; color: var(--ink-3); font-size: 15px; padding: 2px 6px; }
+.hintbar .close:hover { color: var(--ink); }
+
+/* ---------- 三栏布局 ---------- */
+.app {
+  display: grid;
+  grid-template-columns: 272px minmax(520px, 1fr) 296px;
+  grid-template-rows: minmax(0, 1fr);
+  height: calc(100vh - 80px);
+}
+body.no-hint .app { height: calc(100vh - 46px); }
+
+/* ---------- 侧栏：统一收件箱 ---------- */
+.sidebar {
+  background: #F3F4F6;
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.side-head {
+  padding: 14px 14px 8px;
+  display: flex; align-items: baseline; gap: 8px;
+  position: relative;
+}
+.side-head h2 { font-size: 13px; font-weight: 700; }
+.side-head .sub { font-size: 11px; color: var(--ink-3); }
+.triage { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 12px 10px; }
+.triage-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; padding: 3px 9px; border-radius: 20px;
+  border: 1px solid transparent;
+  transition: transform .12s;
+}
+.triage-chip:hover { transform: translateY(-1px); }
+.triage-chip .n { font-weight: 700; }
+.triage-chip.t-confirm { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-line); }
+.triage-chip.t-review  { background: var(--green-bg); color: var(--green); border-color: var(--green-line); }
+.triage-chip.t-running { background: var(--pub-tint); color: var(--pub); border-color: var(--pub-line); }
+.triage-chip[data-zero="1"] { opacity: .38; filter: grayscale(.4); }
+.tree { padding: 2px 8px 20px; }
+.tree-group {
+  margin-top: 10px;
+  font-size: 11px; font-weight: 600; color: var(--ink-3);
+  padding: 0 8px 4px; letter-spacing: .04em;
+  display: flex; align-items: center; gap: 6px;
+}
+.tree-group .gline { flex: 1; height: 1px; background: var(--line); }
+/* v4.7 侧栏节点词汇：节点是行，标签是字——场所行=一等行，话题=缩进子行，灰字+线专属纯分组 */
+.item.place { margin-top: 10px; }
+.item.place .t1 { font-weight: 750; }
+.item.sub { margin-left: 26px; width: calc(100% - 26px); position: relative; }
+.item.sub::before { content: ''; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: #DCE1E9; }
+/* 披露列：行首左缘垂直对齐成一列（Finder/VS Code/Notion 同位）——披露列管折叠，行体做本职
+   chrome 收敛：SVG 细笔画箭头；场所/标签行 hover 现身、收起态常显（状态不能藏）；分栏头常显 */
+.chev {
+  flex: none; width: 18px; height: 26px; display: grid; place-items: center;
+  margin-left: -3px; border-radius: 5px;
+  color: #9AA3B2; cursor: pointer;
+  transition: transform .16s cubic-bezier(.2,.7,.3,1), opacity .12s, background .12s, color .12s;
+}
+.chev svg { display: block; }
+.chev:hover { background: rgba(70,83,107,.10); color: var(--ink); }
+.chev.closed { transform: rotate(-90deg); }
+.item.place .chev, button.tree-group .chev { opacity: 0; }
+.item.place:hover .chev, button.tree-group:hover .chev,
+.item.place .chev.closed, button.tree-group .chev.closed { opacity: 1; }
+/* 收起组内含当前会话：场所行左缘细示位线（不外露子行，位置不丢） */
+.item.place.holds { box-shadow: inset 2.5px 0 0 var(--pub); }
+/* 顶层大分栏：通道轴一级投影（云之家 vs 本地）——纯排版表达，比组内标签高一档 */
+.tree-sec {
+  width: 100%; display: flex; align-items: center; gap: 4px;
+  margin: 20px 0 4px; padding: 8px 6px 4px;
+  border-top: 1px solid var(--line);
+  font-size: 12px; font-weight: 800; letter-spacing: .08em; color: var(--ink-2);
+  cursor: pointer; text-align: left;
+  transition: color .12s;
+}
+.tree-sec:hover { color: var(--ink); }
+.tree-sec:first-child { border-top: none; margin-top: 6px; }
+.tree-sec .hint { margin-left: auto; font-size: 10px; font-weight: 600; letter-spacing: .02em; color: var(--ink-3); }
+.tree-sec .chev { width: 16px; height: 18px; margin-left: -4px; }
+button.tree-group { width: 100%; cursor: pointer; }
+button.tree-group:hover { color: var(--ink-2); }
+button.tree-group .chev { width: 16px; height: 18px; margin-left: -4px; }
+.item {
+  width: 100%;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 9px; border-radius: 8px;
+  text-align: left; position: relative;
+  transition: background .12s;
+}
+.item:hover { background: #E9EBEF; }
+.item.active { background: #FFFFFF; box-shadow: var(--shadow); }
+.item .ic {
+  width: 26px; height: 26px; border-radius: 7px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: #fff;
+}
+.item .tcol { flex: 1; min-width: 0; }
+.item .t1 { font-size: 12.8px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .t2 { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.badge { flex: none; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 20px; }
+.badge.b-confirm { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line); }
+.badge.b-review  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-line); }
+.badge.b-running { background: var(--pub-tint); color: var(--pub); border: 1px solid var(--pub-line); display: inline-flex; align-items: center; gap: 4px; }
+.badge.b-unread  { background: #E5E8ED; color: var(--ink-2); }
+.badge.b-done    { background: #E5E8ED; color: var(--ink-3); }
+.pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--pub); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: .35; transform: scale(.75);} }
+
+/* ---------- 中栏：融合时间线 ---------- */
+.main { display: flex; flex-direction: column; background: var(--surface); min-width: 0; min-height: 0; }
+.sess-head { padding: 12px 20px 10px; border-bottom: 1px solid var(--line); position: relative; }
+.sess-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sess-meta { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.chip {
+  font-size: 11px; padding: 2.5px 8px; border-radius: 6px;
+  background: #F1F3F6; color: var(--ink-2); border: 1px solid var(--line);
+}
+.chip.mono { font-size: 10.5px; }
+.chip.agent-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #1D2432; color: #DCE4F5; border-color: #1D2432;
+}
+.chip.agent-chip .pulse { background: #7FA7F5; }
+.chip.agent-chip.off { background: #F1F3F6; color: var(--ink-3); border-color: var(--line); }
+.timeline { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 0 18px; scroll-behavior: smooth; position: relative; }
+@media (prefers-reduced-motion: reduce) {
+  .timeline { scroll-behavior: auto; }
+  .pulse { animation: none; }
+  .msg.enter { animation: none !important; }
+}
+.divider { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 11px; color: var(--ink-3); }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.divider.unread { color: var(--red); font-weight: 600; }
+.divider.unread::before, .divider.unread::after { background: #F3CBCB; }
+.msg { display: grid; grid-template-columns: 40px 1fr; gap: 0 10px; padding: 5px 20px 5px 14px; position: relative; }
+.msg.enter { animation: slidein .28s ease; }
+@keyframes slidein { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
+.rail { display: flex; flex-direction: column; align-items: center; gap: 5px; padding-top: 3px; }
+.rail-tag {
+  font-size: 10px; font-weight: 700; line-height: 1;
+  padding: 3.5px 6px; border-radius: 5px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.msg--pub .rail-tag { background: var(--pub-tint); color: var(--pub); border: 1px solid var(--pub-line); }
+.msg--pri .rail-tag { background: var(--paper); color: var(--paper-ink); border: 1px solid var(--paper-line); }
+.rail .rline { flex: 1; width: 2px; border-radius: 2px; }
+.msg--pub .rline { background: var(--pub-rail); }
+.msg--pri .rline { background: var(--paper-rail); }
+.mbody { min-width: 0; max-width: 720px; position: relative; }
+.mhead { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.avatar {
+  width: 22px; height: 22px; border-radius: 6px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: #fff;
+}
+.mhead .name { font-size: 12.5px; font-weight: 650; }
+.mhead .name .state { color: var(--pub); font-weight: 600; }
+.mhead .meta { font-size: 10.5px; color: var(--ink-3); }
+.bubble {
+  border-radius: var(--radius);
+  padding: 9px 12px; line-height: 1.65;
+  border: 1px solid var(--line); background: var(--surface);
+  width: fit-content; max-width: 100%;
+}
+.msg--pub .bubble { border-color: var(--pub-line); background: #FDFEFF; }
+.msg--pub.mine .bubble { background: var(--pub-tint); }
+.msg--pri .bubble { background: var(--paper); border-color: var(--paper-line); }
+.bubble.pause { border-left: 3px solid var(--amber); }
+.mfoot { font-size: 10.5px; color: var(--ink-3); margin-top: 4px; }
+.msg--pri .mfoot { color: #A08D5F; }
+.at { color: var(--pub); font-weight: 650; background: rgba(46,99,217,.09); padding: 0 3px; border-radius: 4px; }
+.sysline { padding: 4px 20px 4px 64px; font-size: 11.5px; color: var(--ink-3); }
+.sysline .inner {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #F6F7F9; border: 1px dashed var(--line);
+  border-radius: 8px; padding: 5px 10px;
+}
+
+/* 私有工作块 */
+.workblock {
+  border-radius: var(--radius); border: 1px solid var(--paper-line); background: var(--paper);
+  overflow: hidden; max-width: 100%; width: fit-content; min-width: 320px;
+}
+.workblock summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; font-size: 12px; color: var(--paper-ink); font-weight: 600;
+}
+.workblock summary::-webkit-details-marker { display: none; }
+.workblock summary .tw { transition: transform .15s; font-size: 10px; }
+.workblock[open] summary .tw { transform: rotate(90deg); }
+.wsteps { padding: 2px 12px 10px 30px; display: flex; flex-direction: column; gap: 5px; }
+.wstep { font-size: 11.5px; color: var(--ink-2); display: flex; gap: 7px; align-items: baseline; }
+.wstep .st { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; flex: none; width: 14px; }
+.wstep.done .st { color: var(--green); }
+.wstep.run .st { color: var(--pub); }
+.wstep.wait .st { color: var(--amber); }
+.wstep .tool { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; color: var(--ink-3); background: #F2EDDF; padding: 1px 5px; border-radius: 4px; }
+.wstep.mem .tool { background: #E3ECFB; color: var(--pub-deep); }
+
+/* 审批对象卡 */
+.confirm-card {
+  border-radius: 12px;
+  border: 1px solid var(--amber-line); border-top: 3px solid var(--amber);
+  background: #FFFDF8;
+  box-shadow: var(--shadow);
+  max-width: 560px; overflow: hidden;
+  transition: border-color .3s;
+}
+.confirm-card.approved { border-color: var(--green-line); border-top-color: var(--green); background: #FCFFFD; }
+.cc-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px 9px; }
+.cc-domain {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .05em;
+  padding: 2.5px 7px; border-radius: 5px;
+  background: var(--amber-bg); color: var(--amber);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.confirm-card.approved .cc-domain { background: var(--green-bg); color: var(--green); }
+.cc-title { font-size: 13px; font-weight: 700; flex: 1; }
+.cc-risk { font-size: 10.5px; color: var(--amber); background: var(--amber-bg); padding: 2px 7px; border-radius: 20px; border: 1px solid var(--amber-line); }
+.cc-fields { padding: 0 14px 10px; display: grid; grid-template-columns: 84px 1fr; gap: 4px 10px; font-size: 12px; }
+.cc-fields .k { color: var(--ink-3); }
+.cc-fields .v b { font-weight: 650; }
+.cc-proj {
+  margin: 0 14px 10px; padding: 7px 10px;
+  border: 1px dashed var(--line); border-radius: 8px;
+  font-size: 11px; color: var(--ink-2); line-height: 1.6;
+  background: #FAFBFC;
+}
+.cc-proj .pj { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10px; color: var(--pub-deep); background: #E3ECFB; padding: 1px 5px; border-radius: 4px; }
+.cc-actions { display: flex; gap: 8px; padding: 10px 14px 12px; border-top: 1px solid #F4EBDB; }
+.confirm-card.approved .cc-actions { border-top-color: #E2F2E8; }
+.btn {
+  font-size: 12.5px; font-weight: 600;
+  padding: 6px 14px; border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff; color: var(--ink-2);
+  transition: transform .1s, box-shadow .15s;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.btn.primary:hover { background: #000; }
+.cc-done-note { display: flex; align-items: center; gap: 7px; padding: 10px 14px 12px; font-size: 12.5px; color: var(--green); font-weight: 600; }
+
+/* 工件卡 */
+.artifact {
+  display: flex; align-items: center; gap: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--pub-line);
+  background: linear-gradient(160deg, #FDFEFF, #F4F8FF);
+  padding: 12px 14px; max-width: 480px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform .12s, box-shadow .15s;
+}
+.artifact:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(46,99,217,.15); }
+.af-icon {
+  width: 38px; height: 38px; border-radius: 9px; flex: none;
+  background: var(--pub); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+}
+.af-body { flex: 1; min-width: 0; }
+.af-t { font-size: 13px; font-weight: 700; }
+.af-m { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.af-arrow { color: var(--pub); font-size: 15px; }
+
+/* 验收条 */
+.acceptbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  border: 1px solid var(--green-line); border-radius: 12px;
+  background: linear-gradient(160deg, #FDFFFE, #F1FAF4);
+  padding: 10px 14px; max-width: 560px;
+  box-shadow: var(--shadow);
+  position: relative;
+}
+.acceptbar .lab { font-size: 12.5px; font-weight: 650; color: var(--green); }
+.acceptbar .note { font-size: 10.5px; color: var(--ink-3); }
+.acceptbar.done-state { border-color: var(--line); background: #F7F8FA; }
+.acceptbar.done-state .lab { color: var(--ink-3); }
+
+/* 冷会话空态 */
+.coldhint {
+  margin: 14px 20px 6px 64px; max-width: 560px;
+  border: 1px dashed #C9CFDA; border-radius: 12px;
+  background: #FAFBFC; padding: 14px 16px;
+  font-size: 12.5px; color: var(--ink-2); line-height: 1.7;
+  position: relative;
+}
+.coldhint b { color: var(--ink); }
+
+/* ---------- 话题卡（群视图内联） ---------- */
+.topiccard {
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--line); border-left: 3px solid #C9D4E8;
+  border-radius: 12px; background: #FBFCFE;
+  padding: 10px 13px; max-width: 480px;
+  cursor: pointer; box-shadow: var(--shadow);
+  transition: transform .12s, box-shadow .15s;
+  position: relative;
+}
+.topiccard:hover { transform: translateY(-2px); box-shadow: 0 4px 18px rgba(24,30,42,.12); }
+.topiccard.hot { border-left-color: var(--pub); background: linear-gradient(160deg, #FDFEFF, #F6F9FF); }
+.tc-ic { font-size: 16px; flex: none; }
+.tc-body { flex: 1; min-width: 0; }
+.tc-t { font-size: 13px; font-weight: 700; }
+.tc-m { font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+.tc-arrow { color: var(--ink-3); font-size: 15px; flex: none; }
+.crumb-btn { color: var(--ink-3); font-weight: 600; font-size: 15px; padding: 0; }
+.crumb-btn:hover { color: var(--pub); text-decoration: underline; }
+.crumb-sep { color: var(--ink-3); font-weight: 400; }
+
+/* ---------- Agent 场所合同面板 ---------- */
+.apanel-mask {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(23,27,34,.35);
+  display: none; align-items: center; justify-content: center;
+}
+.apanel-mask.show { display: flex; }
+.apanel {
+  width: 580px; max-height: 84vh; overflow-y: auto;
+  background: #fff; border-radius: 16px;
+  box-shadow: var(--shadow-pop);
+  position: relative;
+  animation: popin .18s ease;
+}
+.ap-head {
+  display: flex; align-items: center; gap: 11px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+}
+.ap-ava {
+  width: 36px; height: 36px; border-radius: 10px; flex: none;
+  background: #171B22; color: #fff; font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.ap-title { font-size: 15px; font-weight: 750; }
+.ap-sub { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.ap-close { margin-left: auto; font-size: 17px; color: var(--ink-3); padding: 4px 8px; }
+.ap-close:hover { color: var(--ink); }
+.ap-sec { padding: 12px 18px 2px; }
+.ap-sec-h { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 750; padding-bottom: 7px; }
+.ap-badge { font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.ap-badge.hard { background: #FBEAEA; color: #B91C1C; border: 1px solid #F0CACA; }
+.ap-badge.soft { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-line); }
+.ap-row {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 5px 0; font-size: 12.5px;
+  border-bottom: 1px dashed #F0F2F5;
+}
+.ap-row .k { color: var(--ink-3); width: 100px; flex: none; }
+.ap-row .v { flex: 1; }
+.ap-inherit {
+  font-size: 9.5px; color: var(--ink-3);
+  background: #F1F3F6; border: 1px solid var(--line);
+  padding: 1px 6px; border-radius: 20px; flex: none;
+}
+.ap-inherit.ovr { background: var(--pub-tint); color: var(--pub); border-color: var(--pub-line); }
+.ap-note { font-size: 10.5px; color: var(--ink-3); padding: 7px 0 10px; line-height: 1.65; }
+.ap-actions { padding: 8px 18px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.ap-trace { font-size: 12px; color: var(--pub); font-weight: 650; cursor: pointer; }
+.ap-trace:hover { text-decoration: underline; }
+.trace-link { margin-left: 8px; font-size: 10.5px; color: var(--pub); font-weight: 650; cursor: pointer; flex: none; }
+.trace-link:hover { text-decoration: underline; }
+.chip.agent-chip[data-apanel] { cursor: pointer; }
+.chip.agent-chip[data-apanel]:hover { box-shadow: 0 2px 8px rgba(23,27,34,.35); }
+.chip.gfilter { cursor: pointer; transition: background .15s, color .15s; }
+.chip.gfilter:hover { color: var(--ink); }
+.chip.gfilter.on { background: var(--pub-tint); color: var(--pub); border-color: var(--pub-line); font-weight: 650; }
+
+/* ---------- Composer：双语态 ---------- */
+.composer { border-top: 1px solid var(--line); padding: 10px 20px 14px; background: var(--surface); position: relative; }
+.voice-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.voice-seg { display: inline-flex; background: #EFF1F4; border-radius: 9px; padding: 3px; gap: 2px; }
+.voice-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+  padding: 5px 12px; border-radius: 7px;
+  color: var(--ink-2);
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.voice-btn .vdot { width: 7px; height: 7px; border-radius: 50%; }
+.voice-btn[data-voice="pri"] .vdot { background: #C9B98C; }
+.voice-btn[data-voice="pub"] .vdot { background: var(--pub); }
+.voice-btn[disabled] { opacity: .4; cursor: not-allowed; }
+.composer.v-pri .voice-btn[data-voice="pri"],
+.composer.v-pub .voice-btn[data-voice="pub"] {
+  background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(24,30,42,.12);
+}
+/* v4.7 锚定条：落点的唯一可见真身（常显，取代散落的 hint/placeholder/toast） */
+.composer.v-pri .quote-bar { border-left-color: var(--paper-line); background: #FAF8F2; color: #8A744A; }
+.composer.v-ask .quote-bar { border-left-color: var(--amber); background: #FFFBF2; color: var(--amber); }
+.quote-bar.delegate { font-weight: 650; color: var(--pub-deep); }
+.chips-row { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.ref-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; padding: 3px 9px; border-radius: 7px;
+  background: #F1F4F9; border: 1px solid var(--line); color: var(--ink-2);
+}
+.ref-chip .x { cursor: pointer; color: var(--ink-3); font-size: 13px; line-height: 1; }
+.ref-chip .x:hover { color: var(--red); }
+.cbox {
+  display: flex; align-items: flex-end; gap: 10px;
+  border: 1.5px solid var(--line); border-radius: 12px;
+  padding: 10px 12px;
+  transition: border-color .2s, background .2s;
+}
+.composer.v-pri .cbox { border-color: var(--paper-line); background: var(--paper); }
+.composer.v-pub .cbox { border-color: var(--pub); background: #FBFDFF; }
+.cbox textarea {
+  flex: 1; border: none; background: transparent; resize: none;
+  font: inherit; line-height: 1.6; min-height: 40px; max-height: 120px;
+  outline: none; color: var(--ink);
+}
+.send {
+  flex: none; font-size: 12.5px; font-weight: 650;
+  padding: 7px 16px; border-radius: 9px; color: #fff;
+  transition: transform .1s, opacity .15s;
+}
+.composer.v-pri .send { background: #8A744A; }
+.composer.v-pub .send { background: var(--pub); }
+.send:hover { transform: translateY(-1px); }
+
+/* ---------- 右栏：记忆 + 资源 ---------- */
+.rightpanel {
+  background: #F7F8FA;
+  border-left: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  overflow: hidden; min-width: 0; position: relative;
+}
+.res-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px 8px; }
+.res-head h3 { font-size: 12.5px; font-weight: 700; }
+.res-head .sub { font-size: 10.5px; color: var(--ink-3); }
+.res-tabs { display: flex; gap: 4px; padding: 0 12px 10px; position: relative; }
+.res-tab {
+  font-size: 12px; font-weight: 600; color: var(--ink-3);
+  padding: 4px 11px; border-radius: 20px;
+  transition: background .15s, color .15s;
+}
+.res-tab.active { background: #fff; color: var(--ink); box-shadow: var(--shadow); }
+.res-body { flex: 1; overflow-y: auto; padding: 2px 10px 16px; }
+.res-sec { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; color: var(--ink-3); padding: 10px 6px 5px; }
+.res-item {
+  width: 100%;
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 8px; border-radius: 8px;
+  text-align: left; transition: background .12s;
+}
+.res-item:hover { background: #EDEFF3; }
+.res-item .ri {
+  width: 26px; height: 26px; border-radius: 7px; flex: none;
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+  background: #fff; border: 1px solid var(--line);
+}
+.res-item .rt { flex: 1; min-width: 0; }
+.res-item .rt1 { font-size: 12.3px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.res-item .rt2 { font-size: 10.5px; color: var(--ink-3); }
+.res-item .plus { color: var(--ink-3); font-size: 14px; opacity: 0; transition: opacity .12s; }
+.res-item:hover .plus { opacity: 1; }
+.cal-item { display: flex; gap: 9px; padding: 7px 8px; border-radius: 8px; align-items: flex-start; }
+.cal-item .ct { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; color: var(--pub); padding-top: 2px; flex: none; width: 44px; }
+.cal-item .cb { font-size: 12.3px; }
+.cal-item .cb .cm { font-size: 10.5px; color: var(--ink-3); margin-top: 1px; }
+.mem-scope { font-size: 11px; color: var(--ink-3); padding: 4px 6px 8px; line-height: 1.6; }
+.mem-empty {
+  margin: 4px 2px;
+  border: 1px dashed #CDD3DC; border-radius: 10px;
+  padding: 16px 12px; font-size: 11px; color: var(--ink-3);
+  line-height: 1.7; text-align: center;
+}
+.mem-card {
+  background: #fff; border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 11px; margin: 0 2px 8px;
+  box-shadow: var(--shadow);
+  animation: slidein .3s ease; position: relative;
+}
+.mem-card .mk {
+  font-size: 9.5px; font-weight: 700; color: var(--pub-deep);
+  background: #E3ECFB; border-radius: 4px; padding: 1.5px 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.mem-card .mt { font-size: 12px; line-height: 1.6; margin-top: 6px; }
+.mem-card .mm { font-size: 9.5px; color: var(--ink-3); margin-top: 6px; }
+.mem-card .del { position: absolute; top: 7px; right: 9px; color: var(--ink-3); font-size: 13px; padding: 1px 4px; }
+.mem-card .del:hover { color: var(--red); }
+
+/* 对象面：当前 tab / 资源子导航 / 就地预览 */
+.res-sub { display: flex; gap: 4px; padding: 0 4px 8px; }
+.res-sub .rs {
+  font-size: 11px; font-weight: 650; color: var(--ink-3);
+  padding: 3px 10px; border-radius: 14px; cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.res-sub .rs.on { background: #fff; color: var(--ink); box-shadow: var(--shadow); }
+.obj-tag { font-size: 9px; font-weight: 700; padding: 1.5px 6px; border-radius: 4px; flex: none; }
+.obj-tag.art { background: var(--pub-tint); color: var(--pub); border: 1px solid var(--pub-line); }
+.obj-tag.ref { background: var(--paper); color: var(--paper-ink); border: 1px solid var(--paper-line); }
+.preview { padding: 2px 2px 10px; }
+.pv-head { display: flex; align-items: center; gap: 7px; padding: 2px 2px 6px; }
+.pv-back { font-size: 12px; color: var(--pub); font-weight: 650; cursor: pointer; padding: 2px 4px; flex: none; }
+.pv-back:hover { text-decoration: underline; }
+.pv-title { font-size: 12.5px; font-weight: 750; flex: 1; min-width: 0; }
+.pv-meta { font-size: 9.5px; color: var(--ink-3); padding: 0 4px 8px; line-height: 1.5; }
+.pv-card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 11px; box-shadow: var(--shadow); }
+.pv-outline { display: flex; flex-direction: column; gap: 6px; font-size: 11.5px; line-height: 1.6; color: var(--ink-2); }
+.pv-outline b { color: var(--ink); }
+.pv-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.pv-table th { text-align: left; color: var(--ink-3); font-weight: 650; padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.pv-table td { padding: 4px 6px; border-bottom: 1px dashed #F0F2F5; }
+.pv-open { margin-top: 9px; font-size: 11px; color: var(--pub); font-weight: 650; cursor: pointer; padding: 0 2px; }
+.pv-open:hover { text-decoration: underline; }
+.week-strip { display: flex; gap: 4px; padding: 2px 4px 8px; }
+.wd {
+  flex: 1; text-align: center; font-size: 9.5px; color: var(--ink-3);
+  padding: 5px 0 8px; border-radius: 8px; position: relative; line-height: 1.5;
+}
+.wd.today { background: var(--pub); color: #fff; font-weight: 700; }
+.wd .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--pub); position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); }
+.wd.today .dot { background: #fff; }
+.type-filter { display: flex; gap: 4px; padding: 0 4px 8px; }
+.tf { font-size: 10px; font-weight: 650; color: var(--ink-3); padding: 2px 9px; border-radius: 12px; border: 1px solid var(--line); cursor: pointer; }
+.tf.on { background: var(--pub-tint); color: var(--pub); border-color: var(--pub-line); }
+.hub-ok { color: var(--green); font-weight: 700; font-size: 10px; flex: none; }
+.hub-cta {
+  display: block; width: 100%; text-align: center;
+  margin: 10px 0 2px; font-size: 12px; font-weight: 650;
+  color: #fff; background: var(--ink); border-radius: 9px; padding: 8px 0;
+  transition: background .15s;
+}
+.hub-cta:hover { background: #000; }
+
+/* ---------- v4：承诺板 / 轻问 / 裁决卡 / 授权租约 ---------- */
+.board-entry {
+  margin: 0 12px 8px; width: calc(100% - 24px);
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 11px; border-radius: 9px;
+  background: #1D2432; color: #DCE4F5;
+  font-size: 12px; font-weight: 650;
+  transition: background .15s;
+}
+.board-entry:hover { background: #171B22; }
+.board-entry .bd { margin-left: auto; font-size: 10px; color: #F0B44A; font-weight: 700; }
+.board { padding: 4px 20px 20px; }
+.cm-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 13px; border: 1px solid var(--line); border-radius: 10px;
+  background: #fff; margin-bottom: 8px; box-shadow: var(--shadow);
+}
+.cm-row.overdue { border-left: 3px solid var(--red); }
+.ex-tag { font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; flex: none; }
+.ex-tag.agent { background: var(--pub-tint); color: var(--pub); border: 1px solid var(--pub-line); }
+.ex-tag.human { background: #F3EFFA; color: #6D4FA3; border: 1px solid #DFD3F0; }
+.ex-tag.process { background: #E5E8ED; color: var(--ink-2); border: 1px solid var(--line); }
+.cm-due { font-size: 10.5px; color: var(--ink-3); }
+.cm-due.overdue { color: var(--red); font-weight: 700; }
+.remind-btn {
+  font-size: 11px; font-weight: 650; padding: 4px 11px; border-radius: 7px;
+  border: 1px solid var(--line); color: var(--ink-2); flex: none;
+  transition: box-shadow .15s;
+}
+.remind-btn:hover { box-shadow: var(--shadow); }
+.goal-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 13px;
+  border: 1px dashed #B9C4D6; border-radius: 10px;
+  background: #F7F9FC; margin-bottom: 6px; position: relative;
+}
+.ex-tag.goal { background: #EEF2F9; color: #3D4C66; border: 1px solid #C9D4E6; }
+.goal-home { display: block; font-size: 10px; color: var(--pub); cursor: pointer; margin-top: 2px; }
+.goal-home:hover { text-decoration: underline; }
+.goal-sig { font-size: 10.5px; color: var(--ink-2); flex: none; }
+.goal-final { font-size: 9.5px; color: var(--ink-3); flex: none; border: 1px solid var(--line); border-radius: 20px; padding: 1.5px 8px; }
+.goal-children { margin: 0 0 10px 18px; border-left: 2px solid #E4E9F1; padding-left: 10px; }
+.ask-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 650; padding: 5px 12px; border-radius: 7px;
+  border: 1px solid var(--line); color: var(--ink-2);
+  transition: background .15s, color .15s;
+}
+.ask-btn.on { background: #FFF7E6; border-color: #F0D9B4; color: var(--amber); }
+.ask-btn[disabled] { opacity: .4; cursor: not-allowed; }
+.composer.v-ask .cbox { border-color: #F0B44A; background: #FFFBF2; }
+.composer.v-ask .send { background: var(--amber); }
+.askcard {
+  border-radius: 12px; border: 1px solid #F0D9B4; border-left: 4px solid #F0B44A;
+  background: #FFFDF6; box-shadow: var(--shadow);
+  padding: 10px 13px; max-width: 560px;
+}
+.askcard .q { font-size: 11px; color: var(--ink-3); margin-bottom: 5px; }
+.askcard .a { font-size: 13px; font-weight: 650; line-height: 1.6; }
+.askcard .src { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; }
+.askcard .cross {
+  margin-top: 7px; font-size: 10.5px; color: var(--pub-deep);
+  background: #EDF3FF; border: 1px dashed var(--pub-line);
+  border-radius: 7px; padding: 5px 9px;
+}
+.verdict-card {
+  border-radius: 12px; border: 1px solid var(--amber-line); border-top: 3px solid var(--amber);
+  background: #FFFDF8; box-shadow: var(--shadow);
+  max-width: 620px; overflow: hidden;
+}
+.vd-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px 8px; }
+.vd-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; border-top: 1px dashed #F4EBDB;
+}
+.vd-row .desc { flex: 1; min-width: 0; font-size: 12px; }
+.vd-row .desc .ev { display: block; font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+.vd-acts { display: flex; gap: 5px; flex: none; }
+.vd-btn { font-size: 11px; font-weight: 650; padding: 4px 10px; border-radius: 7px; border: 1px solid var(--line); color: var(--ink-2); }
+.vd-btn:hover { box-shadow: var(--shadow); }
+.vd-mark { font-size: 11px; font-weight: 700; flex: none; }
+.vd-mark.ok { color: var(--green); }
+.vd-mark.no { color: var(--red); }
+.vd-mark.hold { color: var(--amber); }
+.lease-row {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 6px 0; font-size: 12px; border-bottom: 1px dashed #F0F2F5;
+}
+.lease-tag { font-size: 9.5px; font-weight: 700; padding: 1.5px 7px; border-radius: 20px; background: #FFF3E0; color: var(--amber); border: 1px solid var(--amber-line); flex: none; }
+.lease-tag.expired { background: #E5E8ED; color: var(--ink-3); border-color: var(--line); }
+
+/* v4.6：回复 / 引用条 / 就地展开 / 返回 */
+.reply-btn {
+  font-size: 10px; font-weight: 650; color: var(--pub);
+  padding: 1px 8px; border-radius: 10px; border: 1px solid var(--pub-line);
+  opacity: 0; transition: opacity .12s; flex: none;
+}
+.msg:hover .reply-btn { opacity: 1; }
+.reply-btn.at-agent { color: var(--pub-deep); border-color: var(--pub); background: #F3F7FF; margin-left: 4px; }
+.reply-btn.at-agent:hover { background: var(--pub); color: #fff; }
+.quote-bar {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11.5px; color: var(--ink-2);
+  background: #F4F6F9; border-left: 3px solid var(--pub);
+  border-radius: 6px; padding: 5px 10px; margin-bottom: 6px;
+}
+.quote-bar .x { margin-left: auto; cursor: pointer; color: var(--ink-3); font-size: 13px; }
+.quote-bar .x:hover { color: var(--red); }
+.qline {
+  font-size: 11px; color: var(--ink-3);
+  border-left: 2px solid var(--pub-line);
+  padding-left: 7px; margin-bottom: 5px;
+}
+.tc-expand { font-size: 10.5px; color: var(--pub); font-weight: 650; cursor: pointer; flex: none; margin-right: 2px; }
+
+/* v4.11 工件预览三态：流内卡 → 并排（默认态，边看边回）→ 沉浸 */
+.app.pv-wide { grid-template-columns: 272px minmax(420px, 0.9fr) minmax(460px, 1.1fr); }
+.filepv { position: absolute; inset: 0; z-index: 6; background: #fff; display: flex; flex-direction: column; }
+.fpv-head { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex: none; }
+.fpv-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fpv-hint { font-size: 10px; color: var(--ink-3); padding: 6px 14px; border-bottom: 1px dashed var(--line); background: #FAFBFC; flex: none; }
+.fpv-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px 24px; }
+.fpv-doc { font-size: 12.5px; line-height: 1.75; color: var(--ink); }
+.fpv-doc h2 { font-size: 16px; margin: 4px 0 2px; }
+.fpv-doc h3 { font-size: 13px; margin: 14px 0 4px; }
+.fpv-doc p { margin: 4px 0; }
+.fpv-dim { color: var(--ink-3); font-size: 10.5px; }
+.fpv-page { background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 10px; }
+.fpv-pageno { font-size: 9.5px; color: var(--ink-3); margin-bottom: 6px; }
+.fpv-sandbox { font-size: 10.5px; color: var(--amber); background: #FFF7E6; border: 1px solid var(--amber-line); border-radius: 7px; padding: 6px 10px; margin-bottom: 10px; }
+.fpv-full { position: fixed; inset: 0; z-index: 70; background: #F7F8FA; display: flex; flex-direction: column; }
+/* display:flex 会覆盖 [hidden] 的 UA 规则——必须显式补回 */
+.filepv[hidden], .fpv-full[hidden] { display: none; }
+/* 预览宽度：可拖分隔线 + 两端护栏 + 记忆——固定宽度=替用户决定主次，而主次是当下意图的属性 */
+.fpv-divider { position: absolute; left: 0; top: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 8; }
+.fpv-divider::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--line); transition: background .12s, width .12s; }
+.fpv-divider:hover::after, body.pv-dragging .fpv-divider::after { width: 3px; background: var(--pub); }
+body.pv-dragging { user-select: none; cursor: col-resize; }
+/* v4.12 目标枢纽：承诺板第二缩放级别 */
+.hub-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; margin-bottom: 10px; }
+.hub-std { display: inline-block; background: #F4F6F9; border: 1px solid var(--line); border-radius: 7px; padding: 2px 9px; margin: 2px 4px 2px 0; font-size: 11px; }
+.hub-warn { margin-top: 8px; font-size: 11px; color: var(--amber); background: #FFF7E6; border: 1px solid var(--amber-line); border-radius: 8px; padding: 6px 9px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.goal-title-link { cursor: pointer; }
+.goal-title-link:hover { color: var(--pub); text-decoration: underline; }
+/* v4.14 信号即门：会话决断条（指针投影，非复制落座）+ 定位闪烁 + 验收卡的脸 */
+.decide-strip {
+  position: sticky; top: 6px; z-index: 7;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 4px 20px 10px 14px; padding: 7px 12px;
+  background: #FFF9EE; border: 1px solid var(--amber-line); border-left: 4px solid var(--amber);
+  border-radius: 9px; font-size: 11.5px; color: var(--ink-2); box-shadow: var(--shadow);
+}
+.decide-strip b { color: var(--amber); }
+.ds-item {
+  font-size: 11px; font-weight: 650; color: var(--pub-deep);
+  background: #fff; border: 1px solid var(--line); border-radius: 7px;
+  padding: 2px 10px; cursor: pointer; transition: border-color .12s, color .12s;
+}
+.ds-item:hover { border-color: var(--pub); color: var(--pub); }
+.ds-note { margin-left: auto; font-size: 9.5px; color: var(--ink-3); }
+@keyframes dsflash { 0%, 55% { box-shadow: 0 0 0 3px rgba(240,180,74,.55); } 100% { box-shadow: 0 0 0 0 rgba(240,180,74,0); } }
+.flash { animation: dsflash 1.2s ease-out 2; border-radius: 12px; }
+.acceptbar.awaiting { display: block; border: 1.5px solid var(--amber-line); border-left: 4px solid var(--amber); background: #FFFDF6; border-radius: 12px; padding: 10px 13px; }
+.aw-face { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 750; color: var(--amber); margin-bottom: 7px; }
+.tc-expand:hover { text-decoration: underline; }
+.tc-peek {
+  margin: 4px 0 2px 44px; max-width: 440px;
+  border: 1px dashed var(--pub-line); border-radius: 10px;
+  background: #FBFDFF; padding: 8px 12px;
+}
+.peek-row { font-size: 11.5px; line-height: 1.7; color: var(--ink-2); }
+.peek-row b { color: var(--ink); font-weight: 650; }
+.backbtn {
+  font-size: 12px; font-weight: 650; color: var(--pub);
+  padding: 3px 10px; border-radius: 8px; border: 1px solid var(--pub-line);
+  margin-right: 6px; flex: none;
+}
+.backbtn:hover { background: var(--pub-tint); }
+
+/* ---------- 悬浮球 ---------- */
+.floatball {
+  position: fixed; right: 22px; bottom: 24px; z-index: 40;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: linear-gradient(150deg, #3B74E8, #1E4FBD);
+  color: #fff; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 18px rgba(30,79,189,.35);
+  transition: transform .15s;
+}
+.floatball:hover { transform: translateY(-2px) scale(1.04); }
+.fb-badges { position: absolute; top: -5px; right: -7px; display: flex; gap: 3px; }
+.fb-b {
+  min-width: 17px; height: 17px; border-radius: 20px;
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px; border: 2px solid #fff;
+}
+.fb-b.amber { background: #E08908; color: #fff; }
+.fb-b.green { background: #1E9E52; color: #fff; }
+.fb-b[data-zero="1"] { display: none; }
+
+/* ---------- 设计注解 ---------- */
+.pin {
+  position: absolute; z-index: 30;
+  width: 21px; height: 21px; border-radius: 50%;
+  background: #171B22; color: #FFD666;
+  font-size: 11px; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3);
+  transition: transform .12s;
+}
+.pin:hover { transform: scale(1.18); }
+body.annotate .pin { display: flex; }
+.pin.inline { position: relative; display: none; vertical-align: middle; margin-left: 6px; flex: none; }
+body.annotate .pin.inline { display: inline-flex; }
+.popover {
+  position: fixed; z-index: 60; width: 330px;
+  background: #171B22; color: #E5E9F2;
+  border-radius: 12px; padding: 14px 16px;
+  box-shadow: var(--shadow-pop);
+  font-size: 12.5px; line-height: 1.75;
+  display: none;
+}
+.popover.show { display: block; animation: popin .16s ease; }
+@keyframes popin { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none; } }
+.popover h4 { font-size: 13px; color: #FFD666; margin-bottom: 5px; display: flex; gap: 7px; align-items: center; }
+.popover h4 .no { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; opacity: .8; }
+.popover .body b { color: #fff; }
+.popover .close { position: absolute; top: 8px; right: 10px; color: #7B8496; font-size: 14px; }
+.popover .close:hover { color: #fff; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+  z-index: 70;
+  background: #171B22; color: #E5E9F2; font-size: 12.5px;
+  padding: 9px 18px; border-radius: 10px;
+  box-shadow: var(--shadow-pop);
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 1200px) {
+  .app { grid-template-columns: 240px minmax(420px, 1fr) 0px; }
+  .rightpanel { display: none; }
+}
+</style>
+</head>
+<body class="annotate">
+
+<header class="topbar">
+  <span class="wordmark">DSH<em>_</em></span>
+  <span class="crumb">终极形态 v4.1 · <b>图的居民补全</b>　—— 会话 · 工件 · 承诺 · 流程（目标 = 复合承诺）</span>
+  <span class="spacer"></span>
+  <a class="xlink" href="ultimate-form-demo-v3.html">v3 沙盘 ↗</a>
+  <button class="annotate-toggle" id="annotateToggle" aria-pressed="true">
+    <span class="dot"></span>设计注解
+  </button>
+  <span class="top-avatar" title="Bruce">B</span>
+</header>
+
+<div class="hintbar" id="hintbar">
+  <span>v4 沙盘</span>
+  <span class="k">① 侧栏「◫ 承诺板」：目标分组（真身外挂 · 信号计数）+ 人/agent/流程、逾期提醒、时间回顾</span>
+  <span class="k">② ⚡ 轻问：问"销售群里凯瑞的最新口径"看跨场所即答</span>
+  <span class="k">③ 财务群「7月对账」：裁决卡；其合同里有授权租约与记忆策略</span>
+  <span class="k">④ hover 消息「↩ 回复」· 话题卡「⌄ 展开」· 进话题后「‹ 返回原位」</span>
+  <span class="k">⑤ 黄色数字 = 设计注解</span>
+  <button class="close" id="hintClose" aria-label="关闭引导">×</button>
+</div>
+
+<div class="app">
+
+  <!-- 侧栏：统一收件箱 -->
+  <nav class="sidebar" aria-label="统一收件箱">
+    <div class="side-head">
+      <h2>收件箱</h2><span class="sub">操作者的全部会话 · 按注意力排序</span>
+      <button class="pin" data-note="1" style="right: 10px; top: 12px;" aria-label="设计注解 1">1</button>
+    </div>
+    <div class="triage" id="triage"></div>
+    <button class="board-entry" data-sess="board">◫ 承诺板 · 跨执行者<span class="bd">1 逾期</span></button>
+    <div class="tree" id="tree"></div>
+  </nav>
+
+  <!-- 中栏：融合时间线 -->
+  <main class="main">
+    <div class="sess-head" id="sessHead"></div>
+    <div class="timeline" id="timeline"></div>
+    <div class="composer v-pri" id="composer">
+      <div class="voice-row">
+        <div class="voice-seg" role="tablist" aria-label="语态">
+          <button class="voice-btn" data-voice="pri" id="voicePri" role="tab"><span class="vdot"></span>对 Agent 说 · 私</button>
+          <button class="voice-btn" data-voice="pub" id="voicePub" role="tab"><span class="vdot"></span>发到群里 · 公</button>
+        </div>
+        <button class="ask-btn" id="askBtn" title="一次性投影：问一个数得一个数，不产生任务">⚡ 轻问</button>
+        <button class="pin inline" data-note="6" aria-label="设计注解 6">6</button>
+        <button class="pin inline" data-note="18" aria-label="设计注解 18">18</button>
+        <button class="pin inline" data-note="22" aria-label="设计注解 22">22</button>
+      </div>
+      <div class="quote-bar" id="quoteBar" hidden></div>
+      <div class="chips-row" id="chipsRow" hidden></div>
+      <div class="cbox">
+        <textarea id="input" rows="1" aria-label="输入消息" placeholder=""></textarea>
+        <button class="send" id="send">发送</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 右栏：记忆 + 资源 -->
+  <aside class="rightpanel" aria-label="记忆与资源">
+    <div class="res-head">
+      <h3>对象面</h3><span class="sub">流沉淀为物 · 跟会话走</span>
+    </div>
+    <div class="res-tabs">
+      <button class="res-tab active" data-tab="cur">当前</button>
+      <button class="res-tab" data-tab="mem">记忆</button>
+      <button class="res-tab" data-tab="res">资源</button>
+      <button class="pin" data-note="14" style="right: 34px; top: 2px;" aria-label="设计注解 14">14</button>
+      <button class="pin" data-note="8" style="right: 12px; top: 2px;" aria-label="设计注解 8">8</button>
+    </div>
+    <div class="res-body" id="resBody"></div>
+    <div class="filepv" id="filePv" hidden></div>
+  </aside>
+</div>
+
+<button class="floatball" id="floatball" title="注意力汇总">
+  云
+  <span class="fb-badges">
+    <span class="fb-b amber" id="fbAmber">1</span>
+    <span class="fb-b green" id="fbGreen">1</span>
+  </span>
+</button>
+
+<div class="popover" id="popover" role="dialog">
+  <button class="close" id="popClose" aria-label="关闭">×</button>
+  <h4><span class="no" id="popNo"></span><span id="popTitle"></span></h4>
+  <div class="body" id="popBody"></div>
+</div>
+
+<div class="apanel-mask" id="apanelMask">
+  <div class="apanel" role="dialog" aria-label="Agent 场所合同" id="apanel"></div>
+</div>
+
+<div class="fpv-full" id="fpvFull" hidden></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   会话图数据：session 是唯一实体；本页 = 桌面全量投影（公+私）
+   ============================================================ */
+const AV = {
+  me:    { t: 'B',  c: '#46536B' },
+  liting:{ t: '李', c: '#C2703D' },
+  wang:  { t: '王', c: '#5B8A72' },
+  zhang: { t: '张', c: '#7D6BAA' },
+  zheng: { t: '郑', c: '#8A6D3B' },
+  agent: { t: '助', c: '#171B22' },
+};
+const AGENT_ALIAS = /@agent|@智能体|@云小助/i;
+
+const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me' };
+
+/* v4：承诺板数据——图的第三类居民（执行者可为人/agent/流程） */
+const COMMITS = [
+  { name: '竞品对比表', exec: 'agent', who: '云小助', due: '明 10:00 前', sess: 'competitor', goal: 'g1', linked: '推断 · ack 公示可纠', prod: ['md1'], aud: 'all' },
+  { name: 'Q3 路线图整理', exec: 'agent', who: '云小助', due: '今天 14:00 前', sess: 'roadmap', goal: 'g1', linked: '显式指定', prod: ['html1'], aud: 'all' },
+  { name: '返修数据分析', exec: 'human', who: '张锐', due: '昨天 18:00', overdue: true, reminded: false, goal: 'g1', linked: '登记时指定', aud: 'all', nosignal: true, lastSignal: '登记时 · 上周五' },
+  { name: '管理层沟通准备', exec: 'human', who: '王超', due: '周四', state: '进行中', goal: 'g1', linked: '私下登记（DM）', aud: 'dm' },
+  { name: '7月对账核对', exec: 'agent', who: '云小助', due: '8/5 前', sess: 'recon' },
+  { name: '售后 FAQ 更新', exec: 'human', who: '小唐', due: '周五', state: '进行中' },
+  { name: '月结流程', exec: 'process', who: '流程 · 每月 1-5 日', due: '下次 9/1 启动', state: '休眠' },
+];
+/* v4.1：目标 = 复合承诺；真身外挂（采纳轴裁决），图上只记父目标引用（URI） */
+const GOALS = {
+  g1: { title: 'Q3 产品竞争力提升', home: '云之家 ·《Q3 目标 · 产品组》表',
+        born: '生于 8/11 Q3 规划会 · AI 速记纪要 → 提案裁决 · Bruce 确认落库（人签发——agent 只能提案，不能作者目标）',
+        std: ['竞品能力矩阵入产品工作区', '定价策略建议文档', '移动端场景验证'],
+        wrote: '8/18' },
+};
+let goalSeq = 1; /* 立目标 = 登记动词复用；三入口共用此序列 */
+/* v4.11 文件即工件：人发的文件消息与 agent 交付工件同一张卡、同一套三态预览（真身在云之家，预览是投影） */
+const FILES = {
+  pdf1:  { kind: 'pdf',  name: '发布物料清单.pdf',  meta: '2.4 MB · 李婷 上传 · 云之家文件', pages: 6 },
+  md1:   { kind: 'md',   name: '竞品对比分析.md',   meta: '18 KB · 云小助 交付 · 血缘：本话题任务产出' },
+  html1: { kind: 'html', name: 'Q3路线图评审.html', meta: '312 KB · 云小助 交付 · 自包含单页' },
+};
+/* v4.9 拆解提案：agent 只有提议权——每条过人的手；确认即代发登记话语（幽灵承诺禁令） */
+const DECOMP = [
+  { desc: '移动端竞品截图与定价页归档', exec: 'agent', who: '云小助', due: '周三前', channel: '产品讨论群（公开委派）', decision: null },
+  { desc: '重点客户移动端诉求访谈 3 场', exec: 'human', who: '张三', due: '下周五前', channel: '与张三的 DM（私下登记）', decision: null },
+  { desc: '移动端轻协作 PRD 草稿', exec: 'human', who: '李婷', due: '下周一前', channel: '产品讨论群（公开登记）', decision: null },
+];
+/* v4.10 完成度评估：差距简报 = 真身成功标准 × 子承诺终态 × 工件归集（真身证据，非自报数） */
+const EVAL = [
+  { mark: 'ok', desc: '竞品对比（含移动端定价）——已达成', ev: '证据：竞品对比表 v2（工件）· 承诺终态：已验收' },
+  { mark: 'hold', desc: '定价策略建议——部分达成', ev: '对比表含定价列，但无策略建议文档（差距）', gap: true },
+  { mark: 'no', desc: '移动端场景验证——缺失', ev: '真身成功标准第 3 条无任何挂接承诺' },
+];
+
+/* 场所记忆库（跟场所走：群 / 联系人） */
+const MEM = {
+  '产品讨论群': [],
+  '设计评审群': [],
+  '财务群': [],
+  '张三': [
+    { k: 'contact:张三', t: '张三的走访汇总按客户分组、标出待跟进事项。', m: '蒸馏自走访汇总任务 · 8月16日' },
+  ],
+  '李婷': [],
+};
+
+const sessions = {
+  board: {
+    group: null, kind: 'board', placeKey: null,
+    title: '承诺板', status: 'idle', agentState: null, sid: null,
+    icon: { t: '◫', c: '#46536B' }, preview: '', voiceDefault: 'pri',
+    timeline: [],
+  },
+
+  recon: {
+    group: '财务群', kind: 'topic', placeKey: '财务群',
+    title: '7月对账核对',
+    status: 'confirm',
+    agentState: '对账核对中',
+    sid: 'session-yzj-topic-f31a…',
+    icon: { t: '财', c: '#B45309' },
+    preview: '待裁决：3 处差异',
+    voiceDefault: 'pri',
+    objects: { artifacts: [], refs: [{ icon: '▦', t: '7月对账单', m: '306 行', pv: 'sheet-pool' }], events: [] },
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: '09:02', mine: true, delegate: true,
+        text: '<span class="at">@云小助</span> 核对 7 月对账单和 ERP 应收明细，差异逐条列出来给我裁决，不要直接改数。' },
+      { type: 'agent-pub', time: '09:02', kind: 'ack', text: '已接收，<b>回复本条消息</b>可在此任务上继续。核对后差异走裁决卡，不动原数据。' },
+      { type: 'work', time: '09:15', summary: 'Agent 工作过程 · 3 个步骤', open: true, steps: [
+        { st: 'done', tool: 'sheet record list', desc: '读取对账单 306 行 + ERP 应收明细' },
+        { st: 'done', tool: '交叉核对', desc: '双向比对，303 行一致' },
+        { st: 'wait', tool: '差异扫描', desc: '3 处差异 —— 等待裁决' },
+      ]},
+      { type: 'verdict', id: 'vd1', pin: 19, done: false, findings: [
+        { desc: '#114 发票金额 ¥12,800 ≠ 台账 ¥12,300', ev: '差额 ¥500 · 供应商：宏图科技 · 发票影像已挂', decision: null },
+        { desc: '#207 疑似重复计费 ¥8,400', ev: '与 #198 同单号 SO-2607 · 两条记录时间差 3 分钟', decision: null },
+        { desc: '#289 汇率口径不一致（6.92 vs 7.08）', ev: '7 月中旬调价前后混用 · 涉及 2 笔', decision: null },
+      ]},
+    ],
+  },
+
+  fingroup: {
+    group: '财务群', kind: 'groupview', placeKey: '财务群',
+    title: '财务群',
+    status: 'idle',
+    agentState: null, sid: null,
+    icon: { t: '财', c: '#B45309' },
+    preview: '群视图 · 主楼 + 话题',
+    voiceDefault: 'pub',
+    objects: { artifacts: [], refs: [], events: [] },
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'im', who: 'zheng', name: '郑慧', time: '08:55', text: '7月对账今天要出结论，差异先别手工改台账，等裁决。' },
+      { type: 'topiccard', target: 'recon', meta: 'Bruce 发起 · 6 条 · 刚刚活跃' },
+      { type: 'im', who: 'zheng', name: '郑慧', time: '09:20', text: '收到裁决结果我这边同步给供应商。' },
+    ],
+  },
+
+  prodgroup: {
+    group: '产品讨论群', kind: 'groupview', placeKey: '产品讨论群',
+    title: '产品讨论群',
+    status: 'idle',
+    agentState: null, sid: null,
+    icon: { t: '产', c: '#2E63D9' },
+    preview: '群视图 · 主楼 + 话题',
+    voiceDefault: 'pub',
+    objects: { artifacts: [], refs: [], events: [
+      { time: '14:00', t: '产品例会', m: '会议室 A', pv: 'ev-meeting' },
+      { time: '明 10:00', t: '管理层竞品评审', m: '需要对比表', pv: 'ev-review' },
+    ]},
+    timeline: [
+      { type: 'divider', text: '上周五' },
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: '17:40', mine: true, delegate: true,
+        text: '<span class="at">@云小助</span> 登记个承诺：返修数据分析由<b>张锐</b>负责，周日 18:00 前给结论，挂「Q3 产品竞争力提升」目标。' },
+      { type: 'agent-pub', time: '17:40', kind: 'ack', text: '已登记承诺：返修数据分析 · 执行者 <b>张锐</b> · 周日 18:00 前 · 已挂目标<b>「Q3 产品竞争力提升」</b>（登记时指定）。我会盯进度——观察与提醒，不代做。' },
+      { type: 'divider', text: '今天' },
+      { type: 'goalprop', id: 'gp1', state: null, pin: 21,
+        meta: 'AI 速记 · 今早产品晨会（08:30）· 纪要已归档',
+        title: '孵化「移动端轻协作」为 Q4 候选目标',
+        ev: '纪要片段：「……移动端场景讨论了 20 分钟，结论是列入 Q4 候选，Bruce 牵头……」' },
+      { type: 'im', who: 'wang', name: '王超', time: '09:20', text: '下午例会改到 3 点，会议室不变。' },
+      { type: 'topiccard', target: 'roadmap', meta: '王超发起 · 8 条 · 5 分钟前活跃' },
+      { type: 'im', who: 'liting', name: '李婷', time: '10:30', text: '发布物料我下午整理好发大家。' },
+      { type: 'file', who: 'liting', name: '李婷', time: '10:32', file: 'pdf1' },
+      { type: 'topiccard', target: 'competitor', meta: '李婷发起 · 14 条 · 刚刚活跃', pin: 13 },
+      { type: 'im', who: 'wang', name: '王超', time: '11:05', text: '收到。多维表格那份记得带定价列。' },
+    ],
+  },
+
+  competitor: {
+    group: '产品讨论群', kind: 'topic', placeKey: '产品讨论群',
+    title: '竞品对比表',
+    status: 'confirm',
+    agentState: '整理竞品对比中',
+    sid: 'session-yzj-topic-9d2c…',
+    icon: { t: '产', c: '#2E63D9' },
+    preview: '待确认：审批对象 #7（写入 12 条记录）',
+    voiceDefault: 'pri',
+    objects: { artifacts: [], refs: [], events: [
+      { time: '明 10:00', t: '管理层竞品评审', m: '会议室 C · 本任务的交付场合', pv: 'ev-review' },
+    ]},
+    acceptMemory: [
+      { k: 'workspace', t: '产品组的对比类表格放「产品组」工作区，命名「XX · 评审表」。', m: '蒸馏自任务 #7 · 今天' },
+      { k: 'contact:李婷', t: '李婷的评审材料需要带定价维度列。', m: '蒸馏自任务 #7 · 今天' },
+    ],
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'im', who: 'liting', name: '李婷', time: '10:02', text: '下周一要给管理层过竞品对比，Notion、飞书多维表格、Airtable 这三家的协作能力谁来梳理一下？' },
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: '10:04', mine: true, delegate: true, pin: 12,
+        text: '<span class="at">@云小助</span> 按功能维度做一张对比表：实时协作、权限模型、自动化、API 开放度、定价。放到产品组工作区。' },
+      { type: 'agent-pub', time: '10:04', kind: 'ack', pin: 3, text: '已接收，<b>回复本条消息</b>可在此任务上继续。已挂到目标<b>「Q3 产品竞争力提升」</b>（从"给管理层过竞品对比"推断，不对请说）。预计 20 分钟内回帖对比表。' },
+      { type: 'file', who: 'agent', name: '云小助', time: '10:22', file: 'md1' },
+      { type: 'work', time: '10:05', summary: 'Agent 工作过程 · 4 个步骤', open: true, steps: [
+        { st: 'done', tool: 'contact whoami', desc: '确认专号身份与组织' },
+        { st: 'done', tool: 'doc workspace list', desc: '定位「产品组」工作区' },
+        { st: 'done', tool: 'doc / web 检索', desc: '汇总三家产品协作能力资料' },
+        { st: 'wait', tool: 'sheet create', desc: '创建对比表并写入记录 —— 等待审批 #7' },
+      ]},
+      { type: 'agent-pub', time: '10:09', kind: 'pause', pin: 4, text: '⏸ 需要一项写入确认（创建表格并写入 12 条记录），已同步推送审批 #7，确认后继续。' },
+      { type: 'confirm', id: 'cc1', state: 'pending', pin: 5,
+        domain: 'sheet', title: '审批对象 #7 · 创建多维表格并写入记录', risk: '标准写 · 可逆',
+        fields: [
+          ['工作区', '<b>产品组</b>'],
+          ['新建表格', '<b>竞品对比 · 评审表</b>'],
+          ['数据表', '协作能力对比（5 个维度字段）'],
+          ['写入记录', '<b>12 条</b>（Notion 4 / 飞书 4 / Airtable 4）'],
+        ]},
+    ],
+  },
+
+  roadmap: {
+    group: '产品讨论群', kind: 'topic', placeKey: '产品讨论群',
+    title: 'Q3 路线图整理',
+    status: 'running',
+    agentState: '整理 Q3 路线图中',
+    sid: 'session-yzj-topic-c27e…',
+    icon: { t: '产', c: '#2E63D9' },
+    preview: '运行中：正在生成草稿文档（2/3）',
+    voiceDefault: 'pri',
+    objects: { artifacts: [], refs: [
+      { icon: '📄', t: '周会纪要 ×3', m: '知识库 · 产品组', pv: 'doc-minutes' },
+    ], events: [
+      { time: '14:00', t: '产品例会', m: '例会前交付草稿', pv: 'ev-meeting' },
+    ]},
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'im', who: 'wang', name: '王超', time: '09:31', text: 'Q3 路线图今天能出个初稿吗？下午例会想过一遍。' },
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: '09:33', mine: true, delegate: true,
+        text: '<span class="at">@云小助</span> 把最近三周的周会结论整理成 Q3 路线图草稿，输出到知识库「产品组」，例会前发到群里。这是「Q3 产品竞争力提升」目标下的事。' },
+      { type: 'agent-pub', time: '09:33', kind: 'ack', text: '已接收，<b>回复本条消息</b>可在此任务上继续。已挂到目标<b>「Q3 产品竞争力提升」</b>（显式指定）。' },
+      { type: 'work', time: '09:34', summary: 'Agent 工作过程 · 进行中', open: true, steps: [
+        { st: 'done', tool: 'doc list', desc: '读取近三周周会纪要 ×3' },
+        { st: 'done', tool: 'doc get', desc: '提取决议与结论 17 条' },
+        { st: 'run',  tool: 'doc create', desc: '正在生成《Q3 路线图 · 草稿》…' },
+      ]},
+      { type: 'agent-pub', time: '09:41', kind: 'progress', text: '进度：会议纪要梳理完成（3/3），正在生成草稿文档，预计 10 分钟内回帖。' },
+      { type: 'file', who: 'agent', name: '云小助', time: '09:45', file: 'html1' },
+    ],
+  },
+
+  zhangsan: {
+    group: '私聊', kind: 'dm', placeKey: '张三',
+    title: '张三',
+    status: 'review',
+    agentState: null,
+    sid: 'session-yzj-topic-e91b…',
+    icon: { t: '张', c: '#7D6BAA' },
+    preview: '待验收：走访汇总 + 过程摘要已交付',
+    voiceDefault: 'pri',
+    objects: { artifacts: [
+      { icon: '📄', t: '客户走访汇总 · 8月第2周', m: '文档 · 产品组工作区', pv: 'doc-visit' },
+      { icon: '🧾', t: '任务过程摘要', m: '文档 · 全组可查', pv: 'doc-summary' },
+    ], refs: [
+      { icon: '▦', t: '走访记录表', m: '9 条记录', pv: 'sheet-visits' },
+    ], events: [
+      { time: '明 9:00', t: '晨会', m: '汇总的使用场合' },
+    ]},
+    acceptMemory: [
+      { k: 'contact:张三', t: '走访汇总交付后张三会核对客户名，公司名需精确。', m: '蒸馏自走访汇总任务 · 今天' },
+    ],
+    timeline: [
+      { type: 'divider', text: '昨天' },
+      { type: 'im', who: 'zhang', name: '张三', time: '17:20', text: '麻烦把上周的客户走访记录汇总一下，明早晨会要用。' },
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: '17:22', mine: true, delegate: true,
+        text: '<span class="at">@云小助</span> 汇总上周走访记录：按客户分组，标出待跟进事项，生成文档发这里。' },
+      { type: 'agent-pub', time: '17:22', kind: 'ack', text: '已接收，正在处理。' },
+      { type: 'work', time: '17:26', summary: 'Agent 工作过程 · 3 个步骤', open: false, steps: [
+        { st: 'done', tool: 'memory read', desc: '命中 1 条联系人记忆：按客户分组、标待跟进', mem: true },
+        { st: 'done', tool: 'sheet record list', desc: '读取走访记录表 9 条' },
+        { st: 'done', tool: 'doc create', desc: '生成《客户走访汇总 · 8月第2周》' },
+      ]},
+      { type: 'artifact', icon: '📄', title: '客户走访汇总 · 8月第2周', meta: '云之家文档 · 产品组工作区', pv: 'doc-visit' },
+      { type: 'artifact', icon: '🧾', title: '任务过程摘要', meta: '云之家文档 · 做了什么 / 读写了什么，可查', pin: 9, pv: 'doc-summary' },
+      { type: 'agent-pub', time: '17:31', kind: 'done', text: '✅ 已完成：9 条走访记录，2 个待跟进事项，文档与过程摘要已发。' },
+      { type: 'im', who: 'zhang', name: '张三', time: '17:40', text: '辛苦！第 3 条的客户名帮我核对一下，应该是「宏图科技」不是「宏途」。' },
+      { type: 'agent-pub', time: '17:41', kind: 'progress', text: '已修正：第 3 条客户名更新为「宏图科技」，文档已同步。' },
+      { type: 'accept', id: 'ac-zhangsan', state: 'pending', pin: 7 },
+    ],
+  },
+
+  litingdm: {
+    group: '私聊', kind: 'cold', placeKey: '李婷',
+    title: '李婷',
+    status: 'unread', unread: 1,
+    agentState: null, sid: null,
+    icon: { t: '李', c: '#C2703D' },
+    preview: '李婷：周一评审前发我一份最新的~',
+    voiceDefault: 'pub',
+    warm: { kind: 'dm', title: '李婷', agentState: '准备最新对比表中', sid: 'session-yzj-topic-77be…', preview: '运行中：Agent 已接收任务' },
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'divider', text: '以下为未读', unread: true },
+      { type: 'im', who: 'liting', name: '李婷', time: '11:02', text: '上次那份对比表，周一评审前发我一份最新的~' },
+      { type: 'coldhint', pin: 2, html: '这是一个还没有 Agent 参与的<b>冷会话</b>——它和热 session 同列在收件箱里（操作者的全部会话都在这一个产品里）。<br>切到「<b>发到群里 · 公</b>」并 <b>@云小助</b> 布置任务，即可焐热为持久 Session。' },
+    ],
+  },
+
+  designreview: {
+    group: '设计评审群', kind: 'cold', placeKey: '设计评审群',
+    title: '设计评审群',
+    status: 'unread', unread: 2,
+    agentState: null, sid: null,
+    icon: { t: '设', c: '#5B8A72' },
+    preview: '王超：两个 P1 的间距问题…',
+    voiceDefault: 'pub',
+    warm: { kind: 'topic', title: '设计评审群 › 面板走查', agentState: '处理面板走查任务中', sid: 'session-yzj-topic-a41f…', preview: '运行中：Agent 已接收任务' },
+    timeline: [
+      { type: 'divider', text: '昨天' },
+      { type: 'im', who: 'wang', name: '王超', time: '16:02', text: '新版工作台面板的间距问题今天过一下。' },
+      { type: 'im', who: 'liting', name: '李婷', time: '16:05', text: '我下午 3 点前把标注发群里。' },
+      { type: 'divider', text: '以下为未读', unread: true },
+      { type: 'im', who: 'wang', name: '王超', time: '09:12', text: '标注收到，两个 P1 的间距问题 @Bruce 看一下优先级。' },
+      { type: 'im', who: 'liting', name: '李婷', time: '09:15', text: '顺便把滚动条样式也统一了吧，三个 tab 现在各长各的。' },
+      { type: 'coldhint', html: '冷会话 ×2：点开即看历史、可发言。<b>@云小助</b> 即焐热（topic ↔ session 自动锚定）。冷/热是<b>采纳状态</b>，不是两个产品。' },
+    ],
+  },
+
+  local: {
+    group: 'dsh-yzj', kind: 'local', placeKey: null,
+    title: '重构 bridge 超时逻辑',
+    status: 'idle',
+    agentState: null,
+    sid: 'session-a3f81c…',
+    icon: { t: '⌘', c: '#8B93A3' },
+    preview: '已完成：timeoutMs 可配置 · 测试 12/12',
+    voiceDefault: 'pri',
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'user-pri', time: '11:02', text: '把 bridge 的 run() 超时改成可配置，默认 60s，补上测试。' },
+      { type: 'work', time: '11:03', summary: 'Agent 工作过程 · 3 个步骤', open: false, steps: [
+        { st: 'done', tool: 'read', desc: 'packages/bridge/src/index.ts' },
+        { st: 'done', tool: 'edit', desc: 'timeoutMs 提升为构造配置项，保留 60s 默认' },
+        { st: 'done', tool: 'vitest', desc: 'bridge 单测 12 passed' },
+      ]},
+      { type: 'agent-pri', time: '11:07', text: '已完成：`timeoutMs` 提升为 YzjBridge 构造配置项，默认 60000ms 不变；新增 3 个超时边界用例，12/12 通过。' },
+    ],
+  },
+
+  goalhub: {
+    group: '取景框', kind: 'goalhub', placeKey: null,
+    title: '目标枢纽', status: 'idle', agentState: null, sid: null,
+    icon: { t: '◎', c: '#46536B' }, preview: '', voiceDefault: 'pri',
+    timeline: [],
+  },
+
+  goalcraft: {
+    group: 'dsh-yzj', kind: 'local', placeKey: null,
+    title: '磨目标：移动端轻协作',
+    status: 'review',
+    agentState: null,
+    sid: 'session-d2e903…',
+    icon: { t: '⌘', c: '#8B93A3' },
+    preview: '草案 v2 就绪 · 等你签发',
+    voiceDefault: 'pri',
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'user-pri', time: '15:02', text: '我有个初步想法：Q4 做移动端轻协作。但目标本身合不合理、细节怎么定我还没谱——帮我系统性磨一磨。' },
+      { type: 'work', time: '15:03', summary: 'Agent 工作过程 · 组织上下文检索（F-read · 以你的可见域为界）', open: true, steps: [
+        { st: 'done', tool: '承诺板历史', desc: 'Q3 目标 4 子项：3 完成 1 逾期（移动端相关 0 项）' },
+        { st: 'done', tool: 'AI 速记纪要', desc: '近 30 天 3 场会提到「移动端」——8/20 晨会已立候选' },
+        { st: 'done', tool: '知识库检索', desc: '竞品对比表：3 家竞品移动端均已上轻协作' },
+      ]},
+      { type: 'agent-pri', time: '15:04', text: '梳理三问：①<b>为什么是现在</b>——竞品 3 家已上、晨会已有共识（上下文支持）；②<b>边界</b>——「轻协作」是审批+消息，还是含文档协同？后者 Q4 撑不住（Q3 逾期项正是文档链路）；③<b>怎么算完成</b>——建议成功标准写可验收的三条，不写愿景。' },
+      { type: 'user-pri', time: '15:07', text: '边界取审批+消息，文档协同不进 Q4。' },
+      { type: 'agent-pri', time: '15:08', text: '目标草案 v2：<b>「Q4 移动端轻协作（审批+消息）上线」</b>。成功标准（写入真身正文，日后评估即以此为差距基准）：①移动端可完成审批闭环；②消息触达率 ≥95%；③3 个种子团队真实使用 2 周。——落库的每个字由你签发。' },
+      { type: 'goalsign', id: 'gs1', state: null, title: 'Q4 移动端轻协作（审批+消息）上线', std: '① 移动端审批闭环 ② 消息触达率 ≥95% ③ 3 个种子团队使用 2 周' },
+    ],
+  },
+
+  local2: {
+    group: 'dsh-yzj', kind: 'local', placeKey: null,
+    title: 'M0 事实验证脚本',
+    status: 'running',
+    agentState: '双实例 token 并发验证中',
+    sid: 'session-b71e02…',
+    icon: { t: '⌘', c: '#8B93A3' },
+    preview: '运行中：M0 四项验证 2/4',
+    voiceDefault: 'pri',
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'user-pri', time: '14:20', text: '按启动指南跑 M0 四项事实验证，结果整理成表。' },
+      { type: 'agent-pri', time: '14:21', text: '收到。自聊 DM 可行性 ✓、自发消息推送 ✓，正在验证双实例 token 并发……（2/4）' },
+    ],
+  },
+
+  local3: {
+    group: 'yzj-cli', kind: 'local', placeKey: null,
+    title: '日历工具字段梳理',
+    status: 'idle',
+    agentState: null,
+    sid: 'session-c9d411…',
+    icon: { t: '⌘', c: '#8B93A3' },
+    preview: '已完成：7 个日历工具字段清单',
+    voiceDefault: 'pri',
+    timeline: [
+      { type: 'divider', text: '昨天' },
+      { type: 'user-pri', time: '16:40', text: '把 calendar.ts 的 7 个工具字段整理一份清单。' },
+      { type: 'agent-pri', time: '16:42', text: '已整理：7 个日历工具，description 字段齐备；无 reminder / recurrence / webhook 能力。' },
+    ],
+  },
+};
+
+/* v3 注解 */
+const NOTES = {
+  1: { title: '统一收件箱：场所 + 活跃工作集',
+       body: '侧栏列<b>场所</b>（群/联系人，有限稳定）与<b>活跃话题</b>（仅 待确认/待验收/运行中）——<b>侧栏条目是注意力的租客，不是空间的业主</b>：话题终态即退租，规模 = O(活跃任务) 而非 O(历史话题)。行业同款结论：Slack thread 不进侧栏、Discord 活跃话题临时入栏归档退出；我们因话题有终态，退租是状态机事件而非启发式。归档话题的永久住址在群视图的话题卡里。' },
+  2: { title: '冷/热 = 采纳轴，不是两个产品',
+       body: '这个会话还没有 Agent 参与（冷节点）。@云小助 一次即焐热为持久 Session（topic ↔ session 锚定）。v2 曾把"入口在 IM"当成设计原则——错了：那是迁移现实。<b>入口在会话图</b>，桌面工作台就是它的全量投影。' },
+  3: { title: '一张会话图，任意投影',
+       body: '同事的 IM 消息与 Agent 的工作过程在同一条流——本页是会话图在<b>桌面的全量投影（公+私）</b>。云之家原生客户端看到的只是其中蓝色"公"的部分：那是给未采纳者的<b>兼容投影</b>（像 Slack 时代的邮件桥），永不删除，永不作为主形态设计。' },
+  4: { title: '等待可见',
+       body: 'Agent 被写门禁挡住时，群里第一时间知道<b>它在等什么、等谁</b>——信任不在沉默中流失。成本：一条消息。' },
+  5: { title: '审批是图对象，不是界面功能',
+       body: '这张卡不是"桌面功能"，是<b>审批对象 #7 在桌面的投影</b>。同一对象已同步投影到云之家私聊（兜底投影，回复 1/2 即可批）——任一投影上的应答全局生效。<b>设计对象，不设计界面功能</b>；未来的移动工作台只是它的第三个投影。' },
+  6: { title: '双语态 Composer：权限跟语态走',
+       body: '默认「对 Agent 说」——本地 followup，即时、群里不可见，写操作出确认卡。显式切「发到群里」——以你的身份公开发言，含 @云小助 即公开委派（gateway 预授权标准写）。语态显式切换，不做智能推断。专号期将重估公开 steering 默认（方案 §3 B3）。' },
+  7: { title: '任务终态：验收 → 归档 → 蒸馏 → 侧栏退租',
+       body: '任务不停在"完成回帖"：群内自然语言（"收了"）或此处 <b>/done</b> 即验收 → 会话归档 → 触发记忆蒸馏 → <b>侧栏租约到期退出</b>（收件箱不淤积的机制保证）。群视图里它的话题卡同步从任务卡冷却为归档索引卡。拒收 = 话题里继续提要求，自动重开（重新入住侧栏）。' },
+  8: { title: '记忆面板：复利的来源',
+       body: '记忆<b>跟场所走</b>（群记忆 / 联系人记忆），切换会话即切换记忆视图；不跨群泄漏。任务归档时自蒸馏 1-3 条；可检视、可删改——<b>错误记忆比没有记忆更伤信任</b>。没有记忆就没有复利；没有复利它只是工具，不是同事。' },
+  9: { title: '工件 + 过程摘要 = 群可审计',
+       body: '工件落云之家（多维表格/文档），群里只留链接。「过程摘要」是面向群的透明度：任何同事能查 Agent 做了什么、读写了什么——Claude Tag "Open session" 的云之家等价物。<b>透明度本身也是工件</b>，零新界面。' },
+  10: { title: '场所合同：同一个 agent，不同合同',
+       body: '配置挂在场所上（<b>组织默认 → 场所 → 会话快照</b>），与记忆同构，每项标注继承来源。<b>硬合同</b>（权限/工具面/触发者/审批策略）由 guard 强制执行，模型与对话<b>不可写</b>——"只在 prompt 里强制的就是软的"（OpenClaw 反面教训）。<b>软合同</b>（指令/偏好/preset）与场所记忆同库，可对话修改、面板检视。快照语义：会话启动锁 prompt 侧配置，权限每次调用实时校验（借鉴 Claude Tag）。' },
+  11: { title: '轨迹入口：沿用 harness，不另造 viewer',
+       body: '轨迹内容 = deepseek-harness 自身的会话详情/日志视图（session log 本来就是一等公民）。产品只设计<b>入口</b>：工作块「完整轨迹」、Agent 面板、工件反链（每条云之家写入可回溯到 session/turn）。公/私边界延伸到轨迹：操作者看全量，<b>群只看过程摘要文档</b>——绝不泄漏私语 steering。' },
+  12: { title: '会话边界：话题即公共句柄',
+       body: '哪些 @ 属于同一个会话？答案用户一眼可验证：<b>在云之家里同一个话题，就是同一个会话</b>。锚定层级：原生话题 ID（infra ask）> 回复链根 > 自成根；铁律：<b>永不用语义/时间邻近自动归并</b>——归错（上下文污染）比碎片化伤害大。同话题串行、跨话题并行；<b>/new</b> 换代不换句柄、<b>/fork</b> 带背景分叉、归档后再 @ 默认重开。ack 回帖自带教学引导，把用户引进话题语义。' },
+  15: { title: '对象树：类型是属性，不是容器',
+       body: '文档与多维表格<b>同住一棵工作区树</b>（云之家原生语义"归类用父文档挂载"——看「走访记录表」挂在走访汇总下面）。浏览器按<b>组织维度</b>分 tab：空间树（知识库）/ 时间轴（日程），永不按对象类型——类型的归宿是图标、过滤 chip、预览渲染器。<b>找东西按容器，看东西按类型</b>（Notion / 飞书云空间 / Drive 同款收敛）。' },
+  17: { title: '承诺板：图的第三类居民',
+       body: '管理单位是<b>承诺</b>（谁在何时交付什么），执行者可以是 <b>agent、人或流程</b>——五个剧本收敛的最大缺口，"C门面+A协议+B记录"里模式 B 的补全。agent 对人类承诺是<b>观察者+跟催者</b>（F-read 供电），不代做。人类承诺经会话<b>登记</b>而生（"张锐负责 X"——见群视图上周五的登记场景）；目标组内每行的<b>挂接来源</b>逐行可见：显式指定 / 推断（ack 公示可纠）/ 登记时指定——三个孩子恰好覆盖三条路径。两个新取景框：跨执行者（本板）与时间回顾（周报的 pull 版）。克制：节点+边+取景框，不做甘特图/依赖图。' },
+  18: { title: '轻问：F-read 的旗舰',
+       body: '<b>信任门槛是写权限的函数，不是主动性的函数</b>（高管剧本）。轻问 = <b>一次性投影</b>：问一个数得一个数，不产生 ack+话题卡+待验收全家桶。F-read（轻问/晨报/盯承诺/status）全部只读、信任成本趋近于零，提前至 P2.5；F-act（自主写）维持推迟。高管的主契约是问答，不是委派。' },
+  19: { title: '裁决卡：第二种确认卡',
+       body: '确认卡面向"agent <b>要写</b>的参数"，裁决卡面向"agent <b>发现</b>的事"——306 行对账 3 处差异，逐条证据锚点 + 确认/驳回/挂起，挂起不阻塞其余。这是人机交接的另一半界面（财务剧本）。配套<b>授权租约</b>（见财务群场所合同）：对象级+期间级可过期预授权，与注意力租约同构。' },
+  22: { title: '第七动词：作为同事说话',
+       body: '委派是对话的<b>特例</b>，不是对话的全部——以 agent 为圆心设计对话器，会把"人和人说话"这个母集丢掉（§1.3 曾只搬 IM 习语的渲染半边）。公语态补全为完整对话器：<b>就地回复</b>（hover 消息 → ↩）、@成员、图片/表情——全是老小窗 composer 的能力移植。深一层：<b>回复是边界的输入动词</b>——回复链本就是话题锚定的基础设施（replyRootMsgId），话题回帖技术上必然是一次回复。<b>v4.7 收拢</b>：一次发送在回答四个正交问题——<b>落点 / 受话 / 指涉 / 可见域</b>。回复=挂链，落点=链根所在边界，边界规则决定链是否划界（群：<b>冷链平铺热链收纳</b>——链是话题的胚胎、受话 agent 是点火；DM：流即界，回复退化为纯指涉）；委派触发=<b>受话者含 agent</b>（@ 或回复 agent 的消息）；composer 常显<b>锚定条</b>=A0 锚定层级的 UI 真身——落点在按下发送前永远可见，「新」是推导不是选择。消息 hover 提供<b>双动词</b>：↩ 回复（挂链）与 ⚡ @云小助（挂链+受话一步到位——「就这事让 agent 干」的最短路径，实现=预填 @，删 @ 即降回普通回复，零隐藏状态；agent 消息上 ↩ 本身已是受话，故不重复出现）。' },
+  23: { title: 'Back 与 Up：返回精确原位',
+       body: '面包屑给的是 <b>Up</b>（回群顶），你要的是 <b>Back</b>（回离开时的精确位置）——Android 导航模型区分了十几年的两个语义。进话题 = push 导航栈，「‹ 返回原位」= pop + 恢复滚动位置。配套：话题卡<b>就地展开</b>（零导航扫一眼——主次关系是当下意图的属性，不是场所的固有属性：深工作居中栏、扫一眼就地展开）。展开是用户手势不是默认渲染，卡片索引密度不损。' },
+  21: { title: '目标拆解：视角要，子系统不要，目标即工件',
+       body: '目标 = <b>复合承诺</b>（拆解是委派的递归闭包），本分组只是承诺板的一个缩放级别。<b>聚合是信号不是状态</b>：计数帮你决定看哪里，父目标终态永远走人工验收。<b>真身 = 云之家对象</b>（采纳轴：非操作者同事的全组可达之地就是云之家——目标文档/表格今天即可承载），图上只记父目标引用——P1 唯一增量。<b>生命周期</b>：生于会议（纪要接入 = 规划中输入通道）→ agent 书记员确认流落库（<b>不可作者</b>：方向承诺是人的特权）→ 挂接（推断必须 ack 可见可纠正）→ 信号 → 人工验收。拒绝：甘特/依赖/百分比/自建 OKR 机制。<b>v4.8 出生与动线</b>：立目标 = 登记动词复用（<b>人签发</b>铁律——agent 只能提案），三入口：<b>AI 速记纪要 → 提案裁决</b>（内部已有速记产品：纪要→目标提案、待办→承诺提案双桥）/ 对话登记（"立个目标：…，我 own"）/ 本板入口；挂接六路径收拢<b>三时刻</b>：出生（<b>语境继承</b>——挂接引用是语境的属性 + 显式说）→ ack（保守推断可纠）→ 事后（/link + <b>无归属组</b>）；<b>未挂是合法状态</b>——强制对齐产生垃圾对齐。<b>v4.9 执行动线</b>：执行入口统一律——一个动词，语境来源不同。目标行「＋ 委派」是<b>传送门不是表单</b>（选执行者与<b>场所</b>→跳会话带目标 chip；听众是社交决策，人选不推导）；「⚡ 拆解」= agent 提子承诺清单（提议权）→ 逐条裁决 → <b>落库即代发登记话语</b>（听众集合由代发消息确立——幽灵承诺禁令）。目标三看：状态=信号、产出=归集、<b>过程=一跳不搬运</b>（承诺行点击即进话题真身）；回写只在生与死；验收句：<b>目标活着不需要人维护目标</b>（OKR 死于维护成本）。<b>v4.10 特权 ≠ 劳动</b>：磨目标（作者权≠思考伙伴——对话+可见域检索+登记，磨点在"可验收"，血缘指向磨稿会话，见 dsh-yzj 工作夹的磨稿示例）与完成度评估（验收权≠验收材料——差距简报逐条证据锚点，<b>真身证据非自报数</b>，差距一键变委派）。人机分工收口：<b>人只出现在签发、裁决、验收三个主权时刻</b>。' },
+  20: { title: '听众集合：隔离函数的真自变量',
+       body: '隔离的自变量是<b>谁听得见</b>，不是 agent 驻地。私语态检索以<b>提问者本人的可见域</b>为界——你本就看得见销售群，agent 替你跨场所检索对人是零泄漏；公域输出才按在场者最小交集隔离。跨场所信息进入公域的唯一合法通道 = <b>人签发的工件化脱密</b>（入池/摘要），越境留审计。' },
+  16: { title: '事件枢纽：日程是时间锚定的图节点',
+       body: '日程与其他节点只有五种边：<b>服务</b>（任务→日程）、<b>生成</b>（日程→任务）、<b>操作</b>（agent 约会订房）、<b>触发</b>（时间→会话）、<b>聚合</b>（本枢纽）。裁决线 = 拉 vs 推：拉现在做，推归域 F（CLI 无 reminder，推力只能来自 DSH 调度器）。<b>材料就绪度从任务状态免费推导</b>——会前一眼看到缺什么。「边也落云之家」：材料链接经确认写入事件 description，全参会人可见。' },
+  14: { title: '对象面：流沉淀为物，验收不出屏',
+       body: '中栏是<b>流</b>（时间），右栏是<b>物</b>（空间）。流的三种沉淀：<b>记忆</b>（事实）、<b>引用</b>（语境）、<b>工件</b>（劳动）。「当前」tab 跟会话走：本会话的工件、喂过的引用、关联日程（任务的截止维度）。点任何对象<b>就地只读预览</b>——检验标准③在验收动作上闭合；实现 = 中栏富卡片渲染器复用（presentationMeta 已有），几乎免费。资源 tab 补上此前缺席的<b>表格</b>——交付物最常是表格。编辑永远走对话 + 确认门。' },
+  13: { title: '群视图与话题卡：冷=索引，热=任务卡',
+       body: '群 = 主楼流 + 分叉的话题，故有两级缩放：<b>群视图</b>（主楼 + 内联话题卡）与<b>话题视图</b>（session 时间线 + 面包屑）。话题卡<b>冷热两态</b>：无 agent 的冷卡是纯历史索引；焐热的卡自动升级为<b>任务卡</b>（带状态徽标）——群视图由此成为该群的 mission control，"历史清晰"与"注意力路由"是同一张卡的两面。试试在主楼 composer 裸 @云小助：新话题卡会原地长出来（A0 第③级规则肉眼可见）。再试试 hover 一条主楼消息点 ↩ 回复：不 @ 时<b>冷链平铺</b>——引用回复留在主楼，与云之家原生一致；再对同一条消息回复并 @云小助——<b>点火收纳</b>：session 锚定链根，整条链连同此前闲聊收进根消息原位的热卡（冷链平铺，热链收纳——链是话题的胚胎，受话 agent 是点火，v4.7）。' },
+};
+
+/* ============================================================ */
+const $ = (id) => document.getElementById(id);
+const timelineEl = $('timeline');
+
+function avatarHtml(who) {
+  const a = AV[who];
+  return `<span class="avatar" style="background:${a.c}">${a.t}</span>`;
+}
+function pinInline(no) {
+  return no ? `<button class="pin inline" data-note="${no}" aria-label="设计注解 ${no}">${no}</button>` : '';
+}
+
+/* ---------- 时间线渲染 ---------- */
+function renderItem(item, sess) {
+  if (item.type === 'divider')
+    return `<div class="divider${item.unread ? ' unread' : ''}">${item.text}</div>`;
+
+  if (item.type === 'im') {
+    const mine = item.mine ? ' mine' : '';
+    const foot = item.delegate
+      ? `<div class="mfoot">公开委派 · 经 gateway · ${sess.kind === 'dm' || sess.placeKey === '李婷' ? '对方' : '群内所有人'}可见</div>`
+      : `<div class="mfoot">云之家 · ${sess.group}</div>`;
+    if (!item._id) item._id = ++MSG_UID;
+    const excerpt = item.text.replace(/<[^>]+>/g, '').slice(0, 24);
+    const replyBtn = item.mine ? '' : `<button class="reply-btn" data-mid="${item._id}" data-who="person" data-rname="${item.name}" data-rtext="${excerpt}">↩ 回复</button><button class="reply-btn at-agent" data-mid="${item._id}" data-who="person" data-atg="1" data-rname="${item.name}" data-rtext="${excerpt}">⚡ @云小助</button>`;
+    const quoteH = item.quote ? `<div class="qline">↩ ${item.quote.name}：${item.quote.text}</div>` : '';
+    return `<div class="msg msg--pub${mine} enter">
+      <div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="mhead">${avatarHtml(item.who)}<span class="name">${item.name}</span><span class="meta">${item.time}</span>${replyBtn}${pinInline(item.pin)}</div>
+        <div class="bubble">${quoteH}${item.text}</div>${foot}
+      </div></div>`;
+  }
+
+  if (item.type === 'agent-pub') {
+    if (!item._id) item._id = ++MSG_UID;
+    const stateName = sess.agentState ? ` <span class="state">[${sess.agentState}]</span>` : '';
+    const kindFoot = { ack: '经 gateway 回帖 · 群内可见', progress: 'checkpoint · 群内可见（上限 5 条）', done: '终态回帖 · 群内可见', pause: '等待状态 · 群内可见' }[item.kind];
+    const aReply = `<button class="reply-btn" data-mid="${item._id}" data-who="agent" data-rname="云小助" data-rtext="${(item.text || '').replace(/<[^>]+>/g, '').slice(0, 24)}">↩ 回复</button>`;
+    return `<div class="msg msg--pub enter">
+      <div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="mhead">${avatarHtml('agent')}<span class="name">云小助${stateName}</span><span class="meta">${item.time}</span>${aReply}${pinInline(item.pin)}</div>
+        <div class="bubble${item.kind === 'pause' ? ' pause' : ''}">${item.text}</div>
+        <div class="mfoot">${kindFoot}</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'agent-pri') {
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="mhead">${avatarHtml('agent')}<span class="name">云小助</span><span class="meta">${item.time}</span></div>
+        <div class="bubble">${item.text}</div>
+        <div class="mfoot">仅你可见 · 桌面投影</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'user-pri') {
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="mhead">${avatarHtml('me')}<span class="name">Bruce（我）</span><span class="meta">${item.time}</span></div>
+        <div class="bubble">${item.text}</div>
+        <div class="mfoot">本地 followup · 即时 · 群内不可见</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'work') {
+    const steps = item.steps.map(s => {
+      const mark = { done: '✓', run: '◐', wait: '⏸' }[s.st];
+      return `<div class="wstep ${s.st}${s.mem ? ' mem' : ''}"><span class="st">${mark}</span><span class="tool">${s.tool}</span><span>${s.desc}</span></div>`;
+    }).join('');
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <details class="workblock"${item.open ? ' open' : ''}>
+          <summary><span class="tw">▶</span>${item.summary}<span class="trace-link" data-trace="1">完整轨迹 ↗</span><button class="pin inline" data-note="11" aria-label="设计注解 11">11</button><span style="margin-left:auto;font-weight:400;font-size:10.5px;color:#A08D5F">仅你可见</span></summary>
+          <div class="wsteps">${steps}</div>
+        </details>
+      </div></div>`;
+  }
+
+  if (item.type === 'confirm') {
+    const fields = item.fields.map(([k, v]) => `<span class="k">${k}</span><span class="v">${v}</span>`).join('');
+    const approved = item.state === 'approved';
+    const actions = approved
+      ? `<div class="cc-done-note">✓ 已确认 · sheet 创建与 12 条记录写入已执行</div>`
+      : `<div class="cc-actions">
+           <button class="btn primary" data-cc="${item.id}" data-act="approve">确认执行</button>
+           <button class="btn" data-cc="${item.id}" data-act="cancel">取消</button>
+           <button class="btn" data-cc="${item.id}" data-act="context">查看上下文</button>
+           <button class="btn" data-cc="${item.id}" data-act="edit">编辑参数</button>
+         </div>`;
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="confirm-card${approved ? ' approved' : ''}" id="card-${item.id}">
+          <div class="cc-head"><span class="cc-domain">sheet</span><span class="cc-title">${item.title}</span><span class="cc-risk">${item.risk}</span>${pinInline(item.pin)}</div>
+          <div class="cc-fields">${fields}</div>
+          <div class="cc-proj">同一审批对象的投影：<span class="pj">桌面卡（此处）</span> <span class="pj">云之家 DM 兜底（已推送，回复 1/2 可批）</span> —— 任一侧应答即全局生效</div>
+          ${actions}
+        </div>
+        <div class="mfoot">审批对象 · 仅操作者可批</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'artifact') {
+    return `<div class="msg msg--pub enter">
+      <div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="artifact" role="link" tabindex="0" data-artifact="1"${item.pv ? ` data-pv="${item.pv}"` : ''}>
+          <span class="af-icon">${item.icon}</span>
+          <span class="af-body"><span class="af-t">${item.title}${pinInline(item.pin)}</span><span class="af-m" style="display:block">${item.meta}</span></span>
+          <span class="af-arrow">↗</span>
+        </div>
+        <div class="mfoot">工件已落云之家 · 群里回帖的是链接</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'accept') {
+    const done = item.state === 'done';
+    const rejected = item.state === 'rejected';
+    let inner;
+    /* v4.14 交付即出卡：终态回帖是可应答对象——验收/拒收动词长在交付上，带"等你验收"的脸 */
+    if (done) inner = `<span class="lab">🗂 已验收归档 · 记忆已蒸馏</span>`;
+    else if (rejected) inner = `<span class="lab" style="color:var(--amber)">↩ 已打回 · 返工第 ${item.round || 2} 轮 · 新旧交付 diff 已挂到任务</span>`;
+    else inner = `<div class="aw-face">✋ 验收点 · 等你验收<span style="font-weight:400;color:var(--ink-3)">（可应答对象——与收件箱同一真身）</span></div>
+          <span class="lab">交付物就在上方——边看边验（点工件可就地预览）</span>
+          <button class="btn primary" data-accept="${item.id}">✓ 验收归档（/done）</button>
+          <button class="btn" data-reject="${item.id}">↩ 打回重做</button>`;
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="acceptbar${done ? ' done-state' : ''}${(!done && !rejected) ? ' awaiting' : ''}" id="accept-${item.id}">
+          ${inner}
+          <span class="note">${rejected ? '拒收是显式对象：轮次可计数、diff 可对照、蒸馏已回滚' : '群内自然语言「收了」同样生效'}</span>
+          ${pinInline(item.pin)}
+        </div>
+      </div></div>`;
+  }
+
+  if (item.type === 'file') {
+    if (!item._id) item._id = ++MSG_UID;
+    const f = FILES[item.file];
+    const ic = { pdf: '📕', md: '📄', html: '🌐' }[f.kind];
+    const excerpt = '[文件] ' + f.name;
+    const isAgent = item.who === 'agent';
+    const replyBtn = item.mine ? '' : `<button class="reply-btn" data-mid="${item._id}" data-who="${isAgent ? 'agent' : 'person'}" data-rname="${item.name}" data-rtext="${excerpt}">↩ 回复</button>${isAgent ? '' : `<button class="reply-btn at-agent" data-mid="${item._id}" data-who="person" data-atg="1" data-rname="${item.name}" data-rtext="${excerpt}">⚡ @云小助</button>`}`;
+    return `<div class="msg msg--pub${item.mine ? ' mine' : ''} enter">
+      <div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="mhead">${avatarHtml(item.who)}<span class="name">${item.name}</span><span class="meta">${item.time}</span>${replyBtn}${pinInline(item.pin)}</div>
+        <div class="artifact" style="cursor:default">
+          <span class="af-icon">${ic}</span>
+          <span class="af-body"><span class="af-t">${f.name}</span><span class="af-m" style="display:block">${f.meta}</span></span>
+          <span style="display:flex;gap:5px;flex:none">
+            <button class="btn" data-fpv="${item.file}" style="font-size:11px;padding:3px 11px">预览</button>
+            <button class="btn" data-fpvdl="1" style="font-size:11px;padding:3px 11px" title="下载">⬇</button>
+          </span>
+        </div>
+        <div class="mfoot">${isAgent ? '工件交付 · 真身已落云之家 · 预览是投影' : '云之家文件消息 · 文件即工件（人发布的出生血缘）'}</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'goalsign') {
+    const body = item.state === 'ok'
+      ? `<div class="cc-done-note">✓ 已签发落库 · 真身（含成功标准）写入云之家《目标表》· 出生血缘 → 本磨稿会话</div>`
+      : `<div class="cc-actions"><button class="btn primary" data-gs="${item.id}">确认签发（登记目标）</button><button class="btn" data-gs2="${item.id}">再磨磨</button></div>`;
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="confirm-card${item.state === 'ok' ? ' approved' : ''}" id="gs-${item.id}">
+          <div class="cc-head"><span class="cc-domain">立目标</span><span class="cc-title">${item.title}</span></div>
+          <div style="font-size:11.5px;color:var(--ink-2);padding:2px 0 8px">成功标准（入真身正文 · 自由文本，不建 KR 结构）：${item.std}</div>
+          ${body}
+        </div>
+        <div class="mfoot">磨目标 = 对话 + 可见域检索 + 登记动词——agent 磨稿，落库人签发（作者权 ≠ 思考伙伴）</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'goalprop') {
+    const body = item.state === 'ok'
+      ? `<div class="cc-done-note">✓ 已确认落库（人签发）· 真身已写入云之家《Q3 目标 · 产品组》表新行 · 图记 URI —— 见承诺板</div>`
+      : item.state === 'no'
+        ? `<div class="cc-done-note" style="color:var(--red)">✗ 已驳回 · 未落库 —— agent 不可作者目标，提案止于提案</div>`
+        : `<div class="cc-actions">
+             <button class="btn primary" data-gp="${item.id}:ok">确认落库</button>
+             <button class="btn" data-gp="${item.id}:no">驳回</button>
+           </div>`;
+    return `<div class="msg msg--pub enter">
+      <div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="confirm-card${item.state === 'ok' ? ' approved' : ''}" id="gp-${item.id}">
+          <div class="cc-head"><span class="cc-domain">目标提案</span><span class="cc-title">${item.title}</span>${pinInline(item.pin)}</div>
+          <div style="font-size:11px;color:var(--ink-3);padding:2px 0 6px">${item.meta}</div>
+          <div style="font-size:11.5px;color:var(--ink-2);border-left:2px solid var(--line);padding-left:8px;margin-bottom:8px">${item.ev}</div>
+          ${body}
+        </div>
+        <div class="mfoot">AI 速记纪要 → 提案裁决（目标出生主产地 · 入口①）· 仅 owner 可批 · DM 兜底已推送</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'topiccard') {
+    const t = sessions[item.target];
+    const hot = ['running', 'confirm', 'review'].includes(t.status);
+    const expanded = !!state.expandedTopics[item.target];
+    let peek = '';
+    if (expanded) {
+      const rows = t.timeline.filter(i => i.type === 'im' || i.type === 'agent-pub').slice(-3)
+        .map(i => `<div class="peek-row"><b>${i.type === 'im' ? i.name : '云小助'}</b>：${(i.text || '').replace(/<[^>]+>/g, '').slice(0, 42)}…</div>`).join('');
+      peek = `<div class="tc-peek">${rows}
+        <div style="margin-top:6px"><button class="btn" data-sess="${item.target}" style="font-size:11px;padding:4px 12px">进入话题 →</button>
+        <span style="font-size:10px;color:var(--ink-3);margin-left:8px">就地展开 · 零导航 · 阅读位置不丢</span></div></div>`;
+    }
+    return `<div class="msg msg--pub enter">
+      <div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="topiccard${hot ? ' hot' : ''}" data-sess="${item.target}" role="link" tabindex="0">
+          <span class="tc-ic">🧵</span>
+          <span class="tc-body"><span class="tc-t">${t.title}${pinInline(item.pin)}</span><span class="tc-m" style="display:block">${item.meta}</span></span>
+          <span class="tc-expand" data-tcx="${item.target}" role="button" tabindex="0">${expanded ? '⌃ 收起' : '⌄ 展开'}</span>
+          ${badgeHtml(t)}<span class="tc-arrow">›</span>
+        </div>${peek}
+        <div class="mfoot">云之家话题 · 展开就地扫一眼，点击进入深工作${hot ? '（热卡 = 任务卡）' : '（冷卡 = 历史索引）'}</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'verdict') {
+    item._anchorId = 'vcard-' + item.id;
+    const rows = item.findings.map((f, i) => {
+      const acts = f.decision === null
+        ? `<span class="vd-acts">
+            <button class="vd-btn" data-vd="${item.id}:${i}:ok">确认修正</button>
+            <button class="vd-btn" data-vd="${item.id}:${i}:no">驳回</button>
+            <button class="vd-btn" data-vd="${item.id}:${i}:hold">挂起</button></span>`
+        : `<span class="vd-mark ${f.decision}">${{ ok: '✓ 已确认', no: '✗ 已驳回', hold: '⏸ 挂起' }[f.decision]}</span>`;
+      return `<div class="vd-row"><span class="desc">${f.desc}<span class="ev">${f.ev}</span></span>${acts}</div>`;
+    }).join('');
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="verdict-card" id="vcard-${item.id}">
+          <div class="vd-head"><span class="cc-domain">裁决</span><span class="cc-title">3 处差异 · 逐条裁决</span><span class="cc-risk">发现物 · 不动原数据</span>${pinInline(item.pin)}</div>
+          ${rows}
+        </div>
+        <div class="mfoot">裁决卡（第二种确认卡）· 面向"agent 发现的事" · 仅操作者可裁 · 挂起不阻塞其余</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'askcard') {
+    return `<div class="msg msg--pri enter">
+      <div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="askcard">
+          <div class="q">⚡ ${item.q}</div>
+          <div class="a">${item.a}</div>
+          <div class="src">${item.src}</div>
+          ${item.cross ? `<div class="cross">跨场所读取 · 以你的可见域为界（你本就看得见销售群）· 本回答仅你可见${pinInline(20)}</div>` : ''}
+        </div>
+        <div class="mfoot">一次性投影 · 未创建任务 · F-read</div>
+      </div></div>`;
+  }
+
+  if (item.type === 'coldhint') {
+    const pinH = item.pin ? `<button class="pin" data-note="${item.pin}" style="right:-9px;top:-9px" aria-label="设计注解 ${item.pin}">${item.pin}</button>` : '';
+    return `<div class="coldhint enter">${item.html}${pinH}</div>`;
+  }
+
+  if (item.type === 'sys') {
+    return `<div class="sysline enter"><span class="inner">${item.text}</span></div>`;
+  }
+  return '';
+}
+
+/* v4：承诺板取景框（跨执行者 + 时间回顾）；v4.1：目标分组（聚合是信号，终态走人工验收） */
+function commitState(c) {
+  if (c.exec === 'agent') {
+    if (!c.sess) return c.state || '已登记';
+    const s = sessions[c.sess].status;
+    return { confirm: '待确认', review: '待验收', running: '运行中', archived: '已完成' }[s] || '完成';
+  }
+  if (c.overdue) return c.reminded ? '已提醒' : '逾期';
+  return c.state;
+}
+function commitRow(c) {
+  const i = COMMITS.indexOf(c);
+  let stateH;
+  if (c.exec === 'agent') stateH = c.sess ? (badgeHtml(sessions[c.sess]) || `<span class="badge b-done">已归档</span>`) : `<span class="cm-due">${c.state || '已登记'}</span>`;
+  else if (c.overdue) stateH = c.reminded
+    ? `<span class="badge b-running"><span class="pulse"></span>已提醒 · 等回复</span>`
+    : `<button class="remind-btn" data-remind="${i}">让云小助提醒</button>`;
+  else stateH = `<span class="cm-due">${c.state}</span>`;
+  const link = c.exec === 'agent' && c.sess ? ` data-sess="${c.sess}" role="link" tabindex="0" style="cursor:pointer"` : '';
+  return `<div class="cm-row${c.overdue ? ' overdue' : ''}"${link}>
+    <span class="ex-tag ${c.exec}">${c.exec === 'agent' ? 'agent' : c.exec === 'human' ? '人' : '流程'}</span>
+    <span style="flex:1;min-width:0"><span style="font-size:12.8px;font-weight:650">${c.name}</span>
+    <span style="display:block;font-size:10.5px;color:var(--ink-3)">${c.who} · <span class="cm-due${c.overdue ? ' overdue' : ''}">${c.due}</span>${c.linked ? ` · <span style="color:#A6ADBB">挂接：${c.linked}</span>` : ''}</span></span>
+    ${stateH}</div>`;
+}
+/* v4.12 共享动作卡（委派传送门/拆解提案/差距简报）——承诺板与目标枢纽同一套（数据同一查询，割裂不存在） */
+function goalActionCards(gid) {
+  let h = '';
+  if (state.delegGoal === gid) h += `
+    <div class="cm-row" style="background:#FDFEFF;border-color:var(--pub-line);flex-wrap:wrap;gap:6px">
+      <span style="font-size:11px;color:var(--ink-2)">带着目标语境去说话——选执行者与<b>场所</b>（听众是社交决策，人选不推导）：</span>
+      <button class="btn" data-dgo="pub" style="font-size:11px">@云小助 · 产品讨论群（公开委派）</button>
+      <button class="btn" data-dgo="dm" style="font-size:11px">张三 · DM（私下登记）</button>
+      <button class="btn" data-dgo="x" style="font-size:11px">取消</button>
+    </div>`;
+  if (state.decompGoal === gid) h += `
+    <div class="verdict-card" style="max-width:none;margin:2px 0 10px">
+      <div class="vd-head"><b style="font-size:12px">拆解提案 · 云小助</b>
+        <span style="font-size:10.5px;color:var(--ink-3)">agent 只有提议权——每条过你的手；确认即代发登记话语到执行者通道</span></div>
+      ${DECOMP.map((d, i) => {
+        const acts = d.decision === null
+          ? `<span class="vd-acts"><button class="vd-btn" data-dc="${i}:ok">确认落库</button><button class="vd-btn" data-dc="${i}:no">驳回</button></span>`
+          : `<span class="vd-mark ${d.decision}">${d.decision === 'ok' ? '✓ 已落库 · 已代发' : '✗ 已驳回'}</span>`;
+        return `<div class="vd-row"><span class="desc">${d.desc}<span class="ev">${d.exec === 'agent' ? 'agent' : '人'} · ${d.who} · ${d.due} · 登记话语将发到：${d.channel}</span></span>${acts}</div>`;
+      }).join('')}
+      <div style="padding:8px 14px;font-size:10px;color:var(--ink-3)">落库即代发登记话语——听众集合由代发消息确立，<b>没有静默登记（幽灵承诺禁令）</b>；幂等锚 = 目标+事项</div>
+    </div>`;
+  if (state.evalGoal === gid) h += `
+    <div class="verdict-card" style="max-width:none;margin:2px 0 10px">
+      <div class="vd-head"><b style="font-size:12px">完成度评估 · 差距简报</b>
+        <span style="font-size:10.5px;color:var(--ink-3)">基准 = 真身成功标准（依据 8/19 版正文 · 环境快照记录）· agent 备料，<b>验收权在你</b></span></div>
+      ${EVAL.map((f, i) => `<div class="vd-row">
+        <span class="vd-mark ${f.mark}">${{ ok: '✓', hold: '◐', no: '✗' }[f.mark]}</span>
+        <span class="desc">${f.desc}<span class="ev">${f.ev}</span></span>
+        ${f.gap ? `<span class="vd-acts"><button class="vd-btn" data-evd="${i}">差距 → 委派</button></span>` : ''}
+      </div>`).join('')}
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px dashed #F4EBDB">
+        <span style="flex:1;font-size:10px;color:var(--ink-3)">证据 = 承诺终态 + 工件归集 + 轨迹（<b>真身证据，非自报数</b>）· 2 项子承诺未终态——建议暂不验收；评估不通过的出口 = 继续（差距变委派）或作废（目标无拒收）</span>
+        <button class="vd-btn" data-evok="1">验收通过（人工终态）</button>
+        <button class="vd-btn" data-evx="1">暂不验收</button>
+      </div>
+    </div>`;
+  return h;
+}
+/* v4.14 信号即门：会话内未应答可应答对象——与收件箱同源（先答先赢），决断条是指针投影非复制落座 */
+function pendingOf(sess) {
+  const out = [];
+  (sess.timeline || []).forEach(it => {
+    if (it.type === 'confirm' && it.state === 'pending') out.push({ label: '确认 · ' + it.title, anchor: 'card-' + it.id });
+    if (it.type === 'verdict') { const n = it.findings.filter(f => f.decision === null).length; if (n) out.push({ label: `裁决 · ${n} 项差异`, anchor: 'vcard-' + it.id }); }
+    if (it.type === 'accept' && it.state === 'pending') out.push({ label: '验收 · 交付已就绪', anchor: 'accept-' + it.id });
+    if (it.type === 'goalprop' && !it.state) out.push({ label: '目标提案裁决', anchor: 'gp-' + it.id });
+    if (it.type === 'goalsign' && !it.state) out.push({ label: '签发 · 目标草案', anchor: 'gs-' + it.id });
+  });
+  return out;
+}
+function decideStripHtml(sess) {
+  const p = pendingOf(sess);
+  if (!p.length) return '';
+  return `<div class="decide-strip" id="decideStrip">✋ <b>需要你 · ${p.length} 项</b>
+    ${p.map(x => `<button class="ds-item" data-dgoto="${x.anchor}">${x.label} ›</button>`).join('')}
+    <span class="ds-note">与收件箱同源 · 先答先赢 · 指路不代答 · 答完即溶</span></div>`;
+}
+
+/* ============ v4.12 目标枢纽：承诺板第二缩放级别（对象枢纽；页面范围=目标子图全量） ============ */
+function openGoalHub(gid) {
+  state.hubGoal = gid;
+  state.viewAs = 'me';
+  state.navStack.push({ scroll: timelineEl.scrollTop, from: 'board' });
+  openSession('goalhub');
+}
+function hubCommitRow(c) {
+  const stateH = c.exec === 'agent'
+    ? (c.sess ? (badgeHtml(sessions[c.sess]) || '<span class="badge b-done">已归档</span>') : `<span class="cm-due">${c.state || '已登记'}</span>`)
+    : c.overdue ? `<span class="badge b-unread">逾期</span>` : `<span class="cm-due">${c.state || '进行中'}</span>`;
+  const signal = c.nosignal
+    ? `<span style="color:var(--amber)">无信号 · 最后信号：${c.lastSignal}（观察型承诺，"没消息"≠"没问题"）</span>`
+    : (c.sess ? '有证据 · 最新轨迹 2h 前' : '已登记');
+  const prod = (c.prod || []).map(k => `<button class="btn" data-fpv="${k}" style="font-size:10px;padding:1px 8px">▤ ${FILES[k].name}</button>`).join(' ')
+    || '<span style="font-size:10px;color:var(--ink-3)">尚无产物</span>';
+  const sessLink = c.sess
+    ? `<button class="btn" data-sess="${c.sess}" style="font-size:10px;padding:1px 8px">会话 ›</button>`
+    : '<span style="font-size:10px;color:var(--ink-3)">人执行 · 回执经登记场所</span>';
+  const mineTag = state.viewAs === 'zhangrui' && c.who === '张锐' ? ' <span class="badge b-review">我负责</span>' : '';
+  return `<div class="cm-row" style="align-items:flex-start">
+    <span class="ex-tag ${c.exec}">${c.exec === 'agent' ? 'agent' : c.exec === 'human' ? '人' : '流程'}</span>
+    <span style="flex:1;min-width:0">
+      <span style="font-size:12.8px;font-weight:650">${c.name}</span>${mineTag}
+      <span style="display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px">来源：${c.linked || '—'} · ${c.who} · ${c.due} · ${signal}</span>
+      <span style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;align-items:center">${sessLink} ${prod}
+        <button class="btn" data-hmenu="${c.name}" style="font-size:10px;padding:1px 8px">⋯ 修理</button></span>
+    </span>${stateH}</div>`;
+}
+function renderGoalHub() {
+  const gid = state.hubGoal || 'g1';
+  const g = GOALS[gid];
+  const isZR = state.viewAs === 'zhangrui';
+  const kidsAll = COMMITS.filter(c => c.goal === gid && !c.void);
+  /* 可见域法则：一个目标页 N 个查看者 N 种渲染——私下登记的听众不含张锐 */
+  const kids = isZR ? kidsAll.filter(c => c.aud !== 'dm') : kidsAll;
+  const hidden = kidsAll.length - kids.length;
+  const ordered = isZR ? [...kids.filter(c => c.who === '张锐'), ...kids.filter(c => c.who !== '张锐')] : kids;
+  const counts = {};
+  kids.forEach(c => { const s = commitState(c); counts[s] = (counts[s] || 0) + 1; });
+  const sig = Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(' · ') || '—';
+  const std = (g.std || []).map((s, i) => `<span class="hub-std">${['①', '②', '③'][i] || '·'} ${s}</span>`).join('');
+  const header = `<div class="hub-card">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="ex-tag goal">目标</span><b style="font-size:14px">${g.title}</b>
+      <span class="badge b-running"><span class="pulse"></span>活跃（零存储 · 纯推导）</span>
+      <span style="margin-left:auto;font-size:10.5px;color:var(--ink-3)">owner：Bruce · Q3 末人工验收</span>
+    </div>
+    <div style="font-size:10.5px;color:var(--ink-3);margin-top:5px">真身：<span class="goal-home" data-goalhome="1" role="button" tabindex="0">${g.home} ↗</span> · 关联任务区截至 <b>${g.wrote}</b> 回写（生与死之间不回写）· 图内最新轨迹 <b>2 小时前</b>（在跑——空态背书）</div>
+    <div style="margin-top:7px;font-size:11.5px">成功标准（真身正文派生投影 · 非字段）：${std}</div>
+    <div class="hub-warn">⚠ 真身之变：8/19 正文被修改（第③条措辞变更）——当前评估基准<b>未对账</b>
+      <button class="btn" data-tchange="diff" style="font-size:10.5px;padding:2px 9px">查看差异</button>
+      <button class="btn" data-tchange="rebase" style="font-size:10.5px;padding:2px 9px">以新基准重估</button></div>
+    <div style="display:flex;gap:6px;margin-top:9px;align-items:center;flex-wrap:wrap">
+      <button class="btn" data-goaldeleg="${gid}" style="font-size:10.5px;padding:2px 9px">＋ 委派</button>
+      <button class="btn" data-goaldecomp="${gid}" style="font-size:10.5px;padding:2px 9px">⚡ 拆解</button>
+      <button class="btn" data-goaleval="${gid}" style="font-size:10.5px;padding:2px 9px">✓ 评估</button>
+      <button class="btn" data-goalask="${gid}" style="font-size:10.5px;padding:2px 9px" title="传送门：跳私语会话，问答落私语日志（非页面旁路）">🔍 问这个目标</button>
+      <span style="margin-left:auto;font-size:10px;color:var(--ink-3)">视角（可见域演示）：</span>
+      <button class="btn${isZR ? '' : ' primary'}" data-viewas="me" style="font-size:10.5px;padding:2px 9px">我（owner）</button>
+      <button class="btn${isZR ? ' primary' : ''}" data-viewas="zhangrui" style="font-size:10.5px;padding:2px 9px">张锐（执行者）</button>
+    </div>
+  </div>`;
+  const decide = isZR
+    ? `<div class="cm-row"><span class="ex-tag human">决断</span>
+        <span style="flex:1">我欠的：返修数据分析 · <b>昨天 18:00 已到期</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">交付/求助 = 回复登记消息即可（IM 习语，不必造按钮）</span></span>
+        <button class="btn" data-sess="prodgroup" style="font-size:10.5px;padding:2px 9px">去登记场所 ›</button></div>`
+    : `<div class="cm-row" data-sess="competitor" role="link" tabindex="0" style="cursor:pointer">
+        <span class="ex-tag agent">决断</span>
+        <span style="flex:1">审批对象 #7 · 竞品对比表要写入 12 条记录<span style="display:block;font-size:10.5px;color:var(--ink-3)">与收件箱<b>同一个可应答对象</b>的过滤投影——任一投影应答即全局生效（先答先赢），绝非复制列表</span></span>
+        <span class="badge b-confirm">待确认</span></div>`;
+  const attend = isZR ? '' : `
+    <div class="cm-row overdue"><span class="ex-tag human">留意</span>
+      <span style="flex:1">返修数据分析 · 张锐 · <b>昨天 18:00 逾期</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">逾期是信号不是可应答对象——动词就在旁边（决断层/留意层分立）</span></span>
+      <span style="display:flex;gap:5px;flex:none">
+        <button class="btn" data-hurge="1" style="font-size:10.5px;padding:2px 9px">催</button>
+        <button class="btn" data-hdelay="1" style="font-size:10.5px;padding:2px 9px">顺延期限</button>
+        <button class="btn" data-hvoid="返修数据分析" style="font-size:10.5px;padding:2px 9px">作废</button></span></div>`;
+  return `<div class="board">
+    ${header}
+    ${goalActionCards(gid)}
+    <div class="res-sec">需要你${isZR ? ' · 张锐的可见域' : ''}</div>
+    ${decide}${attend}
+    <div class="res-sec" style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">执行清单（环行：每行携带自己的迷你闭环）· 信号：${sig}
+      ${isZR ? `<span style="font-weight:400;color:var(--pub);letter-spacing:0">「我的切片」已置顶</span><span style="font-weight:400;color:var(--ink-3);letter-spacing:0">（另有 ${hidden} 项私下登记不在你的可见域——真实实现连计数也不泄漏，此注仅为演示）</span>` : ''}</div>
+    ${ordered.map(hubCommitRow).join('')}
+    <div style="margin-top:12px;font-size:10px;color:var(--ink-3);line-height:1.8">闭环自检（环路完整性检验对页面自我适用）：拆解/委派 ✓ · 执行一跳+三值状态 ✓ · 产物 chips+归集 ✓ · 回执/验收落座 ✓ · 修理动词族 ✓ · 评估 ✓ · 真身回写显形 ✓ —— 每环<b>既可见又可动</b>，缺一即割裂债。凡只能在这一页获得的能力就是违规能力。</div>
+  </div>`;
+}
+function renderBoard() {
+  const goalBlocks = Object.entries(GOALS).map(([gid, g]) => {
+    const kids = COMMITS.filter(c => c.goal === gid && !c.void);
+    const counts = {};
+    kids.forEach(c => { const s = commitState(c); counts[s] = (counts[s] || 0) + 1; });
+    const sig = Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(' · ');
+    return `<div class="goal-row">
+      <span class="ex-tag goal">目标</span>
+      <span style="flex:1;min-width:0"><span class="goal-title-link" style="font-size:12.8px;font-weight:700" data-goalhub="${gid}" role="link" tabindex="0" title="放大：进入目标枢纽（承诺板第二缩放级别）">${g.title} ›</span>
+      <span class="goal-home" data-goalhome="1" role="button" tabindex="0">真身：${g.home} ↗</span>
+      <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:2px">${g.born}</span></span>
+      <span class="goal-sig">信号：${kids.length ? sig : '—'}</span>
+      <span class="goal-final">终态：人工验收</span>
+      <button class="btn" data-goaldeleg="${gid}" style="font-size:10.5px;padding:2px 9px" title="传送门：带着目标语境去说话（挂接=语境继承）">＋ 委派</button>
+      <button class="btn" data-goaldecomp="${gid}" style="font-size:10.5px;padding:2px 9px" title="让 agent 提拆解方案——每条过你的手">⚡ 拆解</button>
+      <button class="btn" data-goaleval="${gid}" style="font-size:10.5px;padding:2px 9px" title="差距简报：agent 备料，验收权在你">✓ 评估</button>
+      <button class="pin inline" data-note="21" aria-label="设计注解 21">21</button>
+    </div>
+    ${goalActionCards(gid)}
+    <div class="goal-children">${kids.length ? kids.map(commitRow).join('')
+      : `<div style="font-size:11px;color:var(--ink-3);padding:6px 0">尚无挂接的承诺——从本目标语境发起的委派将自动继承挂接（语境继承 · 出生时刻），或在任务 ack 中补挂。</div>`}</div>`;
+  }).join('');
+  const goalFormHtml = state.goalForm ? `
+    <div class="cm-row" style="background:#FDFEFF;border-color:var(--pub-line);gap:8px">
+      <span class="ex-tag goal">目标</span>
+      <input id="goalTitleInput" placeholder="目标标题…（executor=你 · 验收=人工 · 真身落云之家《目标表》）"
+        style="flex:1;border:1.5px solid var(--pub);border-radius:8px;padding:6px 10px;font:inherit;font-size:12px;outline:none">
+      <button class="btn primary" data-goalconfirm="1">确认登记</button>
+      <button class="btn" data-goalcraft="1" title="agent 梳理思路 + 组织上下文检索——落库仍人签发">🤝 先和 agent 磨一磨</button>
+      <button class="btn" data-goalcancel="1">取消</button>
+    </div>
+    <div style="font-size:10.5px;color:var(--ink-3);margin:-4px 0 8px 2px">立目标 = 登记动词复用 · <b>人签发</b> —— 另两个入口：任意会话直接说「立个目标：…，我 own」（对话登记）；AI 速记纪要 → 提案裁决（主产地，见产品讨论群主楼今晨的提案卡）</div>` : '';
+  const loose = COMMITS.filter(c => !c.goal && !c.void);
+  const rows = goalBlocks + (loose.length ? `
+    <div class="res-sec" style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">无归属 · ${loose.length} 项
+      <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">未挂目标是合法状态——不是所有工作都为目标服务（强制对齐 = 垃圾对齐）；周会可在此批量 /link 补挂</span></div>` + loose.map(commitRow).join('') : '');
+  const weekly = state.weeklyShown ? `
+    <div class="cm-row" style="background:linear-gradient(160deg,#FDFEFF,#F4F8FF);border-color:var(--pub-line)">
+      <span class="ex-tag agent">回顾</span>
+      <span style="flex:1"><b>本周产出 · 5 项</b>
+      <span style="display:block;font-size:10.5px;color:var(--ink-3)">竞品评审表 · 过程摘要 ×2 · 走访汇总 · bridge 重构 —— pull 版汇总，可一键生成周报文档发老板</span></span>
+    </div>` : '';
+  return `<div class="board">
+    <button class="pin" data-note="17" style="position:absolute;right:26px;top:10px" aria-label="设计注解 17">17</button>
+    <div class="res-sec" style="padding-top:6px">晨报 · 8月17日 08:00 <span style="font-weight:400;color:var(--ink-3)">（F-read：cron + 只读 + DM 投递）</span></div>
+    <div class="cm-row" style="background:var(--paper);border-color:var(--paper-line)">
+      <span style="flex:1;font-size:12px;line-height:1.7">华南回款 <b>¥2.41M</b>（环比 +12%）· 在途订单 <b>37</b> · 逾期承诺 <b>1</b>（返修数据分析 · 张锐）</span>
+    </div>
+    <div class="res-sec" style="display:flex;align-items:center">全部承诺 · 跨执行者（人 + agent + 流程）
+      <button class="btn" data-newgoal="1" style="margin-left:auto;font-size:11px;padding:3px 12px">＋ 立目标</button></div>
+    ${goalFormHtml}${rows}
+    <div style="margin-top:12px"><button class="btn" data-weekly="1">⏱ 生成本周产出汇总（时间回顾）</button></div>
+    ${weekly}
+  </div>`;
+}
+
+function renderTimeline() {
+  const sess = sessions[state.current];
+  if (sess.kind === 'goalhub') {
+    timelineEl.innerHTML = renderGoalHub();
+    timelineEl.scrollTop = 0;
+    return;
+  }
+  if (sess.kind === 'board') {
+    timelineEl.innerHTML = renderBoard();
+    timelineEl.scrollTop = 0;
+    return;
+  }
+  let items = sess.timeline;
+  if (sess.kind === 'groupview' && state.groupFilter === 'topics') items = items.filter(i => i.type === 'topiccard');
+  timelineEl.innerHTML =
+    `<button class="pin" data-note="3" style="right:26px;top:10px;position:sticky;float:right;margin-right:6px" aria-label="设计注解 3">3</button>` +
+    decideStripHtml(sess) +
+    items.map(i => renderItem(i, sess)).join('');
+  timelineEl.scrollTop = timelineEl.scrollHeight;
+}
+
+/* ---------- 会话头 ---------- */
+function renderHead() {
+  const sess = sessions[state.current];
+  let kindChip = '';
+  if (sess.kind === 'goalhub') kindChip = `<span class="chip">对象枢纽 · 目标</span><span class="chip">承诺板第二缩放级别</span><span class="chip">范围 = 目标子图全量</span>`;
+  else if (sess.kind === 'board') kindChip = `<span class="chip">取景框 · 跨执行者</span><span class="chip">${COMMITS.length} 项承诺</span><span class="chip">时间回顾</span>`;
+  else if (sess.kind === 'groupview') { const g = GROUPS.find(x => x.head === state.current); kindChip = `<span class="chip">群视图 · 主楼</span><span class="chip">${g ? g.keys.length : 0} 个话题</span><span class="chip gfilter${state.groupFilter === 'all' ? ' on' : ''}" data-gfilter="all" role="button" tabindex="0">全部</span><span class="chip gfilter${state.groupFilter === 'topics' ? ' on' : ''}" data-gfilter="topics" role="button" tabindex="0">只看话题</span>`; }
+  else if (sess.kind === 'topic') kindChip = `<span class="chip">群 · ${sess.group}</span><span class="chip">话题</span>`;
+  else if (sess.kind === 'dm') kindChip = `<span class="chip">私聊</span>`;
+  else if (sess.kind === 'cold') kindChip = `<span class="chip">${sess.group === '私聊' ? '私聊' : '云之家群'} · 未接入</span>`;
+  else kindChip = `<span class="chip">本地 · ${sess.group}（工作夹场所）</span>`;
+  let titleHtml = sess.title;
+  if (sess.kind === 'goalhub') {
+    const g = GOALS[state.hubGoal || 'g1'];
+    const backH = state.navStack.length
+      ? `<button class="backbtn" data-back="1" title="缩放回承诺板（恢复离开时的精确位置）">‹ 返回承诺板</button>`
+      : '';
+    titleHtml = `${backH}<button class="crumb-btn" data-sess="board">承诺板</button><span class="crumb-sep"> › </span><span>${g.title}</span>`;
+  }
+  if (sess.kind === 'topic') {
+    const pg = GROUPS.find(x => x.label === sess.group && x.head);
+    if (pg) {
+      const backH = state.navStack.length
+        ? `<button class="backbtn" data-back="1" title="返回群聊离开时的精确位置">‹ 返回原位</button><button class="pin inline" data-note="23" aria-label="设计注解 23">23</button>`
+        : '';
+      titleHtml = `${backH}<button class="crumb-btn" data-sess="${pg.head}">${sess.group}</button><span class="crumb-sep"> › </span><span>${sess.title}</span>`;
+    }
+  }
+  const sidChip = sess.sid ? `<span class="chip mono">${sess.sid}</span>` : '';
+  let agentChip;
+  const AP = 'data-apanel="1" role="button" tabindex="0" title="查看 Agent 场所合同"';
+  if (sess.kind === 'board') agentChip = '';
+  else if (sess.agentState) agentChip = `<span class="chip agent-chip" ${AP}><span class="pulse"></span>云小助 · ${sess.agentState}</span>`;
+  else if (sess.kind === 'groupview') agentChip = `<span class="chip agent-chip off" ${AP}>云小助 · 本群在岗（场所合同）</span>`;
+  else if (sess.kind === 'cold') agentChip = `<span class="chip agent-chip off" ${AP}>未接入 Agent —— @云小助 即可开始</span>`;
+  else if (sess.status === 'review') agentChip = `<span class="chip agent-chip off" ${AP}>云小助 · 空闲（等待验收）</span>`;
+  else if (sess.status === 'archived') agentChip = `<span class="chip agent-chip off" ${AP}>云小助 · 已归档</span>`;
+  else agentChip = `<span class="chip agent-chip off" ${AP}>云小助 · 本地会话（Web 语义）</span>`;
+  /* v4.14 信号即门：会话头的"需要你"chip 也是门（同对象另一投影） */
+  const pend = (sess.kind !== 'board' && sess.kind !== 'goalhub') ? pendingOf(sess) : [];
+  const pendChip = pend.length
+    ? `<span class="chip" data-dgoto="${pend[0].anchor}" role="button" tabindex="0" style="cursor:pointer;background:#FFF7E6;border-color:var(--amber-line);color:var(--amber);font-weight:700">✋ ${pend.length} 项需要你</span>`
+    : '';
+  $('sessHead').innerHTML = `
+    <div class="sess-title">${titleHtml}${agentChip}</div>
+    <div class="sess-meta">${kindChip}${pendChip}${sidChip}</div>`;
+}
+
+/* ---------- 侧栏 ---------- */
+const STATUS_RANK = { confirm: 0, review: 1, running: 2, unread: 3, archived: 4, idle: 5 };
+function badgeHtml(sess) {
+  switch (sess.status) {
+    case 'confirm': return `<span class="badge b-confirm">待确认</span>`;
+    case 'review':  return `<span class="badge b-review">待验收</span>`;
+    case 'running': return `<span class="badge b-running"><span class="pulse"></span>运行中</span>`;
+    case 'unread':  return `<span class="badge b-unread">${sess.unread}</span>`;
+    case 'archived':return `<span class="badge b-done">已归档</span>`;
+    default: return '';
+  }
+}
+const GROUPS = [
+  { label: '产品讨论群', head: 'prodgroup', keys: ['competitor', 'roadmap'] },
+  { label: '财务群', head: 'fingroup', keys: ['recon'] },
+  { label: '私聊', keys: ['zhangsan', 'litingdm'] },
+  { label: '其他群', keys: ['designreview'] },
+  /* 本地 = 工作夹场所：工作文件夹是无 IM 通道的场所（dsh 原生 workspace > sessions 结构直接投影） */
+  { label: 'dsh-yzj', sec: 'local', ws: '~/Documents/project/dsh-yzj', icon: { t: '⌂', c: '#46536B' }, keys: ['local', 'local2', 'goalcraft'] },
+  { label: 'yzj-cli', sec: 'local', ws: '~/Documents/project/yzj-cli', icon: { t: '⌂', c: '#5B7A8A' }, keys: ['local3'] },
+];
+/* 顶层大分栏 = 通道轴的一级投影：有 IM 通道的场所（云之家）vs 无通道的场所（本地工作夹） */
+const SECTIONS = {
+  yzj:   { title: '云之家', hint: '群 · 私聊' },
+  local: { title: '本地',   hint: '工作文件夹' },
+};
+const CHEV_SVG = '<svg viewBox="0 0 10 10" width="9" height="9" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function groupAggBadge(keys) {
+  const order = ['confirm', 'review', 'running'];
+  const best = keys.map(k => sessions[k].status).filter(s => order.includes(s))
+    .sort((a, b) => order.indexOf(a) - order.indexOf(b))[0];
+  if (!best) return '';
+  return { confirm: `<span class="badge b-confirm">待确认</span>`,
+           review: `<span class="badge b-review">待验收</span>`,
+           running: `<span class="badge b-running"><span class="pulse"></span></span>` }[best];
+}
+const ACTIVE_STATUSES = ['confirm', 'review', 'running'];
+function renderSidebar() {
+  let lastSec = null;
+  $('tree').innerHTML = GROUPS.map(g => {
+    const sec = g.sec || 'yzj';
+    let secHead = '';
+    if (sec !== lastSec) {
+      lastSec = sec;
+      const s = SECTIONS[sec];
+      const secClosed = !!state.collapsed['sec:' + sec];
+      secHead = `<button class="tree-sec" data-chev="sec:${sec}" title="折叠/展开分栏">
+        <span class="chev${secClosed ? ' closed' : ''}">${CHEV_SVG}</span>${s.title}<span class="hint">${s.hint}</span>
+      </button>`;
+    }
+    /* 收起即全收：折叠是用户主权，彻底执行（当前位置由场所行示位线标注，不外露子行） */
+    if (state.collapsed['sec:' + sec]) return secHead;
+    return secHead + renderGroupRows(g);
+  }).join('');
+  renderTriage();
+}
+function renderGroupRows(g) {
+  {
+    /* 注意力租约：有 head 的组（群）下只挂活跃话题，终态退租；无 head 的组是场所/本地，常驻但归档不带徽标 */
+    const visibleKeys = g.head
+      ? g.keys.filter(k => ACTIVE_STATUSES.includes(sessions[k].status))
+      : g.keys.slice();
+    const isCollapsed = !!state.collapsed[g.label];
+    /* 收起即全收（折叠 = 注意力的用户主权，租约是系统代理）；含当前会话的收起组以左缘示位线标注 */
+    const showKeys = isCollapsed ? [] : visibleKeys;
+    const holds = isCollapsed && (g.keys.includes(state.current) || g.head === state.current);
+    const items = showKeys
+      .sort((a, b) => STATUS_RANK[sessions[a].status] - STATUS_RANK[sessions[b].status])
+      .map(k => {
+        const s = sessions[k];
+        const badge = s.status === 'archived' ? '' : badgeHtml(s);
+        return `<button class="item${(g.head || g.ws) ? ' sub' : ''}${k === state.current ? ' active' : ''}" data-sess="${k}">
+          <span class="ic" style="background:${s.icon.c}">${s.icon.t}</span>
+          <span class="tcol"><span class="t1">${s.title}</span><span class="t2">${s.preview}</span></span>
+          ${badge}
+        </button>`;
+      }).join('');
+    /* 节点是行，标签是字；披露列固定在行首左缘（Finder/VS Code/Notion 同位）：披露列管折叠，行体做本职 */
+    const chevOn = (withData) => `<span class="chev${isCollapsed ? ' closed' : ''}"${withData ? ` data-chev="${g.label}" role="button" tabindex="0" aria-label="折叠/展开"` : ''}>${CHEV_SVG}</span>`;
+    let head;
+    if (g.head) {
+      const h = sessions[g.head];
+      head = `<button class="item place${g.head === state.current ? ' active' : ''}${holds ? ' holds' : ''}" data-sess="${g.head}" title="打开群视图（主楼）">
+        ${chevOn(true)}<span class="ic" style="background:${h.icon.c}">${h.icon.t}</span>
+        <span class="tcol"><span class="t1">${g.label}</span><span class="t2">主楼 · ${g.keys.length} 个话题</span></span>
+        ${groupAggBadge(g.keys)}
+      </button>`;
+    } else if (g.ws) {
+      head = `<button class="item place${holds ? ' holds' : ''}" data-chev="${g.label}" title="工作文件夹（本地场所，无主楼）· 点击折叠/展开">
+        ${chevOn(false)}<span class="ic" style="background:${g.icon.c}">${g.icon.t}</span>
+        <span class="tcol"><span class="t1">${g.label}</span><span class="t2">${g.ws} · ${g.keys.length} 个会话</span></span>
+        ${groupAggBadge(g.keys)}
+      </button>`;
+    } else {
+      head = `<button class="tree-group" data-chev="${g.label}" title="折叠/展开">${chevOn(false)}${g.label}<span class="gline"></span></button>`;
+    }
+    return head + items;
+  }
+}
+function renderTriage() {
+  const counts = { confirm: 0, review: 0, running: 0 };
+  Object.values(sessions).forEach(s => { if (counts[s.status] !== undefined) counts[s.status]++; });
+  $('triage').innerHTML = `
+    <button class="triage-chip t-confirm" data-goto="confirm" data-zero="${counts.confirm ? 0 : 1}">✋ <span class="n">${counts.confirm}</span> 待确认</button>
+    <button class="triage-chip t-review" data-goto="review" data-zero="${counts.review ? 0 : 1}">✓ <span class="n">${counts.review}</span> 待验收</button>
+    <button class="triage-chip t-running" data-goto="running" data-zero="${counts.running ? 0 : 1}">● <span class="n">${counts.running}</span> 运行中</button>`;
+  $('fbAmber').textContent = counts.confirm;
+  $('fbAmber').dataset.zero = counts.confirm ? 0 : 1;
+  $('fbGreen').textContent = counts.review;
+  $('fbGreen').dataset.zero = counts.review ? 0 : 1;
+}
+
+/* ---------- Composer ---------- */
+function setVoice(v, opts = {}) {
+  state.voice = v;
+  const c = $('composer');
+  c.classList.toggle('v-pri', v === 'pri');
+  c.classList.toggle('v-pub', v === 'pub');
+  updateVoiceHint();
+  if (!opts.silent) $('input').focus();
+}
+function syncAskUI() {
+  $('askBtn').classList.toggle('on', state.ask);
+  $('composer').classList.toggle('v-ask', state.ask);
+  updateVoiceHint();
+}
+function isDM(sess) { return sess.kind === 'dm' || sess.placeKey === '李婷' || sess.placeKey === '张三'; }
+function updateVoiceHint() {
+  const input = $('input');
+  input.placeholder = state.ask ? '问一个数…（试试：销售群里凯瑞的最新口径是什么）'
+    : state.voice === 'pri' ? '对 Agent 说点什么（群里不可见）…'
+    : '说点什么 · @成员 提及 · @云小助 受话 agent…';
+  renderQuoteBar();
+}
+function refreshVoiceAvail() {
+  const sess = sessions[state.current];
+  const pri = $('voicePri'), pub = $('voicePub');
+  const isBoard = sess.kind === 'board' || sess.kind === 'goalhub';
+  pri.disabled = sess.kind === 'cold' || sess.kind === 'groupview' || isBoard;
+  pub.disabled = sess.kind === 'local' || isBoard;
+  $('askBtn').disabled = isBoard;
+  if (isBoard) { state.ask = false; syncAskUI(); }
+  pri.title = sess.kind === 'groupview' ? '主楼无单一 Session —— 回复某条消息入链、@云小助 开新话题，或进入某个话题'
+    : (pri.disabled ? '尚无 Session —— 先 @云小助 建立' : '');
+  pub.title = pub.disabled ? '此会话未锚定外部通道（本地会话）' : '';
+  setVoice((sess.kind === 'cold' || sess.kind === 'groupview') ? 'pub' : (sess.kind === 'local' ? 'pri' : sess.voiceDefault), { silent: true });
+}
+function nowStr() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function appendItems(sessKey, items, delayBase = 0) {
+  const sess = sessions[sessKey];
+  items.forEach((it, i) => {
+    setTimeout(() => {
+      sess.timeline.push(it);
+      if (state.current === sessKey) {
+        timelineEl.insertAdjacentHTML('beforeend', renderItem(it, sess));
+        timelineEl.scrollTop = timelineEl.scrollHeight;
+      }
+    }, delayBase + i * 750);
+  });
+}
+
+function handleSend() {
+  const input = $('input');
+  const text = input.value.trim();
+  if (!text) return;
+  const sessKey = state.current;
+  const sess = sessions[sessKey];
+  if (sess.kind === 'board') return;
+
+  /* v4：轻问——一次性投影，不产生任务 */
+  if (state.ask) {
+    input.value = '';
+    const cross = /销售群|凯瑞/.test(text);
+    const ans = cross
+      ? { a: '凯瑞的最新口径：预算上限 ¥80 万，希望 Q4 内完成签约。', src: '来源：销售一群 · 8/15 讨论（3 条消息）', cross: true }
+      : /回款|华南/.test(text)
+        ? { a: '上月华南回款 ¥2,412,000，环比 +12%。', src: '来源：ERP 数据面（演示桩）' }
+        : { a: '已即时汇总，详见来源。', src: '来源：知识库检索（演示桩）' };
+    appendItems(sessKey, [{ type: 'askcard', q: text, time: nowStr(), ...ans }]);
+    state.ask = false;
+    syncAskUI();
+    toast('轻问 = 一次性投影：问一个数得一个数，未创建任务（F-read）');
+    return;
+  }
+  const chips = state.chips.slice();
+  const chipNote = chips.length ? `<div class="mfoot">引用：${chips.join(' · ')}</div>` : '';
+  input.value = '';
+  state.chips = [];
+  renderChips();
+  updateVoiceHint();
+
+  const hasAt = AGENT_ALIAS.test(text);
+  const hasPerson = /@(李婷|王超|张三|小唐|张锐)/.test(text);
+  const safe = text
+    .replace(/@agent|@智能体|@云小助/gi, m => `<span class="at">${m}</span>`)
+    .replace(/@(李婷|王超|张三|小唐|张锐)/g, '<span class="at">@$1</span>');
+
+  if (state.voice === 'pub') {
+    const quote = state.quote;
+    state.quote = null;
+    /* v4.7 受话规则：委派语义由「受话者含 agent」触发——@ 与回复 agent 的消息同为受话 */
+    const toAgent = hasAt || (quote && quote.who === 'agent');
+
+    if (sess.kind === 'groupview') {
+      if (quote) { chainReply(quote, safe + chipNote, toAgent); renderQuoteBar(); return; }
+      if (hasAt) { renderQuoteBar(); mainFloorDelegate(text, safe); return; }
+      appendItems(sessKey, [{ type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, text: safe + chipNote }]);
+      if (hasPerson) toast('已提及成员——对方将收到云之家通知（第七动词：作为同事说话）');
+      renderQuoteBar();
+      return;
+    }
+
+    appendItems(sessKey, [{ type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, delegate: toAgent, quote, text: safe + chipNote }]);
+    if (quote && !toAgent) {
+      toast(isDM(sess)
+        ? '↩ 引述 · 落点不变——DM 流即界（§1.7），回复退化为纯指涉'
+        : '↩ 回复 · 落点不变——已在话题内，链根未变（回复=挂链，落点=链根所在边界）');
+    }
+    if (hasPerson && !toAgent) toast('已提及成员——对方将收到云之家通知（第七动词：作为同事说话）');
+    if (sess.kind === 'cold' && toAgent) { renderQuoteBar(); warmUp(sessKey); return; }
+    if (toAgent) {
+      appendItems(sessKey, [{ type: 'agent-pub', time: nowStr(), kind: 'ack',
+        text: hasAt
+          ? '已接收（并入当前话题队列，串行执行）。同话题多次 @ 同属本会话；要干净上下文用 /new。'
+          : '收到——你回复了我的消息，即向我受话（无需再 @）。已并入当前任务上下文。' }], 900);
+      if (!hasAt && quote) toast('受话者含 agent：回复 agent 的消息 = 追加指令，无需 @（v4.7 受话规则）');
+    }
+    renderQuoteBar();
+  } else {
+    state.quote = null; renderQuoteBar();
+    appendItems(sessKey, [{ type: 'user-pri', time: nowStr(), text: safe + chipNote }]);
+    if (sess.kind !== 'cold') {
+      appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: '收到，已并入当前任务上下文。' }], 1000);
+    }
+  }
+}
+
+/* v4.7 冷链平铺，热链收纳（Bruce 裁决）：挂链是数据事实（replyRootMsgId），划界收纳是投影决策——
+   人-人引用链平铺主楼（与云之家原生一致）；受话 agent 的瞬间 session 锚定链根，整条链收纳为热卡 */
+let MSG_UID = 0;
+let chainTopicCount = 0;
+function chainReply(quote, bodyHtml, toAgent) {
+  const floorKey = state.current;
+  const floor = sessions[floorKey];
+  const idx = floor.timeline.findIndex(i => i._id == quote.mid);
+  if (idx < 0) return;
+  /* 链根解析：回复的对象若本身是冷链成员，根 = 它的链根 */
+  let rootIdx = idx;
+  if (floor.timeline[idx].chainRoot != null) {
+    const r = floor.timeline.findIndex(i => i._id == floor.timeline[idx].chainRoot);
+    if (r >= 0) rootIdx = r;
+  }
+  const root = floor.timeline[rootIdx];
+
+  if (!toAgent) {
+    /* 冷链：平铺主楼带引用线——不划界不生卡（链是话题的胚胎） */
+    appendItems(floorKey, [{ type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true,
+      quote: { name: quote.name, text: quote.text }, chainRoot: root._id, text: bodyHtml }]);
+    toast('冷链平铺：引用回复留在主楼（与云之家原生一致）——链已在数据里，受话 agent 时整条链才收纳为话题');
+    return;
+  }
+
+  /* 点火收纳：受话 agent → session 锚定链根，链根+冷链成员整体迁入话题，主楼原位只留热卡 */
+  chainTopicCount++;
+  const key = 'chaintopic' + chainTopicCount;
+  const members = floor.timeline.filter(i => i.chainRoot === root._id);
+  sessions[key] = {
+    group: floor.group, kind: 'topic', placeKey: floor.placeKey,
+    title: (((root.text || '').replace(/<[^>]+>/g, '').slice(0, 10)) || '新话题') + '…',
+    status: 'running',
+    agentState: '处理话题内委派中',
+    sid: `session-yzj-topic-c${chainTopicCount}a…`,
+    icon: floor.icon,
+    preview: '运行中：冷链点火收纳',
+    voiceDefault: 'pub',
+    objects: { artifacts: [], refs: [], events: [] },
+    timeline: [
+      { type: 'divider', text: '今天' },
+      root, /* 真身唯一：链根与成员是迁移不是复制 */
+      ...members,
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, delegate: true,
+        quote: { name: quote.name, text: quote.text }, text: bodyHtml },
+      { type: 'agent-pub', time: nowStr(), kind: 'ack',
+        text: '已接收。session 锚定这条链的根——<b>回复链根 > 自成根</b>（A0），链上此前的对话已成为本话题的开场上下文。' },
+    ],
+  };
+  floor.timeline[rootIdx] = { type: 'topiccard', target: key, meta: `${root.name} 的消息 · 链上 ${members.length + 2} 条收纳 · 刚刚` };
+  floor.timeline = floor.timeline.filter(i => i.chainRoot !== root._id);
+  const pg = GROUPS.find(x => x.head === floorKey);
+  if (pg) pg.keys.push(key);
+  renderTimeline(); renderSidebar(); renderHead();
+  const card = timelineEl.querySelector(`.topiccard[data-sess="${key}"]`);
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast('点火收纳：受话 agent → session 锚定链根，整条链收进热卡（冷链平铺，热链收纳）');
+}
+
+/* 主楼裸 @ → 原地长出新话题（A0 第③级规则可视化） */
+let dynTopicCount = 0;
+function mainFloorDelegate(rawText, safe) {
+  const floorKey = state.current;
+  const floor = sessions[floorKey];
+  dynTopicCount++;
+  const key = 'dyntopic' + dynTopicCount;
+  const label = rawText.replace(/@agent|@智能体|@云小助/gi, '').trim().slice(0, 12) || '新话题';
+  sessions[key] = {
+    group: floor.group, kind: 'topic', placeKey: floor.placeKey,
+    title: label,
+    status: 'running',
+    agentState: '处理主楼委派中',
+    sid: `session-yzj-topic-n${dynTopicCount}f…`,
+    icon: floor.icon,
+    preview: '运行中：Agent 已接收任务',
+    voiceDefault: 'pri',
+    objects: { artifacts: [], refs: [], events: [] },
+    timeline: [
+      { type: 'divider', text: '今天' },
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, delegate: true, text: safe },
+      { type: 'agent-pub', time: nowStr(), kind: 'ack', text: '已接收，<b>回复本条消息</b>可在此任务上继续。' },
+    ],
+  };
+  const pg = GROUPS.find(x => x.head === floorKey);
+  if (pg) pg.keys.push(key);
+  setTimeout(() => {
+    appendItems(floorKey, [
+      { type: 'sys', text: '⚡ 主楼委派 → 自成话题根，新话题已创建（边界规则 A0③）' },
+      { type: 'topiccard', target: key, meta: 'Bruce 发起 · 2 条 · 刚刚' },
+    ]);
+    renderSidebar(); renderHead();
+    toast('裸 @ = 开新话题：话题卡原地长出，边界行为肉眼可见');
+  }, 800);
+}
+
+/* 冷会话焐热 */
+function warmUp(sessKey) {
+  const sess = sessions[sessKey];
+  appendItems(sessKey, [
+    { type: 'sys', text: '⚡ 识别到公开委派 · 正在建立 Session（topic ↔ session 锚定）…' },
+  ], 700);
+  setTimeout(() => {
+    Object.assign(sess, sess.warm, { status: 'running' });
+    delete sess.unread;
+    appendItems(sessKey, [
+      { type: 'agent-pub', time: nowStr(), kind: 'ack', text: '已接收，正在处理。<b>回复本条消息</b>可在此任务上继续。' },
+    ]);
+    renderSidebar(); renderHead(); refreshVoiceAvail(); renderRight();
+    toast('会话已焐热 → 持久 Session（话题即句柄：同话题的后续 @ 复用同一会话）');
+  }, 1700);
+}
+
+/* 审批对象剧本 */
+function handleCardAction(ccId, act) {
+  const sess = sessions.competitor;
+  const item = sess.timeline.find(i => i.type === 'confirm' && i.id === ccId);
+  if (!item || item.state !== 'pending') return;
+  if (act === 'context') { toast('真实实现：锚定打开资源面板对应位置（工作区 · 产品组）'); return; }
+  if (act === 'edit') { toast('真实实现：把参数回填进 composer 供修改后重发'); return; }
+  if (act === 'cancel') { toast('已取消（demo 未实现取消分支——试试「确认执行」）'); return; }
+
+  item.state = 'approved';
+  const lastWork = sess.timeline.filter(i => i.type === 'work').pop();
+  if (lastWork) lastWork.steps.forEach(s => s.st = 'done');
+  renderTimeline(); renderHead();
+
+  appendItems('competitor', [
+    { type: 'work', time: nowStr(), summary: '执行确认后的写入 · 2 个步骤', open: true, steps: [
+      { st: 'done', tool: 'sheet table create', desc: '创建「协作能力对比」数据表' },
+      { st: 'done', tool: 'sheet record create', desc: '写入 12 条记录（3 家 × 4 组能力）' },
+    ]},
+    { type: 'artifact', icon: '▦', title: '竞品对比 · 评审表', meta: '云之家多维表格 · 产品组工作区 · 12 条记录 · 5 个维度', pv: 'sheet-review' },
+    { type: 'artifact', icon: '🧾', title: '任务过程摘要 #7', meta: '云之家文档 · 做了什么 / 读写了什么，全组可查', pin: 9, pv: 'doc-summary' },
+    { type: 'agent-pub', time: nowStr(), kind: 'done', text: '✅ 已完成：对比表与过程摘要已回帖，12 条记录、5 个维度。周一评审前需增删维度，直接在这里说。' },
+    { type: 'accept', id: 'ac-competitor', state: 'pending', pin: 7 },
+  ], 500);
+
+  sess.status = 'running';
+  renderSidebar();
+  setTimeout(() => {
+    sess.status = 'review';
+    sess.preview = '待验收：对比表 + 过程摘要已交付';
+    sess.agentState = null;
+    sess.objects.artifacts.push(
+      { icon: '▦', t: '竞品对比 · 评审表', m: '12 条记录 · 5 维度', pv: 'sheet-review' },
+      { icon: '🧾', t: '任务过程摘要 #7', m: '文档 · 全组可查', pv: 'doc-summary' },
+    );
+    renderSidebar(); renderRight();
+    if (state.current === 'competitor') renderHead();
+    toast('交付完成：工件已沉淀到右栏「当前」—— 点它就地预览，验收不出屏');
+  }, 3800);
+}
+
+/* 验收归档 → 记忆蒸馏 */
+function handleAccept(acId) {
+  const sessKey = acId.replace('ac-', '');
+  const sess = sessions[sessKey];
+  const item = sess.timeline.find(i => i.type === 'accept' && i.id === acId);
+  if (!item || item.state === 'done') return;
+  item.state = 'done';
+  appendItems(sessKey, [
+    { type: 'sys', text: '🗂 验收通过 · 会话已归档 · 收件箱已清位' },
+    { type: 'sys', text: `🧠 记忆蒸馏：${(sess.acceptMemory || []).length} 条结构化事实 → 「${sess.placeKey}」记忆（右栏可检视/纠正）` },
+  ]);
+  (sess.acceptMemory || []).forEach(m => MEM[sess.placeKey].push(m));
+  sess.status = 'archived';
+  sess.preview = '已归档 · 记忆已蒸馏';
+  renderTimeline(); renderSidebar(); renderHead(); renderRight();
+  toast('任务终态：归档 → 记忆蒸馏 → 侧栏租约到期退出。历史住址：群视图的话题卡（已冷却为归档索引）。');
+}
+
+/* ---------- Agent 场所合同 ---------- */
+function contractFor(sess) {
+  if (sess.kind === 'local' || sess.kind === 'board') return { local: true };
+  if (sess.kind === 'cold') return { cold: true };
+  if (sess.placeKey === '财务群') return {
+    hard: [
+      ['接单', '开启', '覆盖 · 本群'],
+      ['触发者', '仅操作者本人', '覆盖 · 本群'],
+      ['写权限级', '全确认（无预授权）', '覆盖 · 本群'],
+      ['工具面', 'sheet ✓ · doc ✓ · calendar ✗ · im ✗ · file ✗', '覆盖 · 本群'],
+      ['审批策略', '一切写操作需确认', '覆盖 · 本群'],
+      ['记忆策略', '仅事实类 · 敏感数据永不记忆', '覆盖 · 本群'],
+    ],
+    lease: [
+      { t: '对账表 · 记录写入免确认', m: '2026/8/1–8/5 有效 · 到期自动收回', expired: true },
+    ],
+    soft: [
+      ['场所指令', '差异表述保留原始单号；金额千分位。'],
+      ['默认 preset', 'standard'],
+      ['主动性', '仅被动响应'],
+    ],
+    snap: '⚡ 会话启动快照锁定 preset + 指令 · 权限每次工具调用实时校验（guard）· 记忆策略 guard 级强制',
+  };
+  if (sess.placeKey === '产品讨论群') return {
+    hard: [
+      ['接单', '开启', '覆盖 · 本群'],
+      ['触发者', '全部群成员', '继承 · 组织默认'],
+      ['写权限级', '标准写预授权（@触发的当前 turn）', '继承 · 组织默认'],
+      ['工具面', 'doc ✓ · sheet ✓ · calendar ✓ · im ✓ · file ✗', '覆盖 · 本群'],
+      ['审批策略', '非操作者委派的写操作需操作者 ack', '覆盖 · 本群'],
+      ['preset 允许', 'standard · deep-research', '继承 · 组织默认'],
+    ],
+    soft: [
+      ['场所指令', '评审类产出带定价维度列；回复保持精简。'],
+      ['默认 preset', 'standard（允许列表内可对话切换）'],
+      ['主动性', '仅被动响应（@触发）'],
+    ],
+    snap: '⚡ 本会话 10:04 快照锁定 preset + 指令 · 权限每次工具调用实时校验（guard）',
+  };
+  return {
+    hard: [
+      ['接单', '开启', '继承 · 组织默认'],
+      ['触发者', '仅本人', '继承 · 组织默认'],
+      ['写权限级', '标准写预授权', '继承 · 组织默认'],
+      ['工具面', 'doc ✓ · sheet ✓ · calendar ✓ · im ✓ · file ✓', '继承 · 组织默认'],
+      ['审批策略', '默认（操作者本人委派免 ack）', '继承 · 组织默认'],
+      ['preset 允许', 'standard · deep-research', '继承 · 组织默认'],
+    ],
+    soft: [
+      ['场所指令', sess.placeKey === '张三' ? '走访类汇总按客户分组、标待跟进。' : '（暂无——对话说「以后…」即写入）'],
+      ['默认 preset', 'standard'],
+      ['主动性', '仅被动响应'],
+    ],
+    snap: '⚡ 会话启动时快照锁定 preset + 指令 · 权限每次工具调用实时校验（guard）',
+  };
+}
+function openAgentPanel() {
+  const sess = sessions[state.current];
+  const c = contractFor(sess);
+  let body;
+  if (c.local) {
+    body = `<div class="ap-sec"><div class="ap-note">本地会话不挂场所合同，走 <b>Web 语义</b>：全工具面 + 写操作确认卡。<br>语态即权限的另一半：能力 = f(场所, 语态)。</div></div>`;
+  } else if (c.cold) {
+    body = `<div class="ap-sec"><div class="ap-note">此会话尚未接入 Agent。首次 @云小助 焐热时按「<b>组织默认</b>」合同签约；之后可在此逐项覆盖（硬合同仅结构化编辑）。</div></div>`;
+  } else {
+    const hardRows = c.hard.map(([k, v, t]) =>
+      `<div class="ap-row"><span class="k">${k}</span><span class="v">${v}</span><span class="ap-inherit${t.startsWith('覆盖') ? ' ovr' : ''}">${t}</span></div>`).join('');
+    const softRows = c.soft.map(([k, v]) =>
+      `<div class="ap-row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+    const leaseRows = (c.lease || []).map(l =>
+      `<div class="lease-row"><span class="lease-tag${l.expired ? ' expired' : ''}">${l.expired ? '已过期' : '生效中'}</span><span style="flex:1">${l.t}</span><span style="font-size:10px;color:var(--ink-3)">${l.m}</span></div>`).join('');
+    const leaseSec = c.lease ? `
+      <div class="ap-sec">
+        <div class="ap-sec-h">授权租约 <span class="ap-badge hard">对象级 + 期间级 · 创建走强确认</span></div>
+        ${leaseRows}
+        <div class="ap-note">可过期的预授权——解"全确认 vs 审批疲劳"两难，与注意力租约同构；到期自动收回。</div>
+      </div>` : '';
+    body = `
+      <div class="ap-sec">
+        <div class="ap-sec-h">硬合同 <span class="ap-badge hard">guard 强制 · 对话不可改</span></div>
+        ${hardRows}
+        <div class="ap-note">仅结构化界面可编辑，模型与对话不可写——"只在 prompt 里强制的就是软的"。记忆策略在列（能力越界可撤销，记忆越界不可撤销）。</div>
+      </div>${leaseSec}
+      <div class="ap-sec">
+        <div class="ap-sec-h">软合同 · 与场所记忆同库 <span class="ap-badge soft">可对话修改</span></div>
+        ${softRows}
+        <div class="ap-note">对话里说「以后……」即写入此处；与右栏记忆面板同源，可检视、可删改。</div>
+      </div>
+      <div class="ap-actions">
+        <button class="btn" data-apedit="1">编辑硬合同（设置页）</button>
+        <span class="ap-trace" data-trace="1">查看本会话完整轨迹（harness 会话详情）↗</span>
+      </div>
+      <div class="ap-note" style="padding:0 18px 14px">${c.snap}</div>`;
+  }
+  $('apanel').innerHTML = `
+    <div class="ap-head">
+      <span class="ap-ava">助</span>
+      <span><span class="ap-title">云小助 · ${sess.kind === 'local' ? '本地会话' : sess.placeKey}</span>
+      <span class="ap-sub" style="display:block">同一个 agent · 每个场所一份合同（组织默认 → 场所 → 会话快照）</span></span>
+      <button class="pin inline" data-note="10" aria-label="设计注解 10" style="margin-left:auto">10</button>
+      <button class="ap-close" id="apClose" aria-label="关闭">×</button>
+    </div>${body}`;
+  $('apanelMask').classList.add('show');
+}
+
+/* ---------- 右栏：对象面 ---------- */
+/* 知识库 = 空间维度的一棵混排对象树：文档与表格同住工作区树，类型只是属性（图标/过滤/渲染器） */
+const RES = {
+  tree: [
+    { sec: '产品组工作区' },
+    { icon: '▦', t: '竞品对比 · 评审表', m: '多维表格 · 12 条记录', pv: 'sheet-review', kind: 'sheet' },
+    { icon: '🧾', t: '任务过程摘要 #7', m: '文档 · 刚刚', pv: 'doc-summary', kind: 'doc' },
+    { icon: '📄', t: '客户走访汇总 · 8月第2周', m: '文档 · 昨天', pv: 'doc-visit', kind: 'doc' },
+    { icon: '▦', t: '└ 走访记录表', m: '父文档挂载 · 9 条记录', pv: 'sheet-visits', kind: 'sheet' },
+    { icon: '📄', t: 'Q2 复盘会议纪要', m: '文档 · 8月12日', pv: 'doc-minutes', kind: 'doc' },
+    { icon: '▦', t: '需求池', m: '多维表格 · 46 条记录', pv: 'sheet-pool', kind: 'sheet' },
+  ],
+  cal: [
+    { time: '14:00', t: '产品例会', m: '会议室 A · 6 人', pv: 'ev-meeting' },
+    { time: '16:30', t: '设计评审：工作台面板', m: '线上 · 王超发起' },
+    { time: '明 10:00', t: '管理层竞品评审', m: '会议室 C · 需要对比表', pv: 'ev-review' },
+  ],
+};
+
+/* 事件 = 时间锚定的图节点；枢纽预览聚合它的边 */
+const EVENTS = {
+  'ev-review': { title: '管理层竞品评审', time: '明 10:00–11:00', room: '会议室 C', organizer: '李婷', parts: 6,
+    linkedSession: 'competitor', expect: '评审表 · 过程摘要',
+    desc: 'Q3 竞品策略评审。材料见关联链接。' },
+  'ev-meeting': { title: '产品例会', time: '今天 14:00–15:00', room: '会议室 A', organizer: '王超', parts: 6,
+    linkedSession: 'roadmap', expect: 'Q3 路线图草稿',
+    desc: '例会固定议程 + Q3 路线图初稿过一遍。' },
+};
+
+const PREVIEWS = {
+  'sheet-review': { kind: 'sheet', title: '竞品对比 · 评审表', meta: '云之家多维表格 · 产品组工作区 · 12 条记录 · 5 个维度',
+    cols: ['维度', 'Notion', '飞书', 'Airtable'],
+    rows: [['实时协作', '◐', '●', '●'], ['权限模型', '●', '●', '◐'], ['自动化', '◐', '●', '●'], ['API 开放', '●', '◐', '●'], ['定价', '$10/人', '¥50/人', '$20/人']] },
+  'doc-summary': { kind: 'doc', title: '任务过程摘要 #7', meta: '云之家文档 · 面向群的透明度 · 全组可查',
+    outline: ['<b>任务</b>：竞品协作能力对比表（李婷提出，Bruce 委派）', '<b>步骤</b>：身份确认 → 定位产品组 → 三家资料检索 → 建表写入', '<b>读</b>：产品组工作区 · 检索来源 3 页', '<b>写</b>：竞品对比 · 评审表（12 条，经审批 #7）', '<b>产出</b>：评审表 ↗ · 本摘要'] },
+  'doc-visit': { kind: 'doc', title: '客户走访汇总 · 8月第2周', meta: '云之家文档 · 产品组工作区',
+    outline: ['按客户分组 · 9 条走访记录', '<b>宏图科技</b>：续约意向确认，待发正式报价', '<b>蓝海传媒</b>：功能反馈 3 条（已转需求池）', '<b>待跟进 ×2</b>：报价单（周三前）· 回访电话'] },
+  'sheet-visits': { kind: 'sheet', title: '走访记录表', meta: '云之家多维表格 · 9 条记录',
+    cols: ['客户', '日期', '结论'], rows: [['宏图科技', '8/12', '续约意向'], ['蓝海传媒', '8/13', '功能反馈'], ['益丰咨询', '8/14', '观望']] },
+  'doc-minutes': { kind: 'doc', title: 'Q2 复盘会议纪要', meta: '云之家文档 · 8月12日',
+    outline: ['结论 17 条已提取', '其中 5 条进入《Q3 路线图 · 草稿》'] },
+  'sheet-pool': { kind: 'sheet', title: '需求池', meta: '云之家多维表格 · 46 条记录',
+    cols: ['需求', '优先级', '状态'], rows: [['面板间距走查', 'P1', '进行中'], ['滚动条统一', 'P2', '待排期'], ['竞品对比维度扩展', 'P2', '新建']] },
+};
+
+function objRow(o, tag) {
+  const tagH = tag ? `<span class="obj-tag ${tag === '工件' ? 'art' : 'ref'}">${tag}</span>` : '';
+  const plusH = o.ref ? `<span class="plus" data-ref="${o.t}" role="button" title="加入引用 chip">＋</span>` : '';
+  return `<button class="res-item"${o.pv ? ` data-preview="${o.pv}"` : ''}>
+    <span class="ri">${o.icon}</span>
+    <span class="rt"><span class="rt1">${o.t}</span><span class="rt2">${o.m}</span></span>
+    ${tagH}${plusH}
+  </button>`;
+}
+function calRow(ev) {
+  const clickable = ev.pv ? ` data-preview="${ev.pv}" role="button" tabindex="0" style="cursor:pointer"` : '';
+  return `<div class="cal-item"${clickable}><span class="ct">${ev.time}</span><span class="cb">${ev.t}${ev.pv ? ' <span style="color:var(--pub);font-size:10px">枢纽 ›</span>' : ''}<div class="cm">${ev.m}</div></span></div>`;
+}
+/* 事件枢纽：关联任务 + 材料就绪度从图状态免费推导 */
+function renderEventHub(key) {
+  const ev = EVENTS[key];
+  const sess = sessions[ev.linkedSession];
+  const ready = ['review', 'archived'].includes(sess.status);
+  const taskRow = `<button class="res-item" data-sess="${ev.linkedSession}">
+    <span class="ri">🧵</span>
+    <span class="rt"><span class="rt1">${sess.title}</span><span class="rt2">${sess.preview}</span></span>
+    ${badgeHtml(sess) || ''}
+  </button>`;
+  const materials = sess.objects.artifacts.length
+    ? sess.objects.artifacts.map(a => `<button class="res-item" data-preview="${a.pv}">
+        <span class="ri">${a.icon}</span>
+        <span class="rt"><span class="rt1">${a.t}</span><span class="rt2">${a.m}</span></span>
+        <span class="hub-ok">✓ 就绪</span>
+      </button>`).join('')
+    : `<div class="mem-empty">⏳ ${ev.expect} —— 任务${sess.status === 'confirm' ? '等待审批 #7' : '运行中'}，交付后自动就绪</div>`;
+  return `<div class="preview">
+    <div class="pv-head"><span class="pv-back" data-pback="1" role="button" tabindex="0">‹ 返回</span><span class="pv-title">${ev.title}</span><button class="pin inline" data-note="16" aria-label="设计注解 16">16</button></div>
+    <div class="pv-meta">${ev.time} · ${ev.room} · 组织者 ${ev.organizer} · 参会 ${ev.parts} 人</div>
+    <div class="res-sec">关联任务（服务边）</div>${taskRow}
+    <div class="res-sec">材料就绪度</div>${materials}
+    <div class="res-sec">描述</div>
+    <div class="pv-card" style="font-size:11.5px;line-height:1.6;color:var(--ink-2)">${ev.desc}<div style="margin-top:6px;font-size:9.5px;color:var(--ink-3)">关联材料链接可经确认写入描述（边也落云之家 · 全参会人在原生日程可见）</div></div>
+    <button class="hub-cta" data-evdelegate="${key}">@云小助 为此会准备…</button>
+    <div class="pv-open" data-extopen="1" role="button" tabindex="0">在云之家打开 ↗</div>
+  </div>`;
+}
+function renderPreviewHtml(key) {
+  if (key.startsWith('ev-')) return renderEventHub(key);
+  const p = PREVIEWS[key];
+  if (!p) return '';
+  const content = p.kind === 'sheet'
+    ? `<table class="pv-table"><tr>${p.cols.map(c => `<th>${c}</th>`).join('')}</tr>${p.rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</table>`
+    : `<div class="pv-outline">${p.outline.map(l => `<div>· ${l}</div>`).join('')}</div>`;
+  return `<div class="preview">
+    <div class="pv-head"><span class="pv-back" data-pback="1" role="button" tabindex="0">‹ 返回</span><span class="pv-title">${p.title}</span></div>
+    <div class="pv-meta">${p.meta}<br>只读预览 · 复用中栏富卡片渲染器（presentationMeta）· 修改走对话 + 确认门</div>
+    <div class="pv-card">${content}</div>
+    <div class="pv-open" data-extopen="1" role="button" tabindex="0">在云之家打开 ↗</div>
+  </div>`;
+}
+
+function renderRight() {
+  const body = $('resBody');
+  if (state.preview) { body.innerHTML = renderPreviewHtml(state.preview); return; }
+  if (sessions[state.current].kind === 'goalhub') {
+    const g = GOALS[state.hubGoal || 'g1'];
+    body.innerHTML = `
+      <div class="res-sec">产出归集 · 目标→承诺→工件（两跳派生查询）</div>
+      <div class="pv-card" style="margin-bottom:6px"><button class="btn" data-fpv="md1" style="font-size:11px;padding:3px 10px">📄 竞品对比分析.md</button>
+        <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:4px">血缘：竞品对比表（agent 交付）· 点开即三态预览</span></div>
+      <div class="pv-card" style="margin-bottom:6px"><button class="btn" data-fpv="html1" style="font-size:11px;padding:3px 10px">🌐 Q3路线图评审.html</button>
+        <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:4px">血缘：Q3 路线图整理（agent 交付）</span></div>
+      <div class="res-sec">背景</div>
+      <div class="pv-card" style="margin-bottom:6px;font-size:10.5px;color:var(--ink-2)">${g.born}
+        <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:4px">磨稿会话血缘：<b>owner-only</b>（机密目标一跳即泄密——可见域法则特例）</span></div>
+      <div class="pv-card" style="font-size:10.5px;color:var(--ink-3)">简报归档：暂无——评估签发后附真身归集，历次简报即非操作者的目标时间线</div>`;
+    return;
+  }
+
+  if (state.resTab === 'cur') {
+    const sess = sessions[state.current];
+    const o = sess.objects;
+    if (!o) {
+      body.innerHTML = `<div class="mem-empty">${sess.kind === 'cold'
+        ? '冷会话暂无对象<br>焐热后，工件与引用会沉淀在这里'
+        : sess.kind === 'board'
+          ? '取景框视图——对象跟会话走<br>点击承诺行进入具体会话查看'
+          : '本地会话的工件在工作区文件里<br>（由 harness 管理）'}</div>`;
+      return;
+    }
+    const arts = o.artifacts.length
+      ? o.artifacts.map(a => objRow(a, '工件')).join('')
+      : `<div class="mem-empty">暂无工件——交付后出现在这里<br><b>验收不出屏</b></div>`;
+    const refs = o.refs.length ? `<div class="res-sec">喂入的引用（语境留痕）</div>` + o.refs.map(a => objRow(a, '引用')).join('') : '';
+    const evs = o.events.length ? `<div class="res-sec">关联日程（截止维度）</div>` + o.events.map(calRow).join('') : '';
+    body.innerHTML = `<div class="res-sec">本会话工件</div>${arts}${refs}${evs}`;
+    return;
+  }
+
+  if (state.resTab === 'mem') {
+    const sess = sessions[state.current];
+    if (!sess.placeKey) {
+      body.innerHTML = `<div class="mem-scope">当前：本地会话（无场所）</div>
+        <div class="mem-empty">本地会话不挂场所记忆<br>切到云之家会话查看群 / 联系人记忆</div>`;
+      return;
+    }
+    const list = MEM[sess.placeKey].filter(m => !m.deleted);
+    const scopeType = ['产品讨论群', '设计评审群'].includes(sess.placeKey) ? '群记忆' : '联系人记忆';
+    body.innerHTML = `<div class="mem-scope">当前场所：<b>${sess.placeKey}</b>（${scopeType}）· 不跨场所泄漏</div>` +
+      (list.length
+        ? list.map((m, i) => `<div class="mem-card"><span class="mk">${m.k}</span>
+            <button class="del" data-mem="${i}" aria-label="删除记忆">×</button>
+            <div class="mt">${m.t}</div><div class="mm">${m.m}</div></div>`).join('')
+        : `<div class="mem-empty">「${sess.placeKey}」暂无沉淀记忆<br>任务归档时自动蒸馏 1-3 条结构化事实</div>`);
+    return;
+  }
+
+  /* 资源：全局浏览器（tab 按组织维度：空间树 / 时间轴，不按对象类型） */
+  const sub = state.resSub;
+  const subNav = `<div class="res-sub">
+    <span class="rs${sub === 'docs' ? ' on' : ''}" data-ressub="docs" role="button" tabindex="0">知识库</span>
+    <span class="rs${sub === 'cal' ? ' on' : ''}" data-ressub="cal" role="button" tabindex="0">日程</span>
+    <button class="pin inline" data-note="15" aria-label="设计注解 15" style="margin-left:auto">15</button>
+  </div>`;
+  if (sub === 'docs') {
+    const tf = state.resType;
+    const filterRow = `<div class="type-filter">
+      <span class="tf${tf === 'all' ? ' on' : ''}" data-restype="all" role="button">全部</span>
+      <span class="tf${tf === 'doc' ? ' on' : ''}" data-restype="doc" role="button">文档</span>
+      <span class="tf${tf === 'sheet' ? ' on' : ''}" data-restype="sheet" role="button">表格</span>
+    </div>`;
+    body.innerHTML = subNav + filterRow + RES.tree
+      .filter(r => r.sec || tf === 'all' || r.kind === tf)
+      .map(r => r.sec ? `<div class="res-sec">${r.sec}</div>` : objRow({ ...r, ref: true })).join('');
+  } else {
+    const days = ['一', '二', '三', '四', '五', '六', '日'];
+    const week = days.map((d, i) =>
+      `<span class="wd${i === 0 ? ' today' : ''}">${d}<br>${17 + i}${(i === 0 || i === 1) ? '<span class="dot"></span>' : ''}</span>`).join('');
+    body.innerHTML = subNav +
+      `<div class="res-sec">8月 · 本周</div><div class="week-strip">${week}</div>` +
+      `<div class="res-sec">今天 · 8月17日</div>` + RES.cal.slice(0, 2).map(calRow).join('') +
+      `<div class="res-sec">明天</div>` + calRow(RES.cal[2]);
+  }
+}
+
+/* ---------- chips / toast / popover ---------- */
+/* v4.7 锚定条 = A0 锚定层级的 UI 真身：落点在按下发送前永远可见 */
+function renderQuoteBar() {
+  const bar = $('quoteBar');
+  const sess = sessions[state.current];
+  const q = state.quote;
+  const hasAt = AGENT_ALIAS.test($('input').value);
+  bar.hidden = false;
+  bar.classList.remove('delegate');
+  const xBtn = q ? `<span class="x" data-qx="1" role="button" aria-label="取消回复">×</span>` : '';
+  if (sess.kind === 'board') { bar.innerHTML = '◫ 承诺板 · 只读取景框 · 无发送落点'; return; }
+  if (sess.kind === 'goalhub') { bar.innerHTML = '◎ 目标枢纽 · 决断与一跳之地 · 无发送落点——委派/催/轻问全走传送门（话语在会话里说）'; return; }
+  if (state.ask) { bar.innerHTML = '⚡ 轻问 · 一次性投影 · 即问即答，不产生任务生命周期（F-read）'; return; }
+  if (state.voice === 'pri') {
+    bar.innerHTML = `🔒 落点：<b>本会话私语</b> · 仅你与 Agent 可见 · 写操作需确认卡${q ? ` · ↩ 引述 ${q.name}` : ''}${xBtn}`;
+    return;
+  }
+  if (sess.kind === 'groupview') {
+    if (q) {
+      const ignite = hasAt || q.who === 'agent';
+      bar.classList.toggle('delegate', ignite);
+      bar.innerHTML = ignite
+        ? `↩ 挂到 <b>${q.name}</b>「${q.text}…」的链上 · ⚡ 受话 agent → 落点：<b>整条链收纳为话题</b>（回复链根 > 自成根）${xBtn}`
+        : `↩ 引用回复 <b>${q.name}</b>「${q.text}…」 → 落点：<b>主楼（平铺 · 已挂链）</b>——链是话题的胚胎，受话 agent 时才收纳${xBtn}`;
+    } else if (hasAt) {
+      bar.classList.add('delegate');
+      bar.innerHTML = `⚡ 落点：<b>主楼 · 未挂链 + 受话 agent → 自成根开新话题</b>（A0③：「新」是推导不是选择）`;
+    } else {
+      bar.innerHTML = `📍 落点：<b>主楼</b> · 以 Bruce 的身份 · 群内所有人可见`;
+    }
+    return;
+  }
+  const dm = isDM(sess);
+  const place = dm ? `与 <b>${sess.title}</b> 的连续会话（流即界）` : `话题「<b>${sess.title}</b>」（回帖即回复 · 链根不变）`;
+  const talkAgent = hasAt || (q && q.who === 'agent');
+  bar.classList.toggle('delegate', !!talkAgent);
+  bar.innerHTML = `📍 落点：${place} · ${dm ? '对方' : '群内所有人'}可见${q ? ` · ↩ ${dm ? '引述' : '回复'} <b>${q.name}</b>` : ''}${talkAgent ? ' · <b>受话 agent</b>' + (hasAt ? '（公开委派）' : '（回复 agent 消息，无需 @）') : ''}${xBtn}`;
+}
+function renderChips() {
+  const row = $('chipsRow');
+  if (!state.chips.length) { row.hidden = true; row.innerHTML = ''; return; }
+  row.hidden = false;
+  row.innerHTML = state.chips.map((c, i) =>
+    `<span class="ref-chip">☁ ${c}<span class="x" data-chip="${i}" role="button" aria-label="移除引用">×</span></span>`).join('');
+}
+let toastTimer;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3400);
+}
+function showNote(no, anchorRect) {
+  const n = NOTES[no];
+  if (!n) return;
+  $('popNo').textContent = `注 ${no}`;
+  $('popTitle').textContent = n.title;
+  $('popBody').innerHTML = n.body;
+  const pop = $('popover');
+  pop.classList.add('show');
+  const w = 330, pad = 12;
+  let x = anchorRect.left + anchorRect.width / 2 - w / 2;
+  x = Math.max(pad, Math.min(x, window.innerWidth - w - pad));
+  let y = anchorRect.bottom + 10;
+  if (y > window.innerHeight - 260) y = Math.max(pad, anchorRect.top - 10 - 240);
+  pop.style.left = x + 'px';
+  pop.style.top = y + 'px';
+}
+
+/* ---------- 切换会话 ---------- */
+function openSession(key) {
+  state.current = key;
+  state.groupFilter = 'all';
+  state.preview = null;
+  state.quote = null; /* 锚不跨会话残留：落点真身随所在框重算 */
+  state.filePreview = null; renderFilePv(); /* 预览随语境走：切会话即收 */
+  renderSidebar(); renderHead(); renderTimeline(); refreshVoiceAvail(); renderRight();
+}
+
+/* ---------- 事件绑定 ---------- */
+  /* v4.11 工件预览三态（流内卡 → 并排 → 沉浸）：并排=默认态，边看边回 */
+function filePvBody(f) {
+  if (f.kind === 'md') return `<div class="fpv-doc">
+    <h2>竞品对比分析</h2>
+    <p class="fpv-dim">生成：云小助 · 血缘：本话题任务产出 · 8/17</p>
+    <h3>1. 结论摘要</h3>
+    <p>三家竞品中，<b>A 家</b>协作能力最全但定价最高（¥98/席/月）；<b>B 家</b>移动端体验最佳，API 开放度中等；<b>C 家</b>以低价换市场，实时协作仅部分支持。</p>
+    <h3>2. 能力矩阵</h3>
+    <table class="pv-table"><tr><th>维度</th><th>A 家</th><th>B 家</th><th>C 家</th></tr>
+    <tr><td>实时协作</td><td>✓</td><td>✓</td><td>部分</td></tr>
+    <tr><td>API 开放度</td><td>高</td><td>中</td><td>低</td></tr>
+    <tr><td>定价（席/月）</td><td>¥98</td><td>¥68</td><td>¥45</td></tr></table>
+    <h3>3. 建议</h3><p>定价锚定 B 家、能力对标 A 家的协作子集…… <span class="fpv-dim">（余下 2 节略——md 富渲染 · presentationMeta 渲染器复用）</span></p>
+  </div>`;
+  if (f.kind === 'pdf') return `<div class="fpv-doc">
+    ${[1, 2].map(p => `<div class="fpv-page"><div class="fpv-pageno">第 ${p} 页 / ${f.pages}</div>
+      <b>${p === 1 ? '发布物料清单 · 2026 Q3' : '二、渠道分发矩阵'}</b>
+      <p>${p === 1 ? '一、物料总览：新版官网横幅 ×3、产品一页纸 ×2、发布会 KV、演示视频脚本……' : '公众号 / 官网 / 合作伙伴门户 / 内部知识库，各渠道尺寸与格式要求见附表……'}</p></div>`).join('')}
+    <div class="fpv-dim" style="text-align:center;padding:8px">浏览器原生 PDF viewer 内嵌（演示桩）· 共 ${f.pages} 页 · 沉浸态更宜多页阅读</div>
+  </div>`;
+  return `<div class="fpv-doc">
+    <div class="fpv-sandbox">🔒 沙箱只读预览（iframe sandbox · 脚本已禁）——预览不是运行</div>
+    <div class="fpv-page" style="background:linear-gradient(160deg,#FDFEFF,#F6F9FF)">
+      <b style="font-size:15px">Q3 路线图评审</b>
+      <p>▣ 里程碑时间轴（静态渲染）　▣ 六个特性卡片　▣ 风险矩阵</p>
+      <p class="fpv-dim">html 自包含单页 · 交互脚本在沙箱中不执行 · 要跑起来请下载后本地打开</p>
+    </div>
+  </div>`;
+}
+/* 预览宽度：可拖分隔线 + 护栏（中栏可回复 ≥420 / 预览可读 ≥380）+ 记忆（demo 记内存，真实实现 localStorage） */
+const PV_MIN = 380, MAIN_MIN = 420, SIDE_W = 272;
+function applyPvWidth() {
+  const app = document.querySelector('.app');
+  if (state.filePreview && state.pvW) {
+    app.style.gridTemplateColumns = `${SIDE_W}px minmax(${MAIN_MIN}px, 1fr) ${state.pvW}px`;
+  } else {
+    app.style.gridTemplateColumns = '';
+  }
+}
+let pvDragging = false;
+document.addEventListener('mousedown', (e) => {
+  if (e.target.closest('#fpvDivider')) { pvDragging = true; document.body.classList.add('pv-dragging'); e.preventDefault(); }
+});
+document.addEventListener('mousemove', (e) => {
+  if (!pvDragging) return;
+  const max = Math.max(PV_MIN, window.innerWidth - SIDE_W - MAIN_MIN); /* 中栏护栏：对话不离场的硬底线，拖不破 */
+  state.pvW = Math.min(max, Math.max(PV_MIN, window.innerWidth - e.clientX));
+  applyPvWidth();
+});
+document.addEventListener('mouseup', () => {
+  if (pvDragging) { pvDragging = false; document.body.classList.remove('pv-dragging'); }
+});
+function renderFilePv() {
+  const panel = $('filePv');
+  const app = document.querySelector('.app');
+  if (!state.filePreview) { panel.hidden = true; panel.innerHTML = ''; app.classList.remove('pv-wide'); applyPvWidth(); return; }
+  const f = FILES[state.filePreview];
+  app.classList.add('pv-wide');
+  panel.hidden = false;
+  applyPvWidth();
+  panel.innerHTML = `
+    <div class="fpv-divider" id="fpvDivider" title="拖拽调宽——护栏：中栏 ≥420（对话可回复）· 预览 ≥380（可读）· 宽度记住你的选择"></div>
+    <div class="fpv-head">
+      <span class="fpv-name">${f.name}</span>
+      <button class="btn" data-fpvdl="1" style="font-size:11px;padding:3px 10px">⬇ 下载</button>
+      <button class="btn" data-fpvopen="1" style="font-size:11px;padding:3px 10px">云之家 ↗</button>
+      <button class="btn" data-fpvfull="1" style="font-size:11px;padding:3px 10px" title="沉浸阅读">⤢</button>
+      <button class="btn" data-fpvx="1" style="font-size:11px;padding:3px 10px" aria-label="关闭预览">×</button>
+    </div>
+    <div class="fpv-hint">并排 = 默认预览态：<b>边看边回</b>，对话不离场 · <b>拖左缘调宽</b>（护栏：中栏 ≥420 / 预览 ≥380，更宽升沉浸 ⤢）· 宽度记住你的选择 · 切会话即收</div>
+    <div class="fpv-body">${filePvBody(f)}</div>`;
+}
+function openFpvFull() {
+  const f = FILES[state.filePreview];
+  if (!f) return;
+  const el = $('fpvFull');
+  el.hidden = false;
+  el.innerHTML = `<div class="fpv-head" style="padding:12px 22px;background:#fff">
+      <span class="fpv-name" style="font-size:14px">${f.name}</span>
+      <span class="fpv-dim">沉浸阅读 · Esc 返回并排</span>
+      <button class="btn" data-fpvdl="1" style="font-size:11px;padding:3px 10px">⬇ 下载</button>
+      <button class="btn" data-fpvfullx="1" style="font-size:11px;padding:3px 10px">× 返回</button>
+    </div>
+    <div class="fpv-body" style="max-width:820px;margin:0 auto;width:100%">${filePvBody(f)}</div>`;
+}
+
+
+document.addEventListener('click', (e) => {
+  const pin = e.target.closest('.pin');
+  if (pin) { e.preventDefault(); e.stopPropagation(); showNote(pin.dataset.note, pin.getBoundingClientRect()); return; }
+  if (!e.target.closest('.popover')) $('popover').classList.remove('show');
+
+  const trace = e.target.closest('[data-trace]');
+  if (trace) {
+    e.preventDefault();
+    toast('打开 deepseek-harness 会话详情（轨迹沿用 harness 自身视图，不另造 viewer）· 群内仅可见过程摘要文档');
+    return;
+  }
+  const apEdit = e.target.closest('[data-apedit]');
+  if (apEdit) { toast('真实实现：跳转全局设置页 · 场所 × 能力矩阵（硬合同仅结构化编辑，模型与对话不可写）'); return; }
+  if (e.target.closest('#apClose') || e.target === $('apanelMask')) {
+    $('apanelMask').classList.remove('show');
+    return;
+  }
+  const ap = e.target.closest('[data-apanel]');
+  if (ap) { openAgentPanel(); return; }
+
+  /* v4：承诺板与裁决卡交互 */
+  const remind = e.target.closest('[data-remind]');
+  if (remind) {
+    COMMITS[+remind.dataset.remind].reminded = true;
+    renderTimeline();
+    toast('F-read 盯承诺：云小助将以「周明的助理（代周明）」名义私聊提醒张锐——观察与提醒，不代做（on-behalf-of）');
+    return;
+  }
+  const gh = e.target.closest('[data-goalhome]');
+  if (gh) {
+    toast('目标即工件：真身是云之家对象（生于季度会，Owner 经 agent 书记员+确认流落库；agent 不可作者）——图上只记父目标引用，点击就地预览');
+    return;
+  }
+  const weekly = e.target.closest('[data-weekly]');
+  if (weekly) {
+    state.weeklyShown = true;
+    renderTimeline();
+    toast('时间回顾取景框：跨任务跨场所的本周产出一键汇总——周报的 pull 版');
+    return;
+  }
+  const vd = e.target.closest('[data-vd]');
+  if (vd) {
+    const [vid, idx, act] = vd.dataset.vd.split(':');
+    const item = sessions.recon.timeline.find(i => i.type === 'verdict' && i.id === vid);
+    if (item && item.findings[+idx].decision === null) {
+      item.findings[+idx].decision = act;
+      const remaining = item.findings.filter(f => f.decision === null).length;
+      renderTimeline(); renderHead();
+      if (remaining === 0 && !item.done) {
+        item.done = true;
+        const lastWork = sessions.recon.timeline.filter(i => i.type === 'work').pop();
+        if (lastWork) lastWork.steps.forEach(s => s.st = 'done');
+        appendItems('recon', [
+          { type: 'agent-pub', time: nowStr(), kind: 'done', text: '✅ 裁决完成：已按你的裁决处理（确认项已生成修正记录待写入审批；驳回项保持原状；挂起项待供应商回复后重提）。原数据未动。' },
+        ], 500);
+        sessions.recon.status = 'running';
+        sessions.recon.preview = '裁决完成 · 修正记录待审批';
+        renderSidebar();
+        toast('裁决 ≠ 写入：确认项进入下一步写审批，原数据未动');
+      } else if (remaining > 0) {
+        toast(`已记录裁决 · 剩余 ${remaining} 项（挂起不阻塞其余）`);
+      }
+    }
+    return;
+  }
+  const rej = e.target.closest('[data-reject]');
+  if (rej) {
+    const sessKey2 = rej.dataset.reject.replace('ac-', '');
+    const s2 = sessions[sessKey2];
+    const item2 = s2.timeline.find(i => i.type === 'accept' && i.id === rej.dataset.reject);
+    if (item2 && item2.state === 'pending') {
+      item2.state = 'rejected'; item2.round = 2;
+      s2.status = 'running';
+      s2.agentState = '第 2 轮返工中';
+      s2.preview = '返工第 2 轮 · diff 已挂';
+      appendItems(sessKey2, [
+        { type: 'agent-pub', time: nowStr(), kind: 'ack', text: '收到打回，开始第 2 轮返工（新旧交付 diff 已对照，本轮蒸馏已回滚）。' },
+      ], 400);
+      renderTimeline(); renderSidebar(); renderHead();
+      toast('拒收是显式对象：返工轮次 +1 · diff 挂到任务 · 上一轮蒸馏回滚（蒸馏卫生）');
+    }
+    return;
+  }
+
+  const gf = e.target.closest('[data-gfilter]');
+  if (gf) { state.groupFilter = gf.dataset.gfilter; renderHead(); renderTimeline(); return; }
+
+  const tcx = e.target.closest('[data-tcx]');
+  if (tcx) {
+    const k = tcx.dataset.tcx;
+    const sc = timelineEl.scrollTop;
+    state.expandedTopics[k] = !state.expandedTopics[k];
+    renderTimeline();
+    timelineEl.scrollTop = sc;
+    return;
+  }
+  const back = e.target.closest('[data-back]');
+  if (back) {
+    const saved = state.navStack.pop();
+    openSession(saved && saved.from ? saved.from : 'prodgroup');
+    if (saved) timelineEl.scrollTop = saved.scroll;
+    toast('Back ≠ Up：返回恢复离开时的精确阅读位置（群名点击 = Up 到群顶）');
+    return;
+  }
+  const rb = e.target.closest('.reply-btn');
+  if (rb) {
+    state.quote = { name: rb.dataset.rname, text: rb.dataset.rtext, mid: rb.dataset.mid, who: rb.dataset.who || 'person' };
+    if (!$('voicePub').disabled) setVoice('pub', { silent: true });
+    const input = $('input');
+    if (rb.dataset.atg) {
+      /* 复合动词：挂链 + 受话 agent 一步到位——用预填 @ 实现，无隐藏状态，删 @ 即降回普通回复 */
+      if (!AGENT_ALIAS.test(input.value)) input.value = '@云小助 ' + input.value;
+      toast('一步到位：挂链 + 受话 agent——发送即委派；删掉 @ 即降回普通回复');
+    }
+    updateVoiceHint();
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+    return;
+  }
+  const qx = e.target.closest('[data-qx]');
+  if (qx) { state.quote = null; renderQuoteBar(); return; }
+
+/* v4.11 工件预览三态 */
+  const fpvBtn = e.target.closest('[data-fpv]');
+  if (fpvBtn) {
+    state.filePreview = fpvBtn.dataset.fpv;
+    renderFilePv();
+    toast('并排预览：对话不离场——试试现在直接发一条消息（边看边回）');
+    return;
+  }
+  if (e.target.closest('[data-fpvx]')) { state.filePreview = null; renderFilePv(); return; }
+  if (e.target.closest('[data-fpvfull]')) { openFpvFull(); return; }
+  if (e.target.closest('[data-fpvfullx]')) { $('fpvFull').hidden = true; $('fpvFull').innerHTML = ''; return; }
+  if (e.target.closest('[data-fpvdl]')) { toast('下载：经云之家文件接口取真身（预览是投影，真身唯一）'); return; }
+  if (e.target.closest('[data-fpvopen]')) { toast('在云之家打开：跳转文件真身 ↗'); return; }
+/* v4.8 目标出生入口③：承诺板「＋ 立目标」——登记动词复用，人签发 */
+  const ng = e.target.closest('[data-newgoal]');
+  if (ng) { state.goalForm = true; renderTimeline(); const gi = $('goalTitleInput'); if (gi) gi.focus(); return; }
+  const gc = e.target.closest('[data-goalconfirm]');
+  if (gc) {
+    const gi = $('goalTitleInput');
+    const title = (gi && gi.value.trim()) || '';
+    if (!title) { toast('目标标题不能为空——方向承诺是人的特权，也得由人写下'); return; }
+    const gid = 'g' + (++goalSeq);
+    GOALS[gid] = { title, home: '云之家 ·《Q3 目标 · 产品组》表 · 新行',
+      born: `生于 承诺板入口 · Bruce 手工登记（确认卡已签发 · 人签发）· ${nowStr()}` };
+    state.goalForm = false;
+    renderTimeline();
+    toast('目标已立：立目标 = 登记动词复用（executor=你 · 人工验收）· 真身已落云之家《目标表》新行');
+    return;
+  }
+  const gx = e.target.closest('[data-goalcancel]');
+  if (gx) { state.goalForm = false; renderTimeline(); return; }
+  /* v4.10 磨目标：作者权 ≠ 思考伙伴 */
+  const gcraft = e.target.closest('[data-goalcraft]');
+  if (gcraft) {
+    state.goalForm = false;
+    openSession('goalcraft');
+    toast('磨目标：agent 梳理思路 + 组织上下文检索（可见域内）——落库仍人签发');
+    return;
+  }
+  const gs = e.target.closest('[data-gs]');
+  if (gs) {
+    const item = sessions.goalcraft.timeline.find(i => i.type === 'goalsign' && i.id === gs.dataset.gs);
+    if (!item || item.state) return;
+    item.state = 'ok';
+    GOALS['g' + (++goalSeq)] = { title: item.title, home: '云之家 ·《Q4 目标 · 产品组》表 · 新行',
+      born: '生于磨稿会话《磨目标：移动端轻协作》· 血缘可溯 · Bruce 签发（成功标准入真身正文）' };
+    Object.assign(sessions.goalcraft, { status: 'archived', preview: '已签发落库 · 血缘可溯' });
+    renderTimeline(); renderSidebar();
+    toast('目标已签发：agent 磨稿、人签发——出生血缘指向本会话，成功标准即日后评估的差距基准');
+    return;
+  }
+  const gs2 = e.target.closest('[data-gs2]');
+  if (gs2) { toast('继续磨：对话就是制定界面——没有表单要填（作者权 ≠ 思考伙伴）'); return; }
+  /* v4.10 完成度评估：验收权 ≠ 验收材料 */
+  const gev = e.target.closest('[data-goaleval]');
+  if (gev) {
+    state.evalGoal = state.evalGoal === gev.dataset.goaleval ? null : gev.dataset.goaleval;
+    state.delegGoal = null; state.decompGoal = null;
+    renderTimeline();
+    if (state.evalGoal) toast('差距简报：agent 读真身成功标准 × 承诺终态 × 工件归集——备料不定案');
+    return;
+  }
+  const gapd = e.target.closest('[data-evd]');
+  if (gapd) {
+    state.evalGoal = null;
+    openSession('prodgroup');
+    setVoice('pub', { silent: true });
+    const input = $('input');
+    input.value = '@云小助 补一份移动端定价策略建议文档，基于竞品对比表 v2。';
+    state.chips = ['目标：Q3 产品竞争力提升 · 语境继承（评估差距 → 委派）'];
+    renderChips(); updateVoiceHint(); input.focus();
+    input.dispatchEvent(new Event('input'));
+    toast('评估喂回执行：差距项一键变委派（传送门 · 带目标语境）——闭环回 v4.9');
+    return;
+  }
+  const evok = e.target.closest('[data-evok]');
+  if (evok) { toast('终态永远走人工验收——真实实现中未终态子承诺会亮出，可裁剪范围后验收；agent 只备料不定案'); return; }
+  const evx = e.target.closest('[data-evx]');
+  if (evx) { state.evalGoal = null; renderTimeline(); return; }
+  /* v4.14 信号即门：决断条/头部 chip → 定位到可应答对象真身（指路不代答） */
+  const dgoto = e.target.closest('[data-dgoto]');
+  if (dgoto) {
+    const el = document.getElementById(dgoto.dataset.dgoto);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+      toast('信号即门：徽标是对象的投影，投影回指真身——寻路归零，决断保留（动作仍在对象上，看着交付物做）');
+    }
+    return;
+  }
+  /* v4.12 目标枢纽 */
+  const ghub = e.target.closest('[data-goalhub]');
+  if (ghub) { openGoalHub(ghub.dataset.goalhub); toast('放大：承诺板 → 目标枢纽（第二缩放级别，数据同一查询）· ‹ 返回恢复板位'); return; }
+  const va = e.target.closest('[data-viewas]');
+  if (va) {
+    state.viewAs = va.dataset.viewas;
+    renderTimeline();
+    toast(state.viewAs === 'zhangrui'
+      ? '可见域法则：一个目标页 N 个查看者 N 种渲染——张锐看到我的切片置顶、他欠的决断、私下登记不可见'
+      : '回到 owner 视角：决断层 = 你的主权时刻');
+    return;
+  }
+  const gask = e.target.closest('[data-goalask]');
+  if (gask) {
+    openSession('competitor');
+    state.ask = true; syncAskUI();
+    const input = $('input');
+    input.value = '这个目标现在整体进展如何？卡点在哪？';
+    input.focus();
+    toast('轻问传送门：跳私语语境——问答落会话日志（非页面旁路）· 按提问者可见域作答');
+    return;
+  }
+  const tch = e.target.closest('[data-tchange]');
+  if (tch) {
+    toast(tch.dataset.tchange === 'diff'
+      ? '真身之变三件套：消费时点校验 + 断链显形 + 人工回填——差异视图列第③条红删绿增（意图史，飞书历史版本同族）'
+      : '以新基准重估：下次差距简报按 8/19 版正文对账（环境快照律记录依据版本）');
+    return;
+  }
+  const hurge = e.target.closest('[data-hurge]');
+  if (hurge) {
+    openSession('prodgroup');
+    setVoice('pub', { silent: true });
+    const input = $('input');
+    input.value = '@张锐 返修数据分析昨天到期了，进展怎么样？需要什么支持说一声。';
+    renderChips(); updateVoiceHint(); input.focus();
+    input.dispatchEvent(new Event('input'));
+    toast('催 = agent 拟稿 + 传送门到登记场所 + 你亲发（B4 禁借身催办的降级形态明标）');
+    return;
+  }
+  const hdelay = e.target.closest('[data-hdelay]');
+  if (hdelay) {
+    const c = COMMITS.find(x => x.name === '返修数据分析');
+    if (c) { c.overdue = false; c.due = '顺延至周四 18:00'; c.state = '已顺延'; }
+    renderTimeline();
+    toast('顺延期限 = 公域事实：经确认流回写 + ack 公示（与「顺延提醒」分立——那是你的私事）');
+    return;
+  }
+  const hvoid = e.target.closest('[data-hvoid]');
+  if (hvoid) {
+    const c = COMMITS.find(x => x.name === hvoid.dataset.hvoid);
+    if (c) c.void = true;
+    renderTimeline();
+    toast('作废 = 人签发的终态：级联等待对象、回写真身（生与死的「死」）——不留僵尸行');
+    return;
+  }
+  const hmenu = e.target.closest('[data-hmenu]');
+  if (hmenu) {
+    toast('修理动词族（目标的中年）：催 / 顺延期限 / 顺延提醒 / 作废 / 合并（两人做重）/ 移交（/handoff，含离职断链）/ 收养（把无归属承诺 /link 进来）——全部走传送门，话语在会话里说');
+    return;
+  }
+  /* v4.9 入口A①：目标行「＋ 委派」= 传送门（选执行者与场所 → 跳会话带目标 chip） */
+  const gd = e.target.closest('[data-goaldeleg]');
+  if (gd) {
+    state.delegGoal = state.delegGoal === gd.dataset.goaldeleg ? null : gd.dataset.goaldeleg;
+    state.decompGoal = null;
+    renderTimeline();
+    return;
+  }
+  const dgo = e.target.closest('[data-dgo]');
+  if (dgo) {
+    const mode = dgo.dataset.dgo;
+    state.delegGoal = null;
+    if (mode === 'x') { renderTimeline(); return; }
+    const input = $('input');
+    if (mode === 'pub') {
+      openSession('prodgroup');
+      setVoice('pub', { silent: true });
+      input.value = '@云小助 整理移动端竞品定价页对比，本周内。';
+      state.chips = ['目标：Q3 产品竞争力提升 · 语境继承'];
+      toast('传送门：话语在会话里说——落点你选的（公开委派），挂接 = 语境继承（chip 已带上），发送即入图');
+    } else {
+      openSession('zhangsan');
+      setVoice('pub', { silent: true });
+      input.value = '@云小助 登记承诺：重点客户移动端诉求访谈 3 场，张三负责，下周五前。';
+      state.chips = ['目标：Q3 产品竞争力提升 · 语境继承'];
+      toast('私下登记：听众 = 你与张三——承诺继承登记话语的听众集合（§1.6，场所人选不推导）');
+    }
+    renderChips(); updateVoiceHint(); input.focus();
+    input.dispatchEvent(new Event('input'));
+    return;
+  }
+  /* v4.9 入口A②：拆解提案——确认即代发登记话语（幽灵承诺禁令） */
+  const gdc = e.target.closest('[data-goaldecomp]');
+  if (gdc) {
+    state.decompGoal = state.decompGoal === gdc.dataset.goaldecomp ? null : gdc.dataset.goaldecomp;
+    state.delegGoal = null;
+    renderTimeline();
+    if (state.decompGoal) toast('拆解提案：agent 产出子承诺清单（提议权）——逐条裁决，确认的才落库');
+    return;
+  }
+  const dc = e.target.closest('[data-dc]');
+  if (dc) {
+    const [i, act] = dc.dataset.dc.split(':');
+    const d = DECOMP[+i];
+    if (!d || d.decision) return;
+    d.decision = act;
+    if (act === 'ok') {
+      COMMITS.push({ name: d.desc, exec: d.exec, who: d.who, due: d.due, goal: state.decompGoal || 'g1', linked: '拆解提案 · 人签发', state: '已登记' });
+      /* 落库即代发：登记话语落到执行者在场的通道——出生本身就是一次呼吸 */
+      const target = d.who === '张三' ? 'zhangsan' : 'prodgroup';
+      sessions[target].timeline.push(
+        { type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, delegate: true,
+          text: `<span class="at">@云小助</span> 登记承诺：${d.desc}，${d.who} 负责，${d.due}——挂「Q3 产品竞争力提升」目标（拆解提案确认 · 代发）` },
+        { type: 'agent-pub', time: nowStr(), kind: 'ack',
+          text: `已登记承诺：${d.desc} · 执行者 <b>${d.who}</b> · ${d.due} · 已挂目标（拆解提案 · 人签发）。${d.exec === 'agent' ? '我来执行，完成后回帖验收。' : '我会盯进度——观察与提醒，不代做。'}` });
+      toast(`落库即代发：登记话语已发到 ${d.channel}——没有静默登记（幽灵承诺禁令）`);
+    } else {
+      toast('已驳回——提案止于提案，未落库未代发');
+    }
+    renderTimeline();
+    return;
+  }
+  /* v4.8 目标出生入口①：AI 速记纪要 → 提案裁决 */
+  const gp = e.target.closest('[data-gp]');
+  if (gp) {
+    const [gpid, act] = gp.dataset.gp.split(':');
+    const item = sessions.prodgroup.timeline.find(i => i.type === 'goalprop' && i.id === gpid);
+    if (!item || item.state) return;
+    item.state = act;
+    if (act === 'ok') {
+      const gid = 'g' + (++goalSeq);
+      GOALS[gid] = { title: item.title, home: '云之家 ·《Q3 目标 · 产品组》表 · 新行',
+        born: `生于 8/20 产品晨会 · AI 速记纪要 → 提案裁决 · Bruce 确认落库（人签发）` };
+      toast('目标已落库：AI 速记纪要 → 提案 → 人签发 → 真身落云之家（出生主产地 · 入口①）');
+    } else {
+      toast('提案已驳回：agent 不可作者目标，提案止于提案');
+    }
+    renderTimeline();
+    return;
+  }
+  const chev = e.target.closest('[data-chev]');
+  if (chev) {
+    state.collapsed[chev.dataset.chev] = !state.collapsed[chev.dataset.chev];
+    renderSidebar();
+    return;
+  }
+  const item = e.target.closest('[data-sess]');
+  if (item) {
+    const fromSess = sessions[state.current];
+    if (fromSess && fromSess.kind === 'groupview' && e.target.closest('.topiccard, .tc-peek')) {
+      state.navStack.push({ scroll: timelineEl.scrollTop, from: state.current });
+    } else {
+      state.navStack = [];
+    }
+    openSession(item.dataset.sess);
+    return;
+  }
+
+  const cc = e.target.closest('[data-cc]');
+  if (cc) { handleCardAction(cc.dataset.cc, cc.dataset.act); return; }
+
+  const ac = e.target.closest('[data-accept]');
+  if (ac) { handleAccept(ac.dataset.accept); return; }
+
+  const goto = e.target.closest('[data-goto]');
+  if (goto) {
+    const target = Object.keys(sessions).find(k => sessions[k].status === goto.dataset.goto);
+    if (target) openSession(target);
+    return;
+  }
+
+  const ref = e.target.closest('[data-ref]');
+  if (ref) {
+    if (!state.chips.includes(ref.dataset.ref)) state.chips.push(ref.dataset.ref);
+    renderChips();
+    toast('已加入引用 chip —— 发送时作为上下文喂给 Agent');
+    $('input').focus();
+    return;
+  }
+  const chipX = e.target.closest('[data-chip]');
+  if (chipX) { state.chips.splice(+chipX.dataset.chip, 1); renderChips(); return; }
+
+  const pback = e.target.closest('[data-pback]');
+  if (pback) { state.preview = null; renderRight(); return; }
+  const extopen = e.target.closest('[data-extopen]');
+  if (extopen) { toast('真实实现：在云之家中打开该对象'); return; }
+  const ressub = e.target.closest('[data-ressub]');
+  if (ressub) { state.resSub = ressub.dataset.ressub; state.preview = null; renderRight(); return; }
+  const restype = e.target.closest('[data-restype]');
+  if (restype) { state.resType = restype.dataset.restype; renderRight(); return; }
+  const evd = e.target.closest('[data-evdelegate]');
+  if (evd) {
+    const ev = EVENTS[evd.dataset.evdelegate];
+    const chip = `${ev.title}（日程）`;
+    if (!state.chips.includes(chip)) state.chips.push(chip);
+    renderChips();
+    if (!$('voicePub').disabled) setVoice('pub', { silent: true });
+    const input = $('input');
+    input.value = `@云小助 为「${ev.title}」`;
+    input.dispatchEvent(new Event('input'));
+    input.focus();
+    toast('已预填委派并携带事件引用（生成边 · pull 版）——补上要准备什么，发送即可');
+    return;
+  }
+  const pv = e.target.closest('[data-preview]');
+  if (pv) { state.preview = pv.dataset.preview; renderRight(); return; }
+
+  const memDel = e.target.closest('[data-mem]');
+  if (memDel) {
+    const sess = sessions[state.current];
+    MEM[sess.placeKey].filter(m => !m.deleted)[+memDel.dataset.mem].deleted = true;
+    renderRight();
+    toast('记忆已删除 —— 纠正通道是一等功能：错误记忆比没有记忆更伤信任');
+    return;
+  }
+
+  const art = e.target.closest('[data-artifact]');
+  if (art) {
+    const k = art.dataset.pv;
+    if (k) {
+      state.resTab = 'cur'; state.preview = k;
+      document.querySelectorAll('.res-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'cur'));
+      renderRight();
+      toast('右栏就地预览（只读）—— 验收不出屏');
+    } else toast('真实实现：在云之家中打开该对象');
+    return;
+  }
+
+  const tab = e.target.closest('.res-tab');
+  if (tab) {
+    state.resTab = tab.dataset.tab;
+    state.preview = null;
+    document.querySelectorAll('.res-tab').forEach(t => t.classList.toggle('active', t === tab));
+    renderRight();
+    return;
+  }
+});
+
+$('voicePri').addEventListener('click', () => !$('voicePri').disabled && setVoice('pri'));
+$('voicePub').addEventListener('click', () => !$('voicePub').disabled && setVoice('pub'));
+$('input').addEventListener('input', updateVoiceHint);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.id === 'goalTitleInput') { e.preventDefault(); document.querySelector('[data-goalconfirm]').click(); }
+  if (e.key === 'Escape' && !$('fpvFull').hidden) { $('fpvFull').hidden = true; $('fpvFull').innerHTML = ''; }
+});
+$('input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+});
+$('send').addEventListener('click', handleSend);
+$('askBtn').addEventListener('click', () => {
+  if ($('askBtn').disabled) return;
+  state.ask = !state.ask;
+  syncAskUI();
+  $('input').focus();
+});
+
+$('annotateToggle').addEventListener('click', () => {
+  const on = document.body.classList.toggle('annotate');
+  $('annotateToggle').setAttribute('aria-pressed', on);
+  if (!on) $('popover').classList.remove('show');
+});
+$('hintClose').addEventListener('click', () => {
+  $('hintbar').remove();
+  document.body.classList.add('no-hint');
+});
+$('popClose').addEventListener('click', () => $('popover').classList.remove('show'));
+$('floatball').addEventListener('click', () => {
+  const confirmKey = Object.keys(sessions).find(k => sessions[k].status === 'confirm');
+  const reviewKey = Object.keys(sessions).find(k => sessions[k].status === 'review');
+  const target = confirmKey || reviewKey;
+  if (target) { openSession(target); toast('悬浮球 = 注意力汇总：优先跳到最需要你的会话'); }
+});
+
+/* ---------- 启动 ---------- */
+renderSidebar(); renderHead(); renderTimeline(); renderRight(); refreshVoiceAvail();
+</script>
+</body>
+</html>

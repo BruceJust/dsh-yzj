@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>云之家 × DSH · 终极形态 v2 —— 价值路径演示</title>
+<style>
+/* ============================================================
+   终极形态 v2 · 价值路径分步演示
+   左：云之家（手机）—— 公共投影；右：DSH cockpit —— 私有投影
+   同一个 Session，两个投影，9 步走完整条价值路径
+   ============================================================ */
+:root {
+  --bg: #E9EBEF;
+  --surface: #FFFFFF;
+  --ink: #20242C;
+  --ink-2: #5A6272;
+  --ink-3: #8B93A3;
+  --line: #E2E5EA;
+
+  --pub: #2E63D9;
+  --pub-deep: #1E4FBD;
+  --pub-tint: #EEF4FF;
+  --pub-line: #C9DBFA;
+  --pub-rail: #D8E5FB;
+
+  --paper: #FAF6EC;
+  --paper-line: #E9DFC8;
+  --paper-rail: #EFE6D0;
+  --paper-ink: #6B5A36;
+
+  --amber: #B45309;
+  --amber-bg: #FDF1E0;
+  --amber-line: #F0D9B4;
+  --green: #15803D;
+  --green-bg: #E8F6EE;
+  --green-line: #C4E6D1;
+
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(24,30,42,.05), 0 4px 16px rgba(24,30,42,.07);
+  --shadow-pop: 0 6px 32px rgba(24,30,42,.18);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--bg);
+  display: flex; flex-direction: column;
+}
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+:focus-visible { outline: 2px solid var(--pub); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  height: 46px; flex: none;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 18px;
+  background: #171B22; color: #E8EAEF;
+}
+.wordmark { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14px; font-weight: 700; letter-spacing: .08em; }
+.wordmark em { font-style: normal; color: #7FA7F5; }
+.topbar .crumb { font-size: 12.5px; color: #9AA3B5; }
+.topbar .crumb b { color: #D5DAE4; font-weight: 600; }
+.topbar .spacer { flex: 1; }
+.topbar a.v1link {
+  font-size: 12px; color: #9AA3B5; text-decoration: none;
+  padding: 5px 10px; border: 1px solid #333B48; border-radius: 8px;
+}
+.topbar a.v1link:hover { color: #E8EEFF; border-color: #3E5AA6; }
+
+/* ---------- 剧本导航条 ---------- */
+.playbar {
+  flex: none;
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 18px 12px;
+  display: flex; align-items: flex-start; gap: 16px;
+}
+.step-nav { display: flex; align-items: center; gap: 8px; flex: none; padding-top: 3px; }
+.nav-btn {
+  width: 34px; height: 34px; border-radius: 9px;
+  border: 1px solid var(--line); background: #fff;
+  font-size: 15px; color: var(--ink-2);
+  transition: transform .1s, box-shadow .15s;
+}
+.nav-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow); }
+.nav-btn:disabled { opacity: .35; cursor: not-allowed; }
+.nav-btn.next { background: var(--ink); color: #fff; border-color: var(--ink); width: auto; padding: 0 16px; font-size: 13px; font-weight: 650; }
+.autoplay {
+  font-size: 12px; color: var(--ink-3);
+  padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line);
+}
+.autoplay.on { background: var(--pub-tint); color: var(--pub); border-color: var(--pub-line); }
+.step-info { flex: 1; min-width: 0; }
+.step-line1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.step-no { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; color: var(--ink-3); }
+.step-title { font-size: 15px; font-weight: 750; }
+.principle {
+  font-size: 11px; font-weight: 700; letter-spacing: .03em;
+  padding: 3px 9px; border-radius: 20px;
+  background: #171B22; color: #FFD666;
+}
+.step-narration { font-size: 12.8px; color: var(--ink-2); line-height: 1.7; margin-top: 4px; max-width: 980px; }
+.step-narration b { color: var(--ink); }
+.dots { display: flex; gap: 5px; padding-top: 8px; flex: none; }
+.dot {
+  width: 22px; height: 5px; border-radius: 3px;
+  background: #DCE0E6; transition: background .2s;
+}
+.dot.on { background: var(--pub); }
+.dot.done { background: #A9BFE8; }
+
+/* ---------- 舞台 ---------- */
+.stage {
+  flex: 1; min-height: 0;
+  display: flex; align-items: stretch; justify-content: center;
+  gap: 18px;
+  padding: 14px 18px 16px;
+}
+.col { display: flex; flex-direction: column; min-height: 0; }
+.surface-label {
+  flex: none;
+  font-size: 11.5px; font-weight: 650;
+  display: flex; align-items: center; gap: 7px;
+  padding: 0 4px 7px;
+}
+.surface-label .lens { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.lens.pub { background: var(--pub-tint); color: var(--pub); border: 1px solid var(--pub-line); }
+.lens.pri { background: var(--paper); color: var(--paper-ink); border: 1px solid var(--paper-line); }
+.surface-label .who { color: var(--ink-3); font-weight: 500; }
+
+/* ---------- 手机 ---------- */
+.phone-col { flex: none; width: 332px; }
+.phone {
+  flex: 1; min-height: 0;
+  background: #10131A;
+  border-radius: 34px;
+  padding: 9px;
+  box-shadow: 0 12px 40px rgba(16,19,26,.28);
+  display: flex;
+}
+.screen {
+  flex: 1; min-height: 0;
+  background: #F2F3F6;
+  border-radius: 26px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+.p-status {
+  flex: none; height: 26px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; font-size: 10.5px; color: var(--ink-2);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: #FFFFFF;
+}
+.p-header {
+  flex: none; height: 42px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px;
+  background: #FFFFFF; border-bottom: 1px solid var(--line);
+}
+.p-back { font-size: 17px; color: var(--pub); padding: 4px 6px; }
+.p-title { font-size: 13.5px; font-weight: 700; flex: 1; text-align: center; margin-right: 30px; }
+.p-title .sub { display: block; font-size: 9.5px; font-weight: 500; color: var(--ink-3); }
+.p-msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 10px 14px; scroll-behavior: smooth; }
+.p-day { text-align: center; font-size: 10px; color: var(--ink-3); padding: 6px 0; }
+.p-row { display: flex; gap: 7px; margin: 7px 0; align-items: flex-start; }
+.p-row.mine { flex-direction: row-reverse; }
+.p-ava {
+  width: 30px; height: 30px; border-radius: 7px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: #fff;
+}
+.p-b { max-width: 76%; }
+.p-name { font-size: 10px; color: var(--ink-3); margin: 0 2px 3px; }
+.p-name .state { color: var(--pub); font-weight: 600; }
+.p-bubble {
+  background: #fff; border-radius: 9px;
+  padding: 8px 10px; font-size: 12.5px; line-height: 1.6;
+  box-shadow: 0 1px 1px rgba(24,30,42,.06);
+}
+.p-row.mine .p-bubble { background: var(--pub); color: #fff; }
+.p-row.mine .p-bubble .at { background: rgba(255,255,255,.22); color: #fff; }
+.at { color: var(--pub); font-weight: 650; background: rgba(46,99,217,.09); padding: 0 3px; border-radius: 4px; }
+.p-bubble.pause { border-left: 3px solid var(--amber); }
+.p-quote {
+  font-size: 10.5px; opacity: .75; border-left: 2px solid rgba(255,255,255,.5);
+  padding-left: 6px; margin-bottom: 4px;
+}
+.p-time { font-size: 9.5px; color: var(--ink-3); margin-top: 3px; padding: 0 2px; }
+.p-row.mine .p-time { text-align: right; }
+
+/* 手机内工件卡 */
+.p-artifact {
+  display: flex; align-items: center; gap: 9px;
+  background: #fff; border: 1px solid var(--pub-line); border-radius: 10px;
+  padding: 9px 10px; min-width: 200px;
+  box-shadow: 0 1px 1px rgba(24,30,42,.06);
+}
+.p-af-ic {
+  width: 30px; height: 30px; border-radius: 8px; flex: none;
+  background: var(--pub); color: #fff; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.p-af-t { font-size: 12px; font-weight: 700; }
+.p-af-m { font-size: 9.5px; color: var(--ink-3); margin-top: 1px; }
+.p-af-arrow { margin-left: auto; color: var(--pub); font-size: 13px; }
+
+/* 手机内审批卡 */
+.p-approve {
+  background: #fff; border: 1px solid var(--amber-line); border-left: 4px solid var(--amber);
+  border-radius: 10px; padding: 10px 12px; min-width: 216px;
+  box-shadow: 0 1px 1px rgba(24,30,42,.06);
+}
+.p-approve.ok { border-color: var(--green-line); border-left-color: var(--green); }
+.pa-title { font-size: 12.5px; font-weight: 750; display: flex; gap: 6px; align-items: center; }
+.pa-no { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10px; color: var(--ink-3); }
+.pa-kv { margin-top: 6px; display: grid; grid-template-columns: 34px 1fr; gap: 3px 8px; font-size: 11px; }
+.pa-kv .k { color: var(--ink-3); }
+.pa-hint { font-size: 10px; color: var(--ink-3); margin-top: 7px; }
+.pa-btns { display: flex; gap: 7px; margin-top: 8px; }
+.pa-btn {
+  flex: 1; font-size: 12px; font-weight: 650;
+  padding: 6px 0; border-radius: 8px; text-align: center;
+  border: 1px solid var(--line); color: var(--ink-2); background: #FAFBFC;
+}
+.pa-btn.ok { background: var(--ink); color: #fff; border-color: var(--ink); }
+.pa-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* 手机通知横幅 */
+.p-banner {
+  position: absolute; top: 30px; left: 8px; right: 8px; z-index: 10;
+  background: rgba(23,27,34,.94); color: #E8EAEF;
+  border-radius: 12px; padding: 9px 12px;
+  display: flex; align-items: center; gap: 9px;
+  font-size: 11.5px; cursor: pointer;
+  box-shadow: var(--shadow-pop);
+  animation: dropin .3s ease;
+}
+@keyframes dropin { from { opacity: 0; transform: translateY(-10px);} to { opacity: 1; transform: none; } }
+.p-banner .bi {
+  width: 26px; height: 26px; border-radius: 7px; flex: none;
+  background: #2E63D9; color: #fff; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.p-banner b { color: #fff; }
+.p-banner .go { margin-left: auto; color: #7FA7F5; font-size: 10.5px; flex: none; }
+
+/* ---------- Cockpit ---------- */
+.cockpit-col { flex: 1; max-width: 1020px; min-width: 620px; }
+.cockpit {
+  flex: 1; min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-columns: 210px 1fr 218px;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+/* 收件箱 */
+.c-side { background: #F3F4F6; border-right: 1px solid var(--line); overflow-y: auto; padding-bottom: 12px; }
+.c-side-h { font-size: 12px; font-weight: 750; padding: 12px 12px 6px; }
+.c-side-h .sub { display: block; font-size: 9.5px; font-weight: 500; color: var(--ink-3); margin-top: 1px; }
+.triage { display: flex; gap: 5px; flex-wrap: wrap; padding: 2px 10px 8px; }
+.tri {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+  border: 1px solid transparent;
+}
+.tri.c { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-line); }
+.tri.r { background: var(--green-bg); color: var(--green); border-color: var(--green-line); }
+.tri.g { background: var(--pub-tint); color: var(--pub); border-color: var(--pub-line); }
+.tri[data-zero="1"] { opacity: .35; }
+.c-group { font-size: 10px; font-weight: 650; color: var(--ink-3); padding: 8px 12px 3px; letter-spacing: .04em; }
+.c-item {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0 6px; padding: 7px 7px;
+  border-radius: 8px;
+}
+.c-item.active { background: #FFFFFF; box-shadow: var(--shadow); }
+.c-item .ic {
+  width: 22px; height: 22px; border-radius: 6px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 600; color: #fff;
+}
+.c-item .t { flex: 1; min-width: 0; }
+.c-item .t1 { font-size: 11.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-item .t2 { font-size: 9.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb {
+  flex: none; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 20px;
+}
+.cb.confirm { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line); }
+.cb.review  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-line); }
+.cb.running { background: var(--pub-tint); color: var(--pub); border: 1px solid var(--pub-line); display: inline-flex; align-items: center; gap: 3px; }
+.cb.done    { background: #E5E8ED; color: var(--ink-3); }
+.pulse { width: 5px; height: 5px; border-radius: 50%; background: var(--pub); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1;} 50% { opacity: .3;} }
+
+/* 时间线 */
+.c-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.c-head { flex: none; padding: 10px 14px 8px; border-bottom: 1px solid var(--line); }
+.c-title { font-size: 13.5px; font-weight: 750; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chip { font-size: 10px; padding: 2px 7px; border-radius: 5px; background: #F1F3F6; color: var(--ink-2); border: 1px solid var(--line); }
+.chip.agent { display: inline-flex; align-items: center; gap: 4px; background: #1D2432; color: #DCE4F5; border-color: #1D2432; }
+.chip.agent .pulse { background: #7FA7F5; }
+.chip.agent.off { background: #F1F3F6; color: var(--ink-3); border-color: var(--line); }
+.c-tl { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 0 12px; scroll-behavior: smooth; }
+.divider { display: flex; align-items: center; gap: 9px; padding: 6px 14px; font-size: 10px; color: var(--ink-3); }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.msg { display: grid; grid-template-columns: 34px 1fr; gap: 0 8px; padding: 4px 14px 4px 10px; }
+.msg.enter { animation: slidein .28s ease; }
+@keyframes slidein { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
+.rail { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 2px; }
+.rail-tag {
+  font-size: 9px; font-weight: 700; line-height: 1;
+  padding: 3px 5px; border-radius: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.msg--pub .rail-tag { background: var(--pub-tint); color: var(--pub); border: 1px solid var(--pub-line); }
+.msg--pri .rail-tag { background: var(--paper); color: var(--paper-ink); border: 1px solid var(--paper-line); }
+.rail .rline { flex: 1; width: 2px; border-radius: 2px; }
+.msg--pub .rline { background: var(--pub-rail); }
+.msg--pri .rline { background: var(--paper-rail); }
+.mbody { min-width: 0; }
+.mhead { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.avatar {
+  width: 18px; height: 18px; border-radius: 5px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9.5px; font-weight: 600; color: #fff;
+}
+.mhead .name { font-size: 11px; font-weight: 650; }
+.mhead .name .state { color: var(--pub); font-weight: 600; }
+.mhead .meta { font-size: 9.5px; color: var(--ink-3); }
+.bubble {
+  border-radius: 9px; padding: 7px 10px; font-size: 12px; line-height: 1.6;
+  border: 1px solid var(--line); background: var(--surface);
+  width: fit-content; max-width: 100%;
+}
+.msg--pub .bubble { border-color: var(--pub-line); background: #FDFEFF; }
+.msg--pub.mine .bubble { background: var(--pub-tint); }
+.msg--pri .bubble { background: var(--paper); border-color: var(--paper-line); }
+.bubble.pause { border-left: 3px solid var(--amber); }
+.mfoot { font-size: 9.5px; color: var(--ink-3); margin-top: 3px; }
+.msg--pri .mfoot { color: #A08D5F; }
+.sysline { padding: 3px 14px 3px 52px; font-size: 10.5px; color: var(--ink-3); }
+.sysline .inner {
+  display: inline-flex; gap: 6px; background: #F6F7F9;
+  border: 1px dashed var(--line); border-radius: 7px; padding: 4px 9px;
+}
+.workblock {
+  border-radius: 9px; border: 1px solid var(--paper-line); background: var(--paper);
+  width: fit-content; min-width: 260px; max-width: 100%;
+  padding: 8px 11px;
+}
+.wb-t { font-size: 11px; font-weight: 700; color: var(--paper-ink); display: flex; gap: 8px; }
+.wb-t .eye { margin-left: auto; font-weight: 400; font-size: 9px; color: #A08D5F; }
+.wsteps { margin-top: 5px; display: flex; flex-direction: column; gap: 4px; }
+.wstep { font-size: 10.5px; color: var(--ink-2); display: flex; gap: 6px; align-items: baseline; }
+.wstep .st { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 9.5px; width: 12px; flex: none; }
+.wstep.done .st { color: var(--green); }
+.wstep.run .st { color: var(--pub); }
+.wstep.wait .st { color: var(--amber); }
+.wstep .tool { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 9.5px; color: var(--ink-3); background: #F2EDDF; padding: 1px 4px; border-radius: 3px; }
+.wstep.mem .tool { background: #E3ECFB; color: var(--pub-deep); }
+.ccard {
+  border-radius: 10px; border: 1px solid var(--amber-line); border-top: 3px solid var(--amber);
+  background: #FFFDF8; max-width: 420px; overflow: hidden; box-shadow: var(--shadow);
+}
+.ccard.ok { border-color: var(--green-line); border-top-color: var(--green); background: #FCFFFD; }
+.ccard .h { display: flex; align-items: center; gap: 7px; padding: 9px 12px 7px; }
+.ccard .dom {
+  font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+  background: var(--amber-bg); color: var(--amber);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.ccard.ok .dom { background: var(--green-bg); color: var(--green); }
+.ccard .t { font-size: 12px; font-weight: 750; flex: 1; }
+.ccard .risk { font-size: 9.5px; color: var(--amber); background: var(--amber-bg); padding: 2px 6px; border-radius: 20px; border: 1px solid var(--amber-line); }
+.ccard .kv { padding: 0 12px 8px; display: grid; grid-template-columns: 64px 1fr; gap: 3px 8px; font-size: 11px; }
+.ccard .kv .k { color: var(--ink-3); }
+.ccard .foot { padding: 8px 12px 10px; border-top: 1px solid #F4EBDB; font-size: 11px; color: var(--ink-2); display: flex; align-items: center; gap: 7px; }
+.ccard.ok .foot { border-top-color: #E2F2E8; color: var(--green); font-weight: 650; }
+.artifact {
+  display: flex; align-items: center; gap: 10px;
+  border-radius: 10px; border: 1px solid var(--pub-line);
+  background: linear-gradient(160deg, #FDFEFF, #F4F8FF);
+  padding: 9px 11px; max-width: 380px; box-shadow: var(--shadow);
+}
+.af-ic {
+  width: 30px; height: 30px; border-radius: 8px; flex: none;
+  background: var(--pub); color: #fff; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.af-t { font-size: 12px; font-weight: 750; }
+.af-m { font-size: 9.5px; color: var(--ink-3); margin-top: 1px; }
+.af-a { margin-left: auto; color: var(--pub); font-size: 13px; }
+
+/* composer（展示用） */
+.c-composer { flex: none; border-top: 1px solid var(--line); padding: 8px 14px 10px; }
+.voice-seg { display: inline-flex; background: #EFF1F4; border-radius: 8px; padding: 2px; gap: 2px; }
+.voice-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 650; padding: 4px 10px; border-radius: 6px; color: var(--ink-2);
+}
+.voice-btn.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(24,30,42,.12); }
+.voice-btn .vd { width: 6px; height: 6px; border-radius: 50%; }
+.voice-btn .vd.pri { background: #C9B98C; }
+.voice-btn .vd.pub { background: var(--pub); }
+.c-composer .note { font-size: 9.5px; color: var(--ink-3); margin-left: 8px; }
+.c-composer .note a { color: var(--pub); text-decoration: none; }
+
+/* 记忆面板 */
+.c-mem { background: #F7F8FA; border-left: 1px solid var(--line); overflow-y: auto; padding: 12px 10px 14px; }
+.c-mem h4 { font-size: 11.5px; font-weight: 750; padding: 0 4px 2px; }
+.c-mem .sub { font-size: 9.5px; color: var(--ink-3); padding: 0 4px 10px; display: block; }
+.mem-empty {
+  border: 1px dashed #CDD3DC; border-radius: 10px;
+  padding: 14px 12px; font-size: 10.5px; color: var(--ink-3); line-height: 1.7; text-align: center;
+}
+.mem-card {
+  background: #fff; border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 10px; margin-bottom: 8px;
+  box-shadow: var(--shadow);
+  animation: slidein .3s ease;
+  position: relative;
+}
+.mem-card .mk {
+  font-size: 9px; font-weight: 700; color: var(--pub-deep);
+  background: #E3ECFB; border-radius: 4px; padding: 1.5px 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.mem-card .mt { font-size: 11.5px; line-height: 1.6; margin-top: 5px; }
+.mem-card .mm { font-size: 9px; color: var(--ink-3); margin-top: 5px; }
+.mem-card .del {
+  position: absolute; top: 6px; right: 8px;
+  color: var(--ink-3); font-size: 13px; padding: 1px 4px;
+}
+.mem-card .del:hover { color: #B91C1C; }
+
+/* toast */
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+  z-index: 70; background: #171B22; color: #E5E9F2; font-size: 12.5px;
+  padding: 9px 18px; border-radius: 10px; box-shadow: var(--shadow-pop);
+  opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 1120px) {
+  .cockpit { grid-template-columns: 190px 1fr; }
+  .c-mem { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <span class="wordmark">DSH<em>_</em></span>
+  <span class="crumb">终极形态 v2 · <b>价值路径演示</b>　—— 一个 Session，两个投影</span>
+  <span class="spacer"></span>
+  <a class="v1link" href="ultimate-form-demo.html">cockpit 形态沙盘（v1）↗</a>
+</header>
+
+<div class="playbar">
+  <div class="step-nav">
+    <button class="nav-btn" id="prev" aria-label="上一步">←</button>
+    <button class="nav-btn next" id="next">下一步 →</button>
+    <button class="autoplay" id="auto">▶ 自动播放</button>
+  </div>
+  <div class="step-info">
+    <div class="step-line1">
+      <span class="step-no" id="stepNo"></span>
+      <span class="step-title" id="stepTitle"></span>
+      <span class="principle" id="stepPrinciple"></span>
+    </div>
+    <div class="step-narration" id="stepNarration"></div>
+  </div>
+  <div class="dots" id="dots"></div>
+</div>
+
+<div class="stage">
+  <!-- 手机：公共投影 -->
+  <div class="col phone-col">
+    <div class="surface-label" id="phoneLabel"></div>
+    <div class="phone"><div class="screen">
+      <div class="p-status"><span id="pTime">09:31</span><span>●●●●●&nbsp;&nbsp;5G&nbsp;&nbsp;▮</span></div>
+      <div class="p-header" id="pHeader"></div>
+      <div class="p-msgs" id="pMsgs"></div>
+      <div id="pBannerHost"></div>
+    </div></div>
+  </div>
+
+  <!-- cockpit：私有投影 -->
+  <div class="col cockpit-col">
+    <div class="surface-label">
+      <span class="lens pri">私</span>DSH cockpit
+      <span class="who">—— 只有操作者 Bruce 看到的（公+私全量投影）</span>
+    </div>
+    <div class="cockpit">
+      <div class="c-side">
+        <div class="c-side-h">收件箱<span class="sub">按注意力排序</span></div>
+        <div class="triage" id="triage"></div>
+        <div id="inbox"></div>
+      </div>
+      <div class="c-main">
+        <div class="c-head" id="cHead"></div>
+        <div class="c-tl" id="cTl"></div>
+        <div class="c-composer">
+          <span class="voice-seg">
+            <span class="voice-btn on"><span class="vd pri"></span>对 Agent 说 · 私</span>
+            <span class="voice-btn"><span class="vd pub"></span>发到群里 · 公</span>
+          </span>
+          <span class="note">双语态 composer 交互版见 <a href="ultimate-form-demo.html">v1 沙盘</a> · 专号期将重估公开 steering 默认（方案 §3 B3）</span>
+        </div>
+      </div>
+      <div class="c-mem">
+        <h4>记忆 · 产品讨论群</h4>
+        <span class="sub">跟场所走 · 不跨群泄漏 · 可检视可纠正</span>
+        <div id="memList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================ */
+const AV = {
+  me:    { t: 'B',  c: '#46536B', name: 'Bruce（我）' },
+  liting:{ t: '李', c: '#C2703D', name: '李婷' },
+  agent: { t: '助', c: '#171B22', name: '云小助' },
+};
+
+/* ---------- 剧本 ---------- */
+const STEPS = [
+  { title: '入口在 IM，不在工作台',
+    principle: '会话即任务',
+    phoneView: 'group', time: '09:33',
+    narration: '委派发生在<b>云之家原生客户端</b>——人在哪，入口就在哪。注意右侧 cockpit：这个话题已被自动锚定为持久 Session（topic ↔ session），出现在统一收件箱里。cockpit 不是入口，是"之后"。' },
+  { title: '专用身份接单',
+    principle: '身份即状态 · 两个投影',
+    phoneView: 'group', time: '09:34',
+    narration: 'Agent 以专用账号「<b>云小助</b>」发言——任何群成员一眼知道这句话是谁说的，显示名携带任务态。右侧 cockpit 同时多出一块群里看不见的<b>纸色区域</b>（完整工作过程）——左右两边是<b>同一个 Session 的两个投影</b>。' },
+  { title: '阻塞不再沉默',
+    principle: '等待可见',
+    phoneView: 'group', time: '09:41',
+    narration: 'Agent 被写门禁挡住时，群里第一时间知道<b>它在等什么、等谁</b>——信任不在沉默中流失（成本：一条消息）。同时，确认请求已推送到 Bruce 的手机私聊（顶部横幅）和 cockpit 确认卡。点横幅或「下一步」查看。' },
+  { title: '审批走 IM',
+    principle: '10 秒解除阻塞',
+    phoneView: 'dm', time: '09:41',
+    narration: '这是整条价值路径的<b>巅峰时刻</b>：审批到达人所在的地方（手机），而不是把人拉回桌面。安全设计：只认组织+账号校验过的操作者本人，应答锚定这条具体请求消息（#7）。左边点「<b>1 · 确认</b>」试试。' },
+  { title: '双端解除阻塞',
+    principle: '同一审批 · 两个投影',
+    phoneView: 'dm', time: '09:42',
+    narration: '手机上回复 1，右侧 cockpit 的确认卡<b>即时转绿</b>——它们是同一个审批的两个投影，任一侧应答即全局生效。任务继续执行，被阻塞的墙钟时间从"几小时"降到"10 秒"。' },
+  { title: '交付：工件 + 透明度',
+    principle: '工件优先 · 群可审计',
+    phoneView: 'group', time: '09:52',
+    narration: '<b>工件落云之家，群里只留链接</b>（聊天赢得了 steering，输掉了 artifact）。第二个链接是「过程摘要」文档——面向群的透明度：任何同事都能查 Agent 读了什么、写了什么。<b>透明度本身也是工件</b>，零新界面。' },
+  { title: '验收即终态',
+    principle: '任务终态',
+    phoneView: 'group', time: '09:58',
+    narration: '任务不再停在"完成回帖"：群内自然语言（"收了"）即验收，会话归档，收件箱条目离开 triage 区——<b>不淤积</b>。拒收同样自然：话题里继续提要求就自动重开。' },
+  { title: '归档触发记忆蒸馏',
+    principle: '记忆复利',
+    phoneView: 'group', time: '09:58',
+    narration: '归档时 Agent 自蒸馏 1-3 条结构化事实写入<b>本群记忆</b>（右栏）。记忆跟场所走、不跨群泄漏；可检视、可删改——错误记忆比没有记忆更伤信任。这是 v1 方案最大的漏项：<b>没有记忆就没有复利，没有复利它只是工具，不是同事</b>。' },
+  { title: '次日：复利兑现',
+    principle: '第六个月比第一天值钱',
+    phoneView: 'group', time: '10:12',
+    narration: '第二天李婷直接追加需求——<b>不用再交代放哪、什么格式</b>。看右侧私有工作块的第一步：命中 2 条群记忆。让 AI 同事在第六个月比第一天更值钱的，正是这些积累。这就是终极价值的最后一个因子：复利率。' },
+];
+
+/* ---------- 消息数据（step = 出现步骤） ---------- */
+const GROUP = [
+  { step: 0, kind: 'day', text: '今天 09:31' },
+  { step: 0, kind: 'msg', who: 'liting', time: '09:31', text: '下周一要给管理层过竞品对比，Notion、飞书多维表格、Airtable 这三家的协作能力谁来整理一下？' },
+  { step: 0, kind: 'msg', who: 'me', time: '09:33', text: '<span class="at">@云小助</span> 按功能维度做一张对比表：实时协作、权限模型、自动化、API 开放度、定价。放到产品组工作区。' },
+  { step: 1, kind: 'msg', who: 'agent', state: '整理竞品对比中', time: '09:34', text: '已接收。我会整理三家对比并生成多维表格，预计 20 分钟内回帖。' },
+  { step: 2, kind: 'msg', who: 'agent', state: '整理竞品对比中', time: '09:41', pause: true, text: '⏸ 需要一项写入确认（创建表格并写入 12 条记录），已私聊 Bruce，确认后继续。' },
+  { step: 5, kind: 'artifact', time: '09:52', icon: '▦', t: '竞品对比 · 评审表', m: '云之家多维表格 · 产品组工作区 · 12 条记录 · 5 个维度' },
+  { step: 5, kind: 'artifact', time: '09:52', icon: '📄', t: '任务过程摘要 #7', m: '云之家文档 · 做了什么 / 读写了什么，全组可查' },
+  { step: 5, kind: 'msg', who: 'agent', state: '整理竞品对比中', time: '09:52', text: '✅ 已完成。对比表与过程摘要已回帖；周一评审前需要增删维度，直接在这里说。' },
+  { step: 6, kind: 'msg', who: 'liting', time: '09:58', text: '收了，正好周一直接用 👍' },
+  { step: 6, kind: 'msg', who: 'agent', time: '09:58', text: '已归档本次任务（#7）。' },
+  { step: 8, kind: 'day', text: '次日 · 8月18日' },
+  { step: 8, kind: 'msg', who: 'liting', time: '10:12', text: '<span class="at">@云小助</span> 把 Coda 也加进对比表吧' },
+  { step: 8, kind: 'msg', who: 'agent', state: '更新竞品对比表中', time: '10:13', text: '已加入 Coda（12 → 16 条记录），沿用上次的维度与定价列，表已更新。' },
+  { step: 8, kind: 'artifact', time: '10:13', icon: '▦', t: '竞品对比 · 评审表', m: '已更新 · 16 条记录 · 4 家产品' },
+];
+
+const DM = [
+  { step: 3, kind: 'day', text: '今天 09:41' },
+  { step: 3, kind: 'approve', time: '09:41' },
+  { step: 4, kind: 'msg', who: 'me', time: '09:42', quote: '写入确认 #7', text: '1' },
+  { step: 4, kind: 'msg', who: 'agent', time: '09:42', text: '✓ 已确认（#7），继续执行。完成后我会在群里回帖。' },
+];
+
+/* cockpit 时间线（render 函数接收当前步 cur，返回 html） */
+const CTL = [
+  { step: 0, r: () => `<div class="divider">今天</div>` },
+  { step: 0, r: () => cMsg('pub', 'liting', '李婷', '09:31', GROUP[1].text, '云之家 · 产品讨论群') },
+  { step: 0, r: () => cMsg('pub', 'me', 'Bruce（我）', '09:33', GROUP[2].text, '公开委派 · 群内所有人可见', true) },
+  { step: 0, r: () => `<div class="sysline enter"><span class="inner">⚡ topic ↔ session 已锚定 · <span class="mono">session-yzj-topic-9d2c…</span></span></div>` },
+  { step: 1, r: (cur) => cMsg('pub', 'agent', agentName(cur, 1), '09:34', GROUP[3].text, '经 gateway 回帖 · 群内可见') },
+  { step: 1, r: (cur) => cWork('Agent 工作过程', [
+      ['done', 'contact whoami', '确认专号身份与组织'],
+      ['done', 'doc workspace list', '定位「产品组」工作区'],
+      [cur >= 2 ? 'done' : 'run', 'doc / web 检索', '汇总三家产品协作能力资料'],
+      ...(cur >= 2 ? [[cur >= 4 ? 'done' : 'wait', 'sheet create', cur >= 4 ? '创建对比表并写入 12 条记录' : '创建对比表并写入记录 —— 等待确认 #7']] : []),
+    ]) },
+  { step: 2, r: (cur) => cMsg('pub', 'agent', agentName(cur, 2), '09:41', GROUP[4].text, 'checkpoint · 群内可见', false, true) },
+  { step: 2, r: (cur) => `
+    <div class="msg msg--pri enter"><div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+    <div class="mbody">
+      <div class="ccard${cur >= 4 ? ' ok' : ''}">
+        <div class="h"><span class="dom">sheet</span><span class="t">写入确认 #7 · 创建多维表格并写入记录</span><span class="risk">标准写 · 可逆</span></div>
+        <div class="kv"><span class="k">工作区</span><span><b>产品组</b></span>
+          <span class="k">新建表格</span><span><b>竞品对比 · 评审表</b></span>
+          <span class="k">写入记录</span><span><b>12 条</b> · 5 个维度</span></div>
+        <div class="foot">${cur >= 4 ? '✓ 已通过手机私聊确认（09:42）· 已执行' : '⏳ 等待确认 —— 本卡与手机私聊是同一审批的两个投影，任一侧应答即生效'}</div>
+      </div>
+      <div class="mfoot">仅你可见 · cockpit</div>
+    </div></div>` },
+  { step: 5, r: () => cArtifact('▦', '竞品对比 · 评审表', '云之家多维表格 · 12 条记录 · 5 个维度') },
+  { step: 5, r: () => cArtifact('📄', '任务过程摘要 #7', '面向群的透明度 · 全组可查') },
+  { step: 5, r: (cur) => cMsg('pub', 'agent', agentName(cur, 5), '09:52', GROUP[7].text, '终态回帖 · 群内可见') },
+  { step: 6, r: () => cMsg('pub', 'liting', '李婷', '09:58', GROUP[8].text, '云之家 · 产品讨论群') },
+  { step: 6, r: () => `<div class="sysline enter"><span class="inner">🗂 验收通过 · 会话已归档 · 触发记忆蒸馏</span></div>` },
+  { step: 8, r: () => `<div class="divider">次日 · 8月18日</div>` },
+  { step: 8, r: () => cMsg('pub', 'liting', '李婷', '10:12', GROUP[11].text, '公开委派 · 复用同一话题 Session') },
+  { step: 8, r: () => cWork('Agent 工作过程', [
+      ['done', 'memory read', '命中 2 条群记忆：工作区落位 / 定价列偏好', true],
+      ['done', 'sheet record create', '写入 Coda 4 条记录（本 turn 预授权标准写）'],
+    ]) },
+  { step: 8, r: (cur) => cMsg('pub', 'agent', agentName(cur, 8), '10:13', GROUP[12].text, '终态回帖 · 群内可见') },
+];
+
+const MEMORIES = [
+  { step: 7, k: 'workspace', t: '产品组的对比类表格放「产品组」工作区，命名「XX · 评审表」。', m: '蒸馏自任务 #7 · 8月17日' },
+  { step: 7, k: 'contact:李婷', t: '李婷的评审材料需要带定价维度列。', m: '蒸馏自任务 #7 · 8月17日' },
+];
+
+/* ---------- 渲染辅助 ---------- */
+function agentName(cur, msgStep) {
+  const states = { 1: '整理竞品对比中', 2: '整理竞品对比中', 5: '整理竞品对比中', 8: '更新竞品对比表中' };
+  return `云小助 <span class="state">[${states[msgStep]}]</span>`;
+}
+function cMsg(voice, who, name, time, text, foot, mine, pause) {
+  return `<div class="msg msg--${voice}${mine ? ' mine' : ''} enter">
+    <div class="rail"><span class="rail-tag">${voice === 'pub' ? '公' : '私'}</span><span class="rline"></span></div>
+    <div class="mbody">
+      <div class="mhead"><span class="avatar" style="background:${AV[who].c}">${AV[who].t}</span><span class="name">${name}</span><span class="meta">${time}</span></div>
+      <div class="bubble${pause ? ' pause' : ''}">${text}</div>
+      <div class="mfoot">${foot}</div>
+    </div></div>`;
+}
+function cWork(title, steps) {
+  const rows = steps.map(([st, tool, desc, mem]) => {
+    const mark = { done: '✓', run: '◐', wait: '⏸' }[st];
+    return `<div class="wstep ${st}${mem ? ' mem' : ''}"><span class="st">${mark}</span><span class="tool">${tool}</span><span>${desc}</span></div>`;
+  }).join('');
+  return `<div class="msg msg--pri enter"><div class="rail"><span class="rail-tag">私</span><span class="rline"></span></div>
+    <div class="mbody"><div class="workblock"><div class="wb-t">${title}<span class="eye">仅你可见</span></div><div class="wsteps">${rows}</div></div></div></div>`;
+}
+function cArtifact(icon, t, m) {
+  return `<div class="msg msg--pub enter"><div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+    <div class="mbody"><div class="artifact"><span class="af-ic">${icon}</span><span><span class="af-t">${t}</span><span class="af-m" style="display:block">${m}</span></span><span class="af-a">↗</span></div>
+    <div class="mfoot">工件落云之家 · 群里回帖的是链接</div></div></div>`;
+}
+
+/* ---------- 状态与总渲染 ---------- */
+const state = { step: 0, phoneOverride: null, approved: false, autoTimer: null };
+
+function taskStatus(cur) {
+  if (cur <= 1) return 'running';
+  if (cur === 2 || cur === 3) return 'confirm';
+  if (cur === 4) return 'running';
+  if (cur === 5) return 'review';
+  if (cur <= 7) return 'done';
+  return 'running';
+}
+function taskPreview(cur) {
+  return {
+    running: cur >= 8 ? '运行中：更新对比表（Coda）' : '运行中：整理三家竞品对比',
+    confirm: '待确认：写入确认 #7（12 条记录）',
+    review: '待验收：对比表 + 过程摘要已回帖',
+    done: '已归档：周一评审可直接用',
+  }[taskStatus(cur)];
+}
+
+function render() {
+  const cur = state.step;
+  const stepDef = STEPS[cur];
+
+  /* 导航条 */
+  document.getElementById('stepNo').textContent = `STEP ${cur + 1}/${STEPS.length}`;
+  document.getElementById('stepTitle').textContent = stepDef.title;
+  document.getElementById('stepPrinciple').textContent = stepDef.principle;
+  document.getElementById('stepNarration').innerHTML = stepDef.narration;
+  document.getElementById('prev').disabled = cur === 0;
+  document.getElementById('next').textContent = cur === STEPS.length - 1 ? '重放 ↺' : '下一步 →';
+  document.getElementById('dots').innerHTML = STEPS.map((_, i) =>
+    `<span class="dot${i === cur ? ' on' : i < cur ? ' done' : ''}"></span>`).join('');
+  document.getElementById('pTime').textContent = stepDef.time;
+
+  /* 手机 */
+  const view = state.phoneOverride || stepDef.phoneView;
+  const label = document.getElementById('phoneLabel');
+  if (view === 'group') {
+    label.innerHTML = `<span class="lens pub">公</span>云之家 · 产品讨论群 <span class="who">—— 所有群成员看到的</span>`;
+    document.getElementById('pHeader').innerHTML =
+      `<span class="p-back">‹</span><span class="p-title">产品讨论群 <span class="mono" style="font-size:10px;color:var(--ink-3)">(12)</span><span class="sub">话题：竞品对比表</span></span>`;
+  } else {
+    label.innerHTML = `<span class="lens pri">私</span>云之家 · 与云小助私聊 <span class="who">—— 只有 Bruce 看到的</span>`;
+    document.getElementById('pHeader').innerHTML =
+      `<button class="p-back" id="pBack" aria-label="返回群聊">‹</button><span class="p-title">云小助<span class="sub">企业智能体 · 专用账号</span></span>`;
+  }
+  const src = view === 'group' ? GROUP : DM;
+  document.getElementById('pMsgs').innerHTML = src.filter(m => m.step <= cur).map(m => renderPhoneMsg(m, cur)).join('');
+  const pm = document.getElementById('pMsgs');
+  pm.scrollTop = pm.scrollHeight;
+
+  /* 横幅：第 3 步（index 2）群视图时显示 */
+  document.getElementById('pBannerHost').innerHTML =
+    (cur === 2 && view === 'group')
+      ? `<div class="p-banner" id="pBanner" role="button" tabindex="0">
+           <span class="bi">助</span><span><b>云小助</b>：写入确认请求 #7 —— 创建表格并写入 12 条记录</span><span class="go">查看 ›</span>
+         </div>`
+      : '';
+
+  /* cockpit 头部 */
+  const agentChip = cur >= 8 ? `<span class="chip agent"><span class="pulse"></span>云小助 · 更新竞品对比表中</span>`
+    : cur >= 6 ? `<span class="chip agent off">云小助 · 空闲（已归档 #7）</span>`
+    : cur >= 1 ? `<span class="chip agent"><span class="pulse"></span>云小助 · 整理竞品对比中</span>` : '';
+  document.getElementById('cHead').innerHTML = `
+    <div class="c-title">竞品对比表${agentChip}</div>
+    <div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap">
+      <span class="chip">群 · 产品讨论群</span><span class="chip">话题</span>
+      <span class="chip mono">session-yzj-topic-9d2c…</span>
+    </div>`;
+
+  /* cockpit 时间线 */
+  document.getElementById('cTl').innerHTML = CTL.filter(i => i.step <= cur).map(i => i.r(cur)).join('');
+  const tl = document.getElementById('cTl');
+  tl.scrollTop = tl.scrollHeight;
+
+  /* 收件箱 */
+  const st = taskStatus(cur);
+  const items = [
+    { key: 'task', ic: ['产', '#2E63D9'], t1: '竞品对比表', t2: taskPreview(cur), status: st },
+    { key: 'roadmap', ic: ['产', '#2E63D9'], t1: 'Q3 路线图整理', t2: '运行中：生成草稿文档', status: 'running' },
+    { key: 'local', ic: ['⌘', '#8B93A3'], t1: '重构 bridge 超时', t2: '已完成 · 测试 12/12', status: 'idle' },
+  ];
+  const rank = { confirm: 0, review: 1, running: 2, done: 3, idle: 4 };
+  items.sort((a, b) => rank[a.status] - rank[b.status]);
+  const badge = s => s === 'confirm' ? `<span class="cb confirm">待确认</span>`
+    : s === 'review' ? `<span class="cb review">待验收</span>`
+    : s === 'running' ? `<span class="cb running"><span class="pulse"></span>运行中</span>`
+    : s === 'done' ? `<span class="cb done">已归档</span>` : '';
+  document.getElementById('inbox').innerHTML =
+    `<div class="c-group">产品讨论群 / 本地</div>` +
+    items.map(i => `<div class="c-item${i.key === 'task' ? ' active' : ''}">
+      <span class="ic" style="background:${i.ic[1]}">${i.ic[0]}</span>
+      <span class="t"><span class="t1">${i.t1}</span><span class="t2">${i.t2}</span></span>${badge(i.status)}
+    </div>`).join('');
+  const counts = { confirm: 0, review: 0, running: 0 };
+  items.forEach(i => { if (counts[i.status] !== undefined) counts[i.status]++; });
+  document.getElementById('triage').innerHTML =
+    `<span class="tri c" data-zero="${counts.confirm ? 0 : 1}">✋ ${counts.confirm} 待确认</span>
+     <span class="tri r" data-zero="${counts.review ? 0 : 1}">✓ ${counts.review} 待验收</span>
+     <span class="tri g" data-zero="${counts.running ? 0 : 1}">● ${counts.running} 运行中</span>`;
+
+  /* 记忆面板 */
+  const mems = MEMORIES.filter(m => m.step <= cur && !m.deleted);
+  document.getElementById('memList').innerHTML = mems.length
+    ? mems.map((m, i) => `<div class="mem-card"><span class="mk">${m.k}</span>
+        <button class="del" data-mem="${i}" aria-label="删除记忆">×</button>
+        <div class="mt">${m.t}</div><div class="mm">${m.m}</div></div>`).join('')
+    : `<div class="mem-empty">本群暂无沉淀记忆<br>任务归档时自动蒸馏 1-3 条结构化事实</div>`;
+}
+
+function renderPhoneMsg(m, cur) {
+  if (m.kind === 'day') return `<div class="p-day">${m.text}</div>`;
+  if (m.kind === 'artifact') return `
+    <div class="p-row"><span class="p-ava" style="background:${AV.agent.c}">助</span>
+      <div class="p-b"><div class="p-artifact"><span class="p-af-ic">${m.icon}</span>
+        <span><div class="p-af-t">${m.t}</div><div class="p-af-m">${m.m}</div></span>
+        <span class="p-af-arrow">↗</span></div><div class="p-time">${m.time}</div></div></div>`;
+  if (m.kind === 'approve') {
+    const ok = cur >= 4;
+    return `<div class="p-row"><span class="p-ava" style="background:${AV.agent.c}">助</span>
+      <div class="p-b"><div class="p-name">云小助</div>
+        <div class="p-approve${ok ? ' ok' : ''}">
+          <div class="pa-title">写入确认 <span class="pa-no">#7</span></div>
+          <div class="pa-kv">
+            <span class="k">操作</span><span>创建多维表格并写入记录</span>
+            <span class="k">目标</span><span>产品组工作区 ·《竞品对比 · 评审表》</span>
+            <span class="k">规模</span><span>12 条记录 · 5 个维度</span>
+            <span class="k">风险</span><span>标准写 · 可逆</span></div>
+          <div class="pa-hint">回复本条消息：1 确认 / 2 取消 · 仅认你本人（org + openId 校验）</div>
+          <div class="pa-btns">
+            <button class="pa-btn ok" id="paOk" ${ok ? 'disabled' : ''}>${ok ? '✓ 已确认' : '1 · 确认'}</button>
+            <button class="pa-btn" ${ok ? 'disabled' : ''}>2 · 取消</button></div>
+        </div><div class="p-time">${m.time}</div></div></div>`;
+  }
+  const a = AV[m.who];
+  const mine = m.who === 'me';
+  const nameH = mine ? '' : `<div class="p-name">${a.name}${m.state ? ` <span class="state">[${m.state}]</span>` : ''}</div>`;
+  const quoteH = m.quote ? `<div class="p-quote">回复：${m.quote}</div>` : '';
+  return `<div class="p-row${mine ? ' mine' : ''}">
+    <span class="p-ava" style="background:${a.c}">${a.t}</span>
+    <div class="p-b">${nameH}<div class="p-bubble${m.pause ? ' pause' : ''}">${quoteH}${m.text}</div><div class="p-time">${m.time}</div></div></div>`;
+}
+
+/* ---------- 步进控制 ---------- */
+function goto(n, fromAuto) {
+  if (!fromAuto) stopAuto();
+  state.step = Math.max(0, Math.min(n, STEPS.length - 1));
+  state.phoneOverride = null;
+  render();
+}
+function next() {
+  if (state.step === STEPS.length - 1) { goto(0); return; }
+  goto(state.step + 1, true);
+}
+function stopAuto() {
+  if (state.autoTimer) { clearInterval(state.autoTimer); state.autoTimer = null; }
+  document.getElementById('auto').classList.remove('on');
+  document.getElementById('auto').textContent = '▶ 自动播放';
+}
+document.getElementById('next').addEventListener('click', () => { stopAuto(); next(); });
+document.getElementById('prev').addEventListener('click', () => goto(state.step - 1));
+document.getElementById('auto').addEventListener('click', () => {
+  if (state.autoTimer) { stopAuto(); return; }
+  document.getElementById('auto').classList.add('on');
+  document.getElementById('auto').textContent = '⏸ 暂停';
+  if (state.step === STEPS.length - 1) goto(0, true);
+  state.autoTimer = setInterval(() => {
+    if (state.step === STEPS.length - 1) stopAuto();
+    else next();
+  }, 3600);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') { stopAuto(); next(); }
+  if (e.key === 'ArrowLeft') goto(state.step - 1);
+});
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#pBanner')) { goto(3); return; }
+  if (e.target.closest('#paOk') && state.step === 3) { goto(4); return; }
+  if (e.target.closest('#pBack')) { state.phoneOverride = 'group'; render(); return; }
+  const del = e.target.closest('[data-mem]');
+  if (del) {
+    MEMORIES.filter(m => !m.deleted)[+del.dataset.mem].deleted = true;
+    render();
+    showToast('记忆已删除 —— 纠正通道是一等功能：错误记忆比没有记忆更伤信任');
+    return;
+  }
+  if (e.target.closest('.p-artifact') || e.target.closest('.artifact')) {
+    showToast('真实实现：在云之家中打开该文档 / 表格');
+  }
+});
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3400);
+}
+
+render();
+</script>
+</body>
+</html>

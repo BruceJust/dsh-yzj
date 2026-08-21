@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "demo-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4173", "--directory", "docs"],
+      "port": 4173
+    },
+    {
+      "name": "yzj-next",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "DSH_HOME=$HOME/.dsh-next exec node $HOME/.npm-global/bin/dsh web --port 3090 --no-open"
+      ],
+      "port": 3090
+    }
+  ]
+}
