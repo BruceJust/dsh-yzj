@@ -206,18 +206,24 @@ describe('那份文档是全组在读的', () => {
   })
 
   /**
-   * 死了要补生。
+   * 死了要补生 —— 但只在**水位之后**。
    *
-   * 一条在这套东西上线之前就已经结束的承诺，`born` 那一笔永远等不到事件来触发。只写
-   * `settled` 的话，文档里会冒出一行「已完成」，而组里从来没见过它被登记。
+   * 这一条原来考的是「上线前就结束的承诺也补两笔」。水位规则出来之后，那个场景归了
+   * 历史：一条在我们上线前就活完死掉的承诺，今天往共读文档里补两行不是修复，是噪音。
+   *
+   * 真正要守的是水位**之后**那一段：出生和终态挨在一起发生（一次快速的登记+完成，
+   * 或者出生那一笔写失败后紧接着被关掉），`born` 那一笔不能因此丢掉——只写 `settled`
+   * 的话，文档里会冒出一行「已完成」而组里从没见过它被登记。
    */
-  it('上线前就结束的承诺，补出生那一笔，且顺序在前', async () => {
+  it('出生与终态挨在一起时，两笔都写且出生在前', async () => {
     await goal()
-    await child('c-old')
-    await graph.append({
-      type: 'commitment/closed', data: { commitmentId: 'c-old', cause: 'done' }, actor: OPERATOR,
-    })
     applyGoalWriteback(ctx)
+    await settle()
+    // 中间不 settle：两个事件连着来，补生的那一支必须自己把顺序摆对。
+    await child('c-fast')
+    await graph.append({
+      type: 'commitment/closed', data: { commitmentId: 'c-fast', cause: 'done' }, actor: OPERATOR,
+    })
     await settle()
     expect(inserts).toHaveLength(2)
     expect(JSON.stringify(inserts[0])).not.toContain('已完成')
@@ -269,5 +275,54 @@ describe('写进去的那一行', () => {
       what: '拉三家竞品', executor: { kind: 'human', name: '张锐' },
       status: 'voided', cause: '这个季度不做了',
     })).toContain('已作废（这个季度不做了）')
+  })
+})
+
+/**
+ * 补账的水位 —— 两个方向相反的错，正好互相抵消，所以一次都没被发现（自审）。
+ *
+ * - 补账在插件挂载那一刻就扫，而账号分区是**通道拿到身份之后**才打开的：扫的时候库
+ *   还是空的。生产日志里 11 条带 `parentGoalRef` 的承诺，`goal/written-back` **零条**
+ *   ——「live 验过」的那次是在一个自己开好库的夹具里跑的，真装配里它一次没跑过。
+ * - 而假如它真跑起来了，会更糟：把**全部历史**挨个补写进真实的目标文档，而那些文档
+ *   是同事在读的。一条三个月前关掉的承诺今天补一行「已完成」进去不是修复，是噪音。
+ *
+ * 所以回写只对**上线之后**发生的事负责。水位之前的不是「漏了」，是不归它管。
+ */
+describe('补账只补上线之后的', () => {
+  it('上线前就存在的子承诺，一条都不补写', async () => {
+    await goal()
+    await child('c-old')
+    // 上线：此刻之前的一切都归历史。
+    applyGoalWriteback(ctx)
+    await settle()
+    expect(inserts, '把历史倒进了真实文档').toEqual([])
+    expect(graph.rawEvents(['goal/writeback-began'])).toHaveLength(1)
+  })
+
+  it('水位之后出生的照常写', async () => {
+    await goal()
+    await child('c-old')
+    applyGoalWriteback(ctx)
+    await settle()
+    await child('c-new')
+    await settle()
+    expect(inserts).toHaveLength(1)
+    expect(JSON.stringify(inserts[0])).toContain('拉三家竞品')
+  })
+
+  /** 水位只落一次：重启读回同一个数，否则每次重启都会把上一段历史当成新的。 */
+  it('重启读回同一道水位，不重新划线', async () => {
+    await goal()
+    const off = applyGoalWriteback(ctx)
+    await settle()
+    await child('c-1')
+    await settle()
+    expect(inserts).toHaveLength(1)
+    off()
+    applyGoalWriteback(ctx)
+    await settle()
+    expect(graph.rawEvents(['goal/writeback-began'])).toHaveLength(1)
+    expect(inserts).toHaveLength(1)
   })
 })

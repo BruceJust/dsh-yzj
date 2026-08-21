@@ -22,9 +22,40 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asRecord, asString, type GraphEvent } from '@yzj-next/graph'
+import { asNumber, asRecord, asString, type GraphEvent } from '@yzj-next/graph'
 import { failureOf } from '../bridge-error.ts'
 import { docIdOf } from './truth.ts'
+
+/**
+ * 回写从哪一条日志开始负责。
+ *
+ * 第一次上线时把当时的水位记下来，之后每次重启都读回同一个数。没有它，补账那一遍
+ * 会把**全部历史**倒进真实的目标文档；有了它，补账只覆盖「我们上线之后出生、可能死在
+ * 半路」的那一小段——那正是补账本来要修的东西。
+ */
+async function waterline(ctx: Context): Promise<number> {
+  for (const event of ctx.yzjGraph.rawEvents(['goal/writeback-began'])) {
+    const seq = asNumber(asRecord(event.data)?.atSeq)
+    if (seq !== undefined) return seq
+  }
+  /*
+    水位取「此刻库里最大的那个 seq」。
+
+    第一版写的是 `rawEvents([])` ——而它是按类型过滤的，空数组意味着**一个类型都不要**，
+    于是水位恒为 0、补账把全部历史当成新的。一个返回空的读取和一个「什么都还没发生」的
+    库长得一模一样，这正是这一族反复在防的那种错。
+  */
+  let atSeq = 0
+  for (const object of ctx.yzjGraph.query({ kind: 'operator', openId: '' }, {})) {
+    atSeq = Math.max(atSeq, object.updatedSeq)
+  }
+  await ctx.yzjGraph.append({
+    type: 'goal/writeback-began',
+    data: { atSeq },
+    actor: { kind: 'system' },
+  })
+  return atSeq
+}
 
 /** 一次回写的身份。生与死各记各的——同一条承诺会被写两次，那是对的。 */
 export function writebackIdFor(
@@ -94,17 +125,27 @@ async function appendLine(ctx: Context, goalRef: string, line: string): Promise<
  * 着无论从哪个面确认的，回写都会发生。
  */
 export function applyGoalWriteback(ctx: Context): () => void {
+  /*
+    正在写的那几笔。
+
+    「查一下写过没有」和「写下去」之间隔着一次 `await`——监听器和补账那一遍可以同时
+    走到这里，双方都查到「没写过」，然后**同一行往一份全组在读的文档里贴两遍**。
+    落库的幂等记录挡不住它：那条记录要等写完才存在。
+  */
+  const inFlight = new Set<string>()
   const write = async (
     goalRef: string, commitmentId: string, moment: 'born' | 'settled',
   ): Promise<void> => {
     const writebackId = writebackIdFor(goalRef, commitmentId, moment)
     // 写过就不再写——那份文档是全组在读的，重贴一行不是小事。
     if (ctx.yzjGraph.rawObject('goal-writeback', writebackId) !== undefined) return
-    const state = asRecord(ctx.yzjGraph.rawObject('commitment', commitmentId)?.state)
-    if (state === undefined) return
-    const line = lineFor(moment, state)
-    const outcome = await appendLine(ctx, goalRef, line)
+    if (inFlight.has(writebackId)) return
+    inFlight.add(writebackId)
     try {
+      const state = asRecord(ctx.yzjGraph.rawObject('commitment', commitmentId)?.state)
+      if (state === undefined) return
+      const line = lineFor(moment, state)
+      const outcome = await appendLine(ctx, goalRef, line)
       await ctx.yzjGraph.append({
         type: 'goal/written-back',
         data: {
@@ -120,6 +161,8 @@ export function applyGoalWriteback(ctx: Context): () => void {
       })
     } catch (error) {
       console.error('[yzj-next-objects] failed to record the write-back', error)
+    } finally {
+      inFlight.delete(writebackId)
     }
   }
 
@@ -164,13 +207,26 @@ export function applyGoalWriteback(ctx: Context): () => void {
   const off = ctx.on('yzj-graph/appended', listener)
 
   /*
-    重启补账。
+    补账，但**只补上线之后出生的**。
 
-    进程死在「文档写完了但事件还没落」和「事件落了但文档没写」之间，两种都可能。前者
-    会重贴一行——所以先落事件的顺序不能反；后者靠这一遍扫回来。
+    这一段原来有两个方向相反的错，正好互相抵消，所以一次都没被发现：
+
+    - 它在插件挂载那一刻就扫，而账号分区是**通道拿到身份之后**才 `selectAccount` 的
+      ——扫的时候库还没打开，`query` 返回空。于是补账在生产环境里一次也没跑过：
+      日志里 11 条带 `parentGoalRef` 的承诺，`goal/written-back` **零条**。
+    - 而假如它真跑起来了，会更糟：它会把**全部历史**的子承诺挨个补写进真实的目标
+      文档——那些文档是同事在读的。一条三个月前出生、两个月前就关掉的承诺，今天补一行
+      「已完成」进去不是修复，是往共读的文档里倒噪音。
+
+    所以两件事一起改：**等分区真的打开**，以及**记一道水位**。回写是「出生与死亡
+    时刻」的一条边，不是一次对账——它只对上线之后发生的事负责。水位之前的东西不是
+    「漏了」，是**不归它管**。
   */
   void (async () => {
+    await ctx.yzjGraph.ready()
+    const baseline = await waterline(ctx)
     for (const object of ctx.yzjGraph.query({ kind: 'operator', openId: '' }, { kind: 'commitment' })) {
+      if (object.createdSeq <= baseline) continue
       await consider(object.id).catch(() => undefined)
     }
   })().catch(() => undefined)

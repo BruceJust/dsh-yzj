@@ -284,6 +284,18 @@ const writebackFamily: GraphFamily = {
         detail: z.string().optional(),
       }),
     },
+    /**
+     * 回写从哪一条日志开始负责 —— 一道水位，只落一次。
+     *
+     * 没有它，重启补账会把全部历史倒进真实的目标文档；那些文档是同事在读的，
+     * 一条三个月前就关掉的承诺今天补一行进去不是修复，是噪音。
+     */
+    'goal/writeback-began': {
+      schema: z.object({
+        writebackId: z.string().default('__waterline__'),
+        atSeq: z.number().int().min(0),
+      }),
+    },
   },
   objectIdOf: (_type, data) => field(data, 'writebackId'),
   reduce: mergeReduce,
