@@ -70,23 +70,43 @@ export function eventHub(ctx: Context, viewer: GraphViewer, eventId: string): Ev
     要调的，扫的次数得和会上挂了几件事无关。
   */
   const artifactsOf = new Map<string, { uri: string; title: string }[]>()
-  const topicOf = new Map<string, string>()
+  /*
+    一个话题可以住着**好几件**挂在这场会上的活 (v3.10 4h⑤ 同一课).
+
+    这里第一版写的是 `Map<topicKey, commitmentId>`——同一个会话里挂了两件事，后写的
+    那条把先写的顶掉，于是那个会话产出的东西**全部记在第二件名下，第一件一件不剩**，
+    而没有任何地方会报错。承诺板刚为这件事换过判据，这里不能又踩回去。
+  */
+  const owners = new Map<string, string[]>()
   for (const id of ids) {
     const topicKey = asString(asRecord(ctx.yzjGraph.rawObject('commitment', id)?.state)?.topicKey)
-    if (topicKey !== undefined) topicOf.set(topicKey, id)
+    if (topicKey === undefined) continue
+    owners.set(topicKey, [...(owners.get(topicKey) ?? []), id])
   }
   for (const edge of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
     const data = asRecord(edge.data)
-    const owner = topicOf.get(asString(data?.topicKey) ?? '')
-    if (owner === undefined) continue
     const artifact = asRecord(data?.artifact)
     const uri = asString(artifact?.uri)
     if (uri === undefined) continue
-    const bucket = artifactsOf.get(owner) ?? []
-    if (!bucket.some(item => item.uri === uri)) {
-      bucket.push({ uri, title: asString(artifact?.title) ?? uri })
+    const taskId = asString(data?.taskId)
+    const sharing = owners.get(asString(data?.topicKey) ?? '') ?? []
+    /*
+      说不清出处就算在共用它的每一件名下。
+
+      丢掉是丢真数据；独占是说假话。会前简报要的是「东西在哪」——同一份材料在两件
+      活下面各出现一次，比它凭空归给其中一件诚实（清单那一层按 URI 去重，人不会
+      看到重复的行）。
+      */
+    const attributed = taskId === undefined
+      ? sharing
+      : sharing.filter(id => id === taskId || sharing.length === 1)
+    for (const owner of attributed.length === 0 ? sharing : attributed) {
+      const bucket = artifactsOf.get(owner) ?? []
+      if (!bucket.some(item => item.uri === uri)) {
+        bucket.push({ uri, title: asString(artifact?.title) ?? uri })
+      }
+      artifactsOf.set(owner, bucket)
     }
-    artifactsOf.set(owner, bucket)
   }
 
   const prepares: EventPrep[] = []
@@ -150,8 +170,21 @@ export function readinessLine(hub: EventHub): string {
  * 把日程描述变成第二块看板。会前要的是「东西在哪」。
  */
 export function materialsFor(hub: EventHub): string | undefined {
-  const lines = hub.prepares
-    .flatMap(item => item.artifacts.map(artifact => `· ${artifact.title} ${artifact.uri}`))
+  /*
+    按 URI 去重。
+
+    一份产在共用会话里的材料会挂在共用它的每一件活下面（那是归属层的诚实做法），
+    可**清单是给人看的**——同一个链接印两遍只会让人以为有两份东西。
+  */
+  const seen = new Set<string>()
+  const lines: string[] = []
+  for (const item of hub.prepares) {
+    for (const artifact of item.artifacts) {
+      if (seen.has(artifact.uri)) continue
+      seen.add(artifact.uri)
+      lines.push(`· ${artifact.title} ${artifact.uri}`)
+    }
+  }
   if (lines.length === 0) return undefined
   return ['【会前材料】', ...lines].join('\n')
 }

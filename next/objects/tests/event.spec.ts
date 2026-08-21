@@ -208,6 +208,51 @@ describe('写进日程描述的那份清单', () => {
  * 日程描述里重写一遍，而会前简报永远在催「快去写」。单元测试当时根本没覆盖这条路，
  * 是在真日程上跑了一次才现形的。
  */
+/**
+ * 共用会话 —— 承诺板刚为这件事换过判据，这里不能又踩回去 (4h⑤ 同一课).
+ *
+ * 第一版用 `Map<topicKey, commitmentId>`：同一个会话里挂了两件事，后写的顶掉先写的，
+ * 那个会话产出的东西**全部记在第二件名下、第一件一件不剩**，而没有任何地方会报错。
+ */
+describe('一个会话里挂了两件事', () => {
+  it('产出算在共用它的每一件名下，而不是凭空归给其中一件', async () => {
+    await observed()
+    await prep('c1', '拉数据', { topicKey: 'tk-shared' })
+    await prep('c2', '核差异', { topicKey: 'tk-shared' })
+    await produced('tk-shared', 'https://y/doc/9', '共用产出')
+    const hub = eventHub(ctx, ANYONE, EVENT)
+    expect(hub?.prepares.find(i => i.commitmentId === 'c1')?.artifacts).toHaveLength(1)
+    expect(hub?.prepares.find(i => i.commitmentId === 'c2')?.artifacts).toHaveLength(1)
+  })
+
+  it('说得清出处的那条只算在它自己名下', async () => {
+    await observed()
+    await prep('c1', '拉数据', { topicKey: 'tk-shared' })
+    await prep('c2', '核差异', { topicKey: 'tk-shared' })
+    await graph.append({
+      type: 'lineage/produced',
+      data: {
+        topicKey: 'tk-shared', action: '产出', taskId: 'c1',
+        artifact: { uri: 'https://y/doc/9', title: 'c1 的活留下的', kind: 'doc', placeKey: 'kb' },
+      },
+      actor: { kind: 'agent' },
+    })
+    const hub = eventHub(ctx, ANYONE, EVENT)
+    expect(hub?.prepares.find(i => i.commitmentId === 'c1')?.artifacts).toHaveLength(1)
+    expect(hub?.prepares.find(i => i.commitmentId === 'c2')?.artifacts).toEqual([])
+  })
+
+  /** 清单是给人看的：同一个链接印两遍，人会以为有两份东西。 */
+  it('清单按 URI 去重，共用的那份只印一行', async () => {
+    await observed()
+    await prep('c1', '拉数据', { topicKey: 'tk-shared' })
+    await prep('c2', '核差异', { topicKey: 'tk-shared' })
+    await produced('tk-shared', 'https://y/doc/9', '共用产出')
+    const materials = materialsFor(eventHub(ctx, ANYONE, EVENT) as never) as string
+    expect(materials.split('https://y/doc/9')).toHaveLength(2)
+  })
+})
+
 describe('写过的那一版', () => {
   it('落库之后枢纽读得到——两侧同名不是巧合，是这道闸的全部依据', async () => {
     await observed()

@@ -35,6 +35,16 @@ function viewerOf(binding: TurnBinding | undefined): GraphViewer {
 }
 
 /**
+ * 看不见时说的那句话 —— 带上**为什么**。
+ *
+ * 一场会的听众集合由**第一次看见它的那个回合**定下，之后不会变（内核规则：听众在
+ * 出生时确立）。所以「在桌面看过一次，群里就再也看不到」是真会发生的一种情况，而
+ * 一句光秃秃的「看不到」会让人以为是坏了。说出机制，人才知道该怎么办。
+ */
+const unseen = '这里看不到这场会——它的可见范围是第一次被看到时定下的，'
+  + '如果它当时是在别的会话里被看到的，这边就够不着。到那个会话里问，或者让能看到的人挂。'
+
+/**
  * 把平台上那条日程请进图里。
  *
  * 只抄标题和开始时间，**判断一律回真身**：日程会被人改，我们抄下的那份只用来让行上
@@ -42,15 +52,24 @@ function viewerOf(binding: TurnBinding | undefined): GraphViewer {
  */
 async function observe(
   ctx: Context, eventId: string, binding: TurnBinding | undefined,
-): Promise<{ ok: true } | { ok: false; why: string }> {
-  if (ctx.yzjGraph.rawObject('event', eventId) !== undefined) return { ok: true }
+): Promise<{ ok: true; title?: string } | { ok: false; why: string }> {
   const bridge = ctx.get('yzjBridge')
   if (bridge === undefined) return { ok: false, why: '云之家通道未就绪' }
+  /*
+    每次都去读一遍真身，哪怕图上已经有它了。
+
+    图上那份标题是第一次看见它时抄的，**再也不会更新**（`observed` 只写一次）。会议
+    改名之后，简报头上印的还是旧名字——一份印着旧会议名的会前材料，比没有更容易让人
+    走错屋。抄下的那份只用来让行上有话可说，判断与显示一律回真身（数据律一）。
+  */
   const result = await bridge.run(['calendar', 'event', 'get', '--id', eventId], { timeoutMs: 20_000 })
   if (!result.ok) return { ok: false, why: result.error ?? '读不到这条日程' }
   const detail = asRecord(result.json)
   const title = asString(detail?.title)
   const startAt = asNumber(detail?.startDate)
+  if (ctx.yzjGraph.rawObject('event', eventId) !== undefined) {
+    return { ok: true, ...(title === undefined ? {} : { title }) }
+  }
   await ctx.yzjGraph.append({
     type: 'event/observed',
     data: {
@@ -69,7 +88,7 @@ async function observe(
     },
     actor: { kind: 'agent' },
   })
-  return { ok: true }
+  return { ok: true, ...(title === undefined ? {} : { title }) }
 }
 
 export function applyEventTools(ctx: Context): () => void {
@@ -93,9 +112,10 @@ export function applyEventTools(ctx: Context): () => void {
       const seen = await observe(ctx, args.eventId, binding)
       if (!seen.ok) return { content: `看不了这场会：${seen.why}` }
       const hub = eventHub(ctx, viewerOf(binding), args.eventId)
-      if (hub === undefined) return { content: '这里看不到这场会。' }
+      if (hub === undefined) return { content: unseen }
       const lines = [
-        `【${hub.title ?? hub.eventId}】`,
+        // 真身此刻叫什么，就印什么——图上那份是第一次看见时抄的，不会更新。
+        `【${seen.title ?? hub.title ?? hub.eventId}】`,
         readinessLine(hub),
         ...(hub.goalRef === undefined ? [] : [`为这个目标开：${hub.goalRef}`]),
         ...hub.prepares.map(item => (
@@ -132,6 +152,17 @@ export function applyEventTools(ctx: Context): () => void {
       const seen = await observe(ctx, args.eventId, binding)
       if (!seen.ok) return { content: `挂不上：${seen.why}` }
       /*
+        这个回合看不见这场会，就不能往它身上挂东西。
+
+        `observe` 里那次存在性检查走的是 raw 读（它要判断的是「图上有没有」，那是
+        结构不是措辞）。少了下面这一问，一个别处的会话就能把自己的承诺挂进另一个
+        场所的会里——而它自己什么也看不见，只会收到一句「挂上了」。既写了别人的
+        对象，又对自己撒了谎。
+      */
+      if (eventHub(ctx, viewerOf(binding), args.eventId) === undefined) {
+        return { content: unseen }
+      }
+      /*
         挂一件这个回合看不见的承诺 = 把它的存在说了出去。
 
         承诺 id 是可以被猜的（哈希但不长），而「挂上了」这件事本身会让它出现在这场
@@ -152,7 +183,7 @@ export function applyEventTools(ctx: Context): () => void {
         actor: { kind: 'agent' },
       })
       const hub = eventHub(ctx, viewerOf(binding), args.eventId)
-      return { content: hub === undefined ? '挂上了。' : `挂上了。${readinessLine(hub)}` }
+      return { content: hub === undefined ? unseen : `挂上了。${readinessLine(hub)}` }
     },
   }))
 
@@ -169,7 +200,7 @@ export function applyEventTools(ctx: Context): () => void {
     async execute(args, exec) {
       const binding = bindingOf(ctx, exec.agent)
       const hub = eventHub(ctx, viewerOf(binding), args.eventId)
-      if (hub === undefined) return { content: '这里看不到这场会。' }
+      if (hub === undefined) return { content: unseen }
       const materials = materialsFor(hub)
       if (materials === undefined) {
         return { content: '挂在这场会上的事还没有留下任何产出——现在写进去，参会的人只会看到一串待办。' }
