@@ -133,9 +133,20 @@ export function applyGoalWriteback(ctx: Context): () => void {
     落库的幂等记录挡不住它：那条记录要等写完才存在。
   */
   const inFlight = new Set<string>()
+  /*
+    卸载之后就别再写了。
+
+    `off()` 只摘掉监听器，**补账那一遍还在路上**——旧实例的补账和新实例的补账各有
+    各的 in-flight 集合，两边都查到「没写过」，于是同一行往一份全组在读的文档里贴
+    两遍。热重载、合同变更、插件重挂都会走到这条路上。
+    （这一条是全量跑里偶发的一次红暴露的：单跑六次全绿，套件里跑第四次才红一次。
+    偶发不是「不要紧」，是**它已经发生过一次了**。）
+  */
+  let disposed = false
   const write = async (
     goalRef: string, commitmentId: string, moment: 'born' | 'settled',
   ): Promise<void> => {
+    if (disposed) return
     const writebackId = writebackIdFor(goalRef, commitmentId, moment)
     // 写过就不再写——那份文档是全组在读的，重贴一行不是小事。
     if (ctx.yzjGraph.rawObject('goal-writeback', writebackId) !== undefined) return
@@ -226,10 +237,14 @@ export function applyGoalWriteback(ctx: Context): () => void {
     await ctx.yzjGraph.ready()
     const baseline = await waterline(ctx)
     for (const object of ctx.yzjGraph.query({ kind: 'operator', openId: '' }, { kind: 'commitment' })) {
+      if (disposed) return
       if (object.createdSeq <= baseline) continue
       await consider(object.id).catch(() => undefined)
     }
   })().catch(() => undefined)
 
-  return off
+  return () => {
+    disposed = true
+    off()
+  }
 }

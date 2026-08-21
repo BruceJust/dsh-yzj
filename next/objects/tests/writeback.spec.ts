@@ -32,16 +32,28 @@ let insertOk: boolean
 /** 每一次真的打出去的 CLI 命令——「写了几次」是这个文件最要紧的断言。 */
 let inserts: string[][]
 
+/** 已经落库的回写记录。`settle` 用它判断「还有没有动静」。 */
+const written = (): unknown[] => [...graph.rawEvents(['goal/written-back'])]
+
 /**
- * 让监听器里那串 fire-and-forget 跑完。
+ * 等到**不再有动静**为止，而不是睡固定的几拍。
  *
- * 微任务不够：`graph.append` 落盘是真的磁盘 I/O，排在宏任务里。只 `await
- * Promise.resolve()` 的话，CLI 那次调用看得见、写下的事件看不见——一个只在测试里
- * 出现的半截状态，会让人以为是生产代码漏了 append。
+ * 监听器里那串是 fire-and-forget，而 `graph.append` 落盘是真的磁盘 I/O，排在宏任务
+ * 里。第一版睡 8 拍：单跑十二次全绿，套件满载时每十次红一次——CLI 那次调用看得见、
+ * 写下的事件还没落，于是断言读到 `undefined`。
+ *
+ * 固定睡眠是一个**关于时序的假设**，而它在负载下一定会错。这一整天我都在说「靠运气
+ * 绿比红更糟」，然后自己在夹具里写了一个靠运气绿的等待。改成**轮询到静止**：连续两次
+ * 采样看到同样的计数才算完，上限兜底。
  */
 const settle = async (): Promise<void> => {
-  for (let round = 0; round < 8; round += 1) {
-    await new Promise((resolve) => { setTimeout(resolve, 0) })
+  const sample = (): string => `${String(inserts.length)}/${String(written().length)}`
+  let last = ''
+  for (let round = 0; round < 200; round += 1) {
+    await new Promise((resolve) => { setTimeout(resolve, 2) })
+    const now = sample()
+    if (round > 2 && now === last) return
+    last = now
   }
 }
 
@@ -95,7 +107,6 @@ async function child(id = 'c1', extra: Record<string, unknown> = {}): Promise<vo
   })
 }
 
-const written = (): unknown[] => [...graph.rawEvents(['goal/written-back'])]
 const stateOf = (id: string): Record<string, unknown> | undefined =>
   asRecord(graph.rawObject('goal-writeback', id)?.state)
 
