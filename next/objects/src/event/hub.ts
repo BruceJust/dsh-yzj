@@ -18,6 +18,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString, type GraphViewer } from '@yzj-next/graph'
 import { isSettled, type CommitmentStatus } from '../commitment/family.ts'
+import { splitAtFence, withLedger } from '../fence.ts'
 
 /** 会前那一眼要的分辨率，只有三档。 */
 export type Readiness = 'ready' | 'partial' | 'none'
@@ -187,4 +188,26 @@ export function materialsFor(hub: EventHub): string | undefined {
   }
   if (lines.length === 0) return undefined
   return ['【会前材料】', ...lines].join('\n')
+}
+
+/**
+ * 这场会的描述该改成什么样，`undefined` 表示**不用改**。
+ *
+ * 此前这里是 `--description materials` 一把盖过去：会议主人写的议程、拨号号码、
+ * 「带上上季度的数」，全没了。摩擦再分配说得明白——「把材料链接一条条粘进日程」是
+ * 损耗性摩擦，该归零；「会议主人写的议程」是**主权性**摩擦，一寸都不该碰。而同一件
+ * 事，回写在目标文档里一直是追加、在日程描述里却是覆盖，两种做法里必有一种是错的。
+ *
+ * 能保住它，是因为**读得回来**：实测 `calendar event get` 返回 `content`，正是
+ * `--description` 写的那个字段。读得回来还覆盖，那是图省事。
+ *
+ * 「已经写过了没有」也一并改成问**此刻的日程**，不再问图。图只知道「我们写过」，
+ * 有人把那段删了它不会知道——于是板上说已送达、日程里什么都没有。那是幽灵承诺换了
+ * 个通道复活，这个仓库里已经为它修过一次了。
+ */
+export function descriptionFor(current: string, materials: string): string | undefined {
+  const { human, ledger } = splitAtFence(current)
+  // 一模一样就不动：日程描述是全参会人看的，重贴一遍不是小事。
+  if (ledger === materials) return undefined
+  return withLedger(human, '会议议程', materials)
 }

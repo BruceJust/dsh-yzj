@@ -12,7 +12,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import { asNumber, asRecord, asString, type GraphViewer } from '@yzj-next/graph'
 import type { TurnBinding } from '../turns.ts'
 import { failureOf } from '../bridge-error.ts'
-import { eventHub, materialsFor, readinessLine } from './hub.ts'
+import { descriptionFor, eventHub, materialsFor, readinessLine } from './hub.ts'
 
 const output = {
   schema: {
@@ -44,6 +44,44 @@ function viewerOf(binding: TurnBinding | undefined): GraphViewer {
  */
 const unseen = '这里看不到这场会——它的可见范围是第一次被看到时定下的，'
   + '如果它当时是在别的会话里被看到的，这边就够不着。到那个会话里问，或者让能看到的人挂。'
+
+/**
+ * 把材料清单写进日程描述 —— **线以上是会议主人的**，怎么拼见 {@link descriptionFor}。
+ *
+ * 这里只剩编排：读回此刻的这场会，算出该写什么，写下去。
+ */
+async function post(
+  ctx: Context, eventId: string, materials: string,
+): Promise<{ ok: true; skipped: boolean } | { ok: false; why: string }> {
+  const bridge = ctx.get('yzjBridge')
+  if (bridge === undefined) return { ok: false, why: '云之家通道未就绪' }
+  /*
+    改描述必须**连标题一起送** —— 实测撞出来的。
+
+    平台的 modify 接口对只带 description 的请求答 `code=4000 会议标题不能为空`：
+    它要的是一份完整的会议，不是一个字段的补丁。所以先读回此刻的标题再一起写。
+
+    读了立刻写，中间不做别的：这一读一写之间要是有人改了会议名，我们会把刚读到的
+    那个名字原样写回去——那正是我们该做的（我们没改它）；换成用图里抄下的那份旧
+    标题，就会把别人的改名悄悄回滚。描述同理：一起读回来的那份，才是我们该接着写的。
+  */
+  const current = await bridge.run(['calendar', 'event', 'get', '--id', eventId], { timeoutMs: 20_000 })
+  if (!current.ok) return { ok: false, why: failureOf(current, '读不回这场会此刻的样子') }
+  const detail = asRecord(current.json)
+  const title = asString(detail?.title)
+  if (title === undefined || title === '') {
+    return { ok: false, why: '读回这场会时它没有标题，不敢只改描述——平台要的是一份完整的会议' }
+  }
+  // 实测：`calendar event get` 把描述放在 `content` 上，正是 `--description` 写的那个字段。
+  const next = descriptionFor(asString(detail?.content) ?? '', materials)
+  if (next === undefined) return { ok: true, skipped: true }
+  const result = await bridge.run(
+    ['calendar', 'event', 'update', '--id', eventId, '--title', title, '--description', next],
+    { timeoutMs: 25_000 },
+  )
+  if (!result.ok) return { ok: false, why: failureOf(result, '写入失败') }
+  return { ok: true, skipped: false }
+}
 
 /**
  * 把平台上那条日程请进图里。
@@ -206,50 +244,24 @@ export function applyEventTools(ctx: Context): () => void {
       if (materials === undefined) {
         return { content: '挂在这场会上的事还没有留下任何产出——现在写进去，参会的人只会看到一串待办。' }
       }
-      // 写过同一份就不再写：日程描述是全参会人看的，重贴一遍不是小事。
-      if (hub.postedMaterials === materials) {
+      const outcome = await post(ctx, args.eventId, materials)
+      if (outcome.ok && outcome.skipped) {
         return { content: '这份材料清单已经在日程描述里了，没有变化。' }
       }
-      const bridge = ctx.get('yzjBridge')
-      /*
-        改描述必须**连标题一起送** —— 实测撞出来的。
-
-        平台的 modify 接口对只带 description 的请求答 `code=4000 会议标题不能为空`：
-        它要的是一份完整的会议，不是一个字段的补丁。所以先读回此刻的标题再一起写。
-
-        读了立刻写，中间不做别的：这一读一写之间要是有人改了会议名，我们会把刚读到的
-        那个名字原样写回去——那正是我们该做的（我们没改它）；换成用图里抄下的那份旧
-        标题，就会把别人的改名悄悄回滚。
-      */
-      const current = bridge === undefined
-        ? undefined
-        : await bridge.run(['calendar', 'event', 'get', '--id', args.eventId], { timeoutMs: 20_000 })
-      const title = current?.ok === true ? asString(asRecord(current.json)?.title) : undefined
-      const result = bridge === undefined
-        ? { ok: false as const, error: '云之家通道未就绪' }
-        : title === undefined
-          ? { ok: false as const, error: '读不回这场会此刻的标题，不敢只改描述——平台要的是一份完整的会议' }
-          : await bridge.run(
-            [
-              'calendar', 'event', 'update', '--id', args.eventId,
-              '--title', title, '--description', materials,
-            ],
-            { timeoutMs: 25_000 },
-          )
       await ctx.yzjGraph.append({
         type: 'event/materials-posted',
         data: {
           eventId: args.eventId,
           postedMaterials: materials,
-          postedStatus: result.ok ? 'written' : 'failed',
-          ...(result.ok ? {} : { postedDetail: failureOf(result, '写入失败') }),
+          postedStatus: outcome.ok ? 'written' : 'failed',
+          ...(outcome.ok ? {} : { postedDetail: outcome.why }),
         },
         actor: { kind: 'agent' },
       })
       return {
-        content: result.ok
+        content: outcome.ok
           ? `材料清单已写进日程描述，参会的人打开日程就能看到：\n${materials}`
-          : `没写进去（${failureOf(result, '写入失败')}）——参会的人**看不到**这份清单，需要你另想办法送过去。`,
+          : `没写进去（${outcome.why}）——参会的人**看不到**这份清单，需要你另想办法送过去。`,
       }
     },
   }))

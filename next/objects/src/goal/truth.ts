@@ -31,6 +31,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { asNumber, asRecord, asString, type JsonValue } from '@yzj-next/graph'
 import { failureOf } from '../bridge-error.ts'
+import { splitAtFence } from '../fence.ts'
 import { goalCommitmentIdFor } from './family.ts'
 
 /**
@@ -159,10 +160,20 @@ export async function checkGoalTruth(
   return { kind: 'changed', note: `${known} → ${seen.mark}` }
 }
 
-/** 真身正文,以及它读不到时的实话。 */
+/**
+ * 真身正文,以及它读不到时的实话。
+ *
+ * `text` 是**人写的那一段**（台账栅栏以上），不是整篇正文——理由见 `../fence.ts`：
+ * 系统自己回写的台账混进「成功标准」，会让 agent 把一行「· …· 已完成」当成一条标准
+ * 判 `met`，证据引它自己。
+ *
+ * `ledger` 两条臂上都有，因为它回答的是**另一个问题**：「这份文档里立过栅栏没有」。
+ * 回写要用它决定该不该先立一条线，而那一刻正文里可能一条标准都还没有（`ok: false`）。
+ * 把它只挂在成功的那条臂上，等于让「没标准」把「有栅栏」一起吞掉。
+ */
 export type TruthBody =
-  | { readonly ok: true; readonly text: string }
-  | { readonly ok: false; readonly why: string }
+  | { readonly ok: true; readonly text: string; readonly ledger?: string }
+  | { readonly ok: false; readonly why: string; readonly ledger?: string }
 
 /**
  * 一个富文本节点里的全部文字。**形状是实测出来的，不是猜的。**
@@ -224,6 +235,9 @@ function linesOfBlock(block: JsonValue | undefined): string[] {
  *
  * 读不到就说读不到。这一族的第一条纪律在这里同样成立：把「看不了」说成「就按副本
  * 来吧」，是让一个可能已经过时的标准继续冒充有效标准。
+ *
+ * 读回来的是**台账栅栏以上那一段**：线以下是这套系统自己回写的账，把它当标准判，
+ * 就是拿自己的记账证明自己达标（见 `../fence.ts`）。
  */
 export async function readGoalBody(ctx: Context, goalRef: string): Promise<TruthBody> {
   const docId = docIdOf(goalRef)
@@ -235,6 +249,14 @@ export async function readGoalBody(ctx: Context, goalRef: string): Promise<Truth
   const result = await bridge.run(['doc', 'block', 'list', '--id', docId], { timeoutMs: 20_000 })
   return bodyOf(result)
 }
+
+/**
+ * 「读到了，正文确实是空的」。
+ *
+ * 拎成常量，是因为 {@link fenceOf} 要靠它区分**看见了一片空白**和**根本没看着**——
+ * 拿字符串去 `includes` 匹配，等于把一条判断挂在一句会被改写的文案上。
+ */
+export const EMPTY_BODY = '这份文档的正文是空的'
 
 /** 把一次 `doc block list` 的回包读成正文。分出来，是为了让指纹和正文共用同一次读。 */
 function bodyOf(result: BridgeRead): TruthBody {
@@ -248,8 +270,49 @@ function bodyOf(result: BridgeRead): TruthBody {
     .map(line => line.trim())
     .filter(line => line !== '')
     .join('\n')
-  if (text === '') return { ok: false, why: '这份文档的正文是空的' }
-  return { ok: true, text }
+  if (text === '') return { ok: false, why: EMPTY_BODY }
+
+  /*
+    判据截到台账栅栏为止 (见 `../fence.ts`).
+
+    线以下是这套系统自己回写进去的账。把它一起交出去当「成功标准」，agent 会读到
+    一行「· 拉三家竞品各一页 — 代少兵 · 已完成」并且完全有理由把它当成一条标准，
+    判 `met`——**用系统自己的记账，证明系统达到了标准**。
+
+    「线以上什么都没有」和「这份文档是空的」是两回事，分开说：前者是**没人写过成功
+    标准**，那是一句能让人当场去补的话；后者是文档本身空着。合并成一句，就把一个
+    可行动的缺口说成了一个死胡同。
+  */
+  const { human, ledger } = splitAtFence(text)
+  if (human.trim() === '') {
+    return {
+      ok: false,
+      why: '这份文档里，系统台账那条分界线以上没有任何成功标准——没人写过判它的尺子',
+      ...(ledger === undefined ? {} : { ledger }),
+    }
+  }
+  return { ok: true, text: human, ...(ledger === undefined ? {} : { ledger }) }
+}
+
+/**
+ * 这份文档此刻有没有台账栅栏。**三值**：`undefined` 是「没看着」，不是「没有」。
+ *
+ * 回写要靠它决定该不该先立一条线，而这个判断只有两值的话必然错向一边：
+ *
+ * - 当成「没有」→ 一次读超时就往一份全组在读的文档里再贴一条栅栏；
+ * - 当成「有」→ 有人把线删了我们不知道，往后所有的账都裸贴在成功标准后面。
+ *
+ * 所以它只在**亲眼看见**的时候答 true/false：看见线、或看见正文（含看见一片空白）
+ * 里没有线。通道断了、CLI 失败了、这份东西根本没有块结构（上传的 Office 文件，
+ * 那里也没地方立线）——一律 `undefined`，让调用方自己决定拿不准的时候偏哪边。
+ *
+ * 这就是这一族的第一条纪律（看不了 ≠ 没变）在第三个地方的同一次应用。
+ */
+export async function fenceOf(ctx: Context, goalRef: string): Promise<boolean | undefined> {
+  const body = await readGoalBody(ctx, goalRef)
+  if (body.ledger !== undefined) return true
+  if (body.ok) return false
+  return body.why === EMPTY_BODY ? false : undefined
 }
 
 /**

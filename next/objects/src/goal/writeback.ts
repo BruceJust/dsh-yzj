@@ -15,6 +15,8 @@
  *   写过没有」。没有这一条，重启就会往一份全组在读的文档里再贴一遍同样的行。
  * - **失败也落一条。** 不落的话重启会无限重试；更要紧的是「组里到底知不知道」得有
  *   一个答案——板上说已回写、文档里什么都没有，是幽灵承诺换了个通道复活。
+ * - **写在栅栏以下。** 台账贴在成功标准后面，看起来只是排版问题——直到差距简报改读
+ *   真身正文当判据，系统自己记的账就成了系统判自己达标的尺子。见 `../fence.ts`。
  * - **它是机械后果，不是新的一次决定。** 人在提案裁决那一刻已经签过字了（那张卡上
  *   写着「确认即签发」），这里再弹一张确认卡就是同一个主权时刻收两次费——和代发登记
  *   话语同一个道理（§5.3：一次主权时刻一次确认）。写入本身仍然走 guard 的写权限档，
@@ -24,7 +26,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { asNumber, asRecord, asString, type GraphEvent } from '@yzj-next/graph'
 import { failureOf } from '../bridge-error.ts'
-import { docIdOf } from './truth.ts'
+import { fenceLine } from '../fence.ts'
+import { docIdOf, fenceOf } from './truth.ts'
 
 /**
  * 回写从哪一条日志开始负责。
@@ -99,22 +102,55 @@ export function lineFor(
 /** 一次写入的结果。失败带着原因——「没写成」和「为什么没写成」是两件事。 */
 type WriteOutcome = { readonly ok: true } | { readonly ok: false; readonly why: string }
 
-async function appendLine(ctx: Context, goalRef: string, line: string): Promise<WriteOutcome> {
-  const docId = docIdOf(goalRef)
-  if (docId === undefined) {
-    return { ok: false, why: '目标真身不是云之家知识库文档，写不进去' }
-  }
+/** 往文档尾部贴若干段。一次调用贴完，栅栏和它下面的第一行不会被谁插在中间。 */
+async function insert(ctx: Context, docId: string, lines: string[]): Promise<WriteOutcome> {
   const bridge = ctx.get('yzjBridge')
   if (bridge === undefined) return { ok: false, why: '云之家通道未就绪' }
-  const element = JSON.stringify([
-    { type: 'paragraph', content: [{ type: 'text', content: line }] },
-  ])
+  const element = JSON.stringify(
+    lines.map(line => ({ type: 'paragraph', content: [{ type: 'text', content: line }] })),
+  )
   const result = await bridge.run(
     ['doc', 'block', 'insert', '--id', docId, '--element', element, '--block-id', 'doc'],
     { timeoutMs: 20_000 },
   )
   if (!result.ok) return { ok: false, why: failureOf(result, '写入失败') }
   return { ok: true }
+}
+
+/** 这个目标身上，我们**成功写进去过**账没有。 */
+function wroteBefore(ctx: Context, goalRef: string): boolean {
+  for (const event of ctx.yzjGraph.rawEvents(['goal/written-back'])) {
+    const data = asRecord(event.data)
+    if (asString(data?.goalRef) === goalRef && asString(data?.status) === 'written') return true
+  }
+  return false
+}
+
+/**
+ * 写一行台账，**必要时先立一条栅栏**。
+ *
+ * 立不立线，先问**那份文档此刻长什么样**：图只知道「我们写过账」，而线还在不在是文档
+ * 说了算——有人把它删了，图还记着写过，于是往后所有的账都裸贴在成功标准后面，正是这条
+ * 线要防的事。所以读是**权威**。多一次 CLI 调用，买的是「我写之前看过它现在什么样」；
+ * 而回写一辈子只在生与死两个时刻发生，这个价钱付得起。
+ *
+ * 读**没看着**的时候（通道断、超时、这份东西根本没有块结构）才轮到图说话。少了这一层，
+ * 一次读超时配上一次写成功，就往一份全组在读的文档里再贴一条栅栏——而这种「读失败但写
+ * 成功」的组合，恰恰是超时最常见的样子。
+ *
+ * 两边都答不上来就**立线**。宁可多一条线（`splitAtFence` 认第一条，多出来的那条落在
+ * 台账里，难看但不改变判断），也不要一行裸账贴在成功标准后面被当成一条标准。
+ *
+ * 读不出正文照写不误：**账该记还是得记**——「看不了」不能变成「不写了」，那会让组里
+ * 彻底看不到这条承诺。
+ */
+async function appendLine(ctx: Context, goalRef: string, line: string): Promise<WriteOutcome> {
+  const docId = docIdOf(goalRef)
+  if (docId === undefined) {
+    return { ok: false, why: '目标真身不是云之家知识库文档，写不进去' }
+  }
+  const fenced = await fenceOf(ctx, goalRef) ?? wroteBefore(ctx, goalRef)
+  return insert(ctx, docId, fenced ? [line] : [fenceLine('成功标准'), line])
 }
 
 /**
@@ -143,6 +179,29 @@ export function applyGoalWriteback(ctx: Context): () => void {
     偶发不是「不要紧」，是**它已经发生过一次了**。）
   */
   let disposed = false
+  /*
+    同一份文档的回写**排队走**。
+
+    `inFlight` 挡的是同一笔被写两遍；挡不住的是**不同的两笔撞同一份文档**：两条子承诺
+    同时出生，两边都读到「这份文档还没有栅栏」，于是往一份全组在读的文档里贴两条栅栏。
+    栅栏是一次性的东西，而判断它在不在必然是一次「读完再写」——这中间的缝只能靠排队补。
+
+    顺带还买到一件事：同一条承诺的 `born` 与 `settled` 在文档里的**先后顺序是确定的**。
+    两笔并发时先落哪一行本来是看谁的 CLI 先回来，而一份「已完成」排在「登记」上面的
+    台账，读的人会以为它完成在被交办之前。
+  */
+  const chains = new Map<string, Promise<unknown>>()
+  const onGoal = async (goalRef: string, job: () => Promise<void>): Promise<void> => {
+    // 前一笔失败不该卡住后一笔：两个回调都是 job。
+    const mine = (chains.get(goalRef) ?? Promise.resolve()).then(job, job)
+    const settled = mine.catch(() => undefined)
+    chains.set(goalRef, settled)
+    // 队空了就把这个目标从表里摘掉，否则这张表会随目标数只涨不落。
+    void settled.then(() => {
+      if (chains.get(goalRef) === settled) chains.delete(goalRef)
+    })
+    await mine
+  }
   const write = async (
     goalRef: string, commitmentId: string, moment: 'born' | 'settled',
   ): Promise<void> => {
@@ -153,22 +212,27 @@ export function applyGoalWriteback(ctx: Context): () => void {
     if (inFlight.has(writebackId)) return
     inFlight.add(writebackId)
     try {
-      const state = asRecord(ctx.yzjGraph.rawObject('commitment', commitmentId)?.state)
-      if (state === undefined) return
-      const line = lineFor(moment, state)
-      const outcome = await appendLine(ctx, goalRef, line)
-      await ctx.yzjGraph.append({
-        type: 'goal/written-back',
-        data: {
-          writebackId,
-          goalRef,
-          commitmentId,
-          moment,
-          line,
-          status: outcome.ok ? 'written' : 'failed',
-          ...(outcome.ok ? {} : { detail: outcome.why }),
-        },
-        actor: { kind: 'agent' },
+      await onGoal(goalRef, async () => {
+        // 排到队才动手，所以两个判断都得重来一遍：等的这段时间里世界变了。
+        if (disposed) return
+        if (ctx.yzjGraph.rawObject('goal-writeback', writebackId) !== undefined) return
+        const state = asRecord(ctx.yzjGraph.rawObject('commitment', commitmentId)?.state)
+        if (state === undefined) return
+        const line = lineFor(moment, state)
+        const outcome = await appendLine(ctx, goalRef, line)
+        await ctx.yzjGraph.append({
+          type: 'goal/written-back',
+          data: {
+            writebackId,
+            goalRef,
+            commitmentId,
+            moment,
+            line,
+            status: outcome.ok ? 'written' : 'failed',
+            ...(outcome.ok ? {} : { detail: outcome.why }),
+          },
+          actor: { kind: 'agent' },
+        })
       })
     } catch (error) {
       console.error('[yzj-next-objects] failed to record the write-back', error)

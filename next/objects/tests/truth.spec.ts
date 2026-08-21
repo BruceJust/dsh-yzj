@@ -23,6 +23,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, asRecord, asString, type GraphActor } from '@yzj-next/graph'
 import { commitmentFamily } from '../src/commitment/family.ts'
+import { fenceLine } from '../src/fence.ts'
 import { goalCommitmentIdFor } from '../src/goal/family.ts'
 import { checkGoalTruth, docIdOf, readGoalBody, truthLine } from '../src/goal/truth.ts'
 
@@ -302,5 +303,81 @@ describe('读真身正文', () => {
     const read = await readGoalBody(ctx, 'https://yzj.example.com/doc/q3')
     expect(read.ok).toBe(false)
     expect(calls).toHaveLength(0)
+  })
+
+  /** 一份**已经被回写过**的文档：标准在上，系统的台账在栅栏以下。 */
+  const withLedgerShape = (lines: string[]): unknown[] => [{
+    id: 'blk-1',
+    type: 'doc',
+    content: [
+      ...(REAL_SHAPE[0]?.content ?? []),
+      ...lines.map(line => ({
+        type: 'paragraph',
+        attrs: { align: 1 },
+        content: [{ type: 'text', content: line }],
+        childNodes: [{ type: 'text', content: line }],
+        textContent: null,
+      })),
+    ],
+  }]
+
+  it('判据截到栅栏为止 —— 系统自己的账不能当成一条成功标准', async () => {
+    /*
+      这是整个栅栏存在的理由。
+
+      `goal_report` 的参数上写着 `criterion: quoted from the goal`。台账混在正文里，
+      agent 完全有理由把「· 拉三家竞品各一页 — 代少兵 · 已完成」当成一条标准、判 met、
+      证据引它自己——**用系统的记账证明系统达标**，比引一个感觉更坏。
+    */
+    body = {
+      ok: true,
+      json: {
+        data: {
+          version: 5,
+          blocks: withLedgerShape([
+            fenceLine('成功标准'),
+            '· 拉三家竞品各一页 — 代少兵',
+            '· 拉三家竞品各一页 — 代少兵 · 已完成',
+          ]),
+        },
+      },
+    }
+    const read = await readGoalBody(ctx, GOAL)
+    expect(read.ok).toBe(true)
+    expect(read.ok && read.text).toBe('三家竞品各一页\n每页含定价与差异')
+    expect(read.ok && read.text).not.toContain('已完成')
+    // 台账本身还得拿得到：回写靠它判断「这份文档立过栅栏没有」。
+    expect(read.ledger).toContain('· 拉三家竞品各一页 — 代少兵 · 已完成')
+  })
+
+  it('还没立过栅栏时，台账是 undefined 而不是空串', async () => {
+    body = { ok: true, json: { data: { version: 4, blocks: REAL_SHAPE } } }
+    const read = await readGoalBody(ctx, GOAL)
+    // 回写读的就是这一个字段。分不清「没立过」和「立过、底下还空着」，
+    // 重启一次就往一份全组在读的文档里多贴一条栅栏。
+    expect(read.ledger).toBeUndefined()
+  })
+
+  it('线以上一条标准都没有，说的是「没人写过尺子」，不是「文档是空的」', async () => {
+    // 一份只有栅栏和台账、线以上一个字都没有的文档。
+    const only = {
+      id: 'blk-1',
+      type: 'doc',
+      content: [fenceLine('成功标准'), '· 一条账'].map(line => ({
+        type: 'paragraph',
+        attrs: { align: 1 },
+        content: [{ type: 'text', content: line }],
+        childNodes: null,
+        textContent: null,
+      })),
+    }
+    body = { ok: true, json: { data: { version: 6, blocks: [only] } } }
+    const read = await readGoalBody(ctx, GOAL)
+    expect(read.ok).toBe(false)
+    // 「没人写过判它的尺子」是一句人能当场去补的话；「文档是空的」是个死胡同。
+    expect(read.ok === false && read.why).toContain('没人写过判它的尺子')
+    expect(read.ok === false && read.why).not.toContain('正文是空的')
+    // 退回副本了，但栅栏还是得报出来——不然回写会再立一条。
+    expect(read.ledger).toBe('· 一条账')
   })
 })

@@ -20,7 +20,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor, type GraphViewer } from '@yzj-next/graph'
 import { commitmentFamily, eventFamily } from '../src/index.ts'
-import { eventHub, materialsFor, readinessLine } from '../src/event/hub.ts'
+import { descriptionFor, eventHub, materialsFor, readinessLine } from '../src/event/hub.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const ANYONE: GraphViewer = { kind: 'operator', openId: 'op-1' }
@@ -197,6 +197,55 @@ describe('写进日程描述的那份清单', () => {
     const hub = eventHub(ctx, ANYONE, EVENT)
     expect(hub?.prepares.find(i => i.commitmentId === 'c1')?.artifacts).toHaveLength(1)
     expect(hub?.prepares.find(i => i.commitmentId === 'c2')?.artifacts).toEqual([])
+  })
+})
+
+/**
+ * 会议主人写的那段，一个字都不能少 (见 `../src/fence.ts`).
+ *
+ * 此前这里是 `--description materials` 一把盖过去。摩擦再分配里，「把材料链接一条条
+ * 粘进日程」是损耗性摩擦、该归零；「会议主人写的议程」是**主权性**摩擦、一寸都不该碰。
+ * 而同一件事，回写在目标文档里一直是追加、在日程描述里却是覆盖——两种做法里必有一种
+ * 是错的，错的是这一种。
+ */
+describe('日程描述：线以上是会议主人的', () => {
+  const MATERIALS = '【会前材料】\n· 竞品对比 https://y/doc/9'
+
+  it('人写的议程原样留在上面', () => {
+    const next = descriptionFor('周一 10 点在 3 楼\n带上季度的数', MATERIALS)
+    expect(next).toContain('周一 10 点在 3 楼')
+    expect(next).toContain('带上季度的数')
+    expect(next).toContain('竞品对比')
+  })
+
+  it('再写一次，人写的那段不会被推走，材料也不叠第二份', () => {
+    const once = descriptionFor('周一 10 点在 3 楼', MATERIALS) as string
+    const twice = descriptionFor(once, '【会前材料】\n· 竞品对比 https://y/doc/9\n· 定价表 https://y/doc/10') as string
+    expect(twice.startsWith('周一 10 点在 3 楼\n')).toBe(true)
+    expect(twice).toContain('定价表')
+    // 旧的那一份被**换掉**，不是又贴一份——线以下整段归系统。
+    expect(twice.split('竞品对比')).toHaveLength(2)
+  })
+
+  it('一模一样就不动 —— 全参会人看的东西，重贴一遍不是小事', () => {
+    const once = descriptionFor('周一 10 点在 3 楼', MATERIALS) as string
+    expect(descriptionFor(once, MATERIALS)).toBeUndefined()
+  })
+
+  it('描述本来是空的，也照样立线 —— 它告诉人该写在哪儿', () => {
+    const next = descriptionFor('', MATERIALS) as string
+    expect(next.split('\n')[0]).toContain('会议议程写在这一行以上')
+  })
+
+  it('有人在线以下补了字，下一次会被换掉 —— 所以线上写着别在这儿写', () => {
+    /*
+      这是这条线**做不到**的事，得说在明处：线以下整段归系统，人写在那儿的东西
+      下一次改材料就没了。线上那句「会议议程写在这一行以上」就是为这个存在的。
+    */
+    const once = descriptionFor('周一 10 点', MATERIALS) as string
+    const next = descriptionFor(`${once}\n顺便说一句`, '【会前材料】\n· 定价表 https://y/doc/10') as string
+    expect(next).toContain('周一 10 点')
+    expect(next).not.toContain('顺便说一句')
   })
 })
 

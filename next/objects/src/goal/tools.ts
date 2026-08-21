@@ -350,7 +350,9 @@ export function applyGoalTools(ctx: Context): () => void {
         `owner：${evidence.owner ?? '未记录'}`,
         body.ok
           ? `成功标准（真身正文，此刻）：\n${body.text}`
-          : `成功标准：读不到真身正文（${body.why}）——下面这份是签发时抄下的副本，`
+          // 「读不到」和「读到了，但线以上一条标准都没有」都落在这里，所以说的是
+          // 「拿不到」——`why` 会把是哪一种讲清楚。
+          : `成功标准：拿不到此刻的真身标准（${body.why}）——下面这份是签发时抄下的副本，`
             + `可能已经过时，判断时要说明你是照着副本判的`,
         ...(body.ok || evidence.criteria === undefined
           ? []
@@ -464,12 +466,16 @@ export function applyGoalTools(ctx: Context): () => void {
             优先记此刻的真身正文,读不到才退回签发时的副本——记错了比不记更糟:
             三周后回头看这条结论,`criteriaBasis` 是唯一能回答「当时的标准是哪一份」
             的东西,而「照副本判的」与「照正文判的」是两种可信度完全不同的结论。
+
+            退回副本时把**为什么退回**一起记下:通道断了、文档被删、还是「正文里线以上
+            压根没写过标准」,三个月后这三种是完全不同的故事,而只写一句「读不到」会把
+            它们抹成同一种。
           */
           ...(body.ok
             ? { criteriaBasis: body.text }
             : asString(asRecord(goal.state)?.criteria) === undefined
               ? {}
-              : { criteriaBasis: `（读不到真身正文，照签发时副本判）${asString(asRecord(goal.state)?.criteria) as string}` }),
+              : { criteriaBasis: `（${body.why}，照签发时副本判）${asString(asRecord(goal.state)?.criteria) as string}` }),
           /*
             连真身的版本号一起记 (环境快照律 §1.9-5).
 
