@@ -251,6 +251,44 @@ const truthFamily: GraphFamily = {
   },
 }
 
+/**
+ * 回流③的目标那一支：状态回写真身 (v4.9「同一条边两个听众」).
+ *
+ * 一条委派有**两个听众，两种刷新率**：操作者看承诺板的实时信号；而全组看的是云之家
+ * 上那份目标文档。板上活着不等于组里知道——设计的原话是「回写只在生与死」，因为把
+ * 每一次进度都推回文档，就是把一份共读的文档变成一条日志流。
+ *
+ * 这一族记的是**我们已经写过哪一笔**：一次写回一条记录，重启不重写。没有它，重启
+ * 扫一遍就会把同一条子承诺往文档里再贴一行——而那份文档是全组在读的。
+ */
+const writebackFamily: GraphFamily = {
+  kind: 'goal-writeback',
+  events: {
+    'goal/written-back': {
+      schema: z.object({
+        /** `${goalRef}#${commitmentId}#${moment}` —— 生与死各记各的。 */
+        writebackId: z.string().min(1),
+        goalRef: z.string().min(1),
+        commitmentId: z.string().min(1),
+        moment: z.enum(['born', 'settled']),
+        /** 写进去的那句话，原样留底：文档会被人改，我们写过什么不该跟着变。 */
+        line: z.string(),
+        /**
+         * 写成了没有。
+         *
+         * 失败也要落一条——**不落的话，重启扫一遍会重试，而重试没有上限**。更要紧的
+         * 是「组里到底知不知道」这件事得有答案：板上说「已回写」而文档里什么都没有，
+         * 是幽灵承诺换了个通道复活。
+         */
+        status: z.enum(['written', 'failed']),
+        detail: z.string().optional(),
+      }),
+    },
+  },
+  objectIdOf: (_type, data) => field(data, 'writebackId'),
+  reduce: mergeReduce,
+}
+
 // ---------------------------------------------------------------------------
 // Environment snapshot (第三类边) — §1.9-5, sliced by MOMENT not by object.
 // ---------------------------------------------------------------------------
@@ -377,7 +415,7 @@ const cardFamily: GraphFamily = {
 /** Every family the kernel itself contributes. */
 export const KERNEL_FAMILIES: readonly GraphFamily[] = [
   topicFamily, lineageFamily, crossingFamily, memoryFamily,
-  receiptFamily, conflictFamily, truthFamily,
+  receiptFamily, conflictFamily, truthFamily, writebackFamily,
   envFamily,
   answerFamily, tombstoneFamily,
   authorityFamily, contractFamily, cardFamily,

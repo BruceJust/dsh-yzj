@@ -15,6 +15,7 @@ import { assessmentFamily, goalContextFamily, proposalFamily } from './family.ts
 import { applyCommitmentNotify } from './notify.ts'
 import { createProposalCard } from './proposal-card.ts'
 import { applyGoalTools } from './tools.ts'
+import { applyGoalWriteback } from './writeback.ts'
 
 export const name = 'yzj-next-obj-goal'
 export const inject = ['yzjGraph', 'yzjCards', 'tools']
@@ -29,6 +30,8 @@ export function apply(ctx: Context): void {
       ctx.yzjCards.register(assessmentCard),
       applyGoalTools(ctx),
       applyCommitmentNotify(ctx),
+      // 同一条边的第二个听众：全组看的是云之家那份文档 (v4.9 生与死两时刻)。
+      applyGoalWriteback(ctx),
     ]
     return () => {
       for (const dispose of disposers.reverse()) dispose()
