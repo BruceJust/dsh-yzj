@@ -13,7 +13,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { asNumber, asRecord, asString, type GraphViewer, type JsonValue } from '@yzj-next/graph'
 import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
-import type { TopicDescriptor, TopicMessage } from '@yzj-next/channel'
+import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/channel'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
 import { eventHub, failureOf, goalCommitmentIdFor, readinessLine } from '@yzj-next/objects'
 import type {} from '@yzj-next/channel'
@@ -2372,10 +2372,14 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             const name = stringField(payload, 'name')
             const sourceAnchor = stringField(payload, 'sourceAnchor')
             const members = Array.isArray((payload as { members?: unknown }).members)
-              ? ((payload as { members: JsonValue[] }).members).flatMap((row) => {
+              /*
+                去重：同一个人被选进来两次，`length` 凑够了 2 而平台看到的是 1 个人，
+                于是这次调用**过了我们的闸、死在对面**——而人已经签过字了。
+              */
+              ? [...new Set(((payload as { members: JsonValue[] }).members).flatMap((row) => {
                 const id = asString(row)
                 return id === undefined || id.trim() === '' ? [] : [id.trim()]
-              })
+              }))]
               : []
             const serve = (payload as { serve?: unknown }).serve === true
             const inheritedGoalRef = stringField(payload, 'goalRef')
@@ -2391,8 +2395,36 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               ['im', 'group', 'create', '--name', name.trim(), '--member-open-id', ...members],
               { timeoutMs: 30_000 },
             )
+            /*
+              **超时不等于没建成** —— 这一族的第一条纪律在建群上的同一次应用。
+
+              超时恰恰是「结果未知」最常见的样子：命令发出去了，回包没等到，而群**很可能
+              已经建好了、人已经被拉进去了**。这时候回一句「建群没成」，是拿一次失败的观察
+              冒充一次成功的观察——而它的后果比别处更重：读的人会照着这句话再点一次，于是
+              组织里凭空多一个群、多一批被拉进去的人。
+
+              说不知道，并把核对的路指出来。核对走 `im group recent`（刚建的排最前），
+              不走 `im group search`（实测本租户对任何关键词都答「服务内部异常」）。
+            */
+            if (created.timedOut === true) {
+              return failure(
+                `建群命令超时了，**这个群可能已经建好了**——超时只说明没等到回包，不说明没建成。`
+                + `不会自动重试：请在会话列表里找一下「${name.trim()}」，确实没有再重来一次。`,
+              )
+            }
             if (!created.ok) return failure(failureOf(created, '建群没成'))
-            const groupId = asString(asRecord(created.json as JsonValue)?.groupId)
+            /*
+              回包的形状**没有实测过** —— 建一次群要把两位真同事拉进去，那不是我能自己
+              决定的事。所以这里照本族既有的容错写法读（`im message send` 就是
+              `msgId ?? id`），并且**读不出来时不猜、不重试**：往下那条路会如实说
+              「可能已经建好了，去核对」。这是这个仓库今天反复交的学费——
+              一个照着我的假设写的解析器，会在真回包面前安静地返回空。
+            */
+            const made = asRecord(created.json as JsonValue)
+            const groupId = asString(made?.groupId)
+              ?? asString(made?.id)
+              ?? asString(asRecord(made?.data)?.groupId)
+              ?? asString(asRecord(made?.data)?.id)
             if (groupId === undefined || groupId === '') {
               return failure(
                 '建群命令回来了，但回包里读不出群 id——这个群**可能已经建好了**。'
@@ -2400,16 +2432,15 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                 + '请在会话列表里找一下「' + name.trim() + '」，没有再重来一次。',
               )
             }
-            const placeKey = `yzj-group-${groupId}`
+            // 不手拼：`placeKeyFor` 是这条规则的唯一出处，抄一份迟早和它分家。
+            const placeKey = placeKeyFor('group', groupId)
             /*
-              出生血缘落在合同上，`servedAtBirth` 记的是**签发卡上那一次勾选**。
+              出生血缘落在合同上，合同**原样回写**，只多一条出生记录。
 
-              运行态「此刻在不在岗」的真相在通道的 allowedGroupIds，不在这里——在图上再存
-              一份 `served` 就是两本账，而今天已经为这种分裂修过好几处了。这里记的是历史：
-              它出生的那一刻，人有没有同时把 agent 接进来。
-            */
-            /*
-              合同**原样回写**，只多一条出生记录。
+              `servedAtBirth` 记的是**签发卡上那一次勾选**。运行态「此刻在不在岗」的真相在
+              通道的 `allowedGroupIds`，不在这里——在图上再存一份 `served` 就是两本账，而
+              今天已经为这种分裂修过好几处了。这里记的是历史：它出生的那一刻，人有没有同时
+              把 agent 接进来。
 
               `contractFor` 是「同 placeKey 最后一条赢」，所以随手填几个值写下去，等于把
               这个新场所的合同**钉死**在我填的那几个值上，从此不再跟随组织默认——我没打算
@@ -2455,17 +2486,25 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               的回执将无人接收」。出生要有呼吸，而呼吸包括**回执可达**。
             */
             let served = false
-            if (serve) {
-              const topics = scoped.get('yzjTopics')
-              if (topics === undefined) {
-                console.error('[yzj-next-surface] 建群后通道不在，接单没开成')
-              } else {
-                try {
-                  await topics.setServed(placeKey, true)
-                  served = true
-                } catch (error) {
-                  console.error('[yzj-next-surface] 建群后接单开关没打开', error)
-                }
+            const topics = scoped.get('yzjTopics')
+            if (topics === undefined) {
+              console.error('[yzj-next-surface] 建群后通道不在，接单开关没落下')
+            } else {
+              try {
+                /*
+                  **两个方向都要明说**，不勾的时候不是「什么都不做」。
+
+                  合同默认最严这句话，此前押在「新群不在名单里所以不在岗」上——而名单空着
+                  的部署里空集是「全部放行」，新群会**立刻在岗**，操作者明确不勾也没用。
+                  「从没提过」和「明确说了不」压成一个状态，这句设计语就是空的。
+
+                  所以两种选择都落成一次**明确的**记录：勾了写 true，没勾写 false。落库那
+                  一层本来就三值，写下去，`onDutyIn` 那边的 denied 才拦得住。
+                */
+                await topics.setServed(placeKey, serve)
+                served = serve
+              } catch (error) {
+                console.error('[yzj-next-surface] 建群后接单开关没落下', error)
               }
             }
             return { ok: true, value: { groupId, placeKey, served } }

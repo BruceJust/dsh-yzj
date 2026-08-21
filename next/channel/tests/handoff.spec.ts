@@ -70,6 +70,9 @@ function depsWith(allowed: string[]): HandoffDeps {
     ctx,
     client: new YzjChannelClient(bridgeCtx, state, 5_000),
     allowedGroupIds: new Set(allowed),
+    // 「明确关掉」和「名单里没有」是两回事——夹具也得把两个集合摆开，
+    // 合成一个的话，这个文件永远测不出被明确移出服务的那一格。
+    deniedGroupIds: new Set<string>(),
     groupPages: 1,
   }
 }

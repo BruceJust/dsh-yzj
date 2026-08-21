@@ -86,6 +86,32 @@ export function deskSendPlan(input: {
   return input.onDuty ? 'send-and-ignite' : 'refuse'
 }
 
+/**
+ * 这个群 agent 在不在岗。**「从没提过」和「明确说了不」是两回事。**
+ *
+ * 此前只有一个集合：接入就 `add`、移出就 `delete`。于是一次明确的「不」和一次从未
+ * 发生的决定压成了同一个状态，而这个集合还兼职表达配置——空集是「这个部署没有名单，
+ * 到处都在岗」。两个含义挤在一个数据结构里，结果是一道**双向的悬崖**：
+ *
+ * - 名单空着的部署里，操作者点开一个群 → 集合变成非空 → **另外 45 个群悄悄下岗**；
+ * - 名单只剩一个的部署里，操作者把它关掉 → 集合变空 → **agent 在 46 个真实工作群里
+ *   同时上岗**。
+ *
+ * 后一种正是 `set-served` 那段注释在担心的爆炸半径——而那个开关自己就有这个洞。
+ *
+ * 落库那一层本来就是三值的（`Record<string, boolean>`：有 true / 有 false / 没有），
+ * 值丢在合并成一个 Set 的那一步。所以把「明确关掉」单独拿出来，且**先于**空集那条
+ * 捷径判断：人明确说过的话，任何默认都不该盖过它。
+ */
+export function onDutyIn(input: {
+  readonly groupId: string
+  readonly allowedGroupIds: ReadonlySet<string>
+  readonly deniedGroupIds: ReadonlySet<string>
+}): boolean {
+  if (input.deniedGroupIds.has(input.groupId)) return false
+  return input.allowedGroupIds.size === 0 || input.allowedGroupIds.has(input.groupId)
+}
+
 export interface PollerConfig {
   readonly aliases: readonly string[]
   readonly acceptAccountMentions: boolean
@@ -94,6 +120,8 @@ export interface PollerConfig {
   readonly discoveryPages: number
   readonly pollIntervalMs: number
   readonly allowedGroupIds: ReadonlySet<string>
+  /** 被**明确**移出服务的群。见 `allowed()`：人说过的「不」，任何默认都不该盖过。 */
+  readonly deniedGroupIds: ReadonlySet<string>
 }
 
 /** The full command set (§6.4). */
@@ -185,8 +213,13 @@ export class YzjPoller {
   }
 
   private allowed(groupId: string): boolean {
-    return this.config.allowedGroupIds.size === 0 || this.config.allowedGroupIds.has(groupId)
+    return onDutyIn({
+      groupId,
+      allowedGroupIds: this.config.allowedGroupIds,
+      deniedGroupIds: this.config.deniedGroupIds,
+    })
   }
+
 
   private async inspectGroup(group: YzjGroup): Promise<void> {
     /*
@@ -698,6 +731,7 @@ export class YzjPoller {
       ctx: this.ctx,
       client: this.client,
       allowedGroupIds: this.config.allowedGroupIds,
+      deniedGroupIds: this.config.deniedGroupIds,
       groupPages: this.config.groupPages,
     }
     const prepared = await prepareHandoff(deps, route, target, rest.join(' '))
@@ -734,6 +768,7 @@ export class YzjPoller {
       ctx: this.ctx,
       client: this.client,
       allowedGroupIds: this.config.allowedGroupIds,
+      deniedGroupIds: this.config.deniedGroupIds,
       groupPages: this.config.groupPages,
     }
     const { delivered } = await executeHandoff(deps, plan, by)

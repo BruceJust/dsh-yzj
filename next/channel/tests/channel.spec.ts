@@ -10,6 +10,7 @@ import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ChannelState } from '../src/state.ts'
 import { isPictureAttachment } from '../src/topics.ts'
+import { onDutyIn } from '../src/poller.ts'
 import {
   accountKeyFor, groupIdFromPlaceKey, isSelfChat, isTriageableConversation,
   outboundFingerprint, parseGroup, parseMessage, placeKeyFor, resolveTopicRootId,
@@ -263,5 +264,64 @@ describe('触发词的边界：中文不留空格（实测缺陷）', () => {
 
   it('strips the trigger out of what the agent is asked', () => {
     expect(stripTriggerAliases('@next他发的是什么东西', aliases)).toBe('他发的是什么东西')
+  })
+})
+
+/**
+ * 在不在岗：**「从没提过」和「明确说了不」是两回事** (三值纪律在合同上的同一次应用).
+ *
+ * 此前只有一个集合：接入就 `add`、移出就 `delete`。于是一次明确的「不」和一次从未发生
+ * 的决定压成了同一个状态，而这个集合还兼职表达配置——空集是「这个部署没有名单，到处都
+ * 在岗」。两个含义挤在一个数据结构里，就有了一道**双向的悬崖**，而两个方向都是实的：
+ *
+ * - 名单空着的部署里点开一个群 → 集合变非空 → 另外 45 个群悄悄下岗（本实例现在就是
+ *   这个状态：落库里只有一条 true，而界面上一片「未接入」）；
+ * - 名单只剩一个的部署里把它关掉 → 集合变空 → **agent 在 46 个真实工作群里同时上岗**。
+ *
+ * 后一种正是承诺板 `set-served` 那段注释在担心的爆炸半径——而那个开关自己就有这个洞。
+ * 设计 v4.18「合同默认最严」也押在这一条上：说不清「明确关掉」，那句话就是空的。
+ */
+describe('在不在岗：说过的「不」压得过任何默认', () => {
+  const none = new Set<string>()
+
+  it('名单空着 = 这个部署没有名单，到处都在岗', () => {
+    expect(onDutyIn({ groupId: 'g1', allowedGroupIds: none, deniedGroupIds: none })).toBe(true)
+  })
+
+  it('名单非空 = 只在名单里在岗', () => {
+    const allowed = new Set(['g1'])
+    expect(onDutyIn({ groupId: 'g1', allowedGroupIds: allowed, deniedGroupIds: none })).toBe(true)
+    expect(onDutyIn({ groupId: 'g2', allowedGroupIds: allowed, deniedGroupIds: none })).toBe(false)
+  })
+
+  it('明确关掉的群，名单空着也不在岗 —— 这是那道悬崖的护栏', () => {
+    /*
+      旧写法把「关掉」实现成从集合里 delete：集合本来就空，delete 是个空操作，
+      于是操作者按下的「移出服务」**什么都没发生**，而界面会告诉他已经移出了。
+    */
+    expect(onDutyIn({
+      groupId: 'g1', allowedGroupIds: none, deniedGroupIds: new Set(['g1']),
+    })).toBe(false)
+  })
+
+  /*
+    **悬崖还有一半没修，这里不假装修好了。**
+
+    关掉最后一个群 → `allowed` 变空 → 空集仍然「全部放行」→ 其余 45 个群集体上岗。
+    denied 只护得住被点名关掉的那一个。
+
+    真正的根还在「空集」身兼两职：它既是配置语句（这个部署没有名单），又是运行态的
+    累加结果。分开的修法要么把「空 = 全开」改成「空 = 全关」（收窄，合 v4.18
+    「合同默认最严」），要么让「空 = 全开」只由**配置**说了算（加宽）——**两个方向都会
+    改变 agent 在 46 个真实工作群里的触达**，那是账号主人的决定，不是实现能自己定的。
+
+    所以这里只锁住不含糊的那半条，另半条如实记在偏离清单上等裁决。写一条断言去钉住
+    当前这个行为，等于把 bug 写成规格。
+  */
+
+  it('先关后开，开得回来 —— 两个集合各自成立，不许互相残留', () => {
+    const allowed = new Set(['g1'])
+    const denied = new Set<string>()
+    expect(onDutyIn({ groupId: 'g1', allowedGroupIds: allowed, deniedGroupIds: denied })).toBe(true)
   })
 })

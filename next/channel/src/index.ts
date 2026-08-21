@@ -47,7 +47,7 @@ export {
   YzjOrchestrator, DeliveryOutcomeUnknownError, clipMessage, priorTurnFor, summarizeTurn,
   CHANNEL_PROMPT,
 } from './orchestrator.ts'
-export { YzjPoller, deskSendPlan } from './poller.ts'
+export { YzjPoller, deskSendPlan, onDutyIn } from './poller.ts'
 
 export const name = 'yzj-next-channel'
 export const inject = [
@@ -125,6 +125,15 @@ export function apply(ctx: Context, config: Config): void {
    * what lets 接单/移出 take effect without a restart.
    */
   const allowedGroupIds = new Set(config.allowedGroupIds ?? [])
+  /*
+    被**明确**移出服务的群 —— 和「从没提过」分开存。
+
+    落库那一层本来就是三值的（`Record<string, boolean>`）；值丢在「合并成一个 Set」
+    那一步：接入 `add`、移出 `delete`，于是一次明确的「不」和一次从未发生的决定长得
+    一模一样。而那个集合还兼职表达配置——空集是「这个部署没有名单，到处都在岗」。
+    两个含义挤在一个数据结构里，就有了一道双向的悬崖，见 `poller.ts` 的 `allowed()`。
+  */
+  const deniedGroupIds = new Set<string>()
   /** 触发词的单一事实源：门用它判定，桌面用它预填与预告。 */
   const aliases = config.aliases ?? ['@agent', '@智能体']
   const cwd = absolute(config.cwd ?? join(defaultHome, 'yzj-next', 'workspace'))
@@ -168,8 +177,8 @@ export function apply(ctx: Context, config: Config): void {
         before the first poll consumes the allow-list.
       */
       for (const [groupId, on] of Object.entries(state.servedOverrides())) {
-        if (on) allowedGroupIds.add(groupId)
-        else allowedGroupIds.delete(groupId)
+        // 两个集合各自成立：明确开的进 allowed，明确关的进 denied，没提过的哪个都不进。
+        if (on) { allowedGroupIds.add(groupId); deniedGroupIds.delete(groupId) } else { deniedGroupIds.add(groupId); allowedGroupIds.delete(groupId) }
       }
       const binding: TurnBinding = {
         viewer: { kind: 'operator', openId: identity.openId },
@@ -198,8 +207,7 @@ export function apply(ctx: Context, config: Config): void {
           // Live set first, durable record second, and both before the caller
           // is told it happened — a receipt for a decision that did not
           // survive the next restart is the worst of the three orderings.
-          if (on) allowedGroupIds.add(groupId)
-          else allowedGroupIds.delete(groupId)
+          if (on) { allowedGroupIds.add(groupId); deniedGroupIds.delete(groupId) } else { deniedGroupIds.add(groupId); allowedGroupIds.delete(groupId) }
           state.setServed(groupId, on)
           await state.save()
         },
@@ -265,6 +273,7 @@ export function apply(ctx: Context, config: Config): void {
       discoveryPages: config.discoveryPages ?? 10,
       pollIntervalMs,
       allowedGroupIds,
+      deniedGroupIds,
     }, onError, onIdentity)
 
     void Promise.all([

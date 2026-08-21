@@ -61,6 +61,8 @@ export interface HandoffDeps {
   readonly client: YzjChannelClient
   /** Conversations this instance may act in; empty means unrestricted. */
   readonly allowedGroupIds: ReadonlySet<string>
+  /** 被明确移出服务的群。移交过去等于往一个 agent 不在岗的地方递活。 */
+  readonly deniedGroupIds: ReadonlySet<string>
   readonly groupPages: number
 }
 
@@ -110,7 +112,9 @@ export async function prepareHandoff(
   if (chosen === undefined) {
     return { kind: 'refused', reason: `找不到会话「${target}」`, draft: body }
   }
-  if (deps.allowedGroupIds.size > 0 && !deps.allowedGroupIds.has(chosen.groupId)) {
+  // 明确关掉的群先挡：它和「名单里没有」是两回事，但对移交来说后果一样——那边没人接。
+  if (deps.deniedGroupIds.has(chosen.groupId)
+    || (deps.allowedGroupIds.size > 0 && !deps.allowedGroupIds.has(chosen.groupId))) {
     return {
       kind: 'refused',
       reason: `「${chosen.groupName}」不在本实例的允许列表内（试运行期只对测试群开放）`,
