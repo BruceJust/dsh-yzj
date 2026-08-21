@@ -14,6 +14,7 @@ import * as objApproval from './approval/index.ts'
 import * as objCommitment from './commitment/index.ts'
 import * as objEvent from './event/index.ts'
 import * as objGoal from './goal/index.ts'
+import * as objMinutes from './minutes/index.ts'
 import * as objTask from './task/index.ts'
 import { applyGraphTools } from './graph-tools.ts'
 import { applyMemoryTools } from './memory/tools.ts'
@@ -22,6 +23,7 @@ export * as objApproval from './approval/index.ts'
 export * as objCommitment from './commitment/index.ts'
 export * as objEvent from './event/index.ts'
 export * as objGoal from './goal/index.ts'
+export * as objMinutes from './minutes/index.ts'
 export * as objTask from './task/index.ts'
 export { approvalCard } from './approval/card.ts'
 export {
@@ -62,6 +64,13 @@ export {
   type EventHub, type EventPrep, type Readiness,
 } from './event/hub.ts'
 export { applyEventTools } from './event/tools.ts'
+export {
+  proposalItemFor, readMinutes, trustOf,
+  type ExecutorTrust, type MinutesDecision, type MinutesRead, type MinutesTask,
+} from './minutes/bridge.ts'
+export {
+  ingestMinutes, pullAndIngest, type IngestOutcome, type YzjMinutesSource,
+} from './minutes/ingest.ts'
 export { applyCommitmentNotify } from './goal/notify.ts'
 export { applyGoalWriteback, lineFor, writebackIdFor } from './goal/writeback.ts'
 export { applyGraphTools, describeObject } from './graph-tools.ts'
@@ -118,4 +127,6 @@ export function apply(ctx: Context, config: Config): void {
   ctx.plugin(objGoal)
   // 事件枢纽读承诺的状态推材料就绪度，所以也排在承诺之后。
   ctx.plugin(objEvent)
+  // 纪要双桥写 proposal 事件，所以排在定义了那一族的 objGoal 之后。
+  ctx.plugin(objMinutes)
 }
