@@ -12,6 +12,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import * as objApproval from './approval/index.ts'
 import * as objCommitment from './commitment/index.ts'
+import * as objEvent from './event/index.ts'
 import * as objGoal from './goal/index.ts'
 import * as objTask from './task/index.ts'
 import { applyGraphTools } from './graph-tools.ts'
@@ -19,6 +20,7 @@ import { applyMemoryTools } from './memory/tools.ts'
 
 export * as objApproval from './approval/index.ts'
 export * as objCommitment from './commitment/index.ts'
+export * as objEvent from './event/index.ts'
 export * as objGoal from './goal/index.ts'
 export * as objTask from './task/index.ts'
 export { approvalCard } from './approval/card.ts'
@@ -54,6 +56,12 @@ export {
   type GoalArtifact, type GoalChild, type GoalEvidence,
 } from './goal/evidence.ts'
 export { applyGoalTools } from './goal/tools.ts'
+export { eventFamily, type EventState } from './event/family.ts'
+export {
+  eventHub, materialsFor, readinessLine,
+  type EventHub, type EventPrep, type Readiness,
+} from './event/hub.ts'
+export { applyEventTools } from './event/tools.ts'
 export { applyCommitmentNotify } from './goal/notify.ts'
 export { applyGoalWriteback, lineFor, writebackIdFor } from './goal/writeback.ts'
 export { applyGraphTools, describeObject } from './graph-tools.ts'
@@ -108,4 +116,6 @@ export function apply(ctx: Context, config: Config): void {
   // After `objCommitment`: the goal plugin writes commitment events and listens
   // for them, so the family it depends on must already be defined.
   ctx.plugin(objGoal)
+  // 事件枢纽读承诺的状态推材料就绪度，所以也排在承诺之后。
+  ctx.plugin(objEvent)
 }
