@@ -19,7 +19,7 @@ import {
   conflictCard, taskCard, taskFamily, waitingCard,
 } from '@yzj-next/objects'
 import type { TopicDescriptor, TopicMessage, YzjTopics } from '@yzj-next/channel'
-import { buildStream, clockOf, type TrajectoryNode, isPlaceholderOnly } from '../src/client/stream.ts'
+import { buildStream, clockOf, type TrajectoryNode, isPlaceholderOnly, withoutImageMarks } from '../src/client/stream.ts'
 import { backTarget, currentFrame, popFrame, pushFrame, setFrame } from '../src/client/store.ts'
 import { safeHref } from '../src/client/Board.tsx'
 import {
@@ -1312,6 +1312,13 @@ describe('附件消息的正文就是占位符', () => {
     expect(isPlaceholderOnly('[文件]:r29-summary.md', 'r29-summary.md')).toBe(true)
     expect(isPlaceholderOnly('[文件]：r29-summary.md', 'r29-summary.md')).toBe(true)
     expect(isPlaceholderOnly('[图片]', undefined)).toBe(true)
+    /*
+      占位符**不止中文那一个**：同一个租户里实测到 `[图片]`/`[Image]`/`[Images]`，
+      取决于发送方客户端的语言。只认中文那个的后果，是屏幕上出现一条内容为
+      「[Images]」的消息，紧接着下面才是那张图——占位符和它要占位的东西并排站着。
+    */
+    expect(isPlaceholderOnly('[Image]', undefined)).toBe(true)
+    expect(isPlaceholderOnly('[Images]', undefined)).toBe(true)
     expect(isPlaceholderOnly('   ', undefined)).toBe(true)
   })
 
@@ -1359,5 +1366,36 @@ describe('「已发到群里」得有证据（实测缺陷）', () => {
 
   it('never claims delivery in a local session', () => {
     expect(voiceOf(buildStream(nodes, [], [], [], false))).toBe('private')
+  })
+})
+
+
+/**
+ * 夹在句子中间的图片占位符。
+ *
+ * `isPlaceholderOnly` 管的是「整条就是一个占位符」；这里管的是另一半：
+ * 「梳理的一版术语 FYI\n[图片]」——整条不等于占位符，于是那四个字原样印在屏幕上，
+ * 而它要占位的那张图就画在下面一行。
+ */
+describe('正文里的图片占位符', () => {
+  it('这条消息真的带着图时，才抹掉占位符', () => {
+    expect(withoutImageMarks('梳理的一版术语 FYI\n[图片]', true)).toBe('梳理的一版术语 FYI')
+    expect(withoutImageMarks('最小化后有个全局浮层。 [图片][图片]', true))
+      .toBe('最小化后有个全局浮层。')
+    expect(withoutImageMarks('[Images]', true)).toBe('')
+  })
+
+  it('没有图的时候一个字都不动 —— 那是有人在说话', () => {
+    /*
+      这是这里唯一的安全绳。占位符是平台写给「画不出图的客户端」看的描述，我们画得出，
+      所以它是重复；但只有当这条消息**确实带着图**，这句话才成立。
+    */
+    expect(withoutImageMarks('这个 [图片] 标记是什么意思？', false))
+      .toBe('这个 [图片] 标记是什么意思？')
+    expect(withoutImageMarks('[图片]', false)).toBe('[图片]')
+  })
+
+  it('抹完只剩空行的，交给整条占位符那条路', () => {
+    expect(isPlaceholderOnly(withoutImageMarks('[图片]\n[图片]', true), undefined)).toBe(true)
   })
 })

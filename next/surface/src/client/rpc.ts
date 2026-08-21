@@ -23,7 +23,7 @@ export interface TopicMessageWire {
   /** Attachments. Each carries an ID, never a URL — the bytes come from the host. */
   images?: {
     fileId: string; w?: number; h?: number
-    name?: string; ext?: string; size?: number; inline?: boolean
+    name?: string; ext?: string; size?: number
   }[]
   file?: { fileId: string; name: string; ext?: string; size?: number }
 }

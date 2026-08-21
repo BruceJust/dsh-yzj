@@ -769,8 +769,85 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
   // nothing about why looks broken rather than young.
   const nothing = conversations.length === 0
 
+  /*
+    **窄到画不下一行的时候，收成一条轨，而不是把字挤成一列。**
+
+    宿主在窄宽度下会把左区收到 ~35px（根节点带上它自己的 collapsed 类），而这一列此前
+    照旧渲染整份收件箱：于是「承诺板 · 跨执行者」被挤成一列一个字、「收件箱」截成
+    「收件」、会话列表被撑到 3908px 高——每一行的每个字各占一行。那不是收起，是压扁。
+
+    判据用**自己的宽度**，不去认宿主那个哈希类名：类名是别人的实现细节，改一次名这条
+    路就断了，而且断得无声。ResizeObserver 读自己的盒子，是这个仓库里已有的做法
+    （决断条同款）。
+
+    轨上留什么：**只留不需要一行字就能读的东西**——三个计数、一个板入口。会话列表在
+    35px 里是读不了的，画出来只是噪音；人要看它，把窗口拉宽就是。
+  */
+  const [narrow, setNarrow] = useState(false)
+  const measure = useCallback((node: HTMLElement | null) => {
+    if (node === null) return
+    const watch = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width
+        // 96px：一行「◫ 承诺板」加计数的最小可读宽度，再窄就必然折行。
+        setNarrow(width > 0 && width < 96)
+      }
+    })
+    watch.observe(node)
+  }, [])
+
+  if (narrow) {
+    return (
+      <nav
+        ref={measure}
+        className={`${tokens.tokens} ${css.sidebar} ${css.rail}`}
+        aria-label="收件箱"
+      >
+        <button
+          type="button"
+          className={css.railNew}
+          title="新建会话"
+          aria-label="新建会话"
+          onClick={() => { startSession() }}
+        >
+          ＋
+        </button>
+        {([
+          ['confirm', '✋', '待确认', inbox.counts.confirm],
+          ['review', '✓', '待验收', inbox.counts.review],
+          ['running', '●', '运行中', inbox.counts.running],
+        ] as const).map(([tone, mark, label, count]) => (
+          <button
+            key={tone}
+            type="button"
+            className={`${css.railChip} ${count === 0 ? css.chipZero : ''}`}
+            disabled={count === 0}
+            title={count === 0 ? `没有${label}的话题` : `${label} ${String(count)} —— 跳到第一个`}
+            aria-label={`${label} ${String(count)}`}
+            onClick={() => {
+              const target = inbox.firstOf[tone]
+              if (target !== undefined) go(target)
+            }}
+          >
+            <span>{mark}</span>
+            <span className={css.railCount}>{count}</span>
+          </button>
+        ))}
+        <button
+          type="button"
+          className={`${css.railBoard} ${frame.kind === 'board' ? css.boardOn : ''}`}
+          title="承诺板 · 跨执行者"
+          aria-label="承诺板"
+          onClick={() => { setFrame({ kind: frame.kind === 'board' ? 'session' : 'board' }) }}
+        >
+          ◫
+        </button>
+      </nav>
+    )
+  }
+
   return (
-    <nav className={`${tokens.tokens} ${css.sidebar}`} aria-label="收件箱">
+    <nav ref={measure} className={`${tokens.tokens} ${css.sidebar}`} aria-label="收件箱">
       {opening && (
         <YzjDirectoryPicker
           {...(workspaces.listDirectory === undefined

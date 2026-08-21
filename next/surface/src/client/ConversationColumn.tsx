@@ -36,7 +36,7 @@ import { YzjPlaceView } from './PlaceView.tsx'
 import { YzjContractPanel } from './ContractPanel.tsx'
 import { YzjTracePanel } from './TracePanel.tsx'
 import { CopyButton, EmojiButton, ForwardPicker, MentionPicker } from './Compose.tsx'
-import { Attachments, isPlaceholderOnly } from './Attachments.tsx'
+import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
 import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
 import { closePreview } from './preview.ts'
@@ -1133,9 +1133,12 @@ function renderRow(row: StreamRow, context: RowContext): ReactNode {
             附件消息的正文就是附件自己的占位符（`[文件]:r29-summary.md`），
             卡片已经把名字画出来了——两个都画等于把同一个文件名说两遍。
           */}
-          {!isPlaceholderOnly(row.text, row.file?.name) && (
-            <div className={css.bubble}>{row.text}</div>
-          )}
+          {(() => {
+            const body = withoutImageMarks(row.text, (row.images ?? []).length > 0)
+            return isPlaceholderOnly(body, row.file?.name)
+              ? null
+              : <div className={css.bubble}>{body}</div>
+          })()}
           <Attachments
             inject={context.inject}
             message={{

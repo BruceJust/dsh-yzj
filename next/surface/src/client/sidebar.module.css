@@ -379,3 +379,30 @@
   padding: 0 5px; border-radius: 8px; vertical-align: middle;
   background: #F1F2F5; color: var(--yzj-ink-3); border: 1px solid var(--yzj-line);
 }
+
+
+/*
+  窄轨 —— 宿主把左区收到 ~35px 时的样子。
+
+  一条铁律：**这里的任何东西都不许折行**。此前这一列在 35px 里照旧渲染整份收件箱，
+  「承诺板 · 跨执行者」被挤成一列一个字、会话列表撑到 3908px 高。那不是收起，是压扁。
+*/
+.rail {
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  overflow: hidden;
+}
+.rail * { white-space: nowrap; }
+.railNew, .railChip, .railBoard {
+  font: inherit; cursor: pointer; color: var(--yzj-ink-2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 30px; border-radius: 8px;
+  border: 1px solid transparent; background: transparent;
+}
+.railNew { font-size: 15px; height: 30px; }
+.railChip { font-size: 11px; line-height: 1.25; padding: 4px 0; gap: 1px; }
+.railChip:hover:not(:disabled) { background: var(--yzj-pub-tint); color: var(--yzj-ink); }
+.railCount { font-weight: 700; font-size: 11px; }
+.railBoard { font-size: 14px; height: 30px; margin-top: 2px; }
+.railBoard:hover { background: var(--yzj-pub-tint); color: var(--yzj-ink); }

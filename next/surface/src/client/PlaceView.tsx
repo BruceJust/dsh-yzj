@@ -30,7 +30,7 @@ import { avatarOf, clockOf, dayLabel } from './stream.ts'
 import { pushFrame } from './store.ts'
 import { YzjContractPanel } from './ContractPanel.tsx'
 import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
-import { Attachments, isPlaceholderOnly } from './Attachments.tsx'
+import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
 import type { PlaceViewWire, SurfaceInject, TopicMessageWire } from './rpc.ts'
 import tokens from './tokens.module.css'
 import css from './place.module.css'
@@ -568,9 +568,20 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                     )}
                   </span>
                 )}
-                {!isPlaceholderOnly(row.message.content, row.message.file?.name) && (
-                  <span className={css.bubble}>{row.message.content}</span>
-                )}
+                {/*
+                  正文先去掉图片占位符再判断要不要画。
+
+                  平台在正文里留 `[图片]`/`[Image]`/`[Images]` 是写给画不出图的客户端
+                  看的；我们画得出，所以那几个字是一份重复，而不是一句话。
+                */}
+                {(() => {
+                  const body = withoutImageMarks(
+                    row.message.content, (row.message.images ?? []).length > 0,
+                  )
+                  return isPlaceholderOnly(body, row.message.file?.name)
+                    ? null
+                    : <span className={css.bubble}>{body}</span>
+                })()}
                 <Attachments message={row.message} inject={inject} />
               </span>
             </div>

@@ -106,7 +106,6 @@ export interface TopicMessage {
      * which limit it hit instead of a generic failure — 「取不到」 with no reason
      * is the thing this product keeps refusing to ship.
      */
-    inline?: boolean
   }[]
   readonly file?: { fileId: string; name: string; ext?: string; size?: number }
 }
@@ -761,10 +760,9 @@ export class YzjTopicReader implements YzjTopics {
     */
     const images: {
       fileId: string; w?: number; h?: number
-      name?: string; ext?: string; size?: number; inline?: boolean
+      name?: string; ext?: string; size?: number
     }[] = (message.param.desc ?? []).map(segment => ({
       fileId: segment.data,
-      inline: true,
       ...(segment.w === undefined ? {} : { w: segment.w }),
       ...(segment.h === undefined ? {} : { h: segment.h }),
     }))

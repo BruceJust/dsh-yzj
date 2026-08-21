@@ -664,9 +664,44 @@ export function avatarOf(name: string): { text: string; color: string } {
 export function isPlaceholderOnly(content: string, name: string | undefined): boolean {
   const text = content.trim()
   if (text === '') return true
-  if (text === '[图片]') return true
+  if (IMAGE_MARKS.has(text)) return true
   if (name === undefined) return false
   return text === `[文件]:${name}` || text === `[文件]：${name}` || text === name
+}
+
+/**
+ * 平台在正文里给图片留的那几个占位符。
+ *
+ * **是几个，不是一个**：同一个租户里实测到三种写法——`[图片]`、`[Image]`、`[Images]`
+ * ——取决于发送方客户端的语言。只认中文那一个的后果是屏幕上出现一条内容为
+ * 「[Images]」的消息，紧接着下面才是那张图：占位符和它要占位的东西并排站着。
+ */
+const IMAGE_MARKS = new Set(['[图片]', '[Image]', '[Images]'])
+
+/**
+ * 把正文里的图片占位符去掉 —— **只在这条消息真的带着图的时候**。
+ *
+ * `isPlaceholderOnly` 管的是「整条就是一个占位符」；这里管的是它**夹在句子中间**的
+ * 那一种：「梳理的一版术语 FYI\n[图片]」——整条不等于占位符，于是那四个字原样印在
+ * 屏幕上，而它要占位的那张图就画在下面一行。
+ *
+ * 那个条件是这里唯一的安全绳。占位符是平台写给「画不出图的客户端」看的描述，而我们
+ * 画得出，所以它不是说明文字、是一份重复；但**只有当这条消息确实带着图**，这句话才
+ * 成立。一条没有图、正文里恰好写着「[图片]」的消息，是有人在说话，不许吃掉。
+ *
+ * （更严格的做法是用 `desc` 段自带的 `start`/`length` 精确切除——实测那两个数是字符
+ * 偏移且和正文对得上。没走那条路是因为它要在协议、桥、线、界面四处加字段，而这里的
+ * 失手代价是：一条带图的消息里，有人手打的「[图片]」四个字被抹掉。记在这儿，将来若
+ * 出现更花的占位符，那条路是现成的。）
+ */
+export function withoutImageMarks(content: string, hasImages: boolean): string {
+  if (!hasImages) return content
+  const stripped = [...IMAGE_MARKS].reduce(
+    (text, mark) => text.split(mark).join(''),
+    content,
+  )
+  // 抹掉之后可能只剩空行——按整条占位符处理，交给 `isPlaceholderOnly` 那条路。
+  return stripped.replace(/\n{2,}/gu, '\n').trim()
 }
 
 /**

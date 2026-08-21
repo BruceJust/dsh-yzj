@@ -25,7 +25,7 @@ import { openPreview, useAttachmentBody, type PreviewTarget } from './preview.ts
 import { ArtifactCard } from './ArtifactCard.tsx'
 import css from './attach.module.css'
 
-export { isPlaceholderOnly } from './stream.ts'
+export { isPlaceholderOnly, withoutImageMarks } from './stream.ts'
 
 /** 一条 IM 附件的工件身份。同一个 fileId 在流里和预览里是同一个 key。 */
 function targetOf(
@@ -57,24 +57,36 @@ function Picture(props: {
   const holder = useRef<HTMLButtonElement | null>(null)
 
   /*
-    富文本里嵌的图,字节根本拿不到。
+    富文本里嵌的图**取得到** —— 这里原先那道闸是照着一条错的判断建的。
 
-    它们是另一个 id 空间:CDN 地址给的是占位图标,`file download` 直接回
-    `code=2005, Get download info failed`。说清是哪一堵墙,比转一圈再给一句
-    「取不到」诚实——后者会让人以为是网络抖了一下。
+    原注释说「它们是另一个 id 空间，`file download` 直接回 code=2005」，于是所有内嵌图
+    一律画成一个灰盒子印「云之家没开下载口」。实测（今天，三个真实的内嵌图 id）：
+    `yzj-cli file download --id <id>` **全部下得下来**，是真 PNG，尺寸和 `desc` 段里
+    声明的 w/h 一模一样。而宿主取附件走的本来就是这条命令。
+
+    当初那条判断很可能是拿错了参数名打出来的——这个 CLI 的下载参数是 `--id`，写成
+    `--file-id` 会答 `unexpected argument`，而那句错误传到诊断里就成了「拿不到」。
+    一句「平台没开这个口」写进注释之后，就再没有人回去重量过它。
   */
-  const reachable = image.inline !== true
-  const read = useAttachmentBody(visible && reachable ? image.fileId : undefined, image.name, inject)
+  const read = useAttachmentBody(visible ? image.fileId : undefined, image.name, inject)
   const src = read.body?.kind === 'image'
     ? `data:${read.body.mime};base64,${read.body.base64}`
     : undefined
-  const why = !reachable
-    ? '这张图嵌在富文本里，云之家没开下载口'
-    : read.missing
-      ? '这次没取到，点一下重试'
-      : read.body !== undefined && read.body.kind !== 'image'
-        ? read.body.kind === 'binary' ? read.body.why : '这不是一张图'
-        : '取图中…'
+  /*
+    **没在取的图，不许写「取图中…」。**
+
+    这个槽在滚进视野之前什么都不请求（那是刻意的：一屋子截图急切加载会为每张图派出
+    一个进程）。可兜底那句话写的是「取图中…」——于是一条历史里几十个从没被请求过的
+    槽，个个都在说自己正在取。看的人会等一个永远不会来的结果，然后以为是坏了。
+
+    没在取就什么都不说：这个槽此刻的全部含义就是「这里有一张图，占着它的位置」，
+    而按真实宽高比占位本来就是它的另一半职责。
+  */
+  const why = read.missing
+    ? '这次没取到，点一下重试'
+    : read.body !== undefined && read.body.kind !== 'image'
+      ? read.body.kind === 'binary' ? read.body.why : '这不是一张图'
+      : visible ? '取图中…' : ''
 
   useEffect(() => {
     const node = holder.current
@@ -110,7 +122,7 @@ function Picture(props: {
       type="button"
       ref={holder}
       className={css.thumb}
-      title={src === undefined ? why : '点开在右边看大图'}
+      title={src !== undefined ? '点开在右边看大图' : why === '' ? '滚到这里才会去取这张图' : why}
       style={ratio}
       onClick={open}
     >
