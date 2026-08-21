@@ -114,7 +114,7 @@ export function applyGoalTools(ctx: Context): () => void {
 
   register(defineTool({
     name: 'goal_propose',
-    description: 'Propose a GOAL for a person to sign off, after you have helped them think one through. You cannot create a goal — only propose one. Use this at the end of a goal-drafting conversation ("帮我想想这个季度的目标"), never on your own initiative. Always include successCriteria: a goal nobody can say "done" about cannot be accepted later. The goal\'s real body is a Yunzhijia document — pass its link if you were given one; if not, say so and let them paste it with their confirmation.',
+    description: 'Propose a GOAL for a person to sign off, after you have helped them think one through. You cannot create a goal — only propose one. Use this at the end of a goal-drafting conversation ("帮我想想这个季度的目标"), never on your own initiative. Always include successCriteria: a goal nobody can say "done" about cannot be accepted later. The goal\'s real body is a Yunzhijia document. If you were not given a link, MAKE ONE before proposing: yzj_doc_create for the document, then yzj_doc_block_insert to write the success criteria into its body — the assessment later reads the criteria back out of that body, so criteria that live only in the proposal are criteria nobody can assess against. Both calls go through the operator\'s normal write confirmation; pass the resulting link as goalRef.',
     presentCall: args => ({ card: 'generic', title: `提案立目标：${String(args.what)}`, kind: 'edit' }),
     parameters: {
       what: { type: 'string', required: true, description: 'The goal, in the owner\'s own words.' },

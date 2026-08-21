@@ -293,7 +293,16 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
       // 人签发铁律，说在卡上而不是只说在设计文档里。
       state.kind === 'goal'
         ? state.goalRef === undefined
-          ? '这是提案，不是目标。先在云之家建目标文档，把链接跟「确认」一起发过来——真身不在这里。'
+          /*
+            没有真身链接时说什么 (v3.10 4h③).
+
+            此前这句是「先在云之家建目标文档，把链接一起发过来」——把一件 agent 明明
+            做得到的事推给了人。`yzj_doc_create` 与 `yzj_doc_block_insert` 一直在
+            工具面里，"agent 建不了文档"是一次能力误判。所以现在给的是**两条路**，
+            而不是一条作业：让它建，或者你自己贴。人签发这一步一个字没变。
+          */
+          ? '这是提案，不是目标——真身还不存在。回一句「建一份」让我把文档建好'
+            + '（成功标准会写进正文），或者自己建完把链接跟「确认」一起发过来。'
           : '这是提案，不是目标。确认才算你签发。'
         : '逐条裁决。确认即签发——确认后会以你的名义把登记消息发到执行者所在的会话。',
       `[card#proposal:${state.proposalId}]`,
@@ -301,6 +310,9 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
     replyHints: proposalSettled(state)
       ? []
       : state.kind === 'goal'
+        // 「建一份」刻意**不在**这里：replyHints 列的是卡上的动词，会被关键词解析成
+        // 一个动作。而「建一份」是说给 agent 听的一句话（它会去建文档再重新提案），
+        // 把它混进动词表，就成了一个点下去没有对应动作的承诺。
         ? ['确认 <真身链接>', '驳回', '收起']
         : ['确认 <编号>', '驳回 <编号>', '挂起 <编号>', '收起'],
   }),

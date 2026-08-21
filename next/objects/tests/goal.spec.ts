@@ -848,3 +848,43 @@ describe('签发的输入（对抗审查 #1）', () => {
     expect(minted.every(state => state.parentGoalRef === GOAL)).toBe(true)
   })
 })
+
+/**
+ * 4h③ 当场建真身：把一件 agent 做得到的事，别再推给人。
+ *
+ * 「agent 建不了文档」是一次**能力误判**——`yzj_doc_create` 与
+ * `yzj_doc_block_insert` 一直在工具面里。误判的代价不是少一个功能，是卡上那句话把
+ * 人赶出了产品：「先去云之家建一份，再回来把链接贴上」。
+ *
+ * 人签发这一步一个字没变——变的只是**没有链接时给的是两条路，而不是一条作业**。
+ */
+describe('没有真身链接时，卡说什么', () => {
+  it('给两条路：让它建，或你自己贴', async () => {
+    const state = {
+      proposalId: 'p1', kind: 'goal' as const, status: 'open' as const,
+      title: 'Q3 对账清零', items: [{ what: 'Q3 对账清零' }], sourceAnchor: 'a',
+    }
+    const text = createProposalCard(ctx).renderText(state)
+    expect(text.body).toContain('回一句「建一份」')
+    expect(text.body).toContain('自己建完把链接')
+    /*
+      「建一份」不在 replyHints 里。
+
+      那一列是**卡上的动词**，会被关键词解析成一个动作；而「建一份」是说给 agent
+      听的一句话（它去建文档、写进成功标准、重新提案）。混进动词表，就成了一个点
+      下去没有对应动作的承诺——正是「没有不可兑付的信号」要禁的那种。
+    */
+    expect(text.replyHints).not.toContain('建一份')
+  })
+
+  it('有链接时不啰嗦，只说「确认才算你签发」', async () => {
+    const state = {
+      proposalId: 'p1', kind: 'goal' as const, status: 'open' as const,
+      title: 'Q3 对账清零', items: [{ what: 'Q3 对账清零' }], sourceAnchor: 'a',
+      goalRef: 'https://y/doc/1',
+    }
+    const text = createProposalCard(ctx).renderText(state)
+    expect(text.body).toContain('确认才算你签发')
+    expect(text.body).not.toContain('建一份')
+  })
+})
