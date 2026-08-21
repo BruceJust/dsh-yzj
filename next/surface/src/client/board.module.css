@@ -1,0 +1,330 @@
+.board {
+  display: flex; flex-direction: column; height: 100%; min-height: 0;
+  background: var(--yzj-surface);
+}
+
+.head {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 12px 20px 10px; border-bottom: 1px solid var(--yzj-line);
+}
+.title { font-size: 15px; font-weight: 700; color: var(--yzj-ink); }
+.sub { font-size: 11.5px; color: var(--yzj-ink-3); }
+.overdueCount { color: var(--yzj-red); font-weight: 700; }
+
+.back {
+  margin-left: auto; padding: 4px 11px;
+  border: 1px solid var(--yzj-line); border-radius: 8px;
+  background: var(--yzj-surface); font: inherit; font-size: 12px;
+  color: var(--yzj-ink-2); cursor: pointer;
+  transition: box-shadow .15s;
+}
+.back:hover { box-shadow: var(--yzj-shadow); }
+
+.body { flex: 1; overflow-y: auto; padding: 12px 20px 24px; }
+
+/* 目标行：真身在云之家,这里只是外挂 —— 所以它是虚线的 */
+.goal {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 13px; margin-bottom: 6px;
+  border: 1px dashed #B9C4D6; border-radius: 10px; background: #F7F9FC;
+}
+.goalTag {
+  font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; flex: none;
+  background: #EEF2F9; color: #3D4C66; border: 1px solid #C9D4E6;
+}
+.goalName {
+  flex: 1; min-width: 0; font-size: 12.5px; color: var(--yzj-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.goalSig { flex: none; font-size: 10.5px; color: var(--yzj-ink-2); }
+.goalChildren { margin: 0 0 12px 18px; border-left: 2px solid #E4E9F1; padding-left: 10px; }
+
+.row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 13px; margin-bottom: 8px;
+  border: 1px solid var(--yzj-line); border-radius: 10px;
+  background: var(--yzj-surface); box-shadow: var(--yzj-shadow);
+}
+.rowOverdue { border-left: 3px solid var(--yzj-red); }
+.rowDone { opacity: .6; box-shadow: none; }
+
+.who { font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; flex: none; }
+.whoAgent { background: var(--yzj-pub-tint); color: var(--yzj-pub); border: 1px solid var(--yzj-pub-line); }
+.whoHuman { background: var(--yzj-violet-bg); color: var(--yzj-violet); border: 1px solid var(--yzj-violet-line); }
+
+.what {
+  flex: 1; min-width: 0; font-size: 12.5px; color: var(--yzj-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.inferred {
+  flex: none; font-size: 9.5px; padding: 1.5px 7px; border-radius: 20px;
+  background: var(--yzj-amber-bg); color: var(--yzj-amber);
+  border: 1px dashed var(--yzj-amber-line);
+}
+
+.due { flex: none; font-size: 10.5px; color: var(--yzj-ink-3); }
+.dueOverdue { color: var(--yzj-red); font-weight: 700; }
+
+.remind, .open {
+  flex: none; font: inherit; font-size: 11px; font-weight: 650;
+  padding: 4px 11px; border-radius: 7px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
+  color: var(--yzj-ink-2); cursor: pointer;
+  transition: box-shadow .15s, color .15s;
+}
+.remind:hover, .open:hover { color: var(--yzj-ink); box-shadow: var(--yzj-shadow); }
+.remind:disabled { opacity: .45; cursor: default; }
+
+.calm {
+  margin: 20px auto; max-width: 520px;
+  border: 1px dashed #C9CFDA; border-radius: 12px;
+  padding: 18px 20px; font-size: 12.5px; color: var(--yzj-ink-2);
+  line-height: 1.85; background: #FAFBFC;
+}
+
+.toast {
+  position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%);
+  background: #171B22; color: #E5E9F2; font-size: 12.5px;
+  padding: 9px 18px; border-radius: 10px; box-shadow: var(--yzj-shadow-pop);
+}
+
+/* ---------- 两个缩放级别：全部 / 按目标 ---------- */
+.lens { display: inline-flex; background: #EFF1F4; border-radius: 8px; padding: 3px; gap: 2px; margin-left: 10px; }
+.lensBtn {
+  font: inherit; font-size: 11.5px; font-weight: 650;
+  padding: 4px 11px; border: 0; border-radius: 6px; background: none;
+  color: var(--yzj-ink-2); cursor: pointer;
+}
+.lensOn { background: var(--yzj-surface); color: var(--yzj-ink); box-shadow: 0 1px 3px rgb(24 30 42 / 12%); }
+
+.goalsHead { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+.goalsCount { font-size: 11.5px; color: var(--yzj-ink-3); }
+.declare {
+  margin-left: auto; font: inherit; font-size: 11.5px; font-weight: 650;
+  padding: 5px 12px; border-radius: 8px;
+  border: 1px solid var(--yzj-pub-line); background: var(--yzj-pub-tint);
+  color: var(--yzj-pub); cursor: pointer;
+}
+.declare:hover { box-shadow: var(--yzj-shadow); }
+
+/* 目标行：虚线 = 真身在云之家，不在图上 */
+.goalBlock { margin-bottom: 14px; }
+.goalOwner { flex: none; font-size: 10.5px; color: var(--yzj-ink-3); }
+.sigOverdue { color: var(--yzj-red); }
+.manual {
+  flex: none; font-size: 10px; font-weight: 650;
+  padding: 2px 8px; border-radius: 20px;
+  background: #F1F3F6; color: var(--yzj-ink-3); border: 1px solid var(--yzj-line);
+}
+.goalLink { flex: none; font-size: 10.5px; color: var(--yzj-pub); text-decoration: none; }
+.goalLink:hover { text-decoration: underline; }
+.goalEmpty { padding: 8px 12px; font-size: 11.5px; color: var(--yzj-ink-3); }
+
+/* 挂接来路：继承不是推断,两件事不共用一个词 */
+.via {
+  flex: none; font-size: 10px; padding: 1.5px 7px; border-radius: 12px;
+  background: #EEF2FA; color: var(--yzj-pub-deep); border: 1px solid var(--yzj-pub-line);
+}
+.viaGuess { background: var(--yzj-amber-bg); color: var(--yzj-amber); border-color: var(--yzj-amber-line); }
+
+/* 无归属：未挂是合法状态,这一组只是把对齐债务拉到看得见 */
+.unattached {
+  margin-top: 18px; padding: 12px;
+  border: 1px dashed #C9CFDA; border-radius: 12px; background: #FAFBFC;
+}
+.unattachedHead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.unattachedTitle { font-size: 12.5px; font-weight: 700; color: var(--yzj-ink); }
+.unattachedNote { font-size: 11px; color: var(--yzj-ink-3); line-height: 1.6; }
+.pick { flex: none; margin-right: 2px; accent-color: var(--yzj-pub); }
+
+.batch {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 10px; padding: 8px 10px;
+  border-radius: 9px; background: var(--yzj-pub-tint); border: 1px solid var(--yzj-pub-line);
+}
+.batchCount { font-size: 11.5px; font-weight: 650; color: var(--yzj-pub-deep); }
+.batchNone { font-size: 11px; color: var(--yzj-ink-3); }
+.batchBtn {
+  font: inherit; font-size: 11px; font-weight: 650;
+  padding: 3px 10px; border-radius: 12px;
+  border: 1px solid var(--yzj-pub-line); background: var(--yzj-surface);
+  color: var(--yzj-pub); cursor: pointer; max-width: 220px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.batchBtn:disabled { opacity: .5; cursor: default; }
+.batchClear {
+  margin-left: auto; font: inherit; font-size: 11px;
+  border: 0; background: none; color: var(--yzj-ink-3); cursor: pointer;
+}
+
+/* ---------- 立目标：表单即确认卡 ---------- */
+.mask {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgb(24 30 42 / 30%);
+  display: flex; align-items: center; justify-content: center;
+}
+.sheet {
+  width: 430px; padding: 16px 18px 14px;
+  border-radius: 14px; background: var(--yzj-surface); box-shadow: var(--yzj-shadow-pop);
+}
+.sheetHead { display: flex; align-items: center; margin-bottom: 8px; }
+.sheetTitle { font-size: 14px; font-weight: 700; color: var(--yzj-ink); }
+.sheetClose {
+  margin-left: auto; border: 0; background: none; cursor: pointer;
+  font-size: 18px; line-height: 1; color: var(--yzj-ink-3);
+}
+.sheetNote {
+  margin-bottom: 12px; padding: 8px 10px; border-radius: 8px;
+  background: #F7F8FA; font-size: 11.5px; line-height: 1.7; color: var(--yzj-ink-2);
+}
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; flex: 1; }
+.fieldRow { display: flex; gap: 10px; }
+.fieldLabel { font-size: 10.5px; font-weight: 650; color: var(--yzj-ink-3); }
+.input {
+  font: inherit; font-size: 12.5px; color: var(--yzj-ink);
+  padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface); outline: none;
+}
+.input:focus { border-color: var(--yzj-pub); }
+.sheetFoot { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.sheetHint { font-size: 10.5px; color: var(--yzj-ink-3); line-height: 1.5; }
+.sheetGo {
+  margin-left: auto; flex: none; font: inherit; font-size: 12.5px; font-weight: 650;
+  padding: 7px 16px; border: 0; border-radius: 9px;
+  background: var(--yzj-pub); color: #fff; cursor: pointer;
+}
+.sheetGo:disabled { opacity: .45; cursor: default; }
+.unlink, .voidGoal {
+  flex: none; font: inherit; font-size: 10.5px;
+  padding: 2px 9px; border-radius: 12px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
+  color: var(--yzj-ink-3); cursor: pointer;
+}
+.unlink:hover, .voidGoal:hover { color: var(--yzj-red); border-color: #F0CACA; }
+.unlink:disabled, .voidGoal:disabled { opacity: .5; cursor: default; }
+/* 引用不是链接时就说它不是——把群里来的任意文本渲染成 href 是一条真实攻击面 */
+.goalUnsafe {
+  flex: none; font-size: 10.5px; color: var(--yzj-ink-3);
+  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---------- v4.9/v4.10 目标执行动线 ---------- */
+
+/* 未通知：落库了但没呼吸——比逾期更响，因为对方根本不知道有这件事 */
+.unnotified {
+  flex: none; font-size: 10.5px; font-weight: 700;
+  padding: 2px 8px; border-radius: 11px;
+  background: #FFF1F0; color: var(--yzj-red); border: 1px solid #F5C6C4;
+}
+
+/* 过程摘要：一行，且只有一行——过程在一跳之外 */
+.progress {
+  flex: none; max-width: 190px; font-size: 10.5px; color: var(--yzj-ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 传送门 CTA：不是表单，是门 */
+.delegate, .assess {
+  flex: none; font: inherit; font-size: 10.5px; font-weight: 650;
+  padding: 2px 10px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--yzj-pub-line); background: var(--yzj-pub-tint); color: var(--yzj-pub-deep);
+}
+.assess { border-color: var(--yzj-line); background: var(--yzj-surface); color: var(--yzj-ink-2); }
+.delegate:hover { background: var(--yzj-pub); color: #fff; border-color: var(--yzj-pub); }
+.assess:hover { border-color: var(--yzj-pub-line); color: var(--yzj-pub-deep); }
+
+/* 成功标准：签发时的原话，真身仍在云之家 */
+.criteria {
+  margin: 6px 0 2px; padding: 7px 10px;
+  border-left: 3px solid var(--yzj-pub-line); border-radius: 0 7px 7px 0;
+  background: #F7F9FC; font-size: 11.5px; line-height: 1.7; color: var(--yzj-ink-2);
+}
+.criteriaLabel {
+  display: inline-block; margin-right: 8px;
+  font-size: 10px; font-weight: 700; color: var(--yzj-pub-deep);
+}
+
+/* 抽屉：产出与简报默认折起,先答「到哪一步了」 */
+.drawer { margin-top: 6px; }
+.drawerHead {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  font: inherit; font-size: 11px; font-weight: 650; color: var(--yzj-ink-2);
+  padding: 4px 6px; border: 0; border-radius: 7px;
+  background: none; cursor: pointer; text-align: left;
+}
+.drawerHead:hover { background: #F4F6F9; }
+.drawerNote { margin-left: auto; font-weight: 400; font-size: 10.5px; color: var(--yzj-ink-3); }
+.drawerBody { padding: 4px 6px 6px 18px; }
+
+.artifact { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 11.5px; }
+.artifactAction {
+  flex: none; font-size: 10px; padding: 1px 7px; border-radius: 10px;
+  background: #EEF1F6; color: var(--yzj-ink-3);
+}
+.artifactName { color: var(--yzj-ink-2); }
+.artifactLink { color: var(--yzj-pub); text-decoration: none; }
+.artifactLink:hover { text-decoration: underline; }
+
+/* 差距简报：逐条证据锚点 */
+.reportTag {
+  flex: none; font-size: 10px; font-weight: 650;
+  padding: 1px 8px; border-radius: 10px; background: #EEF1F6; color: var(--yzj-ink-3);
+}
+.reportGap { background: #FFF4E8; color: #A5590E; }
+.reportSummary {
+  margin-bottom: 6px; font-size: 11.5px; line-height: 1.7; color: var(--yzj-ink-2);
+}
+.reportLine {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 4px 0; border-top: 1px dashed var(--yzj-line); font-size: 11.5px;
+}
+.verdict { flex: none; font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 10px; }
+.vMet { background: #E9F7EE; color: #1B7A43; }
+.vPartial { background: #FFF4E8; color: #A5590E; }
+.vMissing { background: #FFF1F0; color: var(--yzj-red); }
+.criterion { color: var(--yzj-ink); }
+.evidence {
+  flex: 1; min-width: 0; color: var(--yzj-ink-3); font-size: 10.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gapDelegate {
+  flex: none; font: inherit; font-size: 10px; font-weight: 650;
+  padding: 2px 9px; border-radius: 11px; cursor: pointer;
+  border: 1px solid var(--yzj-pub-line); background: var(--yzj-surface); color: var(--yzj-pub-deep);
+}
+.gapDelegate:hover { background: var(--yzj-pub); color: #fff; }
+.reportFoot { margin-top: 8px; font-size: 10.5px; color: var(--yzj-ink-3); }
+
+/* 传送门选场所：只问一件事——在哪儿说 */
+.rooms { max-height: 320px; overflow: auto; margin: 10px 0 4px; }
+.roomGroup { margin-bottom: 10px; }
+.roomPlace {
+  font-size: 10.5px; font-weight: 700; color: var(--yzj-ink-3);
+  padding: 2px 4px; margin-bottom: 2px;
+}
+.room {
+  display: block; width: 100%; text-align: left;
+  font: inherit; font-size: 12px; color: var(--yzj-ink);
+  padding: 6px 10px; margin-bottom: 3px; border-radius: 8px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface); cursor: pointer;
+}
+.room:hover { border-color: var(--yzj-pub); background: var(--yzj-pub-tint); }
+
+.area {
+  font: inherit; font-size: 12.5px; color: var(--yzj-ink); resize: vertical;
+  padding: 7px 10px; border-radius: 8px; line-height: 1.6;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface); outline: none;
+}
+.area:focus { border-color: var(--yzj-pub); }
+.fieldHint { font-size: 10px; line-height: 1.6; color: var(--yzj-ink-3); }
+/* 拒绝就地说,表单不动 */
+.refusal {
+  margin: 2px 0 8px; padding: 7px 10px; border-radius: 8px;
+  background: #FFF1F0; border: 1px solid #F5C6C4;
+  font-size: 11.5px; line-height: 1.6; color: var(--yzj-red);
+}
+/* 共用会话的产出:标出来,既不丢也不冒领 */
+.artifactShared {
+  flex: none; font-size: 10px; padding: 1px 7px; border-radius: 10px;
+  background: #FFF4E8; color: #A5590E;
+}

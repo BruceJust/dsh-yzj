@@ -1,0 +1,204 @@
+/**
+ * 真身之变的规格 (§1.9-4).
+ *
+ * 这一族此前**只有定义没有生产者**——没有任何代码去看过那份文档，所以
+ * `truth/changed` 永远不会被写下。于是整个系统对一个目标的判断，一直来自立目标
+ * 那一刻抄下的一份成功标准副本；而设计说改成功标准就是去改云之家那份文档。
+ *
+ * 这里锁的四件事，每一件都是「静悄悄地错」的一种：
+ *
+ * - **看不了 ≠ 没变**：用一次失败的观察冒充一次成功的观察，是这套系统里最贵的
+ *   谎——它让人以为对过账了；
+ * - **只报一次**：记回基准，否则同一个改动每次消费都重报，而每次都在喊的警告
+ *   等于没有警告；
+ * - **第一次不算变**：第一次看到它只是建立基准，报「变了」是凭空制造一次警报；
+ * - **不长得像 id 的引用不去问服务端**：`…/doc/q3` 取成 `q3` 拿去问，得到的
+ *   失败和「文档没变」长得一模一样。
+ */
+
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { Context } from '@deepseek-ai/cordis'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { YzjGraph, asRecord, asString, type GraphActor } from '@yzj-next/graph'
+import { commitmentFamily } from '../src/commitment/family.ts'
+import { goalCommitmentIdFor } from '../src/goal/family.ts'
+import { checkGoalTruth, docIdOf, truthLine } from '../src/goal/truth.ts'
+
+const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
+const DOC = '6a7a87ece7eece43b1e36d8e'
+const GOAL = `https://www.yunzhijia.com/knowledge/lingee/#/store/doc/${DOC}`
+
+let ctx: Context
+let graph: YzjGraph
+/*
+  服务端此刻会答什么。测试通过改它们来模拟「有人去云之家动了这份文档」。
+
+  两条路分开摆:正文版本(`doc block list`)与节点元数据(`doc get`)是**两个不同
+  的东西**——实测过,往正文里插一段话,节点的 version 与 updateTime 纹丝不动。
+  只摆一条,就测不出「取错了指纹」这个最贵的错。
+*/
+let body: { ok: boolean; json?: unknown; error?: string }
+let node: { ok: boolean; json?: unknown; error?: string }
+let calls: string[][]
+
+beforeEach(async () => {
+  const root = await mkdtemp(join(tmpdir(), 'yzj-next-truth-'))
+  ctx = new Context()
+  graph = new YzjGraph(ctx, { root })
+  graph.defineFamily(commitmentFamily)
+  await graph.selectAccount('acct-1')
+  body = { ok: true, json: { data: { version: 4, blocks: [] } } }
+  node = { ok: true, json: { id: DOC, title: 'Q3 对账', version: 1, updateTime: '2026-08-11T11:52:37.747' } }
+  calls = []
+  ctx.provide('yzjBridge', {
+    run: (command: string[]) => {
+      calls.push(command)
+      return Promise.resolve(command[1] === 'block' ? body : node)
+    },
+  })
+})
+
+async function goal(): Promise<void> {
+  await graph.append({
+    type: 'commitment/opened',
+    data: {
+      commitmentId: goalCommitmentIdFor(GOAL),
+      what: 'Q3 对账',
+      goalRef: GOAL,
+      executor: { kind: 'human', openId: 'op-1', name: '我' },
+      sourceAnchor: 'desktop:board',
+      criteria: '三家竞品各一页',
+    },
+    actor: OPERATOR,
+  })
+}
+
+const truthEvents = (): unknown[] => [...graph.rawEvents(['truth/changed'])]
+const knownMark = (): unknown =>
+  asRecord(graph.rawObject('commitment', goalCommitmentIdFor(GOAL))?.state)?.truthFingerprint
+
+describe('从引用里认出那份文档', () => {
+  it('认得出真的 id', () => {
+    expect(docIdOf(GOAL)).toBe(DOC)
+    expect(docIdOf(`https://www.yunzhijia.com/knowledge/#/store/doc/${DOC}`)).toBe(DOC)
+    expect(docIdOf(`https://x/#/store/sheet/${DOC}?tab=1`)).toBe(DOC)
+  })
+
+  it('不长得像 id 的就不去问——否则会拿回一个和「没变」长得一样的失败', () => {
+    expect(docIdOf('https://yzj.example.com/doc/q3')).toBeUndefined()
+    expect(docIdOf('随便一句话')).toBeUndefined()
+    expect(docIdOf('https://www.yunzhijia.com/knowledge/#/store/doc/短了点')).toBeUndefined()
+  })
+})
+
+describe('消费时刻看一眼', () => {
+  it('第一次只建立基准，不报「变了」', async () => {
+    await goal()
+    const verdict = await checkGoalTruth(ctx, GOAL)
+    expect(verdict.kind).toBe('first-look')
+    expect(truthEvents()).toHaveLength(0)
+    expect(knownMark()).toBe('blocks:4')
+  })
+
+  it('版本没动就是没动', async () => {
+    await goal()
+    await checkGoalTruth(ctx, GOAL)
+    const verdict = await checkGoalTruth(ctx, GOAL)
+    expect(verdict.kind).toBe('unchanged')
+    expect(truthEvents()).toHaveLength(0)
+  })
+
+  /** 这条是整个文件存在的理由：有人在云之家改了正文，系统终于能知道。 */
+  it('有人改了正文——写下 truth/changed，并说清从几版到几版', async () => {
+    await goal()
+    await checkGoalTruth(ctx, GOAL)
+    body = { ok: true, json: { data: { version: 5, blocks: [] } } }
+    const verdict = await checkGoalTruth(ctx, GOAL)
+    expect(verdict.kind).toBe('changed')
+    const events = truthEvents()
+    expect(events).toHaveLength(1)
+    const data = asRecord(asRecord(events[0])?.data)
+    expect(asString(asRecord(data?.ref)?.uri)).toBe(GOAL)
+    expect(asString(data?.kind)).toBe('changed')
+    expect(asString(data?.detail)).toContain('4')
+    expect(asString(data?.detail)).toContain('5')
+  })
+
+  it('同一个改动只报一次——每次都在喊的警告等于没有警告', async () => {
+    await goal()
+    await checkGoalTruth(ctx, GOAL)
+    body = { ok: true, json: { data: { version: 5, blocks: [] } } }
+    await checkGoalTruth(ctx, GOAL)
+    await checkGoalTruth(ctx, GOAL)
+    await checkGoalTruth(ctx, GOAL)
+    expect(truthEvents()).toHaveLength(1)
+    expect(knownMark()).toBe('blocks:5')
+  })
+
+  it('再改一次就再报一次——基准跟着走', async () => {
+    await goal()
+    await checkGoalTruth(ctx, GOAL)
+    body = { ok: true, json: { data: { version: 5, blocks: [] } } }
+    await checkGoalTruth(ctx, GOAL)
+    body = { ok: true, json: { data: { version: 6, blocks: [] } } }
+    const verdict = await checkGoalTruth(ctx, GOAL)
+    expect(verdict.kind).toBe('changed')
+    expect(truthEvents()).toHaveLength(2)
+  })
+})
+
+describe('看不了 ≠ 没变', () => {
+  it('通道不在就说通道不在，而不是「没有改动」', async () => {
+    await goal()
+    const bare = new Context()
+    const graph2 = new YzjGraph(bare, { root: await mkdtemp(join(tmpdir(), 'yzj-truth-bare-')) })
+    graph2.defineFamily(commitmentFamily)
+    await graph2.selectAccount('acct-1')
+    const verdict = await checkGoalTruth(bare, GOAL)
+    expect(verdict.kind).toBe('unknown')
+    expect(truthLine(verdict)).toContain('答不了')
+  })
+
+  it('文档被删了也是「答不了」，不是「没变」', async () => {
+    await goal()
+    body = { ok: false, error: 'DOC_DELETED' }
+    node = { ok: false, error: 'DOC_DELETED' }
+    const verdict = await checkGoalTruth(ctx, GOAL)
+    expect(verdict.kind).toBe('unknown')
+    expect(truthEvents()).toHaveLength(0)
+  })
+
+  it('引用不是知识库链接时，连问都不问服务端', async () => {
+    await goal()
+    const verdict = await checkGoalTruth(ctx, 'https://yzj.example.com/doc/q3')
+    expect(verdict.kind).toBe('unknown')
+    expect(calls).toHaveLength(0)
+  })
+
+  it('服务端没给版本号就承认比不出来', async () => {
+    await goal()
+    body = { ok: false, error: '不是在线文档' }
+    node = { ok: true, json: { id: DOC, title: 'Q3 对账' } }
+    expect((await checkGoalTruth(ctx, GOAL)).kind).toBe('unknown')
+  })
+
+  it('图上没有这个目标就不凭空造一条出来', async () => {
+    const verdict = await checkGoalTruth(ctx, GOAL)
+    expect(verdict.kind).toBe('unknown')
+    expect(graph.rawObject('commitment', goalCommitmentIdFor(GOAL))).toBeUndefined()
+  })
+})
+
+describe('说给 agent 听的那一句', () => {
+  it('三种结果各说各的，没有一种会被误读成「一切正常」', () => {
+    expect(truthLine({ kind: 'unchanged', note: '正文版本 4' })).toContain('没有改动')
+    expect(truthLine({ kind: 'first-look', note: '正文版本 4' })).toContain('第一次')
+    const changed = truthLine({ kind: 'changed', note: 'blocks:4 → blocks:5' })
+    expect(changed).toContain('已被改动')
+    // 最要紧的一句：告诉 agent 它手上那份标准可能已经过时。
+    expect(changed).toContain('可能已经过时')
+    expect(truthLine({ kind: 'unknown', why: '通道没就绪' })).toContain('答不了')
+  })
+})

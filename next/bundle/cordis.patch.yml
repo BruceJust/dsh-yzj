@@ -1,0 +1,67 @@
+# The yzj-next bundle patch. Six rows over the dsh-base + web-app layers.
+#
+# This bundle is meant for a SEPARATE DSH instance (its own DSH_HOME, port and
+# profile), never the profile that already runs the old dsh-yzj bundle. The two
+# collide on five shared surfaces — same-layer tool names fail to load outright
+# (dsh-tools contract), the approval waterfall is global, the toolview keyed
+# seat shadows, DM/self-chat traffic cannot be partitioned by group allow-list,
+# and workspace ownership mixes. See the technical plan §7.
+- insert:
+    # Host channel to the yzj-cli binary. Reuses the machine's existing login
+    # state; the harness never handles a credential.
+    - id: yzj-next-bridge
+      name: '@yzj-next/bridge'
+
+    # The conversation-graph kernel: append-only log of every product-level
+    # fact. The partition opens when the channel resolves the account.
+    - id: yzj-next-graph
+      name: '@yzj-next/graph'
+
+    # Card registry, action bus, and the /yzj-next RPC channel the desktop
+    # conversation card reads live state through.
+    - id: yzj-next-cards
+      name: '@yzj-next/cards'
+
+    # Object families. P1 ships the confirmation card; task / commitment /
+    # verdict families mount here as they land.
+    - id: yzj-next-objects
+      name: '@yzj-next/objects'
+
+    # Model-facing Yunzhijia tools plus the approval guard that gates every
+    # write. M1 ships the doc domain.
+    - id: yzj-next-tools
+      name: '@yzj-next/tools'
+
+    # Transport + orchestrator. The allow-list is the deployment's blast
+    # radius: only these conversations are polled or acted in.
+    - id: yzj-next-channel
+      name: '@yzj-next/channel'
+      config:
+        # DISTINCT aliases for the trial period. The old gateway still answers
+        # `@agent` in every group it can see — including both test groups —
+        # and there is no deny-list to take them away from it. Group
+        # partitioning alone therefore does not separate the two systems; the
+        # trigger word does. At 平价切换 (old gateway stopped) this reverts to
+        # ['@agent', '@智能体'].
+        aliases:
+          - '@next'
+          - '@下一代'
+        acceptAccountMentions: false
+        allowedGroupIds:
+          # 自聊（审批 DM 主通道，M0 #1 已验证可发可读）
+          - 67f334ade4b0b97fa155f48f-67f334ade4b0b97fa155f48f
+          # 测试群 A：dsh-2
+          - 6a8400d4e4b09a073e3feeaf
+          # 测试群 B：金蝶最小DSH交流群（有真人同事，试运行期发言自律）
+          - 6a7f37b4e4b0e6211b1c5b87
+          # 830 项目【登顶计划】——真实项目群，2026-08-20 应操作者要求接入。
+          # 这是第一个「不是为测试而存在」的群：轮询会读它的历史、话题会长
+          # 在这里、@next 会在这里应答，登记的承诺卡也会投到这里。
+          - 6a605c7ce4b0772a6279295e
+
+    # Desktop workbench: the fused topic view (trajectory × Yunzhijia messages
+    # on one timeline), the dual-voice composer, and the topic head chips. Node
+    # half serves /yzj-next-surface; the browser half is a `dsh.client` row the
+    # modules registry scans into the boot graph.
+    - id: yzj-next-surface
+      name: '@yzj-next/surface'

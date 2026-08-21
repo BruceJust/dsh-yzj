@@ -1,0 +1,174 @@
+/**
+ * Cards. Each object kind gets the shape its decision actually has — a
+ * confirmation is a form you read before signing, an acceptance is a bar you
+ * clear, an artifact is a door. One generic grey box for all of them was the
+ * fastest way to make every decision feel equally unimportant.
+ */
+
+.card {
+  border-radius: 12px;
+  border: 1px solid var(--yzj-line);
+  background: var(--yzj-surface);
+  box-shadow: var(--yzj-shadow);
+  max-width: 560px;
+  overflow: hidden;
+}
+
+/* 确认卡：待办的顶边是琥珀色,放行后转绿 —— 状态从边框就能读出来 */
+.approval { border-color: var(--yzj-amber-line); border-top: 3px solid var(--yzj-amber); background: #FFFDF8; }
+.approvalDone { border-color: var(--yzj-green-line); border-top-color: var(--yzj-green); background: #FCFFFD; }
+.approvalDead { border-color: var(--yzj-line); border-top-color: #C6CBD4; background: #FAFBFC; }
+
+.head { display: flex; align-items: center; gap: 8px; padding: 11px 14px 9px; }
+
+.domain {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .05em;
+  padding: 2.5px 7px; border-radius: 5px; flex: none;
+  font-family: var(--yzj-mono);
+  background: #EDF1F6; color: var(--yzj-ink-2);
+}
+.domainAmber { background: var(--yzj-amber-bg); color: var(--yzj-amber); }
+.domainGreen { background: var(--yzj-green-bg); color: var(--yzj-green); }
+.domainRed { background: #FBEAEA; color: var(--yzj-red); }
+.domainBlue { background: var(--yzj-pub-tint); color: var(--yzj-pub); }
+.domainViolet { background: var(--yzj-violet-bg); color: var(--yzj-violet); }
+.domainGrey { background: #E5E8ED; color: var(--yzj-ink-3); }
+
+.title { font-size: 13px; font-weight: 700; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+.risk {
+  flex: none; font-size: 10.5px; color: var(--yzj-amber);
+  background: var(--yzj-amber-bg); padding: 2px 7px;
+  border-radius: 20px; border: 1px solid var(--yzj-amber-line);
+}
+
+.fields {
+  padding: 0 14px 10px;
+  display: grid; grid-template-columns: 84px 1fr; gap: 4px 10px;
+  font-size: 12px;
+}
+.fieldKey { color: var(--yzj-ink-3); overflow: hidden; text-overflow: ellipsis; }
+.fieldValue { min-width: 0; overflow-wrap: anywhere; }
+.fieldMono { font-family: var(--yzj-mono); font-size: 11px; }
+
+.note {
+  margin: 0 14px 10px; padding: 7px 10px;
+  border: 1px dashed var(--yzj-line); border-radius: 8px;
+  font-size: 11px; color: var(--yzj-ink-2); line-height: 1.6; background: #FAFBFC;
+}
+.noteTag {
+  font-family: var(--yzj-mono); font-size: 10px;
+  color: var(--yzj-pub-deep); background: #E3ECFB;
+  padding: 1px 5px; border-radius: 4px;
+}
+
+.actions {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 10px 14px 12px; border-top: 1px solid #F1F3F6;
+}
+
+.button {
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  padding: 6px 14px; border-radius: 8px;
+  border: 1px solid var(--yzj-line);
+  background: var(--yzj-surface); color: var(--yzj-ink-2); cursor: pointer;
+  transition: transform .1s, box-shadow .15s;
+}
+.button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--yzj-shadow); }
+.button:disabled { opacity: .5; cursor: default; }
+.primary { background: var(--yzj-ink); color: #fff; border-color: var(--yzj-ink); }
+.primary:hover:not(:disabled) { background: #000; }
+.danger { color: var(--yzj-red); border-color: #F0CACA; }
+
+.input {
+  flex: 1 1 150px; min-width: 120px;
+  font: inherit; font-size: 12px;
+  padding: 6px 10px; border: 1px solid var(--yzj-line); border-radius: 8px;
+  background: var(--yzj-surface); color: var(--yzj-ink);
+}
+
+.foot {
+  display: flex; align-items: center; gap: 7px;
+  padding: 10px 14px 12px; font-size: 11.5px; color: var(--yzj-ink-3);
+  border-top: 1px solid #F1F3F6;
+}
+.footDone { color: var(--yzj-green); font-weight: 650; font-size: 12.5px; }
+
+/* 验收条：绿色,横排,是一道要迈过去的门槛而不是一张单子 */
+.accept {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  border: 1px solid var(--yzj-green-line); border-radius: 12px;
+  background: linear-gradient(160deg, #FDFFFE, #F1FAF4);
+  padding: 10px 14px; max-width: 560px; box-shadow: var(--yzj-shadow);
+}
+.acceptDone { border-color: var(--yzj-line); background: #F7F8FA; }
+.acceptLabel { font-size: 12.5px; font-weight: 650; color: var(--yzj-green); }
+.acceptDone .acceptLabel { color: var(--yzj-ink-3); }
+.acceptWhat { font-size: 12.5px; color: var(--yzj-ink); flex: 1 1 160px; min-width: 0; }
+.acceptNote { font-size: 10.5px; color: var(--yzj-ink-3); width: 100%; }
+.acceptActions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* 裁决卡 / 冲突 */
+.conflict { border-color: var(--yzj-amber-line); border-top: 3px solid var(--yzj-amber); background: #FFFDF8; }
+
+/* 承诺卡：执行者是人还是 agent,一眼要分得开 */
+.commitment { border-left: 3px solid var(--yzj-violet); }
+.exTag {
+  font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; flex: none;
+}
+.exHuman { background: var(--yzj-violet-bg); color: var(--yzj-violet); border: 1px solid var(--yzj-violet-line); }
+.exAgent { background: var(--yzj-pub-tint); color: var(--yzj-pub); border: 1px solid var(--yzj-pub-line); }
+
+.overdue { color: var(--yzj-red); font-weight: 700; }
+
+/* 等待卡 */
+.waiting { border-left: 3px solid var(--yzj-ink-3); }
+
+/* ---------- 提案裁决 / 差距简报 (v4.9 / v4.10) ---------- */
+.proposal { border-left: 3px solid #E0A526; }
+.assessment { border-left: 3px solid var(--yzj-violet); }
+
+.items { display: flex; flex-direction: column; margin: 6px 0 2px; }
+.item {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 5px 0; border-top: 1px dashed var(--yzj-line); font-size: 12px;
+}
+.itemNo {
+  flex: none; width: 18px; height: 18px; line-height: 18px; text-align: center;
+  font-size: 10px; font-weight: 700; border-radius: 9px;
+  background: #EEF1F6; color: var(--yzj-ink-3);
+}
+.itemWhat { color: var(--yzj-ink); font-weight: 600; }
+.itemWho { font-size: 11px; color: var(--yzj-ink-2); }
+.itemWhere {
+  font-size: 10.5px; color: var(--yzj-pub-deep);
+  padding: 1px 7px; border-radius: 10px; background: var(--yzj-pub-tint);
+}
+.itemActs { margin-left: auto; display: flex; gap: 5px; }
+.itemMark {
+  flex: none; font-size: 10px; font-weight: 700;
+  padding: 1px 8px; border-radius: 10px;
+}
+/* 提案里判定跟在行尾（右推）,简报里它是行首的裁决——同一个标记,两种位置 */
+.item > .itemMark:last-child { margin-left: auto; }
+.markOk { background: #E9F7EE; color: #1B7A43; }
+.markNo { background: #FFF1F0; color: var(--yzj-red); }
+.markHold { background: #FFF4E8; color: #A5590E; }
+.reportBody {
+  margin: 4px 0 2px; font-size: 12px; line-height: 1.7; color: var(--yzj-ink-2);
+}
+.linkBtn {
+  margin-left: 8px; font: inherit; font-size: 11px;
+  border: 0; background: none; color: var(--yzj-ink-3);
+  cursor: pointer; text-decoration: underline;
+}
+.linkBtn:hover { color: var(--yzj-ink); }
+/* 没有可投递的会话：空白最坏,因为确认之后真的会有事发生 */
+.itemNowhere {
+  font-size: 10.5px; font-weight: 650; color: #A5590E;
+  padding: 1px 7px; border-radius: 10px; background: #FFF4E8;
+}
+/* 为什么按不下去,说在眼睛已经在的地方 */
+.signHint { flex-basis: 100%; font-size: 10.5px; line-height: 1.6; color: #A5590E; }
+/* 中断：不是死了,是等着被继续 */
+.acceptBroken { background: #FFF7ED; border-color: #F0D8B4; }

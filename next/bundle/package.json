@@ -1,0 +1,38 @@
+{
+  "name": "@yzj-next/bundle",
+  "description": "Installable dsh profile bundle for the yzj-next system: graph kernel, card system, object families, tool family, and the Yunzhijia channel",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/types/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/types/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@yzj-next/bridge": "workspace:^",
+    "@yzj-next/cards": "workspace:^",
+    "@yzj-next/channel": "workspace:^",
+    "@yzj-next/graph": "workspace:^",
+    "@yzj-next/objects": "workspace:^",
+    "@yzj-next/tools": "workspace:^",
+    "@yzj-next/surface": "workspace:^"
+  }
+}

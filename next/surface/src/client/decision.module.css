@@ -1,0 +1,69 @@
+/*
+  会话决断条 (§7.1)。
+
+  它是一条**细线**，不是一块面板：这一屏的主角是对话，条只负责在对话上面说一句
+  「有几件事等你，在这儿」。任何让它长高、长厚、长出第二行的改动，都是在把它变成
+  一份会话私有待办——而那正是「指针投影非复制落座」拦下的东西。
+*/
+
+.bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 20px;
+  min-height: 30px;
+  font-size: 12px;
+  color: var(--yzj-amber);
+  background: var(--yzj-amber-bg);
+  border-bottom: 1px solid var(--yzj-amber-line);
+}
+
+.count { flex: none; font-weight: 700; letter-spacing: .02em; }
+
+/*
+  一行封顶：`overflow: hidden` 是那条规矩的兜底。
+  chip 是弹性的、可以被压窄，但**永远不换行**——放不下的走 +N，不是往下堆。
+*/
+.chips {
+  display: flex; align-items: center; gap: 6px;
+  flex: 1 1 auto; min-width: 0; overflow: hidden;
+}
+
+/*
+  没有一枚 chip 可以吃掉整条。
+
+  `flex-shrink` 按内容比例收——一条 400 字的交付摘要压缩之后**仍然**是最宽的那个，
+  于是并排的另外两件事被挤成两个字。实测就是这样：一枚 chip 占了整行，条从「有三件
+  事等你」退化成「有一件事等你，还有俩」。上限按份数给，谁也不许越界。
+*/
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  flex: 0 1 auto; min-width: 0; max-width: 34%;
+  font: inherit; font-size: 11.5px;
+  padding: 2px 9px; border-radius: 11px; cursor: pointer;
+  border: 1px solid var(--yzj-amber-line);
+  background: var(--yzj-surface);
+  color: var(--yzj-amber);
+}
+.chip:hover { background: var(--yzj-amber); color: #fff; border-color: var(--yzj-amber); }
+
+.chipBadge { flex: none; font-weight: 700; }
+
+/* 名字被压窄时省略，而不是把条撑成两行。 */
+.chipLabel {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--yzj-ink-2);
+}
+.chip:hover .chipLabel { color: #fff; }
+
+.more { flex: none; font-weight: 700; }
+
+/*
+  条尾的租约入口。
+  刻意不做成按钮的样子：它是一句**观察**（你在这儿确认得太频繁了），点进去才是动作。
+*/
+.lease {
+  flex: none; font: inherit; font-size: 11px;
+  padding: 2px 8px; border-radius: 11px; cursor: pointer;
+  border: 1px dashed var(--yzj-amber-line);
+  background: transparent; color: var(--yzj-amber);
+}
+.lease:hover { background: var(--yzj-surface); border-style: solid; }

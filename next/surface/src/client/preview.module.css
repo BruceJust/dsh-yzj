@@ -1,0 +1,199 @@
+/*
+  预览的两种姿势。
+
+  并排铺满右栏——它是**接管**,不是右栏里的一块;沉浸铺满整个框,内容居中并
+  留出自然阅读宽,因为一行三十到四十个字是舒服的上限,把长文拉到两千像素宽
+  等于用更大的屏幕换更差的阅读。
+*/
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--yzj-surface);
+}
+
+/*
+  并排铺满右栏那一格。一条真的声明,不是一条空规则——空规则会被打包器丢掉,
+  于是 `css.aside` 是 undefined,拼进 className 里就成了字面量 "undefined"。
+*/
+.aside { border-left: 0; }
+
+/*
+  `shell.overlay` 那一层是 pointer-events:none 的直通层,它的直接子元素才被
+  重新打开——所以这个容器必须是那个直接子元素,而不是包在更里面一层。
+*/
+.overlay { position: absolute; inset: 0; }
+
+.immersive {
+  position: absolute;
+  inset: 0;
+  background: var(--yzj-bg);
+}
+
+.head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--yzj-line);
+  background: var(--yzj-surface);
+}
+
+.immersive .head { padding: 11px 20px; }
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--yzj-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.immersive .name { font-size: 14px; }
+
+.size { flex: none; font-size: 11px; color: var(--yzj-ink-3); }
+
+.act {
+  flex: none;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.5;
+  padding: 3px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid var(--yzj-line);
+  background: var(--yzj-surface);
+  color: var(--yzj-ink-2);
+}
+
+.act:hover {
+  border-color: var(--yzj-pub-line);
+  background: var(--yzj-pub-tint);
+  color: var(--yzj-pub-deep);
+}
+
+/*
+  常显,因为它介绍的两个能力都是**看不见的**:宿主的拖拽把手要 hover 才现身,
+  沉浸态藏在一个箭头图标后面。一行小字换两个能力被发现,划算。
+*/
+.hint {
+  flex: none;
+  padding: 5px 12px;
+  border-bottom: 1px dashed var(--yzj-line);
+  background: #FAFBFC;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--yzj-ink-3);
+}
+
+.hint b { color: var(--yzj-ink-2); font-weight: 650; }
+
+.saved {
+  flex: none;
+  margin: 8px 12px 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--yzj-green-bg);
+  border: 1px solid var(--yzj-green-line);
+  font-size: 11px;
+  color: var(--yzj-green);
+  overflow-wrap: anywhere;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.immersive .body {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 18px 24px 32px;
+}
+
+/* 渲染 md / html:沙箱 iframe。没有脚本、没有同源、没有导航。 */
+.frame {
+  flex: 1;
+  min-height: 320px;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: var(--yzj-surface);
+}
+
+.image {
+  max-width: 100%;
+  align-self: center;
+  border-radius: 8px;
+  display: block;
+}
+
+.plain {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #F7F8FA;
+  font-family: var(--yzj-mono);
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--yzj-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tableWrap { overflow: auto; }
+
+.table {
+  border-collapse: collapse;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.table th,
+.table td {
+  border: 1px solid var(--yzj-line);
+  padding: 4px 9px;
+  text-align: left;
+  white-space: pre-wrap;
+  max-width: 320px;
+  overflow-wrap: anywhere;
+}
+
+.table th {
+  background: #F7F8FA;
+  font-weight: 650;
+  position: sticky;
+  top: 0;
+}
+
+.note {
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--yzj-ink-2);
+  padding: 4px 2px;
+}
+
+.noteFoot { margin-top: 4px; font-size: 10.5px; color: var(--yzj-ink-3); }
+
+.retryRow { margin-top: 8px; }
+
+.path {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--yzj-mono);
+  font-size: 11px;
+  color: var(--yzj-ink-3);
+  overflow-wrap: anywhere;
+}

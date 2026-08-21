@@ -19,14 +19,18 @@ import { transform } from 'lightningcss'
  * Browser platform modules the dsh web shell shares into its frozen module
  * table. Must stay byte-identical with the harness platform list the shell
  * seeds (packages/client/web/src/platform.ts).
+ *
+ * rc.8 shrank that table: `dsh-client-web-react` became `dsh-client-ui-renderer`
+ * and is no longer shared, and `dsh-client-schema-form` / `ui-attachment` left
+ * it too. Listing a module the shell does not serve is not inert — it marks it
+ * external, so the first import of it resolves to nothing at runtime instead
+ * of failing the build. We import none of the three, which is the only reason
+ * this was survivable rather than a white screen.
  */
 export const PLATFORM_MODULES = [
   'react', 'react/jsx-runtime', 'react-dom', 'react-dom/client', '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-client-ui-slots',
-  '@deepseek-ai/dsh-client-web-react',
   '@deepseek-ai/dsh-client-ui-primitives',
-  '@deepseek-ai/dsh-client-ui-attachment',
-  '@deepseek-ai/dsh-client-schema-form',
 ] as const
 
 /** Wire/type layers a client bundle may inline: browser-safe contracts with no shared runtime identity. */

@@ -1,0 +1,58 @@
+/**
+ * The workbench's palette, in one place.
+ *
+ * Two of these are load-bearing rather than cosmetic. `--pub-*` is the blue of
+ * things other people can see; `--paper-*` is the warm paper of things only
+ * the operator and the agent can. Every surface in the product borrows from
+ * exactly one of those two families, so "who can hear this" is answered by
+ * peripheral vision before anybody reads a word.
+ *
+ * Applied as a class on each column root rather than only at `:root`: the three
+ * columns are independent slot entries mounted by the host, and a variable that
+ * exists only if some other entry happened to render is a variable that will
+ * one day not exist.
+ */
+.tokens {
+  --yzj-bg: #EDEFF2;
+  --yzj-surface: #FFFFFF;
+  --yzj-ink: #20242C;
+  --yzj-ink-2: #5A6272;
+  --yzj-ink-3: #8B93A3;
+  --yzj-line: #E2E5EA;
+
+  --yzj-pub: #2E63D9;
+  --yzj-pub-deep: #1E4FBD;
+  --yzj-pub-tint: #EEF4FF;
+  --yzj-pub-line: #C9DBFA;
+  --yzj-pub-rail: #D8E5FB;
+
+  --yzj-paper: #FAF6EC;
+  --yzj-paper-line: #E9DFC8;
+  --yzj-paper-rail: #EFE6D0;
+  --yzj-paper-ink: #6B5A36;
+
+  --yzj-amber: #B45309;
+  --yzj-amber-bg: #FDF1E0;
+  --yzj-amber-line: #F0D9B4;
+  --yzj-green: #15803D;
+  --yzj-green-bg: #E8F6EE;
+  --yzj-green-line: #C4E6D1;
+  --yzj-red: #B91C1C;
+  --yzj-violet: #6D4FA3;
+  --yzj-violet-bg: #F3EFFA;
+  --yzj-violet-line: #DFD3F0;
+
+  --yzj-radius: 10px;
+  --yzj-shadow: 0 1px 2px rgb(24 30 42 / 5%), 0 4px 16px rgb(24 30 42 / 6%);
+  --yzj-shadow-pop: 0 6px 32px rgb(24 30 42 / 18%);
+  --yzj-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  font-size: 13.5px;
+  color: var(--yzj-ink);
+}
+
+.tokens :focus-visible {
+  outline: 2px solid var(--yzj-pub);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

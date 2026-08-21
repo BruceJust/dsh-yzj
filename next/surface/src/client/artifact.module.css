@@ -1,0 +1,98 @@
+/*
+  一张卡,三种壳(按钮 / 链接 / 死行),外观完全一样——因为它们是同一个物。
+  差别只在指针和右边那个小箭头:› 是「打开来看」,↗ 是「去云之家」,没有箭头
+  就是「这条只是记录」。
+*/
+.row { display: block; margin: 4px 0; }
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+  padding: 8px 11px;
+  border: 1px solid var(--yzj-line);
+  border-radius: 10px;
+  background: #FBFCFE;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: box-shadow .15s, border-color .15s;
+}
+
+.card:hover { box-shadow: var(--yzj-shadow); border-color: var(--yzj-pub-line); }
+
+/* 正被并排看着的那一张:标出来,免得开着预览的人不知道看的是哪一个。 */
+.looking { border-color: var(--yzj-pub); background: var(--yzj-pub-tint); }
+
+.inert { cursor: default; }
+.inert:hover { box-shadow: none; border-color: var(--yzj-line); }
+
+.dense { max-width: none; padding: 5px 9px; gap: 8px; border-radius: 8px; }
+
+.badge {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #E3ECFB;
+  color: var(--yzj-pub-deep);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.dense .badge { width: 24px; height: 24px; font-size: 8.5px; border-radius: 6px; }
+
+.text { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+
+.title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--yzj-ink);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.dense .title { font-size: 11.5px; -webkit-line-clamp: 1; }
+
+.meta {
+  font-size: 10.5px;
+  color: var(--yzj-ink-3);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+  提醒:越境、归不了属。琥珀色,和那行灰字分开——它们说的是这条记录**可信到
+  什么程度**,不是它的出处。
+*/
+.marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+
+.mark {
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--yzj-amber-bg);
+  border: 1px solid var(--yzj-amber-line);
+  color: var(--yzj-amber);
+  font-weight: 650;
+  cursor: help;
+}
+
+.arrow { flex: none; color: var(--yzj-ink-3); font-size: 13px; }
+.card:hover .arrow { color: var(--yzj-pub); }

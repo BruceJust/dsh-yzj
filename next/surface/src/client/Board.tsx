@@ -1,0 +1,879 @@
+/**
+ * 承诺板 — the department's commitments in one frame (检验标准④).
+ *
+ * People and agents side by side, because the unit being managed is the
+ * commitment, not who or what happens to be executing it. Overdue rises to the
+ * top and is the only thing here styled to be impossible to miss: this frame
+ * exists to surface what is slipping, not to be a complete archive.
+ *
+ * **Two zoom levels, one list (v4.8).** 全部 is the flat cross-executor view.
+ * GOALS groups the same commitments under the goal each serves — and a goal is
+ * not a new kind of object: 「立目标」不是新动词, it is registering a commitment
+ * whose executor is its owner and whose body is a Yunzhijia document. The goal
+ * row is therefore drawn as a dashed OUTLINE: the body is not ours, and
+ * drawing it solid would claim a copy we do not have. Its child counts are a
+ * SIGNAL, never a derived completion — the parent's terminal state is always a
+ * human acceptance.
+ *
+ * **未挂是合法状态，不是错误.** Not all work serves a goal, and forcing
+ * alignment produces garbage alignment — the lesson every OKR tool learned the
+ * expensive way. What the 无归属 group buys is that the alignment DEBT stops
+ * being invisible: it can be pulled up, selected, and attached in one motion
+ * at a weekly meeting instead of being discovered a quarter later.
+ *
+ * It is a QUERY over commitments — no board object, no second bookkeeping —
+ * which is why it can be honest for free.
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import type {
+  BoardAssessmentWire, BoardGoalWire, BoardRowWire, BoardViewWire, SurfaceInject,
+} from './rpc.ts'
+import { currentBoardLens, pushFrame, sendErrand, setBoardLens } from './store.ts'
+import { RoomPicker, type Portal } from './RoomPicker.tsx'
+import { safeHref } from './preview.ts'
+import { ArtifactCard } from './ArtifactCard.tsx'
+import { artifactRefOf } from './artifacts.ts'
+import tokens from './tokens.module.css'
+import css from './board.module.css'
+
+export interface BoardProps {
+  inject: SurfaceInject
+  openSession(sessionId: string): void
+  back(): void
+  /**
+   * The conversation the operator came from, when there is one.
+   *
+   * 出生血缘指向磨稿会话 (v4.10): a goal ground out in a conversation and then
+   * declared here is anchored to that conversation, not to 「桌面」. That anchor
+   * is what somebody re-reads in month three when the goal has stopped making
+   * sense — 「it came from nowhere」 is the one answer the graph must never give.
+   */
+  fromSessionId?: string
+  /**
+   * 从目标页返回时，板要回到离开时的那个像素。
+   *
+   * Back 与 Up 是两个问题:Up 是层级里的位置,Back 是**你personally**离开的那一屏。
+   * 滚了半屏才看见的那个目标,返回时得还在眼前——否则每次进出都要重新找一遍,
+   * 而缩放语法的全部意义就是进出不花钱。
+   */
+  restoreScroll?: number
+}
+
+type Lens = 'all' | 'goals'
+
+const EMPTY: BoardViewWire = { rows: [], goals: [], unattached: [] }
+
+/*
+  目标引用与工件 URI 过的是同一道闸,所以只有一份实现(见 `preview.ts`)——
+  一道安全闸有两份拷贝,迟早只有一份被修。
+*/
+export { safeHref } from './preview.ts'
+
+/** How the parent reference got here — shown so it can be corrected. */
+const VIA_LABEL: Record<string, string> = {
+  inferred: '挂接为推断',
+  inherited: '从语境继承',
+  linked: '事后补挂',
+  detached: '',
+  explicit: '',
+  'object-context': '从对象语境',
+  chip: '从 chip 选定',
+}
+
+export function YzjBoard(props: BoardProps): ReactNode {
+  const { inject, openSession, back, fromSessionId, restoreScroll } = props
+  const [view, setView] = useState<BoardViewWire>(EMPTY)
+  /*
+    档位从 store 里取初值:进目标页会把板卸载掉,回来是一次全新挂载。
+    留在组件里的话,「按目标」放大进去再返回,落回的是「全部」——目标行连同你
+    刚才停在的那一行一起消失,恢复滚动位置也就无从谈起。
+  */
+  const [lens, setLensState] = useState<Lens>(currentBoardLens)
+  const setLens = useCallback((next: Lens): void => {
+    setBoardLens(next)
+    setLensState(next)
+  }, [])
+  const [busy, setBusy] = useState('')
+  const [toast, setToast] = useState('')
+  /** 事后时刻: what the weekly meeting has selected to attach in one go. */
+  const [picked, setPicked] = useState<readonly string[]>([])
+  const [declaring, setDeclaring] = useState(false)
+  /** 传送门: the errand waiting for a room to be chosen for it. */
+  const [portal, setPortal] = useState<Portal | undefined>(undefined)
+  /** Which goals have their 产出 / 简报 drawers open. */
+  const [openDrawer, setOpenDrawer] = useState<Record<string, boolean>>({})
+
+  /*
+    板自己的滚动容器。
+
+    「Back 恢复板位」要的是**离开时的那个像素**,而板滚在自己这一层里,不是外层
+    列——问外层要位置永远得到 0,于是从一个滚了半屏才看见的目标返回,人落在
+    板顶,得自己再找一遍。
+  */
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+  const scrollTop = useCallback((): number => bodyRef.current?.scrollTop ?? 0, [])
+
+  /*
+    恢复得等内容先长出来。
+
+    板是异步取的:刚挂载时高度还是 0,那一刻设 scrollTop 会被静静地钳成 0——
+    看起来就像「返回没有恢复位置」。等到第一批行渲染出来再设。
+  */
+  const restored = useRef(false)
+  useEffect(() => {
+    if (restoreScroll === undefined || restored.current) return undefined
+    const node = bodyRef.current
+    if (node === null) return undefined
+    /*
+      等它长够了再放手。
+
+      板是异步取来的,而且不是一次长到位:先是空的,然后行进来,然后组里的子行
+      再撑开。任何一个中间时刻去设 scrollTop,浏览器都会**静静地钳到当时的
+      最大值**——实测从滚到 500 的位置进目标页再返回,落在 187,看起来就像
+      「恢复位置只恢复了一半」,而且没有任何报错说明发生了什么。
+
+      所以判据不是「有没有得滚」,是「够不够滚到那儿」;不够就等下一拍。两秒
+      还不够,说明板真的比离开时短了(有东西被作废、被筛掉),那就停在顶上——
+      硬滚到一个不存在的位置比停在顶上更莫名其妙。
+    */
+    let done = false
+    let tick: ReturnType<typeof setTimeout> | undefined
+    const attempt = (): void => {
+      if (done) return
+      if (node.scrollHeight - node.clientHeight >= restoreScroll) {
+        node.scrollTop = restoreScroll
+        restored.current = true
+        done = true
+        return
+      }
+      tick = setTimeout(attempt, 60)
+    }
+    attempt()
+    const giveUp = setTimeout(() => { done = true }, 2_000)
+    return () => {
+      done = true
+      if (tick !== undefined) clearTimeout(tick)
+      clearTimeout(giveUp)
+    }
+  }, [restoreScroll])
+
+  /** Same monotonic ticket as the column: a stale poll must not repaint. */
+  const fetchSeq = useRef(0)
+  const refresh = useCallback(async (): Promise<void> => {
+    fetchSeq.current += 1
+    const ticket = fetchSeq.current
+    const next = await inject.board()
+    if (ticket !== fetchSeq.current) return
+    setView(next)
+  }, [inject])
+
+  useEffect(() => {
+    let alive = true
+    void refresh()
+    const timer = setInterval(() => { if (alive) void refresh() }, 6_000)
+    return () => {
+      alive = false
+      clearInterval(timer)
+    }
+  }, [refresh])
+
+  useEffect(() => {
+    if (toast === '') return undefined
+    const timer = setTimeout(() => { setToast('') }, 5_000)
+    return () => { clearTimeout(timer) }
+  }, [toast])
+
+  const remind = useCallback((row: BoardRowWire): void => {
+    setBusy(row.id)
+    void inject.remindCommitment(row.id).then((result) => {
+      setToast(result.error ?? `已把这张承诺卡重新投到 ${result.placeName ?? '来源场所'}，对方可以直接在那里回「完成」。`)
+      setBusy('')
+      void refresh()
+    })
+  }, [inject, refresh])
+
+  /** 事后补挂: attach everything selected to one goal, in one motion. */
+  const linkPicked = useCallback((goalRef: string): void => {
+    if (picked.length === 0) return
+    setBusy('link')
+    void inject.linkCommitments(goalRef, picked).then((result) => {
+      setToast(result.error ?? `已把 ${String(result.linked ?? 0)} 条挂到这个目标下。`)
+      setPicked([])
+      setBusy('')
+      void refresh()
+    })
+  }, [inject, picked, refresh])
+
+  const overdue = view.rows.filter(row => row.overdue).length
+  const goalOptions = useMemo(
+    () => view.goals.map(goal => ({ ref: goal.goalRef, label: goal.row?.what ?? goal.goalRef })),
+    [view.goals],
+  )
+
+  /** 移出目标: the exit from a link. 未挂是合法状态, so this is a move, not an undo. */
+  const unlink = useCallback((id: string): void => {
+    setBusy(id)
+    void inject.unlinkCommitments([id]).then((result) => {
+      setToast(result.error ?? '已移出目标，回到「无归属」。')
+      setBusy('')
+      void refresh()
+    })
+  }, [inject, refresh])
+
+  const voidRow = useCallback((row: BoardRowWire): void => {
+    setBusy(row.id)
+    void inject.voidCommitment(row.id, '操作者在承诺板作废').then((result) => {
+      setToast(result.error ?? `已作废：${row.what}`)
+      setBusy('')
+      void refresh()
+    })
+  }, [inject, refresh])
+
+  const rowNode = (row: BoardRowWire, pickable = false, inGoal = false): ReactNode => {
+    /*
+      挂接出处只在真的挂着的时候才有意义。
+
+      Spotted on the live board: rows sitting in 无归属 were wearing 「事后补挂」.
+      `attachedVia` is provenance for a reference, so once there is no
+      reference the label is a claim about nothing — and it read as "this is
+      attached" on exactly the rows the group exists to say are not. Gating on
+      the reference rather than on the provenance value is right whatever wrote
+      it, including rows written before 移出 learned to stamp `detached`.
+    */
+    const via = row.goalRef === undefined ? '' : VIA_LABEL[row.attachedVia ?? ''] ?? ''
+    return (
+      <div
+        className={`${css.row} ${row.overdue ? css.rowOverdue : ''} ${row.status !== 'open' ? css.rowDone : ''}`}
+        key={row.id}
+      >
+        {pickable && (
+          <input
+            type="checkbox"
+            className={css.pick}
+            checked={picked.includes(row.id)}
+            aria-label="选中以便批量补挂"
+            onChange={() => {
+              setPicked(value => (
+                value.includes(row.id) ? value.filter(id => id !== row.id) : [...value, row.id]
+              ))
+            }}
+          />
+        )}
+        <span className={`${css.who} ${row.executorKind === 'agent' ? css.whoAgent : css.whoHuman}`}>
+          {row.who}
+        </span>
+        <span className={css.what}>{row.what}</span>
+        {/* 继承不是推断: both are shown, and they are not the same claim. */}
+        {via !== '' && (
+          <span className={`${css.via} ${row.inferredGoal ? css.viaGuess : ''}`}>{via}</span>
+        )}
+        <span className={`${css.due} ${row.overdue ? css.dueOverdue : ''}`}>
+          {row.status !== 'open'
+            ? row.status === 'closed' ? '已完成' : row.status === 'voided' ? '已作废' : '已合并'
+            : row.due ?? '无期限'}
+        </span>
+        {/*
+          幽灵承诺禁令的失败模式：落库了，但没呼吸。
+          It is louder than 逾期 on purpose — an overdue commitment is late,
+          this one is work somebody has been assigned and does not know about.
+        */}
+        {row.notified === 'failed' && (
+          <span className={css.unnotified} title="登记落库了，但这条消息没能发到执行者所在的会话——对方并不知道。请自己去说一声。">
+            未通知 · 请亲发
+          </span>
+        )}
+        {row.remindable && (
+          <button
+            type="button"
+            className={css.remind}
+            disabled={busy === row.id}
+            title="把这张承诺卡重新投到它被登记的那个群，对方可以就地回执"
+            onClick={() => { remind(row) }}
+          >
+            催一下
+          </button>
+        )}
+        {inGoal && row.status === 'open' && (
+          <button
+            type="button"
+            className={css.unlink}
+            disabled={busy === row.id}
+            title="把它移回「无归属」——不是所有工作都为某个目标服务"
+            onClick={() => { unlink(row.id) }}
+          >
+            移出
+          </button>
+        )}
+        {/*
+          过程 = 一跳可达，绝不搬运 (v4.9).
+          One line of summary so the reader can decide whether to make the hop;
+          the trajectory itself stays in the conversation, where it belongs.
+          A digest of it here would be the second timeline §7.4 forbids.
+        */}
+        {row.sessionId !== undefined && (
+          <button
+            type="button"
+            className={css.open}
+            title={row.progress === undefined
+              ? '打开这条承诺所在的会话——过程在那里，不搬到这里'
+              : `最近：${row.progress}　（过程在会话里，这里只放一行）`}
+            onClick={() => { openSession(row.sessionId as string) }}
+          >
+            {row.placeName ?? '打开'} ›
+          </button>
+        )}
+        {row.progress !== undefined && (
+          <span className={css.progress} title={row.progress}>{row.progress}</span>
+        )}
+      </div>
+    )
+  }
+
+  /**
+   * 差距简报，以及它的第三个出口。
+   *
+   * 验收 and 继续 are answered on the card in the conversation (that is where
+   * the report was asked for). What lives HERE is 差距项一键变委派 — because the
+   * portal lives here, and 评估喂回执行 is only a loop if both ends are in one
+   * place. Every gap is one press from being somebody's commitment.
+   */
+  const reportNode = (goal: BoardGoalWire, report: BoardAssessmentWire): ReactNode => {
+    const key = `asm:${goal.goalRef}`
+    const gaps = report.lines.filter(line => line.verdict !== 'met').length
+    return (
+      <div className={css.drawer}>
+        <button
+          type="button"
+          className={css.drawerHead}
+          onClick={() => { setOpenDrawer(value => ({ ...value, [key]: value[key] !== true })) }}
+        >
+          {openDrawer[key] === true ? '▾' : '▸'} 差距简报
+          <span className={`${css.reportTag} ${gaps > 0 ? css.reportGap : ''}`}>
+            {report.lines.length} 条标准 · {gaps} 条未达成
+          </span>
+          <span className={css.drawerNote}>
+            {report.status === 'accepted' ? '已验收' : report.status === 'continued' ? '已看过 · 继续' : '待你验收'}
+          </span>
+        </button>
+        {openDrawer[key] === true && (
+          <div className={css.drawerBody}>
+            <div className={css.reportSummary}>{report.summary}</div>
+            {report.lines.map((line, index) => (
+              <div className={css.reportLine} key={`${report.id}:${String(index)}`}>
+                <span className={`${css.verdict} ${
+                  line.verdict === 'met' ? css.vMet : line.verdict === 'partial' ? css.vPartial : css.vMissing
+                }`}
+                >
+                  {line.verdict === 'met' ? '已达成' : line.verdict === 'partial' ? '部分' : '缺失'}
+                </span>
+                <span className={css.criterion}>{line.criterion}</span>
+                <span className={css.evidence} title={line.evidence}>{line.evidence}</span>
+                {line.verdict !== 'met' && (
+                  <button
+                    type="button"
+                    className={css.gapDelegate}
+                    title="把这条缺口变成一次委派——同一个传送门，评估喂回执行"
+                    onClick={() => {
+                      setPortal({
+                        goalRef: goal.goalRef,
+                        goalName: goal.row?.what ?? goal.goalRef,
+                        voice: 'place',
+                        seed: `${line.criterion}`,
+                        title: '把这条缺口变成委派：跳进哪个会话说？',
+                        note: '句子还是你自己说——这里只负责把你送到该说话的地方。',
+                      })
+                    }}
+                  >
+                    变委派 ↗
+                  </button>
+                )}
+              </div>
+            ))}
+            <div className={css.reportFoot}>
+              验收与「继续」在那张简报卡上答——这是材料，不是判决。
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const goalNode = (goal: BoardGoalWire): ReactNode => (
+    <div className={css.goalBlock} key={goal.goalRef}>
+      {/*
+        虚线框 = 真身在云之家，不在图上. The dashes are the claim: this row is a
+        handle on a document we do not own, and the link is the only honest
+        way to see the thing itself.
+      */}
+      <div className={css.goal}>
+        <span className={css.goalTag}>目标</span>
+        {/*
+          放大 = 缩放语法的第四次复用 (v4.12):板 → 目标页。
+
+          它是**同一份数据的第二级**,不是另一个要打开的地方——Back 回来时板还在
+          原来那个滚动位置。这一条是竞品的死因:Viva Goals 功能最全,死在「又一个
+          要打开的 app」上。
+        */}
+        <button
+          type="button"
+          className={css.goalName}
+          title="放大这个目标：决断、执行清单、产出、评估都在里面（‹ 返回 回到板上原位）"
+          onClick={() => {
+            pushFrame(
+              { kind: 'goal', goalRef: goal.goalRef, goalName: goal.row?.what ?? goal.goalRef },
+              scrollTop(),
+            )
+          }}
+        >
+          {goal.row?.what ?? goal.goalRef} ›
+        </button>
+        {goal.row?.who !== undefined && <span className={css.goalOwner}>owner {goal.row.who}</span>}
+        <span className={css.goalSig}>
+          {goal.counts.open} 在跟
+          {goal.counts.overdue > 0 && <b className={css.sigOverdue}> · {goal.counts.overdue} 逾期</b>}
+          {goal.counts.settled > 0 && ` · ${String(goal.counts.settled)} 已了`}
+        </span>
+        {/* 聚合是信号不是状态: the counts never close the parent. */}
+        <span className={css.manual}>终态：人工验收</span>
+        {safeHref(goal.goalRef) === undefined
+          ? (
+            <span className={css.goalUnsafe} title={goal.goalRef}>
+              这个引用不是一个链接
+            </span>
+          )
+          : (
+            <a
+              className={css.goalLink}
+              href={safeHref(goal.goalRef)}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              看真身 ↗
+            </a>
+          )}
+        {/*
+          委派 = 传送门，不是表单 (v4.9 入口 A①).
+
+          The board picks the two things only a person can decide — which goal,
+          and WHICH ROOM — and then gets out of the way. 场所（听众）是委派话语
+          的一等参数，人选不推导: delegating in public is pressure and
+          transparency, delegating privately leaves room, and a machine that
+          chose between them would have made a social decision for somebody.
+          Building an assignment form here instead would re-invent a project
+          management tool AND rebuild the split entrance this product exists to
+          close.
+        */}
+        {goal.row !== undefined && goal.row.status === 'open' && (
+          <button
+            type="button"
+            className={css.delegate}
+            title="选一个会话跳进去，用你自己的话说——这一列不做分配表单"
+            onClick={() => {
+              setPortal({
+                goalRef: goal.goalRef,
+                goalName: goal.row?.what ?? goal.goalRef,
+                voice: 'place',
+                title: '委派：跳进哪个会话说？',
+                note: '公开委派是施压与透明，私下委派是留余地——这个选择不该由系统替你做。',
+              })
+            }}
+          >
+            委派 ↗
+          </button>
+        )}
+        {goal.row !== undefined && goal.row.status === 'open' && (
+          <button
+            type="button"
+            className={css.assess}
+            title="让 agent 拿子承诺终态与产出对着成功标准写一份差距简报——验收还是你的动作"
+            onClick={() => {
+              setPortal({
+                goalRef: goal.goalRef,
+                goalName: goal.row?.what ?? goal.goalRef,
+                voice: 'private',
+                /*
+                  A sentence a person would actually say, plus the one thing
+                  the agent cannot derive: which document this goal is. Naming
+                  the tools here would put implementation detail into text the
+                  operator is about to send — the tools' own descriptions
+                  already carry the ordering.
+                */
+                seed: `评估一下这个目标做到什么程度了：${goal.row?.what ?? goal.goalRef}（${goal.goalRef}）`,
+                title: '评估：在哪个会话里私下问？',
+                note: '简报默认只在私语域生成——子承诺跨场所，放到群里会被可见域悄悄削掉一半证据。',
+              })
+            }}
+          >
+            评估
+          </button>
+        )}
+        {/* A goal declared here has no card in any place's stream, so this is
+            the only route that can retire it. A door that only opens one way
+            is not a door. */}
+        {goal.row !== undefined && goal.row.status === 'open' && (
+          <button
+            type="button"
+            className={css.voidGoal}
+            disabled={busy === goal.row.id}
+            /*
+              作废只作废这一条。子承诺的 parentGoalRef 没人改，也不该由一次
+              作废去改——它们仍是真实的活。板子刻意让退休目标继续持有还有活的
+              那一组，所以「会回到无归属」是句假话。
+            */
+            title="作废这个目标。它下面的工作不会自动移走——仍在原处，可以逐条「移出」"
+            onClick={() => { voidRow(goal.row as BoardRowWire) }}
+          >
+            作废
+          </button>
+        )}
+      </div>
+      {goal.criteria !== undefined && (
+        <div className={css.criteria}>
+          <span className={css.criteriaLabel}>怎么算完成</span>
+          {goal.criteria}
+        </div>
+      )}
+      <div className={css.goalChildren}>
+        {goal.children.length === 0
+          ? <div className={css.goalEmpty}>还没有工作挂在这个目标下。</div>
+          : goal.children.map(child => rowNode(child, false, true))}
+      </div>
+      {/*
+        产出 = 两跳派生归集（目标→承诺→工件）.
+        Folded by default: the goal view answers "where does this stand" first,
+        and a wall of artifacts would bury the signal it exists to show.
+      */}
+      {goal.artifacts.length > 0 && (
+        <div className={css.drawer}>
+          <button
+            type="button"
+            className={css.drawerHead}
+            onClick={() => {
+              setOpenDrawer(value => ({
+                ...value, [`out:${goal.goalRef}`]: value[`out:${goal.goalRef}`] !== true,
+              }))
+            }}
+          >
+            {openDrawer[`out:${goal.goalRef}`] === true ? '▾' : '▸'} 产出 {goal.artifacts.length}
+            <span className={css.drawerNote}>
+              {goal.artifacts.some(artifact => artifact.shared === true)
+                ? '这些是这个目标下的工作留下的；带「共用会话」的那几条产在同时服务多个目标的会话里'
+                : '这些工件是这个目标下的工作留下的，不是存在目标里的'}
+            </span>
+          </button>
+          {openDrawer[`out:${goal.goalRef}`] === true && (
+            <div className={css.drawerBody}>
+              {/*
+                和流里、右栏里画的是同一张卡(v4.11 工件统一),只是紧凑一档——
+                一屏要放下十几条产出。
+
+                「共用会话」这条提醒不能丢:工件是**话题**产出的,图上没有承诺→
+                工件这条边可走。所以一个同时服务两个目标的会话,它的产出归给谁
+                都不准确——丢掉是丢真数据,独占是说假话,标出来才两样都不是。
+              */}
+              {goal.artifacts.map(artifact => (
+                <ArtifactCard
+                  key={artifact.uri}
+                  dense
+                  artifact={artifactRefOf({
+                    uri: artifact.uri,
+                    title: artifact.title,
+                    action: artifact.action,
+                    marks: [artifact.shared === true
+                      ? {
+                        label: '共用会话',
+                        why: '这个会话同时在服务不止一个目标，无法把产出独归其一',
+                      }
+                      : undefined],
+                  })}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {goal.assessment !== undefined && reportNode(goal, goal.assessment)}
+    </div>
+  )
+
+  return (
+    <div className={`${tokens.tokens} ${css.board}`}>
+      <div className={css.head}>
+        <span className={css.title}>承诺板</span>
+        <span className={css.sub}>
+          跨执行者 · 共 {String(view.rows.length)} 条
+          {overdue > 0 && <span className={css.overdueCount}> · {String(overdue)} 逾期</span>}
+        </span>
+        <div className={css.lens}>
+          {([['all', '全部'], ['goals', '按目标']] as const).map(([id, label]) => (
+            <button
+              type="button"
+              key={id}
+              className={`${css.lensBtn} ${lens === id ? css.lensOn : ''}`}
+              onClick={() => { setLens(id) }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <button type="button" className={css.back} onClick={back}>返回会话</button>
+      </div>
+
+      <div className={css.body} ref={bodyRef}>
+        {view.rows.length === 0 && (
+          <div className={css.calm}>
+            还没有承诺。
+            <br />
+            agent 做了写操作、或你说了期限时，会自动记一条；
+            「让张三周五前给结论」这类交给<b>人</b>的事，agent 会登记成一条可跟踪的承诺，
+            并把卡投回那个群，让本人能自己回「完成」。
+          </div>
+        )}
+
+        {lens === 'all' && view.rows.map(row => rowNode(row))}
+
+        {lens === 'goals' && (
+          <>
+            <div className={css.goalsHead}>
+              <span className={css.goalsCount}>{view.goals.length} 个目标</span>
+              <button type="button" className={css.declare} onClick={() => { setDeclaring(true) }}>
+                ＋ 立目标
+              </button>
+            </div>
+            {view.goals.map(goalNode)}
+
+            {/*
+              无归属：对齐债务可拉视.
+              An empty one is worth saying too — it means everything in view is
+              accounted for, which is a fact, not a blank.
+            */}
+            <div className={css.unattached}>
+              <div className={css.unattachedHead}>
+                <span className={css.unattachedTitle}>无归属</span>
+                <span className={css.unattachedNote}>
+                  {view.unattached.length} 条不服务于任何目标——
+                  <b>这是合法状态</b>，不是错误；勾上几条可以一次补挂。
+                </span>
+              </div>
+              {view.unattached.length === 0
+                ? <div className={css.goalEmpty}>看得见的工作都挂上了。</div>
+                : view.unattached.map(row => rowNode(row, true))}
+              {picked.length > 0 && (
+                <div className={css.batch}>
+                  <span className={css.batchCount}>已选 {picked.length} 条 → 挂到</span>
+                  {goalOptions.length === 0
+                    ? <span className={css.batchNone}>还没有目标可挂——先「立目标」。</span>
+                    : goalOptions.map(option => (
+                      <button
+                        type="button"
+                        key={option.ref}
+                        className={css.batchBtn}
+                        disabled={busy === 'link'}
+                        onClick={() => { linkPicked(option.ref) }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  <button
+                    type="button"
+                    className={css.batchClear}
+                    onClick={() => { setPicked([]) }}
+                  >
+                    取消
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {declaring && (
+        <DeclareGoal
+          inject={inject}
+          {...(fromSessionId === undefined ? {} : { fromSessionId })}
+          close={() => { setDeclaring(false) }}
+          done={(message) => {
+            setToast(message)
+            setDeclaring(false)
+            void refresh()
+          }}
+        />
+      )}
+      {portal !== undefined && (
+        <RoomPicker
+          portal={portal}
+          inject={inject}
+          close={() => { setPortal(undefined) }}
+          go={(sessionId) => {
+            sendErrand({
+              goalRef: portal.goalRef,
+              goalName: portal.goalName,
+              voice: portal.voice,
+              ...(portal.seed === undefined ? {} : { seed: portal.seed }),
+            })
+            setPortal(undefined)
+            openSession(sessionId)
+          }}
+        />
+      )}
+      {toast !== '' && <div className={css.toast}>{toast}</div>}
+    </div>
+  )
+}
+
+/**
+ * 立目标 — the board form of the registration verb.
+ *
+ * The form IS the confirmation card: the operator types it and presses it, and
+ * that press is the signature. 人签发 is the iron law here — the agent has no
+ * tool that writes one, because "this looks like a goal" is a proposal and a
+ * goal is a commitment somebody has to own.
+ *
+ * The body link is required rather than generated: the goal's real body lives
+ * in Yunzhijia, and a goal row with nothing behind it is the "copy we do not
+ * have" this whole design refuses to draw.
+ */
+function DeclareGoal(props: {
+  inject: SurfaceInject
+  fromSessionId?: string
+  close(): void
+  done(message: string): void
+}): ReactNode {
+  const { inject, close, done, fromSessionId } = props
+  const [what, setWhat] = useState('')
+  const [goalRef, setGoalRef] = useState('')
+  const [owner, setOwner] = useState('')
+  const [due, setDue] = useState('')
+  const [criteria, setCriteria] = useState('')
+  const [busy, setBusy] = useState(false)
+  /** Why the last press did not land. Shown in place, with the form intact. */
+  const [refusal, setRefusal] = useState('')
+
+  const ready = what.trim() !== '' && goalRef.trim() !== ''
+
+  return (
+    <div className={css.mask} onClick={close}>
+      <div
+        className={css.sheet}
+        role="dialog"
+        aria-label="立目标"
+        onClick={(event) => { event.stopPropagation() }}
+      >
+        <div className={css.sheetHead}>
+          <span className={css.sheetTitle}>立目标</span>
+          <button type="button" className={css.sheetClose} onClick={close} aria-label="关闭">×</button>
+        </div>
+        <div className={css.sheetNote}>
+          目标是一条<b>复合承诺</b>——立目标就是登记一条「你自己 own、人工验收」的承诺。
+          真身留在云之家的目标文档/表格里，这里只挂一个把手。
+        </div>
+        <label className={css.field}>
+          <span className={css.fieldLabel}>目标</span>
+          <input
+            className={css.input}
+            value={what}
+            autoFocus
+            placeholder="例：Q3 把对账周期压到 3 天内"
+            onChange={(event) => { setWhat(event.target.value) }}
+          />
+        </label>
+        <label className={css.field}>
+          <span className={css.fieldLabel}>真身链接</span>
+          <input
+            className={css.input}
+            value={goalRef}
+            placeholder="云之家目标文档 / 表格的链接"
+            spellCheck={false}
+            onChange={(event) => { setGoalRef(event.target.value) }}
+          />
+        </label>
+        {/*
+          磨点在「可验收」(v4.10).
+
+          A goal nobody can say "done" about cannot be accepted later, and the
+          assessment has nothing to compare against — which is how OKR
+          check-ins degenerate into self-reported numbers. These words are the
+          ones the operator signed; the authoritative copy belongs in the
+          Yunzhijia body, and the hint says so rather than pretending this is
+          the 真身.
+        */}
+        <label className={css.field}>
+          <span className={css.fieldLabel}>怎么算完成</span>
+          <textarea
+            className={css.area}
+            value={criteria}
+            rows={3}
+            placeholder="例：月结 T+3 日内出报表；四个部门都用同一张模板；对账差异条目 < 5"
+            onChange={(event) => { setCriteria(event.target.value) }}
+          />
+          <span className={css.fieldHint}>
+            也请把这几句写进云之家目标正文——那里才是真身。这里留一份你签发时的原话，
+            日后 agent 写差距简报就是拿它逐条比对。
+          </span>
+        </label>
+        <div className={css.fieldRow}>
+          <label className={css.field}>
+            <span className={css.fieldLabel}>owner</span>
+            <input
+              className={css.input}
+              value={owner}
+              placeholder="留空 = 我"
+              onChange={(event) => { setOwner(event.target.value) }}
+            />
+          </label>
+          <label className={css.field}>
+            <span className={css.fieldLabel}>验收期</span>
+            <input
+              className={css.input}
+              value={due}
+              placeholder="例：季度末"
+              onChange={(event) => { setDue(event.target.value) }}
+            />
+          </label>
+        </div>
+        {refusal !== '' && <div className={css.refusal}>{refusal}</div>}
+        <div className={css.sheetFoot}>
+          <span className={css.sheetHint}>按下就是签发——agent 只能提案，不能立目标。</span>
+          <button
+            type="button"
+            className={css.sheetGo}
+            disabled={!ready || busy}
+            onClick={() => {
+              setBusy(true)
+              setRefusal('')
+              void inject.declareGoal({
+                what: what.trim(),
+                goalRef: goalRef.trim(),
+                ...(owner.trim() === '' ? {} : { owner: owner.trim() }),
+                ...(due.trim() === '' ? {} : { due: due.trim() }),
+                ...(criteria.trim() === '' ? {} : { criteria: criteria.trim() }),
+                // 出生血缘：磨稿会话,而不是「桌面」。
+                ...(fromSessionId === undefined ? {} : { sessionId: fromSessionId }),
+              }).then((result) => {
+                setBusy(false)
+                /*
+                  拒绝不该清空表单.
+
+                  「这个真身已经立过目标了」 arrives as an ordinary refusal, and
+                  closing the sheet threw away the 目标 / 真身 / owner / 验收期
+                  and the whole 「怎么算完成」 — which is the one field v4.10 is
+                  about. The refusal is shown IN the sheet, with everything the
+                  operator typed still in it.
+                */
+                if (result.error !== undefined) {
+                  setRefusal(result.error)
+                  return
+                }
+                done(`已立目标「${what.trim()}」。`)
+              })
+            }}
+          >
+            {busy ? '登记中…' : '立目标'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

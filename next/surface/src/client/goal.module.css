@@ -1,0 +1,418 @@
+/*
+  目标页 —— 板放大一级。
+
+  刻意长得像板而不像一个「新页面」:同一套行、同一套药丸、同一套灰字。它是
+  第二个缩放级别,不是第二个产品。
+*/
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--yzj-surface);
+}
+
+.head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--yzj-line);
+}
+
+.back {
+  flex: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--yzj-pub);
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--yzj-pub-line);
+  background: var(--yzj-surface);
+  cursor: pointer;
+}
+
+.back:hover { background: var(--yzj-pub-tint); }
+
+.title {
+  font-size: 13.5px;
+  font-weight: 750;
+  color: var(--yzj-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub { font-size: 11px; color: var(--yzj-ink-3); margin-left: auto; flex: none; }
+
+.body { flex: 1; min-height: 0; overflow: auto; padding: 12px 16px 28px; }
+
+/* Header:虚线框 = 真身不在图上,是云之家里那份文档的把手。 */
+.header {
+  border: 1px dashed var(--yzj-pub-line);
+  border-radius: 12px;
+  background: linear-gradient(160deg, #FDFEFF, #F5F8FF);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.headerRetired { border-style: solid; border-color: var(--yzj-line); background: #FAFBFC; }
+
+.headerTop { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.goalTag {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--yzj-pub-tint);
+  color: var(--yzj-pub-deep);
+}
+
+.headerName { font-size: 14px; font-weight: 750; color: var(--yzj-ink); }
+.owner { font-size: 10.5px; color: var(--yzj-ink-3); }
+
+.manual {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--yzj-paper);
+  border: 1px solid var(--yzj-paper-line);
+  color: var(--yzj-paper-ink);
+}
+
+.headerMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: var(--yzj-ink-3);
+}
+
+.link { color: var(--yzj-pub); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.unsafe { color: var(--yzj-amber); }
+.due { color: var(--yzj-red); font-weight: 650; }
+.stale { color: var(--yzj-amber); font-weight: 650; }
+
+.criteria {
+  margin-top: 8px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--yzj-ink-2);
+  background: var(--yzj-surface);
+  border: 1px solid var(--yzj-line);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
+.criteriaTag {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--yzj-pub-deep);
+}
+
+/* 真身之变 / 目标终态:两条都是「这一页正在告诉你一件不对劲的事」。 */
+.driftText { flex: 1; min-width: 180px; }
+
+.drift {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--yzj-amber-bg);
+  border: 1px solid var(--yzj-amber-line);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--yzj-amber);
+}
+
+.ctas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+.cta {
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  padding: 3px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--yzj-pub-line);
+  background: var(--yzj-surface);
+  color: var(--yzj-pub-deep);
+}
+
+.cta:hover { background: var(--yzj-pub-tint); }
+.cta:disabled { opacity: .5; cursor: default; }
+
+.ctaNote { margin-top: 6px; font-size: 10px; line-height: 1.7; color: var(--yzj-ink-3); }
+
+.zone {
+  margin: 16px 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--yzj-ink-2);
+}
+
+.calm {
+  font-size: 11.5px;
+  line-height: 1.8;
+  color: var(--yzj-ink-3);
+  padding: 6px 2px;
+}
+
+.hint { margin: 5px 2px 0; font-size: 10px; line-height: 1.7; color: var(--yzj-ink-3); }
+.hintInline { font-size: 10px; color: var(--yzj-ink-3); }
+
+.toast {
+  margin: 8px 0;
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: var(--yzj-green-bg);
+  border: 1px solid var(--yzj-green-line);
+  font-size: 11.5px;
+  color: var(--yzj-green);
+}
+
+/* 决断层:能按的东西长得像能按的。 */
+.decision {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  margin: 4px 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--yzj-pub-line);
+  background: var(--yzj-pub-tint);
+}
+
+.decision:hover { box-shadow: var(--yzj-shadow); }
+
+.decisionBadge {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--yzj-surface);
+  color: var(--yzj-pub-deep);
+  border: 1px solid var(--yzj-pub-line);
+}
+
+.decisionText { flex: 1; min-width: 0; font-size: 12.5px; color: var(--yzj-ink); }
+.decisionSub {
+  display: block;
+  font-size: 10.5px;
+  color: var(--yzj-ink-3);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arrow { flex: none; color: var(--yzj-pub); }
+
+/* 留意层:信号,不是可应答对象——所以它不长得像一个按钮。 */
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  padding: 8px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--yzj-amber-line);
+  background: #FFFCF6;
+}
+
+.noticeText { flex: 1; min-width: 0; font-size: 12.5px; color: var(--yzj-ink); }
+
+.pulse {
+  font-size: 10.5px;
+  color: var(--yzj-ink-3);
+  margin: 2px 2px 6px;
+}
+
+/* 环行 */
+.loop {
+  margin: 6px 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--yzj-line);
+  background: var(--yzj-surface);
+}
+
+.loopOverdue { border-color: #F1C3C3; background: #FFFBFB; }
+.loopDone { opacity: .62; }
+
+.loopHead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.exec {
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 6px;
+}
+
+.execAgent { background: var(--yzj-violet-bg); color: var(--yzj-violet); }
+.execHuman { background: #EAF1FB; color: var(--yzj-pub-deep); }
+
+.loopWhat { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 650; color: var(--yzj-ink); }
+
+.signal { flex: none; font-size: 10px; padding: 1px 8px; border-radius: 10px; }
+.signalOk { background: var(--yzj-green-bg); color: var(--yzj-green); }
+.signalWarn { background: var(--yzj-amber-bg); color: var(--yzj-amber); }
+
+.loopMeta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--yzj-ink-3);
+}
+
+.ghost { color: var(--yzj-red); font-weight: 650; cursor: help; }
+.settled { color: var(--yzj-ink-2); }
+
+.receipt {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--yzj-ink-2);
+  border-left: 2px solid var(--yzj-pub-rail);
+  padding-left: 8px;
+}
+
+.loopActs { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin-top: 7px; }
+
+.act {
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 650;
+  padding: 2px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--yzj-line);
+  background: var(--yzj-surface);
+  color: var(--yzj-ink-2);
+}
+
+.act:hover { border-color: var(--yzj-pub-line); background: var(--yzj-pub-tint); color: var(--yzj-pub-deep); }
+.act:disabled { opacity: .5; cursor: default; }
+
+/* 就近的小表单:动词要输入什么，就在那一行底下问。 */
+.repair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 7px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #F7F9FC;
+  border: 1px solid var(--yzj-line);
+}
+
+.repairWhy { width: 100%; font-size: 10px; line-height: 1.7; color: var(--yzj-ink-3); }
+.repairWhy b { color: var(--yzj-ink-2); }
+
+.repairInput {
+  flex: 1;
+  min-width: 140px;
+  font: inherit;
+  font-size: 11.5px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--yzj-line);
+  background: var(--yzj-surface);
+  color: var(--yzj-ink);
+  outline: none;
+}
+
+.repairInput:focus { border-color: var(--yzj-pub); }
+
+.repairGo {
+  flex: none;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 4px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--yzj-pub);
+  background: var(--yzj-pub);
+  color: #fff;
+}
+
+.repairGo:disabled { opacity: .45; cursor: default; }
+
+.repairX {
+  flex: none;
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--yzj-line);
+  background: var(--yzj-surface);
+  color: var(--yzj-ink-3);
+}
+
+/* 差距简报 */
+.report {
+  border: 1px solid var(--yzj-paper-line);
+  border-radius: 10px;
+  background: var(--yzj-paper);
+  padding: 10px 12px;
+}
+
+.reportHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--yzj-paper-ink);
+  margin-bottom: 6px;
+}
+
+.reportWhen { margin-left: auto; font-size: 10px; font-weight: 400; color: var(--yzj-ink-3); }
+
+.reportLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px dashed #EDE2CC;
+}
+
+.verdict { flex: none; font-size: 12px; font-weight: 700; line-height: 1.5; }
+.verdictMet { color: var(--yzj-green); }
+.verdictPartial { color: var(--yzj-amber); }
+.verdictMissing { color: var(--yzj-red); }
+
+.reportText { flex: 1; min-width: 0; font-size: 11.5px; color: var(--yzj-ink); }
+
+.selfCheck {
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--yzj-line);
+  font-size: 10px;
+  line-height: 1.9;
+  color: var(--yzj-ink-3);
+}

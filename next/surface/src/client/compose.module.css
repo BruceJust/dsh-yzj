@@ -1,0 +1,100 @@
+.wrap { position: relative; display: inline-flex; }
+
+.iconBtn {
+  flex: none; width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border: 1px solid var(--yzj-line); border-radius: 7px;
+  background: var(--yzj-surface); color: var(--yzj-ink-2);
+  font: inherit; font-size: 14px; line-height: 1; cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+.iconBtn:hover { color: var(--yzj-pub); border-color: var(--yzj-pub-line); }
+
+/* 表情：一小把工作里真会打的，不是一个 1800 格的搜索题 */
+.pop {
+  position: absolute; bottom: 32px; left: 0; z-index: 60;
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+  padding: 6px; border-radius: 10px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
+  box-shadow: var(--yzj-shadow-pop);
+}
+.emoji {
+  width: 28px; height: 28px; border: 0; border-radius: 6px;
+  background: none; font-size: 17px; line-height: 1; cursor: pointer;
+}
+.emoji:hover { background: #EEF1F6; }
+
+.verb {
+  font: inherit; font-size: 10.5px; font-weight: 650;
+  padding: 2px 8px; border-radius: 12px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
+  color: var(--yzj-ink-2); cursor: pointer;
+}
+.verb:hover { color: var(--yzj-pub); border-color: var(--yzj-pub-line); background: var(--yzj-pub-tint); }
+
+/* ---------- 转发：走的是同一条发送路径,所以同一套规则 ---------- */
+.mask {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgb(24 30 42 / 28%);
+  display: flex; align-items: center; justify-content: center;
+}
+.panel {
+  width: 380px; max-height: 72vh; display: flex; flex-direction: column;
+  border-radius: 14px; background: var(--yzj-surface);
+  box-shadow: var(--yzj-shadow-pop); overflow: hidden;
+}
+.head { display: flex; align-items: center; padding: 12px 14px 8px; }
+.headTitle { font-size: 13px; font-weight: 700; color: var(--yzj-ink); }
+.close {
+  margin-left: auto; border: 0; background: none; cursor: pointer;
+  font-size: 17px; line-height: 1; color: var(--yzj-ink-3);
+}
+.close:hover { color: var(--yzj-ink); }
+
+.quote {
+  margin: 0 14px 10px; padding: 7px 10px;
+  border-left: 2px solid var(--yzj-line); border-radius: 0 8px 8px 0;
+  background: #F7F8FA; font-size: 11.5px; line-height: 1.6; color: var(--yzj-ink-2);
+  max-height: 76px; overflow: hidden;
+}
+
+.search {
+  margin: 0 14px 8px; font: inherit; font-size: 12px;
+  padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
+  color: var(--yzj-ink); outline: none;
+}
+.search:focus { border-color: var(--yzj-pub); }
+
+.list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 12px; }
+.row {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 0; border-radius: 8px;
+  background: none; text-align: left; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: var(--yzj-ink);
+}
+.row:hover:not(:disabled) { background: #EEF1F6; }
+.row:disabled { opacity: .5; cursor: default; }
+.rowName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rowNote { flex: none; font-size: 10px; color: var(--yzj-ink-3); }
+
+.calm { padding: 18px 10px; text-align: center; font-size: 12px; color: var(--yzj-ink-3); }
+
+/* 转发面板：一个真正的选择面,不是一列光秃秃的名字 */
+.headSub { margin-left: 8px; font-size: 10.5px; color: var(--yzj-ink-3); }
+.rowFace {
+  flex: none; width: 28px; height: 28px; border-radius: 8px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: #fff;
+}
+.rowPhoto { width: 100%; height: 100%; object-fit: cover; }
+.rowText { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rowSub {
+  font-size: 10.5px; color: var(--yzj-ink-3); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rowRight { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.rowOff {
+  font-size: 9.5px; font-weight: 600; padding: 1px 6px; border-radius: 10px;
+  background: #F1F3F6; color: var(--yzj-ink-3);
+}

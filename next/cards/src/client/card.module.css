@@ -1,0 +1,128 @@
+/*
+ * The conversation-flow card. It sits inside a tool call row, so it borrows
+ * the shell's own type and colour variables rather than inventing a palette —
+ * a card that looked like a different product would read as an advertisement
+ * rather than as part of the work.
+ */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--dsh-color-border, rgb(0 0 0 / 12%));
+  border-left: 3px solid var(--dsh-color-accent, #3b6ef6);
+  border-radius: 8px;
+  background: var(--dsh-color-surface, rgb(0 0 0 / 2%));
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.strong {
+  border-left-color: var(--dsh-color-danger, #d64545);
+}
+
+.head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-weight: 600;
+}
+
+.badge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--dsh-color-accent, #3b6ef6);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badgeStrong {
+  background: var(--dsh-color-danger, #d64545);
+}
+
+.badgeDone {
+  background: var(--dsh-color-muted, #7a7a7a);
+}
+
+.tool {
+  color: var(--dsh-color-text-muted, rgb(0 0 0 / 55%));
+  font-family: var(--dsh-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+.args {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--dsh-color-surface-sunken, rgb(0 0 0 / 4%));
+}
+
+.arg {
+  display: flex;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+.argKey {
+  flex: none;
+  color: var(--dsh-color-text-muted, rgb(0 0 0 / 55%));
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.button {
+  padding: 4px 14px;
+  border: 1px solid var(--dsh-color-border, rgb(0 0 0 / 15%));
+  border-radius: 6px;
+  background: var(--dsh-color-surface-raised, #fff);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--dsh-color-accent, #3b6ef6);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.primary {
+  border-color: transparent;
+  background: var(--dsh-color-accent, #3b6ef6);
+  color: #fff;
+}
+
+.danger {
+  border-color: var(--dsh-color-danger, #d64545);
+  color: var(--dsh-color-danger, #d64545);
+}
+
+.input {
+  flex: 1 1 180px;
+  min-width: 120px;
+  padding: 4px 8px;
+  border: 1px solid var(--dsh-color-border, rgb(0 0 0 / 15%));
+  border-radius: 6px;
+  background: var(--dsh-color-surface-raised, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.foot {
+  color: var(--dsh-color-text-muted, rgb(0 0 0 / 55%));
+  font-size: 12px;
+}

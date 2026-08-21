@@ -1,0 +1,25 @@
+/*
+  图片:房间里该显示图片,不是「[图片]」四个字。
+
+  文件卡不在这里——它和 agent 交付的工件共用 `artifact.module.css`,因为它们
+  是同一种物(v4.11 工件统一);预览的两种姿势在 `preview.module.css`。
+*/
+.images { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+
+.thumb {
+  position: relative; min-width: 120px; min-height: 72px; max-width: 260px;
+  padding: 0; border: 1px solid var(--yzj-line); border-radius: 10px;
+  background: var(--yzj-surface); cursor: zoom-in; overflow: hidden; line-height: 0;
+  transition: box-shadow .15s;
+}
+.thumb:hover { box-shadow: var(--yzj-shadow); }
+.thumb img { max-width: 220px; max-height: 180px; display: block; object-fit: cover; }
+
+/* 还没取到时的槽:保住真实宽高比,免得图到位时整屋跳动。 */
+.pending {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%; min-height: 72px;
+  padding: 0 8px; text-align: center; line-height: 1.5;
+  font-size: 11px; color: var(--yzj-ink-3);
+  background: #F4F6F9; border-radius: 8px;
+}
