@@ -310,6 +310,54 @@
 }
 .room:hover { border-color: var(--yzj-pub); background: var(--yzj-pub-tint); }
 
+/*
+  新建专项群 —— 尾项，虚线，和现成的场所长得**不一样**。
+
+  实线的行是「用一个已经存在的听众集合」；虚线的这一行是「造一个出来」。两者在一屏
+  里并排，就必须在一眼之内区分得开——否则「顺手点一下」和「创造一个新的听众集合」
+  会长成同一个动作。
+*/
+.roomNew {
+  display: block; width: 100%; text-align: left;
+  font: inherit; font-size: 12px; color: var(--yzj-ink-2);
+  padding: 6px 10px; margin-top: 4px; border-radius: 8px;
+  border: 1px dashed var(--yzj-line); background: transparent; cursor: pointer;
+}
+.roomNew:hover { border-color: var(--yzj-pub); color: var(--yzj-ink); }
+
+.newPlace {
+  margin: 8px 0 4px; padding: 10px; border-radius: 10px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface-2, var(--yzj-surface));
+  display: flex; flex-direction: column; gap: 7px;
+}
+.newPlaceHead { font-size: 12px; font-weight: 700; color: var(--yzj-ink); }
+.newPlaceNote { font-size: 11.5px; color: var(--yzj-ink-2); line-height: 1.65; }
+.newPlaceHint { font-size: 10.5px; color: var(--yzj-ink-3); line-height: 1.5; }
+.newPlaceError { font-size: 11.5px; color: var(--yzj-warn, #b4451f); line-height: 1.6; }
+.newPlaceFound { max-height: 150px; overflow: auto; }
+.newPlacePicked { display: flex; flex-wrap: wrap; gap: 4px; }
+.newPlaceChip {
+  font: inherit; font-size: 11px; color: var(--yzj-ink);
+  padding: 2px 8px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--yzj-line); background: var(--yzj-pub-tint);
+}
+.newPlaceServe {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 11.5px; color: var(--yzj-ink-2); line-height: 1.5; cursor: pointer;
+}
+.newPlaceActions { display: flex; justify-content: flex-end; gap: 6px; }
+.newPlacePrimary {
+  font: inherit; font-size: 12px; font-weight: 600; color: #fff;
+  padding: 5px 14px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--yzj-pub); background: var(--yzj-pub);
+}
+.newPlacePrimary:disabled { opacity: 0.45; cursor: not-allowed; }
+.newPlaceGhost {
+  font: inherit; font-size: 12px; color: var(--yzj-ink-2);
+  padding: 5px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--yzj-line); background: transparent;
+}
+
 .area {
   font: inherit; font-size: 12.5px; color: var(--yzj-ink); resize: vertical;
   padding: 7px 10px; border-radius: 8px; line-height: 1.6;

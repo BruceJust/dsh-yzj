@@ -343,7 +343,19 @@ export function applyDocTools(ctx: Context, budget: YzjToolBudget): () => void {
     timeoutMs: budget.timeoutMs,
     isConcurrencySafe: () => false,
     async execute(args) {
-      return runValue(ctx, budget, 'doc delete', ['doc', 'delete', '--id', args.id], () => ({
+      /*
+        `--yes` 是操作者那次签字的**兑现**，不是绕过它。
+
+        yzj-cli 0.1.4 起，不可恢复的命令自己要一道确认（缺 `--yes` 答 exit 3
+        `confirmation_required`）。而本系统里那道门在更靠前的地方：guard 把这个工具列为
+        **强确认**，卡递到操作者面前，人按下「确认」之后才轮到这一行。两道门问的是同一件
+        事，人真正看得见的是我们这一道。
+
+        不补这一行的后果不是「多问一次」——CLI 直接拒绝执行，于是**操作者点的头落在空处**，
+        而模型只看到一句 failed，然后去编一个别的办法。这一族五个删除工具就是这么死了一
+        整段时间的，没有任何测试拦得住：单测打的是假 bridge，假 bridge 不认 --yes。
+      */
+      return runValue(ctx, budget, 'doc delete', ['doc', 'delete', '--id', args.id, '--yes'], () => ({
         content: `deleted doc (${args.id})`,
         data: { id: args.id },
       }))
@@ -514,7 +526,7 @@ export function applyDocTools(ctx: Context, budget: YzjToolBudget): () => void {
     isConcurrencySafe: () => false,
     async execute(args) {
       return runValue(ctx, budget, 'doc block delete',
-        ['doc', 'block', 'delete', '--id', args.id, '--operations', args.operations], json => ({
+        ['doc', 'block', 'delete', '--id', args.id, '--operations', args.operations, '--yes'], json => ({
           content: `deleted blocks in doc (${args.id})\n${docLink(args.id)}`,
           data: { payload: clipJson(json, { maxChars: budget.maxMetaChars }), id: args.id, link: docLink(args.id) },
         }))

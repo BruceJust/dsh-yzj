@@ -185,7 +185,8 @@ export function applyCalendarTools(ctx: Context, budget: YzjToolBudget): () => v
     timeoutMs: budget.timeoutMs,
     isConcurrencySafe: () => false,
     async execute(args) {
-      const command = ['calendar', 'event', 'delete', '--id', args.id]
+      // `--yes` 的理由见 doc.ts 的 yzj_doc_delete —— 操作者已在强确认卡上签过字。
+      const command = ['calendar', 'event', 'delete', '--id', args.id, '--yes']
       if (args.openId !== undefined) command.push('--open-id', args.openId)
       if (args.hard === true) command.push('--hard')
       return runValue(ctx, budget, 'calendar event delete', command, () => ({

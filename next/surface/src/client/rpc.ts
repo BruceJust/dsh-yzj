@@ -472,6 +472,23 @@ export interface SurfaceInject {
   people(keyword: string): Promise<PersonWire[]>
   /** 今天还没开完的会 —— 事件枢纽在板上的那一段。 */
   events(): Promise<BoardEventWire[]>
+  /**
+   * 新建一个专项群 —— **创设 + 记出生 + 按勾选接入，一次办完** (设计 v4.18).
+   *
+   * 桌面上按下那个按钮**就是签发**：建群是创造一个新的听众集合，比在现成的听众集合里
+   * 挑一个更须人批，而这里按下按钮的人就是要签字的那个人——不该为同一件事再弹一张确认
+   * 卡（一次主权时刻一次确认）。agent 那条路另有工具，且在 guard 里是强确认。
+   *
+   * 失败时回的是**宿主的原话**，不是一句「通道无响应」：其中一种失败是「建群命令回来了
+   * 但读不出群 id」——那意味着群**可能已经建好了**，人得去核对而不是重来一次。
+   */
+  createPlace(input: {
+    name: string
+    members: string[]
+    serve: boolean
+    sourceAnchor: string
+    goalRef?: string
+  }): Promise<{ groupId?: string; placeKey?: string; served?: boolean; error?: string }>
   cardAct(
     kind: string, id: string, actionId: string, input?: string,
   ): Promise<{ receipt: string; outcome: string } | undefined>
@@ -643,6 +660,14 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     },
     async events() {
       return (await call<{ events: BoardEventWire[] }>('events', {}))?.events ?? []
+    },
+    async createPlace(input) {
+      // 走 `write` 不走 `call`：这是一次写，宿主拒绝的理由必须原样带回来。
+      const { value, error } = await write<{ groupId: string; placeKey: string; served: boolean }>(
+        'create-place',
+        { ...input, ...(input.goalRef === undefined ? {} : { goalRef: input.goalRef }) },
+      )
+      return error === undefined ? { ...value } : { error }
     },
   }
 }

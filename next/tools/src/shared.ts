@@ -44,8 +44,38 @@ function looksUnauthenticated(stderr: string): boolean {
   return /(auth|login|登录|token|credential|unauthorized|未授权|10000400|93001)/i.test(stderr)
 }
 
+/**
+ * CLI 说「这一步要人点头」的退出码 (yzj-cli 0.1.4 exit 3 协议)。
+ *
+ * **它和 guard 的确认门是同一扇门**，而人真正看得见的是我们这一扇：guard 把不可恢复
+ * 的操作列为强确认，操作者在卡上按下「确认」，然后我们才发这条命令——所以命令里带
+ * `--yes` 是那次点头的**兑现**，不是绕过它。
+ *
+ * 反过来说，一旦真的收到 exit 3，含义是**我们这边漏了 `--yes`**，不是「让模型换个
+ * 方式再试」。这不是假想：0.1.4 之后一整族删除工具都是这样死的——五个删除工具全在
+ * 强确认表里，操作者被问、按了确认，CLI 却因为没有 `--yes` 拒绝执行。**人点的头落在
+ * 了空处**，而模型只看到一句「failed」，于是它会去编一个别的办法。
+ */
+export const CONFIRM_REQUIRED_EXIT = 3
+
 /** A model-facing failure digest from a non-ok bridge invocation. */
 export function failureDigest(label: string, result: YzjRunResult, max: number): YzjToolValue {
+  /*
+    exit 3 单独说 —— 它不是一次失败，是一处漏装。
+
+    混在「failed」里，模型会当成一次可以绕开的错误去另想办法；说成它本来的样子，
+    读日志的人当场知道该去补哪一行。
+  */
+  if (result.exitCode === CONFIRM_REQUIRED_EXIT) {
+    const { content, truncated } = digestOf(
+      `yzj ${label} 没有执行：这条命令要求显式确认，而调用它的工具没有带上 --yes。`
+      + `这不是你能换个方式绕过去的错误，也不该重试——`
+      + `不可恢复的操作在本系统里由操作者在确认卡上签字，工具应当在签字之后把 --yes 一起送出。`
+      + `请如实报告这一步没有执行。\n${result.stderr.trim()}`,
+      max,
+    )
+    return { content, truncated, data: {} }
+  }
   const reason = result.timedOut ? 'timed out' : `exit ${String(result.exitCode ?? 'killed')}`
   const detail = result.stderr.trim() === '' ? '(no stderr)' : result.stderr.trim()
   const hint = looksUnauthenticated(result.stderr)

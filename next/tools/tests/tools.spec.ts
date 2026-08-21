@@ -123,13 +123,14 @@ describe('the tool family', () => {
       'yzj_doc_rename', 'yzj_doc_workspace_create', 'yzj_doc_workspace_get',
       'yzj_doc_workspace_list',
       'yzj_file_download', 'yzj_file_upload',
-      'yzj_im_group_recent', 'yzj_im_message_list', 'yzj_im_message_send',
+      'yzj_im_group_create', 'yzj_im_group_recent', 'yzj_im_group_search',
+      'yzj_im_message_list', 'yzj_im_message_send',
       'yzj_sheet_create', 'yzj_sheet_get', 'yzj_sheet_record_create', 'yzj_sheet_record_delete',
       'yzj_sheet_record_list', 'yzj_sheet_record_update', 'yzj_sheet_table_create',
       'yzj_sheet_table_delete', 'yzj_sheet_table_get', 'yzj_sheet_table_rename',
       'yzj_whoami',
     ])
-    expect(tools.size).toBe(41)
+    expect(tools.size).toBe(43)
   })
 
   it('lets every tool say what it is doing in human words', () => {
@@ -158,6 +159,64 @@ describe('the tool family', () => {
     for (const name of Object.keys(WRITE_SPECS)) {
       expect(tools.has(name), `${name} is gated but not registered`).toBe(true)
     }
+  })
+
+  /**
+   * 不可恢复的命令要带 `--yes` —— 那是操作者那次签字的**兑现**。
+   *
+   * yzj-cli 0.1.4 起，这些命令缺 `--yes` 直接答 exit 3 `confirmation_required`。而本
+   * 系统里那道门在更靠前的地方：guard 把它们列为**强确认**，卡递到人面前、人按下确认，
+   * 之后才轮到这一行。漏了它的后果不是「多问一次」——**人点的头落在空处**，CLI 拒绝
+   * 执行，模型只看到一句 failed 然后去编一个别的办法。
+   *
+   * 这一条此前一个字都没测过，而整族删除工具就是这么死了一整段时间的：单测打的是假
+   * bridge，假 bridge 不认 --yes。所以这里断言的是**发出去的 argv**，不是回包。
+   */
+  it('每一个不可恢复的写都把 --yes 一起送出去', async () => {
+    const { tools, commands } = mountFake(() => okResult({}))
+    await tools.get('yzj_doc_delete')?.execute({ id: 'doc-1' })
+    await tools.get('yzj_doc_block_delete')?.execute({ id: 'doc-1', operations: '[]' })
+    await tools.get('yzj_sheet_table_delete')?.execute({ id: 'sh-1', tableId: 1 })
+    await tools.get('yzj_sheet_record_delete')?.execute({ id: 'sh-1', tableId: 1, recordIds: 'r1' })
+    await tools.get('yzj_calendar_event_delete')?.execute({ id: 'ev-1' })
+    expect(commands).toHaveLength(5)
+    for (const command of commands) {
+      expect(command, `${command.join(' ')} 少了 --yes`).toContain('--yes')
+    }
+  })
+
+  /** guard 说 strong 的，就是 CLI 说要确认的那一批——两张表不许分家。 */
+  it('强确认表覆盖每一个带 --yes 的命令', async () => {
+    const { tools, commands } = mountFake(() => okResult({}))
+    const names = [
+      'yzj_doc_delete', 'yzj_doc_block_delete', 'yzj_sheet_table_delete',
+      'yzj_sheet_record_delete', 'yzj_calendar_event_delete',
+    ]
+    for (const name of names) expect(WRITE_SPECS[name]?.level).toBe('strong')
+    expect(commands).toHaveLength(0)
+    expect(tools.size).toBeGreaterThan(0)
+  })
+
+  /**
+   * 建群 = 创造一个新的听众集合，落在 **strong**。
+   *
+   * 它和别的 strong 不同：那些是「删掉的回不来」，这一条是「从此有一批人听得见这里
+   * 说的每一句话」。不可逆的是**边界本身**——群能解散，谁在那段时间里听见了什么收不回来。
+   */
+  it('建群是强确认，且人数越界在打出去之前就拦下', async () => {
+    expect(WRITE_SPECS.yzj_im_group_create?.level).toBe('strong')
+    const { tools, commands } = mountFake(() => okResult({ groupId: 'g-1' }))
+    const create = tools.get('yzj_im_group_create')
+    await expect(create?.execute({ name: '专项群', memberOpenIds: ['a'] })).rejects.toThrow(/2-10/u)
+    await expect(create?.execute({
+      name: '专项群', memberOpenIds: Array.from({ length: 11 }, (_, i) => `p${String(i)}`),
+    })).rejects.toThrow(/2-10/u)
+    // 问过人再失败是最贵的一种失败：越界的调用一次都不该打到线上。
+    expect(commands).toHaveLength(0)
+    const value = await create?.execute({ name: '专项群', memberOpenIds: ['a', 'b'] })
+    expect(commands[0]).toEqual(['im', 'group', 'create', '--name', '专项群', '--member-open-id', 'a', 'b'])
+    // 回执里必须写着「默认不在岗」——否则代发过去没有人接收回执。
+    expect(value?.content).toContain('默认不在岗')
   })
 
   it('omits absent optional flags rather than sending empty ones', async () => {

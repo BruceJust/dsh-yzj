@@ -81,6 +81,17 @@ export const WRITE_SPECS: Record<string, WriteSpec> = {
   yzj_sheet_table_delete: { reason: '删除数据表及其全部记录，不可恢复', level: 'strong' },
   yzj_sheet_record_delete: { reason: '删除多维表格记录，不可恢复', level: 'strong' },
   yzj_calendar_event_delete: { reason: '取消/删除日程', level: 'strong' },
+  /*
+    建群 = 创造一个新的听众集合，比在现成的听众集合里挑一个**更须人批**（设计 v4.18）。
+
+    它和上面那几条不同：那些是「删掉的东西回不来」，这一条是「从此有一批人听得见这里
+    说的每一句话」。不可逆的是**边界本身**——群可以解散，但谁在那段时间里听见了什么，
+    没有任何操作能收回。所以它落在 strong，且永不与别的写入合并确认。
+
+    摩擦刀在这里的用法：平台让建群变容易了，而建群的难度本来在**保护听众集合**——
+    设计的动向因此是把新能力放进确认门，不是拥抱这份便利。
+  */
+  yzj_im_group_create: { reason: '新建群组 —— 这会创造一个新的听众集合，从此他们听得见这里的每一句话', level: 'strong' },
   // --- standard: side effects but reversible or additive ---
   yzj_im_message_send: { reason: '发送 IM 消息到云之家会话，发出后不可撤回', level: 'standard' },
   yzj_file_upload: { reason: '上传文件到云之家，即刻落服务端', level: 'standard' },

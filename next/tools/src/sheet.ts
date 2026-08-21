@@ -183,7 +183,7 @@ export function applySheetTools(ctx: Context, budget: YzjToolBudget): () => void
     isConcurrencySafe: () => false,
     async execute(args) {
       return runValue(ctx, budget, 'sheet table delete',
-        ['sheet', 'table', 'delete', '--id', args.id, '--table-id', String(args.tableId)], () => ({
+        ['sheet', 'table', 'delete', '--id', args.id, '--table-id', String(args.tableId), '--yes'], () => ({
           content: `deleted 数据表 ${String(args.tableId)} from 多维表格 (${args.id})`,
           data: { id: args.id, tableId: args.tableId },
         }))
@@ -297,7 +297,7 @@ export function applySheetTools(ctx: Context, budget: YzjToolBudget): () => void
     isConcurrencySafe: () => false,
     async execute(args) {
       return runValue(ctx, budget, 'sheet record delete',
-        ['sheet', 'record', 'delete', '--id', args.id, '--table-id', String(args.tableId), '--record-ids', args.recordIds],
+        ['sheet', 'record', 'delete', '--id', args.id, '--table-id', String(args.tableId), '--record-ids', args.recordIds, '--yes'],
         () => ({
           content: `deleted record(s) [${args.recordIds}] from 数据表 ${String(args.tableId)} (${args.id})`,
           data: { id: args.id, tableId: args.tableId, recordIds: args.recordIds },

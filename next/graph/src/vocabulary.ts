@@ -400,6 +400,28 @@ const contractFamily: GraphFamily = {
         oaRequiredCategories: z.array(z.string()).default([]),
         memoryPolicy: z.enum(['normal', 'facts-only', 'never']),
         processSummary: z.boolean(),
+        /**
+         * 这个场所是**怎么出生的** (设计 v4.18 场所创设三句，零新族).
+         *
+         * 此前这一族只回答「合同是什么」，不回答「合同怎么出生」——agent 拿到建群能力
+         * 之前那是个无害的空白，之后它就是个危险的空白。三句里的两句落在这个字段上：
+         *
+         * - **出生血缘携带语境**：从一个目标/一条承诺的语境里建出来的群，`sourceAnchor`
+         *   记着那句话，`inheritedGoalRef` 记着它继承的挂接——语境继承的场所版。少了它，
+         *   一个专门为某个目标开的群，第二天没有任何地方说得清它为什么存在。
+         * - **合同默认最严**：新场所 agent **不在岗、不接单**，须显式开启。这一条的运行态
+         *   真相不在这里——在通道的 `allowedGroupIds`（单一事实源，别在图上再存一份
+         *   `served` 造第二本账）；这里记的是「它出生时是不是被同时接入了」，那是**签发
+         *   卡上那一次勾选**留下的痕迹，回头审计要靠它。
+         *
+         * `inheritedGoalRef` 的投影遵循既有可见域规则：这个场所看不见那个目标的正文时，
+         * 只显示链接、不显示名字。
+         */
+        birth: z.object({
+          sourceAnchor: z.string().min(1),
+          inheritedGoalRef: z.string().optional(),
+          servedAtBirth: z.boolean().default(false),
+        }).optional(),
       }),
     },
   },

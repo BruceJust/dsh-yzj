@@ -218,6 +218,73 @@ describe('pending answerables and kernel derivations', () => {
     expect(graph.contractFor('group-b').version).toBe(0)
   })
 
+  /**
+   * 场所的**出生故事** (设计 v4.18)：合同族此前只回答「合同是什么」，不回答「怎么出生」。
+   *
+   * 两件事一起锁：出生记录**留得住**（回头审计要靠它说清这个群为什么存在、出生那一刻
+   * 有没有把 agent 一并接进来），以及它**一个合同字段都不动**——加一条血缘不该顺手改掉
+   * 这个场所的记忆策略。
+   */
+  it('记得下一个场所是怎么出生的，而且不顺手改掉它的合同', async () => {
+    const graph = await openGraph()
+    const before = graph.contractFor('group-new')
+    await graph.append({
+      type: 'contract/updated',
+      data: {
+        placeKey: 'group-new',
+        // 组织默认那份是 version 0（还没写过合同），而 schema 要 ≥1——所以是 +1，不是原样抄。
+        version: before.version + 1,
+        oaRequiredCategories: [...before.oaRequiredCategories],
+        memoryPolicy: before.memoryPolicy,
+        processSummary: before.processSummary,
+        birth: {
+          sourceAnchor: 'portal:goal:https://y/doc/9',
+          inheritedGoalRef: 'https://y/doc/9',
+          servedAtBirth: true,
+        },
+      },
+      actor: ACTOR,
+    })
+    // 原样回写：一个字段的语义都没动。
+    expect(graph.contractFor('group-new')).toMatchObject({
+      version: before.version + 1,
+      memoryPolicy: before.memoryPolicy,
+      processSummary: before.processSummary,
+    })
+    const birth = [...graph.rawEvents(['contract/updated'])]
+      .map(event => (event.data as { placeKey?: string; birth?: Record<string, unknown> }))
+      .find(data => data.placeKey === 'group-new')?.birth
+    expect(birth?.sourceAnchor).toBe('portal:goal:https://y/doc/9')
+    expect(birth?.inheritedGoalRef).toBe('https://y/doc/9')
+    expect(birth?.servedAtBirth).toBe(true)
+  })
+
+  /**
+   * 没说勾没勾，就是**没勾** —— 合同默认最严。
+   *
+   * 这个默认值不是排版：它的读者是三个月后翻审计的人，而「不知道」和「没接入」在那一刻
+   * 是两个完全不同的结论。
+   */
+  it('出生时没说接入，默认就是没接入', async () => {
+    const graph = await openGraph()
+    await graph.append({
+      type: 'contract/updated',
+      data: {
+        placeKey: 'group-quiet',
+        version: 1,
+        oaRequiredCategories: [],
+        memoryPolicy: 'normal',
+        processSummary: false,
+        birth: { sourceAnchor: 'portal:event:ev-1' },
+      },
+      actor: ACTOR,
+    })
+    const birth = [...graph.rawEvents(['contract/updated'])]
+      .map(event => (event.data as { placeKey?: string; birth?: Record<string, unknown> }))
+      .find(data => data.placeKey === 'group-quiet')?.birth
+    expect(birth?.servedAtBirth).toBe(false)
+  })
+
   it('answers revocation live rather than from a turn snapshot', async () => {
     const graph = await openGraph()
     expect(graph.isRevoked('msg-1')).toBe(false)

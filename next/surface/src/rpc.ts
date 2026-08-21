@@ -11,7 +11,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asNumber, asRecord, asString, type GraphViewer } from '@yzj-next/graph'
+import { asNumber, asRecord, asString, type GraphViewer, type JsonValue } from '@yzj-next/graph'
 import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
 import type { TopicDescriptor, TopicMessage } from '@yzj-next/channel'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
@@ -2345,6 +2345,130 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                 }).slice(0, 12),
               },
             }
+          }
+          /*
+            新建专项群 —— **创设、记出生、按勾选接入，一次主权时刻办完** (设计 v4.18).
+
+            为什么落在桌面 RPC 而不是让 agent 去调那个工具：建群是**创造一个新的听众
+            集合**，比在现成的听众集合里挑一个更须人批（「场所人选不推导」的上位延伸）。
+            桌面上，操作者按下这个按钮**就是那次签发**——不需要再给他弹一张确认卡问同
+            一件事（一次主权时刻一次确认）。agent 那条路仍然存在，且在 guard 里是强确认，
+            因为那时候按下确认的人和提议的人不是同一个。
+
+            三件事的顺序是想过的：
+
+            1. **先建群**——它是唯一一件失败了就什么都不用做的事；
+            2. **再记出生**（`contract/updated.birth`）——血缘要在接单之前落下，否则接单
+               成功、出生记录失败时，图上会出现一个「在岗但不知从何而来」的场所；
+            3. **最后接单**——它是运行态开关，改的是通道的 `allowedGroupIds`（单一事实源，
+               图上不存第二份 `served`）。
+
+            **结果未知不自动重试。** 超时或回包读不出 groupId 时，这条命令**可能已经成功
+            了**；再发一次的代价是组织里凭空多一个群、多一批被拉进去的人。所以这里不重试，
+            而是回一句让人去核对的话——核对走 `im group recent`（刚建的群排在最前），不走
+            `im group search`：实测那个接口在本租户上对任何关键词都答「服务内部异常」。
+          */
+          case 'create-place': {
+            const name = stringField(payload, 'name')
+            const sourceAnchor = stringField(payload, 'sourceAnchor')
+            const members = Array.isArray((payload as { members?: unknown }).members)
+              ? ((payload as { members: JsonValue[] }).members).flatMap((row) => {
+                const id = asString(row)
+                return id === undefined || id.trim() === '' ? [] : [id.trim()]
+              })
+              : []
+            const serve = (payload as { serve?: unknown }).serve === true
+            const inheritedGoalRef = stringField(payload, 'goalRef')
+            if (name === undefined || name.trim() === '') return failure('新群得有个名字')
+            if (sourceAnchor === undefined) return failure('建群要记下它从哪句话里长出来')
+            // 平台的边界：不含创建人，至少 2 人、最多 10 人。问过人再失败是最贵的失败。
+            if (members.length < 2 || members.length > 10) {
+              return failure(`初始成员要 2-10 人（不含你自己），现在选了 ${String(members.length)} 人`)
+            }
+            const bridge = scoped.get('yzjBridge')
+            if (bridge === undefined) return failure('云之家通道未就绪')
+            const created = await bridge.run(
+              ['im', 'group', 'create', '--name', name.trim(), '--member-open-id', ...members],
+              { timeoutMs: 30_000 },
+            )
+            if (!created.ok) return failure(failureOf(created, '建群没成'))
+            const groupId = asString(asRecord(created.json as JsonValue)?.groupId)
+            if (groupId === undefined || groupId === '') {
+              return failure(
+                '建群命令回来了，但回包里读不出群 id——这个群**可能已经建好了**。'
+                + '不会自动重试（重试的代价是凭空多一个群、多一批被拉进去的人）：'
+                + '请在会话列表里找一下「' + name.trim() + '」，没有再重来一次。',
+              )
+            }
+            const placeKey = `yzj-group-${groupId}`
+            /*
+              出生血缘落在合同上，`servedAtBirth` 记的是**签发卡上那一次勾选**。
+
+              运行态「此刻在不在岗」的真相在通道的 allowedGroupIds，不在这里——在图上再存
+              一份 `served` 就是两本账，而今天已经为这种分裂修过好几处了。这里记的是历史：
+              它出生的那一刻，人有没有同时把 agent 接进来。
+            */
+            /*
+              合同**原样回写**，只多一条出生记录。
+
+              `contractFor` 是「同 placeKey 最后一条赢」，所以随手填几个值写下去，等于把
+              这个新场所的合同**钉死**在我填的那几个值上，从此不再跟随组织默认——我没打算
+              改策略，却改了策略。这类「顺手写下一个我没想过的默认」正是这套设计一直在防的
+              安静的错：它不报错，只是三个月后有人发现这个群的记忆策略和别处不一样。
+
+              读回此刻的合同（这个 placeKey 还没有合同，读到的就是组织默认）再原样写回，
+              这一笔就纯粹是**加一条出生记录**，一个字段的语义都不动。
+            */
+            const inherited = scoped.yzjGraph.contractFor(placeKey)
+            try {
+              await scoped.yzjGraph.append({
+                type: 'contract/updated',
+                data: {
+                  placeKey,
+                  /*
+                    版本 +1，不是原样抄。
+
+                    组织默认那份的 version 是 **0**（「这个场所还没有写过合同」），而
+                    `contract/updated` 的 schema 要求 ≥1。原样抄下去这一笔会直接抛，
+                    出生记录一个字都落不下——而群已经建出来了。这条是被单测当场逮住的。
+                  */
+                  version: inherited.version + 1,
+                  oaRequiredCategories: [...inherited.oaRequiredCategories],
+                  memoryPolicy: inherited.memoryPolicy,
+                  processSummary: inherited.processSummary,
+                  birth: {
+                    sourceAnchor,
+                    ...(inheritedGoalRef === undefined ? {} : { inheritedGoalRef }),
+                    servedAtBirth: serve,
+                  },
+                },
+                actor: scoped.yzjCards.desktopActor(),
+              })
+            } catch (error) {
+              // 群已经建出来了，血缘没记上——说出来，别让它看起来一切正常。
+              console.error('[yzj-next-surface] 建群成功但出生记录失败', error)
+            }
+            /*
+              接单是**显式的**：合同默认最严，新场所 agent 不在岗、不接单。
+
+              没勾的话这里什么都不做——而调用方会在代发之前警示「agent 听不见此群，登记卡
+              的回执将无人接收」。出生要有呼吸，而呼吸包括**回执可达**。
+            */
+            let served = false
+            if (serve) {
+              const topics = scoped.get('yzjTopics')
+              if (topics === undefined) {
+                console.error('[yzj-next-surface] 建群后通道不在，接单没开成')
+              } else {
+                try {
+                  await topics.setServed(placeKey, true)
+                  served = true
+                } catch (error) {
+                  console.error('[yzj-next-surface] 建群后接单开关没打开', error)
+                }
+              }
+            }
+            return { ok: true, value: { groupId, placeKey, served } }
           }
           default:
             return failure(`unknown endpoint ${endpoint}`)

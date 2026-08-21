@@ -10,7 +10,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import {
-  asArray, asNumber, asRecord, asString, clipJson, runValue, titled, yzjToolOutput,
+  asArray, asNumber, asRecord, asString, clipJson, named, runValue, titled, yzjToolOutput,
   type YzjToolBudget,
 } from './shared.ts'
 
@@ -152,9 +152,107 @@ export function applyImTools(ctx: Context, budget: YzjToolBudget): () => void {
     },
   }))
 
+  /**
+   * 建一个群 = **创造一个新的听众集合** (设计 v4.18).
+   *
+   * 这套系统里最贵的一个参数一直是「谁听得见」。此前 agent 只能在**已有**的听众集合里
+   * 挑一个（而且「场所人选不推导」——那是人的社交决策）；0.1.4 之后它能凭空造一个出来。
+   * 造一个听众集合，比在现成的里面挑一个**更需要人批**，所以这个工具在 guard 里是
+   * **强确认**，agent 只有提议权。
+   *
+   * 摩擦刀在这里的用法值得写下来：平台让建群变容易了，而**建群的难度本来在保护听众
+   * 集合**——所以设计的动向是把这个新能力放进确认门，不是拥抱这份便利。
+   *
+   * **结果未知时不要自动重试。** 超时或读不到回包时，这条命令**可能已经成功了**；再发
+   * 一次的代价是组织里凭空多一个群、多一批被拉进去的人。先用 `yzj_im_group_recent`
+   * 核对（刚建的群排在最前），确认没建成再议。
+   */
+  register(defineTool({
+    name: 'yzj_im_group_create',
+    description: 'Propose creating a new Yunzhijia group chat. This CREATES A NEW AUDIENCE — who can hear everything said there from now on — so it always goes to the operator for confirmation; you only ever propose it. Members are 2-10 openIds NOT counting the creator (use yzj_contact_search to resolve names). The creator is the logged-in operator, who becomes the owner. IMPORTANT: if this call times out or the result is unreadable, the group MAY ALREADY EXIST — never call it again to retry. Check with yzj_im_group_recent first (a just-created group sorts first) and report what you found.',
+    presentCall: args => titled(named('新建群组', args.name), 'edit'),
+    parameters: {
+      name: { type: 'string', required: true, description: 'Group name.' },
+      memberOpenIds: {
+        type: 'array',
+        required: true,
+        description: 'Initial member openIds, 2-10, excluding the creator.',
+        items: { type: 'string' },
+      },
+    },
+    output: yzjToolOutput,
+    timeoutMs: budget.timeoutMs,
+    isConcurrencySafe: () => false,
+    async execute(args) {
+      /*
+        人数在这里挡一次，而不是让 CLI 去挡。
+
+        平台的边界是「不含创建人，至少 2 人、最多 10 人」。让一个越界的调用打到线上，
+        换回来的是一句平台的错误码——而这个工具的每一次调用前面都站着一次**人的签字**，
+        把人问过了再失败，是最贵的一种失败。
+      */
+      const members = args.memberOpenIds.filter(id => id.trim() !== '')
+      if (members.length < 2 || members.length > 10) {
+        throw new Error(
+          `yzj_im_group_create: 初始成员要 2-10 人（不含你自己），这次给了 ${String(members.length)} 人`,
+        )
+      }
+      const command = ['im', 'group', 'create', '--name', args.name, '--member-open-id', ...members]
+      return runValue(ctx, budget, 'im group create', command, (json) => {
+        const group = asRecord(json)
+        const id = asString(group.groupId)
+        return {
+          content: `已建群「${args.name}」${id === '' ? '' : ` (${id})`}`
+            + `\n注意：新群里 agent **默认不在岗**——没有人显式接入之前，发到这个群的登记卡`
+            + `不会有回执被接收。`,
+          data: { record: clipJson(group, { maxChars: budget.maxMetaChars }), groupId: id },
+        }
+      })
+    },
+  }))
+
+  register(defineTool({
+    name: 'yzj_im_group_search',
+    description: 'Search groups visible to the operator by keyword. NOTE: on some tenants this endpoint answers 服务内部异常 — when it does, fall back to yzj_im_group_recent and page through it, and say plainly that search was unavailable rather than reporting "no such group".',
+    presentCall: args => titled(`搜群：${String(args.keyword)}`, 'read'),
+    parameters: {
+      keyword: { type: 'string', required: true, description: 'Search keyword.' },
+      limit: { type: 'number', description: 'Per-page count; default 10.' },
+      page: { type: 'number', description: 'Page number; default 1, must be >= 1.' },
+    },
+    output: yzjToolOutput,
+    timeoutMs: budget.timeoutMs,
+    isConcurrencySafe: () => true,
+    async execute(args) {
+      const command = ['im', 'group', 'search', '--keyword', args.keyword]
+      if (args.limit !== undefined) {
+        if (!Number.isInteger(args.limit) || args.limit < 1) {
+          throw new Error('yzj_im_group_search: limit must be an integer >= 1')
+        }
+        command.push('--limit', String(args.limit))
+      }
+      if (args.page !== undefined) {
+        if (!Number.isInteger(args.page) || args.page < 1) {
+          throw new Error('yzj_im_group_search: page must be an integer >= 1')
+        }
+        command.push('--page', String(args.page))
+      }
+      return runValue(ctx, budget, 'im group search', command, (json) => {
+        const root = asRecord(json)
+        // 回包形状按 `group recent` 的同族猜：`list` 优先，退回顶层数组。
+        const groups = asArray(root.list).length > 0 ? asArray(root.list) : asArray(json)
+        const lines = groups.map(groupLine)
+        return {
+          content: lines.length === 0 ? '(没有搜到群)' : lines.join('\n'),
+          data: { list: clipJson(groups, { maxChars: budget.maxMetaChars }) },
+        }
+      })
+    },
+  }))
+
   register(defineTool({
     name: 'yzj_im_group_recent',
-    description: 'List recent group/chat sessions with unread counts and last-message previews, newest first. There is no group search; page through this to locate a target group.',
+    description: 'List recent group/chat sessions with unread counts and last-message previews, newest first. Page through this to locate a target group; yzj_im_group_search exists but is unreliable on some tenants.',
     presentCall: () => titled('最近的群列表', 'read'),
     parameters: {
       limit: { type: 'number', description: 'Per-page count; default 20, range 1-20 (CLI cap).' },
