@@ -453,15 +453,27 @@ export function applyDocTools(ctx: Context, budget: YzjToolBudget): () => void {
       id: { type: 'string', required: true, description: 'Doc node id (DOC_ID).' },
       element: { type: 'string', required: true, description: 'JSON array of block objects, e.g. [{"type":"paragraph","content":[{"type":"text","content":"正文"}]}].' },
       blockId: { type: 'string', description: 'Parent block id; defaults to "doc" (document root).' },
-      index: { type: 'number', description: 'Insertion index; -1 (default) appends, 0 prepends.' },
+      index: { type: 'number', description: 'Insertion index. Omit to append at the end; 0 inserts at the top.' },
     },
     output: yzjToolOutput,
     timeoutMs: budget.timeoutMs,
     isConcurrencySafe: () => false,
     async execute(args) {
       const command = ['doc', 'block', 'insert', '--id', args.id, '--element', args.element]
-      if (args.blockId !== undefined) command.push('--block-id', args.blockId)
-      if (args.index !== undefined) command.push('--index', String(args.index))
+      /*
+        插入的父块参数叫 `--parent-block-id` (yzj-cli 0.1.4 起)。
+
+        旧名 `--block-id` 会被 argv 解析直接拒绝——而 `doc block list` **至今仍用旧名**，
+        两条命令一个新名一个旧名，照着隔壁那行抄必错。这一条和 goal/writeback.ts 里那条
+        是同一次实跑撞出来的：升级之后线上每一笔文档写入都在失败。
+      */
+      if (args.blockId !== undefined) command.push('--parent-block-id', args.blockId)
+      /*
+        用**等号形式**送 index：负数用空格形式会被当成一个未知短参数（`--index -1` 报
+        `unexpected argument '-1'`），等号形式才解析得了。实测 `--index=-1` 与省略 index
+        一样是追加到末尾，`--index 0` 插到标题下面——CLI 帮助里写的「默认 0」不对。
+      */
+      if (args.index !== undefined) command.push(`--index=${String(args.index)}`)
       return runValue(ctx, budget, 'doc block insert', command, json => ({
         content: `inserted blocks into doc (${args.id})\n${docLink(args.id)}`,
         data: { payload: clipJson(json, { maxChars: budget.maxMetaChars }), id: args.id, link: docLink(args.id) },

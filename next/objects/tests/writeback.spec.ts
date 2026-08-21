@@ -20,6 +20,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, asRecord, asString, type GraphActor } from '@yzj-next/graph'
 import { commitmentFamily, goalCommitmentIdFor } from '../src/index.ts'
 import { isFence } from '../src/fence.ts'
+import { waitingFamily } from '../src/task/waiting.ts'
 import { applyGoalWriteback, lineFor, writebackIdFor } from '../src/goal/writeback.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
@@ -117,6 +118,9 @@ beforeEach(async () => {
   ctx = new Context()
   graph = new YzjGraph(ctx, { root: await mkdtemp(join(tmpdir(), 'yzj-next-wb-')) })
   graph.defineFamily(commitmentFamily)
+  // 回写写不进去会开一条**等待**，这个家族不注册的话那条事件落不进来，
+  // 而落不进来和「没开」在断言里长得一模一样。
+  graph.defineFamily(waitingFamily)
   await graph.selectAccount('acct-1')
   insertOk = true
   listOk = true
@@ -468,6 +472,86 @@ describe('台账写在栅栏以下', () => {
     await settle(landed(writebackIdFor(GOAL, 'c1', 'born')))
     expect(linesOf(inserts[0] ?? [])).toHaveLength(2)
     expect(isFence(linesOf(inserts[0] ?? [])[0] ?? '')).toBe(true)
+  })
+})
+
+/**
+ * 写不进去要**有人知道** —— 那条失败记录得有读者。
+ *
+ * 装这一段之前，`goal/written-back` 这个家族一个读者都没有：失败照实落库，然后没有
+ * 任何代码、任何面、任何人再看它一眼。今天下午的后果是实打实的——yzj-cli 升级改了一个
+ * 参数名，从那一刻起线上每一笔回写都在失败，而系统一声不吭，是手敲一条 CLI 才发现的。
+ */
+describe('写不进去要有人知道', () => {
+  const openWaitings = (): Record<string, unknown>[] => [...graph.rawEvents(['waiting/opened'])]
+    .map(e => asRecord(e.data) ?? {})
+  const closedIds = (): string[] => [...graph.rawEvents(['waiting/closed'])]
+    .map(e => asString(asRecord(e.data)?.waitingId) ?? '')
+
+  it('写不进去就开一条等待，话里说清组里看不到什么', async () => {
+    await goal()
+    insertOk = false
+    applyGoalWriteback(ctx)
+    await child()
+    await settle(() => openWaitings().length === 1)
+    expect(openWaitings()).toHaveLength(1)
+    const what = asString(openWaitings()[0]?.what) ?? ''
+    // 说的是**组里看不到了**，不是「一次 API 调用失败」——后者没人能据此做任何事。
+    expect(what).toContain('Q3 对账')
+    expect(what).toContain('组里')
+    expect(what).toContain('没有写权限')
+    expect(openWaitings()[0]?.kind).toBe('system')
+  })
+
+  it('同一次故障只开一条 —— 「等了多久」不能每失败一笔就重置', async () => {
+    await goal()
+    insertOk = false
+    applyGoalWriteback(ctx)
+    await child('c-a')
+    await child('c-b', { executor: { kind: 'human', openId: 'p-8', name: '李四' } })
+    await settle(() => openWaitings().length >= 1
+      && landed(writebackIdFor(GOAL, 'c-a', 'born'), writebackIdFor(GOAL, 'c-b', 'born'))())
+    expect(openWaitings()).toHaveLength(1)
+  })
+
+  it('写成了就关掉 —— 只有写成功能证明那份文档又通了', async () => {
+    await goal()
+    insertOk = false
+    applyGoalWriteback(ctx)
+    await child('c-a')
+    await settle(() => openWaitings().length === 1)
+    expect(closedIds()).toEqual([])
+    insertOk = true
+    await child('c-b', { executor: { kind: 'human', openId: 'p-8', name: '李四' } })
+    await settle(() => closedIds().length === 1)
+    expect(closedIds()).toEqual([asString(openWaitings()[0]?.waitingId)])
+  })
+
+  /**
+   * 好了之后再坏一次，还得开得出来。
+   *
+   * 等待是**吸收态**：关掉的那条不能复活。所以 id 里必须带一个会变的代次，否则第二次
+   * 故障会撞上一条已经关掉的对象，`append` 落在墓碑上，而系统再一次一声不吭——比第一次
+   * 更坏，因为这次我们以为自己装了警报。
+   */
+  it('好了之后再坏一次，仍然开得出新的一条', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await child('c-a')
+    await settle(landed(writebackIdFor(GOAL, 'c-a', 'born')))
+    insertOk = false
+    await child('c-b', { executor: { kind: 'human', openId: 'p-8', name: '李四' } })
+    await settle(() => openWaitings().length === 1)
+    expect(openWaitings()).toHaveLength(1)
+    insertOk = true
+    await child('c-c', { executor: { kind: 'human', openId: 'p-7', name: '王五' } })
+    await settle(() => closedIds().length === 1)
+    expect(closedIds()).toHaveLength(1)
+    insertOk = false
+    await child('c-d', { executor: { kind: 'human', openId: 'p-6', name: '赵六' } })
+    await settle(() => openWaitings().length === 2)
+    expect(openWaitings(), '第二次故障没开出新的等待——撞在墓碑上了').toHaveLength(2)
+    expect(openWaitings()[0]?.waitingId).not.toBe(openWaitings()[1]?.waitingId)
   })
 })
 

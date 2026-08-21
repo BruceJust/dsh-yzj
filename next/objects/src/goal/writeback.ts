@@ -6,7 +6,7 @@
  * 立目标那天的样子。「目标活着，不需要任何人去维护目标」这句验收句，对操作者成立了
  * 一半，对全组一句都不成立。
  *
- * 这个文件补的是另一半。四条纪律，每一条都对应一种它可能变坏的样子：
+ * 这个文件补的是另一半。每一条纪律都对应一种它真的变坏过的样子：
  *
  * - **只在生与死两个时刻写。** 把每一次进度都推回去，就是把一份全组共读的文档变成
  *   一条日志流——那份文档的价值恰恰在于它短到有人愿意读。设计的原话就是「回写只在
@@ -15,6 +15,8 @@
  *   写过没有」。没有这一条，重启就会往一份全组在读的文档里再贴一遍同样的行。
  * - **失败也落一条。** 不落的话重启会无限重试；更要紧的是「组里到底知不知道」得有
  *   一个答案——板上说已回写、文档里什么都没有，是幽灵承诺换了个通道复活。
+ * - **那条失败记录得有读者。** 落库落得再诚实，没人读就只是注释：CLI 改了一个参数名，
+ *   线上每一笔回写连着失败了一个下午，系统一声不吭。所以写不进去要开一条**等待**。
  * - **写在栅栏以下。** 台账贴在成功标准后面，看起来只是排版问题——直到差距简报改读
  *   真身正文当判据，系统自己记的账就成了系统判自己达标的尺子。见 `../fence.ts`。
  * - **它是机械后果，不是新的一次决定。** 人在提案裁决那一刻已经签过字了（那张卡上
@@ -27,6 +29,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import { asNumber, asRecord, asString, type GraphEvent } from '@yzj-next/graph'
 import { failureOf } from '../bridge-error.ts'
 import { fenceLine } from '../fence.ts'
+import { waitingIdFor } from '../task/waiting.ts'
+import { goalCommitmentIdFor } from './family.ts'
 import { docIdOf, fenceOf } from './truth.ts'
 
 /**
@@ -102,7 +106,19 @@ export function lineFor(
 /** 一次写入的结果。失败带着原因——「没写成」和「为什么没写成」是两件事。 */
 type WriteOutcome = { readonly ok: true } | { readonly ok: false; readonly why: string }
 
-/** 往文档尾部贴若干段。一次调用贴完，栅栏和它下面的第一行不会被谁插在中间。 */
+/**
+ * 往文档尾部贴若干段。一次调用贴完，栅栏和它下面的第一行不会被谁插在中间。
+ *
+ * **父块参数叫 `--parent-block-id`**，不叫 `--block-id`——后者是 yzj-cli 0.1.4 之前
+ * 的名字，同名参数在 `doc block list` 上至今还是旧写法，两条命令一个用新名一个用旧名。
+ * 这条是实跑撞出来的：CLI 在今天 14:52 升到 0.1.4，而在那之后，**线上每一笔目标回写
+ * 都在失败**——argv 解析直接拒绝，一个字都没写进任何一份文档。图上会如实记 `failed`
+ * （这要感谢 `failureOf` 现在真的读得到 stderr），可组里看到的就是那份文档不再更新。
+ *
+ * 不带 `--index` 就是追加到末尾（实测；CLI 帮助里写的「默认 0」不对——`--index 0`
+ * 会插到标题下面第一行）。台账必须在末尾：插到头上，栅栏会把整份成功标准切到线以下，
+ * 于是判据变成空的，而这正是栅栏本来要防的事反过来发生一遍。
+ */
 async function insert(ctx: Context, docId: string, lines: string[]): Promise<WriteOutcome> {
   const bridge = ctx.get('yzjBridge')
   if (bridge === undefined) return { ok: false, why: '云之家通道未就绪' }
@@ -110,20 +126,78 @@ async function insert(ctx: Context, docId: string, lines: string[]): Promise<Wri
     lines.map(line => ({ type: 'paragraph', content: [{ type: 'text', content: line }] })),
   )
   const result = await bridge.run(
-    ['doc', 'block', 'insert', '--id', docId, '--element', element, '--block-id', 'doc'],
+    ['doc', 'block', 'insert', '--id', docId, '--element', element, '--parent-block-id', 'doc'],
     { timeoutMs: 20_000 },
   )
   if (!result.ok) return { ok: false, why: failureOf(result, '写入失败') }
   return { ok: true }
 }
 
-/** 这个目标身上，我们**成功写进去过**账没有。 */
-function wroteBefore(ctx: Context, goalRef: string): boolean {
+/** 这个目标身上，我们成功写进去过几笔账。0 就是一笔都没写成过。 */
+function successesFor(ctx: Context, goalRef: string): number {
+  let count = 0
   for (const event of ctx.yzjGraph.rawEvents(['goal/written-back'])) {
     const data = asRecord(event.data)
-    if (asString(data?.goalRef) === goalRef && asString(data?.status) === 'written') return true
+    if (asString(data?.goalRef) === goalRef && asString(data?.status) === 'written') count += 1
   }
-  return false
+  return count
+}
+
+/**
+ * 「这份文档写不进去」是一条**等待**，不是一行日志 (§6.5 同一条道理).
+ *
+ * 在装上它之前，`goal/written-back` 这个家族**一个读者都没有**：失败照实落库，然后
+ * 没有任何代码、任何面、任何人再去看它一眼。今天下午就撞上了后果——yzj-cli 14:52 升到
+ * 0.1.4 改了一个参数名，从那一刻起线上每一笔回写都在失败，而系统一声不吭，我是手敲
+ * 一条 CLI 才发现的。**一条没有读者的记录是注释，不是机制。**
+ *
+ * 这个文件开头就写着「『组里到底知不知道』得有一个答案」。那个答案不能只存在于日志里：
+ * 组里看到的那份目标文档停止更新了，而板上一切正常——这正是幽灵承诺换了个通道复活。
+ * 通道离线用的就是这一招（`channel/health.ts`），照抄它：等待对象可应答、可投影、
+ * 重启之后还在。
+ *
+ * **一个目标一条**，不是全局一条：坏的是「这一份文档」，而一条笼统的「有些回写失败了」
+ * 既不可行动、又会在下一次任意一笔成功时被错误地全部清掉。代价是 CLI 整体坏掉时几个
+ * 活目标各开一条——那是实话（这几份文档确实都停更了），而且它们会一起消失。
+ *
+ * id 里带**已成功笔数**当代次：等待是吸收态，关掉的那条不能复活，所以每次成功之后的
+ * 新故障必须落在一个新 id 上，否则第二次故障永远开不出来。
+ */
+function outageIdFor(goalRef: string, generation: number): string {
+  return waitingIdFor('goal-writeback', `${goalRef}#${String(generation)}`)
+}
+
+async function reportOutage(
+  ctx: Context, goalRef: string, generation: number, why: string,
+): Promise<void> {
+  const waitingId = outageIdFor(goalRef, generation)
+  // 同一次故障只开一条：不然「等了多久」会在每一笔失败时重置，而那个数字正是它的全部价值。
+  if (ctx.yzjGraph.rawObject('waiting', waitingId) !== undefined) return
+  const goal = asRecord(ctx.yzjGraph.rawObject('commitment', goalCommitmentIdFor(goalRef))?.state)
+  const name = asString(goal?.what as never) ?? goalRef
+  await ctx.yzjGraph.append({
+    type: 'waiting/opened',
+    data: {
+      waitingId,
+      kind: 'system',
+      what: `目标真身写不进去：「${name}」——组里在那份文档里看不到承诺的动静（${why}）`,
+      openedAt: Date.now(),
+      idemKey: waitingId,
+    },
+    actor: { kind: 'system' },
+  })
+}
+
+/** 写成了就把上一代那条故障关掉。**只有写成功能证明那份文档又通了。** */
+async function clearOutage(ctx: Context, goalRef: string, generation: number): Promise<void> {
+  const waitingId = outageIdFor(goalRef, generation)
+  const status = asString(asRecord(ctx.yzjGraph.rawObject('waiting', waitingId)?.state)?.status)
+  if (status !== 'open' && status !== 'escalated') return
+  await ctx.yzjGraph.append({
+    type: 'waiting/closed',
+    data: { waitingId, cause: 'resolved' },
+    actor: { kind: 'system' },
+  })
 }
 
 /**
@@ -149,7 +223,7 @@ async function appendLine(ctx: Context, goalRef: string, line: string): Promise<
   if (docId === undefined) {
     return { ok: false, why: '目标真身不是云之家知识库文档，写不进去' }
   }
-  const fenced = await fenceOf(ctx, goalRef) ?? wroteBefore(ctx, goalRef)
+  const fenced = await fenceOf(ctx, goalRef) ?? successesFor(ctx, goalRef) > 0
   return insert(ctx, docId, fenced ? [line] : [fenceLine('成功标准'), line])
 }
 
@@ -219,6 +293,13 @@ export function applyGoalWriteback(ctx: Context): () => void {
         const state = asRecord(ctx.yzjGraph.rawObject('commitment', commitmentId)?.state)
         if (state === undefined) return
         const line = lineFor(moment, state)
+        /*
+          代次要在**这一笔落库之前**数。
+
+          数在后面的话，成功那一笔会把自己算进代次，于是 `clearOutage` 去关的是一条
+          还没出生的等待——故障永远挂着，而它挂着的理由是它已经好了。
+        */
+        const generation = successesFor(ctx, goalRef)
         const outcome = await appendLine(ctx, goalRef, line)
         await ctx.yzjGraph.append({
           type: 'goal/written-back',
@@ -233,6 +314,10 @@ export function applyGoalWriteback(ctx: Context): () => void {
           },
           actor: { kind: 'agent' },
         })
+        // 落库之后再动等待：先开等待后落库的话，中间崩一下就留下一条没有来由的故障。
+        await (outcome.ok
+          ? clearOutage(ctx, goalRef, generation)
+          : reportOutage(ctx, goalRef, generation, outcome.why))
       })
     } catch (error) {
       console.error('[yzj-next-objects] failed to record the write-back', error)
