@@ -400,8 +400,17 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
    * 这条定律要禁的那种不可兑付的信号。
    */
   const jumpToCard = useCallback((kind: string, id: string): void => {
-    const node = streamRef.current?.querySelector(`[data-card="${kind}:${id}"]`)
-    if (node === null || node === undefined) {
+    /*
+      扫属性，不拼选择器。
+
+      `[data-card="${kind}:${id}"]` 把**数据**塞进了选择器语法：今天的对象 id 全是
+      哈希，看着安全，可 id 是数据不是常量——哪天某一族的 id 里带上一个引号或方括号，
+      这里抛的是语法错，而抛错的时刻恰恰是有人正想找一件事在哪。
+    */
+    const anchor = `${kind}:${id}`
+    const node = [...(streamRef.current?.querySelectorAll('[data-card]') ?? [])]
+      .find(candidate => candidate.getAttribute('data-card') === anchor)
+    if (node === undefined) {
       setToast('这件事不在当前这一屏里——往上翻能找到它，它还在原地等着。')
       return
     }

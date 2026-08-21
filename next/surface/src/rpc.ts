@@ -12,7 +12,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString, type GraphViewer } from '@yzj-next/graph'
-import { MODE_BADGE, type AnswerableDemand, type AnswerableMode } from '@yzj-next/cards'
+import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
 import type { TopicDescriptor, TopicMessage } from '@yzj-next/channel'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
 import { goalCommitmentIdFor } from '@yzj-next/objects'
@@ -339,9 +339,18 @@ export async function placeView(
   const onDuty = listed?.onDuty ?? entry !== undefined
   const kind = listed?.kind ?? (placeKey.startsWith('yzj-dm-') ? 'direct' as const : 'group' as const)
   const viewer: GraphViewer = { kind: 'place', placeKey }
-  /** topicKey → whether anything about it still wants attention. */
+  /**
+   * topicKey → 这个话题还在办。
+   *
+   * 只问**留意层**这两族：任务没走到终态、还在等着谁。等人答的那几种（确认、冲突、
+   * 验收、裁决）走下面那个抽象查询，因为它们同时还要在卡上说出等的是什么。
+   *
+   * **承诺不算。** 它比话题活得久——一条人家欠着的活可以挂三个星期，而它所在的那段
+   * 对话早就办完归档了。把承诺算进来，收件箱（那里承诺根本不定音调）会说这个话题
+   * 空闲、群视图会说它进行中，同一件事两个屏幕两种说法。
+   */
   const hot = new Set<string>()
-  for (const kind of ctx.yzjCards.types()) {
+  for (const kind of ['task', 'waiting']) {
     for (const object of ctx.yzjGraph.query(viewer, { kind })) {
       const state = asRecord(object.state)
       const status = asString(state?.status)
@@ -367,15 +376,15 @@ export async function placeView(
   }
   const cards: PlaceTopicCard[] = (entry?.topics ?? []).map((topic) => {
     const demand = owed.get(topic.topicKey)
+    // 等着人答，本身就是「还在办」——冷卡是归档索引，而这件事还没完。
+    const live = hot.has(topic.topicKey) || demand !== undefined
     return {
       sessionId: topic.sessionId,
       topicKey: topic.topicKey,
       topicRootId: topic.topicRootId,
       label: topic.label,
-      badge: demand === undefined
-        ? hot.has(topic.topicKey) ? '进行中' : '已归档'
-        : demand.badge ?? MODE_BADGE[demand.mode],
-      hot: hot.has(topic.topicKey),
+      badge: demand?.badge ?? (live ? '进行中' : '已归档'),
+      hot: live,
       /** 有人在等你的时候，卡自己说清等的是什么——徽标只有四个字。 */
       ...(demand === undefined ? {} : { owes: demand.label }),
     }
@@ -1384,13 +1393,13 @@ export function inboxView(ctx: Context): InboxView {
       preview,
       live,
       /*
-        徽标由**模式**决定，不由音调决定。
+        徽标跟着**模式**走，不跟着音调走——徽标由服务端算好带过来。
 
-        音调只有两档（要不要你放行 / 要不要你判行不行），够排序用；徽标要说清那件
-        事叫什么——待裁决、待签发、待答各是各的。让徽标退回音调，六种模式会被压成
-        两个词，而分类学的全部用处就是让它们分得开。
+        音调只有两档（要不要你放行 / 要不要你判行不行），够排序用；徽标要说清那件事
+        叫什么：待裁决、待签发、待答各是各的。让徽标退回音调，六种模式会被压成两个词，
+        而分类学的全部用处正是让它们分得开。
       */
-      ...(demand === undefined ? {} : { badge: demand.badge ?? MODE_BADGE[demand.mode], demand }),
+      ...(demand === undefined ? {} : { badge: demand.badge, demand }),
     })
   }
 

@@ -20,7 +20,7 @@ import {
   type GraphActor, type GraphObject, type GraphViewer, type JsonValue,
 } from '@yzj-next/graph'
 import {
-  CARD_TEXT_MAX_CHARS,
+  CARD_TEXT_MAX_CHARS, MODE_BADGE,
   type AnswerableDemand,
   type CardActResult, type CardAction, type CardDefinition, type CardProjection,
   type CardRef, type CardTextProjection, type CardVia, type YzjCardChannel,
@@ -239,13 +239,19 @@ export class YzjCards extends Service {
     const definition = this.definitions.get(object.kind)
     if (definition === undefined) return undefined
     if (definition.isResolved(object.state as never)) return undefined
-    const declared = definition.demand?.(object.state as never)
-    if (declared !== undefined) return declared
-    return {
-      layer: 'blocking',
-      mode: 'open-question',
+    const declared = definition.demand?.(object.state as never) ?? {
+      layer: 'blocking' as const,
+      mode: 'open-question' as const,
       label: headlineOf(definition.renderText(object.state as never).body),
     }
+    /*
+      徽标在**这里**定下来，不留给每一处投影各自去推。
+
+      `badge ?? MODE_BADGE[mode]` 这一句一旦散在侧栏、群视图和决断条里，六种模式就有
+      了三份映射表：加第七种的那天，三处得同时想起来改，而漏掉的那一处不会报错，只会
+      把新模式画成一个别的词。所以出服务的门之前它就已经是一个定值。
+    */
+    return { ...declared, badge: declared.badge ?? MODE_BADGE[declared.mode] }
   }
 
   /**
@@ -262,11 +268,12 @@ export class YzjCards extends Service {
     for (const object of this.pending(viewer)) {
       const demand = this.demandOf(object)
       if (demand === undefined) continue
+      const topicKey = contextOf(object)
       out.push({
         ref: { kind: object.kind, id: object.id },
         demand,
         at: object.createdAt,
-        ...(contextOf(object) === undefined ? {} : { topicKey: contextOf(object) as string }),
+        ...(topicKey === undefined ? {} : { topicKey }),
       })
     }
     return out

@@ -23,18 +23,8 @@
  */
 
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { AnswerableDemandWire, AnswerableMode, StreamCard } from './rpc.ts'
+import type { AnswerableDemandWire, StreamCard } from './rpc.ts'
 import css from './decision.module.css'
-
-/** 六种模式各自的徽标字面。新家族声明模式即得徽标——这里不认识任何类型。 */
-const MODE_BADGE: Readonly<Record<AnswerableMode, string>> = {
-  'single-confirm': '待确认',
-  'per-item-verdict': '待裁决',
-  'two-verb-acceptance': '待验收',
-  issuance: '待签发',
-  'multi-exit-assessment': '待验收',
-  'open-question': '待答',
-}
 
 /**
  * 一行**真的**放得下几个。
@@ -85,12 +75,13 @@ export function chipsOf(cards: readonly StreamCard[]): Chip[] {
   const out: Chip[] = []
   for (const card of cards) {
     /*
-      已答的不算，非阻塞的不算。
+      非阻塞的不算 —— 一条逾期承诺或一次可纠的挂接推断塞进这里，就是把「可纠」
+      升格成「待答」，人得为每一个默认值签一次字。
 
-      `resolved` 与 `demand === undefined` 是两个不同的「不算」：前者是答完了
-      （即溶的那一半），后者是家族说了「我是信号/我可默认生效」——一条逾期承诺
-      或一次可纠的挂接推断塞进这里，就是把「可纠」升格成「待答」，人得为每一个
-      默认值签一次字。
+      `resolved` 这道是**冗余的**：服务端算 demand 时已经先问过 `isResolved`，答完的
+      对象根本不带 demand 过来。留着是因为两个判断来自两处（一处说「它结束了」，
+      一处说「它在等什么」），而这里宁可信「它结束了」——真要有一天它们对不上，
+      多画一枚点不出东西的 chip 比少画要糟。
     */
     if (card.resolved) continue
     const demand: AnswerableDemandWire | undefined = card.demand
@@ -98,7 +89,11 @@ export function chipsOf(cards: readonly StreamCard[]): Chip[] {
     out.push({
       kind: card.kind,
       id: card.id,
-      badge: demand.badge ?? MODE_BADGE[demand.mode] ?? '待答',
+      /*
+        徽标由服务端定死了（家族自己写的，或从模式推的）。这里不再推一次:同一个
+        字符串两处推导，就是两份要一起维护的映射表，而漏掉的那一处不会报错。
+      */
+      badge: demand.badge ?? '待答',
       label: demand.label,
       seq: card.seq,
     })
@@ -164,7 +159,15 @@ export function YzjDecisionBar(props: DecisionBarProps): ReactNode {
     if (node === null) return
     setWidth(node.getBoundingClientRect().width)
     const observer = new ResizeObserver((entries) => {
-      const measured = entries[0]?.contentRect.width
+      /*
+        两次测量得是同一个量。
+
+        首帧读的是 `getBoundingClientRect()`（含内边距），而 `contentRect` 不含——
+        条左右各 20px 内边距，两者差 40。阈值附近这 40px 会让「第一次 resize」在
+        什么都没真的变的情况下把 chip 数从 3 翻成 2，看上去像随机重排。
+      */
+      const entry = entries[0]
+      const measured = entry?.borderBoxSize?.[0]?.inlineSize ?? entry?.contentRect.width
       if (measured !== undefined) setWidth(measured)
     })
     observer.observe(node)

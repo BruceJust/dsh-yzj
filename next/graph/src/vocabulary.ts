@@ -207,6 +207,15 @@ const conflictFamily: GraphFamily = {
         incomingAnchor: z.string().min(1),
         note: z.string(),
         status: z.literal('flagged').default('flagged'),
+        /**
+         * 这次暂停发生在谁面前。
+         *
+         * 冲突卡是**明确投到工作发生的那个场所**的（「冲突要被造成它的人看见」），
+         * 可这个字段此前不存在——于是对象自己说「我没被说进任何场所」，而群里明明
+         * 躺着那张卡。两句话对不上的后果不抽象：群视图问「这个话题欠着什么」时，
+         * 隔离函数如实答「什么都没有」，一件已经把活停在半路的事在群里没有任何徽标。
+         */
+        audience: z.array(z.string()).optional(),
       }),
     },
     'conflict/resolved': {

@@ -177,6 +177,25 @@ describe('conflict visibility', () => {
     expect(graph.rawEvents(['conflict/flagged'])).toHaveLength(1)
   })
 
+  /**
+   * 冲突卡是明投到工作发生的那个场所的，那对象也得承认这件事。
+   *
+   * 此前 `conflict/flagged` 不带听众集合——于是隔离函数如实答「它没被说进任何场所」，
+   * 群视图问「这个话题欠着什么」时什么都拿不到：一件已经把活停在半路的事，在它停下来
+   * 的那间屋子里没有任何徽标，而那张卡就躺在群里。两句话对不上，就是这么显出来的。
+   */
+  it('把暂停记在它发生的那间屋子名下——否则群视图看不见它', async () => {
+    const result = await tools.get('conflict_flag')?.execute({
+      note: '价格改回原值与正在做的调价相反', inflight: '改成 99', incoming: '改回 128',
+    }, EXEC)
+    const conflictId = String(result?.conflictId)
+    const seen = graph.object({ kind: 'place', placeKey: BINDING.placeKey }, 'conflict', conflictId)
+    expect(seen, '冲突在它自己发生的场所里看不见').toBeDefined()
+    // 别的场所照旧看不见——隔离函数没有被放宽，只是不再自相矛盾。
+    expect(graph.object({ kind: 'place', placeKey: 'yzj-group-other' }, 'conflict', conflictId))
+      .toBeUndefined()
+  })
+
   it('resolves either way and echoes which side won', async () => {
     const result = await tools.get('conflict_flag')?.execute({
       note: 'n', inflight: 'a', incoming: 'b',

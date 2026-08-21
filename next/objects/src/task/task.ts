@@ -261,6 +261,10 @@ export const taskCard: CardDefinition<TaskState> = {
    *
    * 失败/超时/空回合根本走不到这里(它们直接作废,不出卡),所以「只有有交付的
    * 完成终态出验收卡」在这一层是**结构性成立**的,不靠这个函数把关。
+   *
+   * 返工轮次**不写进徽标**。徽标是一格固定词汇（待确认/待裁决/待验收…），塞进
+   * 「待验收 · 第 2 版」就把一个变长的事实挤进了一个不变长的槽。轮次的位置在卡上,
+   * 设计原话就是「轮次在卡上可见」——`renderText` 里那一行「已返工 N 轮」。
    */
   demand: (state) => {
     if (state.status === 'terminal') {
@@ -268,7 +272,6 @@ export const taskCard: CardDefinition<TaskState> = {
         layer: 'blocking',
         mode: 'two-verb-acceptance',
         label: state.summary === undefined || state.summary === '' ? state.what : state.summary,
-        ...(state.round === undefined ? {} : { badge: `待验收 · 第 ${String(state.round + 1)} 版` }),
       }
     }
     if (state.status === 'interrupted') {

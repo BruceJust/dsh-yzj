@@ -40,6 +40,8 @@ const OTHER: TopicDescriptor = {
   ...TOPIC, topicKey: 'yzj-topic-b', sessionId: 'session-b', topicRootId: 'root-b', label: '发票',
 }
 
+const OPERATOR_ACTOR = { kind: 'operator' as const, openId: 'op-1' }
+
 let ctx: Context
 let graph: YzjGraph
 let cards: YzjCards
@@ -159,7 +161,7 @@ const conflict = async (id = 'cf-1'): Promise<void> => {
     type: 'conflict/flagged',
     data: {
       conflictId: id, topicKey: TOPIC.topicKey, inflightAnchor: 'a', incomingAnchor: 'b',
-      note: '正在改的那一段刚被要求改回去',
+      note: '正在改的那一段刚被要求改回去', audience: [TOPIC.placeKey],
     },
     actor: { kind: 'agent' },
   })
@@ -180,7 +182,7 @@ const noise = async (): Promise<void> => {
     type: 'waiting/opened',
     data: {
       waitingId: 'wt-1', what: '等财务给口径', kind: 'third-party', topicKey: TOPIC.topicKey,
-      openedAt: Date.now(), scope: 's',
+      openedAt: Date.now(), scope: 's', placeKey: TOPIC.placeKey, audience: [TOPIC.placeKey],
     },
     actor: { kind: 'agent' },
   })
@@ -272,6 +274,105 @@ describe('全局三层定律：什么不进决断面', () => {
       actor: { kind: 'operator', openId: 'op-1' },
     })
     expect(bar()).toEqual([])
+  })
+})
+
+describe('留意层与归档：两个屏幕不能各说各的', () => {
+  /**
+   * 承诺比话题活得久。
+   *
+   * 一条人家欠着的活可以挂三个星期，而它所在的那段对话早就办完归档了。曾经把「还在
+   * 办」的判断扩成「所有卡型里还没结束的」——于是收件箱（那里承诺根本不定音调）说
+   * 这个话题空闲、群视图说它进行中，同一件事两个屏幕两种说法。
+   */
+  it('只剩一条没做完的承诺时，话题是冷卡——两处一致', async () => {
+    await noise()
+    const view = await placeView(ctx, TOPIC.placeKey, 20)
+    const card = view.topics.find(topic => topic.topicKey === TOPIC.topicKey)
+    // waiting 还开着，所以它确实还在办;真正要锁的是下一条。
+    expect(card?.hot).toBe(true)
+    await graph.append({
+      type: 'waiting/closed', data: { waitingId: 'wt-1', cause: 'resolved' },
+      actor: OPERATOR_ACTOR,
+    })
+    const after = await placeView(ctx, TOPIC.placeKey, 20)
+    const cold = after.topics.find(topic => topic.topicKey === TOPIC.topicKey)
+    expect(cold?.hot).toBe(false)
+    expect(cold?.badge).toBe('已归档')
+    // 收件箱同意：这个话题此刻不占注意力。
+    const row = inboxView(ctx).places[0]?.topics.find(item => item.sessionId === TOPIC.sessionId)
+    expect(row).toBeUndefined()
+  })
+
+  it('只等着人答、没有活在跑的话题仍是热卡——它没办完', async () => {
+    // 一张待确认的卡:没有任何任务在跑，可这件事显然没完。
+    await approval()
+    const view = await placeView(ctx, TOPIC.placeKey, 20)
+    const card = view.topics.find(topic => topic.topicKey === TOPIC.topicKey)
+    expect(card?.hot).toBe(true)
+    expect(card?.badge).toBe('待确认')
+  })
+
+  /**
+   * 私语域生成的差距简报**不该**在群视图里显形（§1.6 可见域法则）。
+   *
+   * 设计明写简报默认在私语域生成——它的证据跨场所，在群里生成会被削掉一半。所以它
+   * 没有听众集合，而群视图是一个场所视角：看不见是对的，不是漏的。要投到公域得走
+   * 既有的工件化脱密通道，不是让这张卡自己漏过去。
+   */
+  /**
+   * 冲突卡是**明投到工作发生的那个场所**的，那对象也得承认这件事。
+   *
+   * `conflict/flagged` 此前不带听众集合——于是隔离函数如实答「它没被说进任何场所」，
+   * 群视图问「这个话题欠着什么」时什么都拿不到：一件已经把活停在半路的事，在它停下来
+   * 的那间屋子里没有任何徽标，而那张卡就躺在群里。
+   */
+  it('冲突在它停下来的那间屋子里看得见', async () => {
+    await conflict()
+    const view = await placeView(ctx, TOPIC.placeKey, 20)
+    const card = view.topics.find(topic => topic.topicKey === TOPIC.topicKey)
+    expect(card?.badge).toBe('冲突待裁')
+    expect(card?.owes).toContain('改回去')
+  })
+
+  it('私语域的差距简报不会从群视图的话题卡上漏出去', async () => {
+    await report()
+    const view = await placeView(ctx, TOPIC.placeKey, 20)
+    const card = view.topics.find(topic => topic.topicKey === TOPIC.topicKey)
+    expect(card?.owes).toBeUndefined()
+    expect(card?.badge).toBe('已归档')
+    // 但操作者自己的收件箱里它在——两个视角，两种可见域，同一个对象。
+    const row = inboxView(ctx).places[0]?.topics.find(item => item.sessionId === TOPIC.sessionId)
+    expect(row?.badge).toBe('待验收')
+    expect(row?.preview).toContain('差距简报')
+  })
+
+  /**
+   * 因重启中断的确认此前在收件箱里根本不出现。
+   *
+   * 它声明了 `pendingStatuses: ['pending', 'interrupted']`，而收件箱那段手写查询只问
+   * `status: ['pending']`——一次重启之后，一个等着人按「重试」的确认就此没有任何入口。
+   * 抽象查询问的是「谁还在等人答」，家族自己答，这一类就自动回来了。
+   */
+  it('重启中断的确认自己回到了收件箱里', async () => {
+    await approval()
+    await graph.append({
+      type: 'approval/interrupted', data: { approvalId: 'ap-1' }, actor: { kind: 'system' },
+    })
+    const row = inboxView(ctx).places[0]?.topics.find(item => item.sessionId === TOPIC.sessionId)
+    expect(row?.badge).toBe('待重试')
+    expect(row?.demand?.layer).toBe('blocking')
+  })
+
+  it('徽标在出服务的门之前就已经是定值——投影侧不再各推一次', async () => {
+    await approval()
+    await delivered()
+    await breakdown()
+    await signGoal()
+    for (const card of cardsFor(ctx, TOPIC)) {
+      if (card.demand === undefined) continue
+      expect(card.demand.badge, `${card.kind} 的徽标没被算出来`).toBeTruthy()
+    }
   })
 })
 

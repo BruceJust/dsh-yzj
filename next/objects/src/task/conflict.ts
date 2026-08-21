@@ -153,6 +153,17 @@ export function applyConflictTools(ctx: Context): () => void {
           inflightAnchor: args.inflight,
           incomingAnchor,
           note: `${args.note}（进行中：${args.inflight}；新指令：${args.incoming}）`,
+          /*
+            暂停发生在活正在干的那个场所，所以听众就是那间屋子——和确认卡同一个
+            约定（`approval/opened` 出生时就带上 `audience`，投递是另一回事）。
+
+            写在出生时刻而不是投递成功之后：这次暂停**已经**发生在那间屋子里的活上
+            了，卡有没有送到是通道的事。反过来（送到了才认）会让一次通道抖动把这件
+            事从那个场所的视野里整个抹掉，而它明明停在那儿。
+          */
+          ...(binding?.placeKey === undefined || binding.placeKey === ''
+            ? {}
+            : { audience: [binding.placeKey] }),
         },
         actor: { kind: 'agent' },
       })
