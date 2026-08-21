@@ -328,3 +328,51 @@
   flex: none; font-size: 10px; padding: 1px 7px; border-radius: 10px;
   background: #FFF4E8; color: #A5590E;
 }
+
+/*
+  今天的会 —— 事件枢纽在板上的那一段 (§5.6).
+
+  排在承诺前面，因为会有开始时间而承诺没有：**今天几点**是这一屏上唯一带截止感的
+  东西。刻意不做成日历——它回答的是「会前我该看什么」，不是「我这周有什么」，
+  而后者云之家里已经有一个够用的了。
+*/
+.events { margin: 0 0 14px; }
+.eventsHead { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 6px; }
+.eventsTitle { font-size: 12.5px; font-weight: 700; color: var(--yzj-ink); }
+.eventsNote { font-size: 11px; color: var(--yzj-ink-3); }
+
+.eventRow {
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-radius);
+  background: var(--yzj-surface); padding: 9px 11px; margin-bottom: 6px;
+}
+.eventHead { display: flex; align-items: center; gap: 9px; }
+.eventAt {
+  flex: none; font-family: var(--yzj-mono); font-size: 12px; font-weight: 700;
+  color: var(--yzj-ink);
+}
+.eventTitle {
+  flex: 1 1 auto; min-width: 0; font-size: 12.5px; color: var(--yzj-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* 三档三个颜色：会前那一眼要在半秒内答完「还差不差东西」。 */
+.eventReady { flex: none; font-size: 11px; padding: 1px 8px; border-radius: 10px; }
+.ready_ready { color: var(--yzj-green); background: var(--yzj-green-bg); }
+.ready_partial { color: var(--yzj-amber); background: var(--yzj-amber-bg); }
+.ready_none { color: var(--yzj-ink-3); background: #EFF1F4; }
+
+.eventPrep {
+  flex: none; font: inherit; font-size: 11px; font-weight: 650;
+  padding: 2px 9px; border-radius: 11px; cursor: pointer;
+  border: 1px solid var(--yzj-pub-line); background: var(--yzj-surface); color: var(--yzj-pub-deep);
+}
+.eventPrep:hover { background: var(--yzj-pub); color: #fff; border-color: var(--yzj-pub); }
+
+.eventPreps { margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--yzj-line); }
+.eventPrep_ { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; font-size: 11.5px; }
+.eventPrepWhat { color: var(--yzj-ink-2); }
+.eventPrepWho { flex: none; font-size: 10.5px; color: var(--yzj-ink-3); }
+.eventArtifact { flex: none; font-size: 10.5px; color: var(--yzj-pub-deep); text-decoration: none; }
+.eventArtifact:hover { text-decoration: underline; }
+
+/* 参会的人看不看得到，是一条要说出来的分界线，不是一句备注。 */
+.eventNote { margin-top: 6px; font-size: 11px; color: var(--yzj-amber); }

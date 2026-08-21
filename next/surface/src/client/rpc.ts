@@ -150,6 +150,33 @@ export type AttachmentBodyWire =
   | { kind: 'text'; text: string; size: number; clipped: boolean }
   | { kind: 'binary'; size: number; savedTo: string; why: string }
 
+/** 通讯录里的一个人。`openId` 是它唯一能跨面用的身份。 */
+export interface PersonWire {
+  openId: string
+  name: string
+  department?: string
+  jobTitle?: string
+}
+
+/** 今天还没开完的一场会，读作会前那一眼。 */
+export interface BoardEventWire {
+  eventId: string
+  title: string
+  startAt: number
+  endAt?: number
+  readiness: 'ready' | 'partial' | 'none'
+  readinessLine: string
+  prepares: {
+    commitmentId: string
+    what: string
+    who: string
+    status: string
+    artifacts: { uri: string; title: string }[]
+  }[]
+  postedMaterials?: string
+  known: boolean
+}
+
 export interface TreeWire {
   places: {
     place: { placeKey: string; groupName: string }
@@ -436,6 +463,15 @@ export interface SurfaceInject {
     fileId: string, name?: string,
   ): Promise<{ savedTo?: string; error?: string }>
   tree(): Promise<TreeWire>
+  /**
+   * 按名字找人 —— @成员补全的数据源 (4h④).
+   *
+   * 搜的是**全组织**：群成员列表平台没有 API（三墙之一），所以搜不出「这个人在不在
+   * 这个群」。那一问由选场所的人自己知道；界面如实说明，不假装校验过。
+   */
+  people(keyword: string): Promise<PersonWire[]>
+  /** 今天还没开完的会 —— 事件枢纽在板上的那一段。 */
+  events(): Promise<BoardEventWire[]>
   cardAct(
     kind: string, id: string, actionId: string, input?: string,
   ): Promise<{ receipt: string; outcome: string } | undefined>
@@ -601,6 +637,12 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     },
     async tree() {
       return await call<TreeWire>('tree', {}) ?? { places: [] }
+    },
+    async people(keyword) {
+      return (await call<{ people: PersonWire[] }>('people', { keyword }))?.people ?? []
+    },
+    async events() {
+      return (await call<{ events: BoardEventWire[] }>('events', {}))?.events ?? []
     },
   }
 }

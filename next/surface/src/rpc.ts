@@ -11,11 +11,11 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asRecord, asString, type GraphViewer } from '@yzj-next/graph'
+import { asNumber, asRecord, asString, type GraphViewer } from '@yzj-next/graph'
 import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
 import type { TopicDescriptor, TopicMessage } from '@yzj-next/channel'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
-import { goalCommitmentIdFor } from '@yzj-next/objects'
+import { eventHub, failureOf, goalCommitmentIdFor, readinessLine } from '@yzj-next/objects'
 import type {} from '@yzj-next/channel'
 
 /** The head chip: what this topic is in service of. */
@@ -783,6 +783,83 @@ export interface BoardView {
    * in a batch instead of being discovered a quarter later.
    */
   readonly unattached: readonly BoardRow[]
+}
+
+/**
+ * 今天的一场会，读作**会前那一眼** (§5.6 事件枢纽).
+ *
+ * 时间、标题从平台读（真身在那儿），挂着什么、准备好没有从图读——两边都不抄对方。
+ */
+export interface BoardEvent {
+  readonly eventId: string
+  readonly title: string
+  readonly startAt: number
+  readonly endAt?: number
+  /** 三档：齐了 / 还差一些 / 还没动。推导出来的，没有人维护它。 */
+  readonly readiness: 'ready' | 'partial' | 'none'
+  readonly readinessLine: string
+  /** 挂在这场会上的活。空数组 = 还没挂过东西，不是「没准备」。 */
+  readonly prepares: readonly {
+    readonly commitmentId: string
+    readonly what: string
+    readonly who: string
+    readonly status: string
+    readonly artifacts: readonly { readonly uri: string; readonly title: string }[]
+  }[]
+  /** 材料清单已经写进日程描述、全参会人看得到的那一版。 */
+  readonly postedMaterials?: string
+  /** 图上还没见过它——挂东西之前得先请它进来。 */
+  readonly known: boolean
+}
+
+/**
+ * 今天还没开完的会。
+ *
+ * **只读今天，且只读还没结束的。** 事件枢纽不是第二个日历：它回答的是「会前我该看
+ * 什么」，而昨天的会没有会前可言。把范围放大到一周，这一段就会长成一个日程列表，
+ * 而工作台上已经有一个够用的日历了——在云之家里。
+ */
+export async function eventsToday(ctx: Context, now = Date.now()): Promise<readonly BoardEvent[]> {
+  const bridge = ctx.get('yzjBridge')
+  if (bridge === undefined) return []
+  const day = new Date(now)
+  const pad = (part: number): string => String(part).padStart(2, '0')
+  const today = `${String(day.getFullYear())}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`
+  const tomorrow = new Date(now + 24 * 60 * 60 * 1000)
+  const next = `${String(tomorrow.getFullYear())}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`
+  const result = await bridge.run(
+    ['calendar', 'event', 'list', '--start', today, '--end', next],
+    { timeoutMs: 20_000 },
+  )
+  if (!result.ok || !Array.isArray(result.json)) return []
+
+  const viewer: GraphViewer = { kind: 'operator', openId: '' }
+  const out: BoardEvent[] = []
+  for (const row of result.json) {
+    const record = asRecord(row)
+    const eventId = asString(record?.id)
+    if (eventId === undefined) continue
+    const endAt = asNumber(record?.endDate)
+    // 开完了的会没有会前可言。
+    if (endAt !== undefined && endAt < now) continue
+    const hub = eventHub(ctx, viewer, eventId)
+    out.push({
+      eventId,
+      title: asString(record?.title) ?? eventId,
+      startAt: asNumber(record?.startDate) ?? 0,
+      ...(endAt === undefined ? {} : { endAt }),
+      readiness: hub?.readiness ?? 'none',
+      readinessLine: hub === undefined
+        // 图上没见过它 = 还没挂过东西，和「挂了但没动」是两回事。
+        ? '还没挂任何要准备的事'
+        : readinessLine(hub),
+      prepares: hub?.prepares ?? [],
+      ...(hub?.postedMaterials === undefined ? {} : { postedMaterials: hub.postedMaterials }),
+      known: hub !== undefined,
+    })
+  }
+  out.sort((left, right) => left.startAt - right.startAt)
+  return out
 }
 
 /** One artifact this topic produced or consumed. */
@@ -2226,6 +2303,49 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             return { ok: true, value: { ...inboxView(scoped), stealth } }
           case 'tree':
             return { ok: true, value: { places: scoped.get('yzjTopics')?.tree() ?? [] } }
+          case 'events':
+            return { ok: true, value: { events: await eventsToday(scoped) } }
+          /*
+            @成员补全的数据源 (v3.10 4h④).
+
+            翻案：「通讯录不能按名字搜」是误判——`contact user search --keyword` 一直
+            都在。真正的缺口是**群成员列表无 API**（平台三墙之一），所以这里搜的是**全
+            组织**，搜不出「这个人在不在这个群」。那一问由选场所的人自己知道，界面上
+            如实说明，不假装校验过。
+          */
+          case 'people': {
+            const keyword = stringField(payload, 'keyword')
+            if (keyword === undefined || keyword.trim() === '') {
+              return { ok: true, value: { people: [] } }
+            }
+            const bridge = scoped.get('yzjBridge')
+            if (bridge === undefined) return failure('云之家通道未就绪')
+            const result = await bridge.run(
+              ['contact', 'user', 'search', '--keyword', keyword.trim()],
+              { timeoutMs: 15_000 },
+            )
+            if (!result.ok) return failure(failureOf(result, '通讯录搜不动'))
+            const rows = Array.isArray(result.json) ? result.json : []
+            return {
+              ok: true,
+              value: {
+                people: rows.flatMap((row) => {
+                  const person = asRecord(row)
+                  const openId = asString(person?.openId)
+                  const name = asString(person?.name) ?? asString(person?.userName)
+                  if (openId === undefined || name === undefined) return []
+                  const department = asString(person?.department)
+                  const jobTitle = asString(person?.jobTitle)
+                  return [{
+                    openId,
+                    name,
+                    ...(department === undefined ? {} : { department }),
+                    ...(jobTitle === undefined ? {} : { jobTitle }),
+                  }]
+                }).slice(0, 12),
+              },
+            }
+          }
           default:
             return failure(`unknown endpoint ${endpoint}`)
         }

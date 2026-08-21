@@ -23,6 +23,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString, type GraphEvent } from '@yzj-next/graph'
+import { failureOf } from '../bridge-error.ts'
 import { docIdOf } from './truth.ts'
 
 /** 一次回写的身份。生与死各记各的——同一条承诺会被写两次，那是对的。 */
@@ -81,7 +82,7 @@ async function appendLine(ctx: Context, goalRef: string, line: string): Promise<
     ['doc', 'block', 'insert', '--id', docId, '--element', element, '--block-id', 'doc'],
     { timeoutMs: 20_000 },
   )
-  if (!result.ok) return { ok: false, why: result.error ?? '写入失败' }
+  if (!result.ok) return { ok: false, why: failureOf(result, '写入失败') }
   return { ok: true }
 }
 

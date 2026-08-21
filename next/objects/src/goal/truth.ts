@@ -30,7 +30,24 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { asNumber, asRecord, asString, type JsonValue } from '@yzj-next/graph'
+import { failureOf } from '../bridge-error.ts'
 import { goalCommitmentIdFor } from './family.ts'
+
+/**
+ * 一次 CLI 读取的结果，**照真 bridge 的形状**。
+ *
+ * 此前这里各处自己写了 `{ ok, json?, error? }`——而 `YzjRunResult` 根本没有 `error`
+ * 字段（它有 `stderr`）。结构类型把多出来的字段照收，于是编译通过、假 bridge 也按这个
+ * 形状造，**假的和错的互相印证**，而线上每一条失败提示都退化成了那句兜底。写成一个
+ * 具名类型，是为了让下一次偏差在编译期就撞上。
+ */
+export interface BridgeRead {
+  readonly ok: boolean
+  readonly json?: unknown
+  readonly stderr?: string
+  readonly exitCode?: number | null
+  readonly timedOut?: boolean
+}
 
 /** 一次观察的结论。`unknown` 带着原因——看不了必须说出为什么看不了。 */
 export type TruthVerdict =
@@ -59,7 +76,7 @@ export function docIdOf(goalRef: string): string | undefined {
  * 更新时间。两条路的取值不在一个量纲上,所以指纹里写明是哪一条。
  */
 async function fingerprint(
-  ctx: Context, docId: string, prefetched?: { ok: boolean; json?: JsonValue; error?: string },
+  ctx: Context, docId: string, prefetched?: BridgeRead,
 ): Promise<{ mark: string; note: string } | { error: string }> {
   const bridge = ctx.get('yzjBridge')
   if (bridge === undefined) return { error: '云之家通道未就绪' }
@@ -68,12 +85,12 @@ async function fingerprint(
   const body = prefetched
     ?? await bridge.run(['doc', 'block', 'list', '--id', docId], { timeoutMs: 20_000 })
   if (body.ok) {
-    const version = asNumber(asRecord(asRecord(body.json)?.data)?.version)
+    const version = asNumber(asRecord(asRecord(body.json as JsonValue)?.data)?.version)
     if (version !== undefined) return { mark: `blocks:${String(version)}`, note: `正文版本 ${String(version)}` }
   }
 
   const node = await bridge.run(['doc', 'get', '--id', docId], { timeoutMs: 15_000 })
-  if (!node.ok) return { error: asString(asRecord(node)?.error) ?? '读不到这个文档' }
+  if (!node.ok) return { error: failureOf(node, '读不到这个文档') }
   const record = asRecord(node.json)
   const updated = asString(record?.updateTime)
   const version = asNumber(record?.version)
@@ -92,7 +109,7 @@ async function fingerprint(
  * 上上次,同一个改动会被反复报出来,而反复报出来的警告等于没有警告。
  */
 export async function checkGoalTruth(
-  ctx: Context, goalRef: string, prefetched?: { ok: boolean; json?: JsonValue; error?: string },
+  ctx: Context, goalRef: string, prefetched?: BridgeRead,
 ): Promise<TruthVerdict> {
   const docId = docIdOf(goalRef)
   if (docId === undefined) {
@@ -220,9 +237,9 @@ export async function readGoalBody(ctx: Context, goalRef: string): Promise<Truth
 }
 
 /** 把一次 `doc block list` 的回包读成正文。分出来，是为了让指纹和正文共用同一次读。 */
-function bodyOf(result: { ok: boolean; json?: JsonValue; error?: string }): TruthBody {
-  if (!result.ok) return { ok: false, why: result.error ?? '读不到这份文档的正文' }
-  const blocks = asRecord(asRecord(result.json)?.data)?.blocks
+function bodyOf(result: BridgeRead): TruthBody {
+  if (!result.ok) return { ok: false, why: failureOf(result, '读不到这份文档的正文') }
+  const blocks = asRecord(asRecord(result.json as JsonValue)?.data)?.blocks
   if (!Array.isArray(blocks)) {
     return { ok: false, why: '这份文档没有可读的正文块（可能是上传的文件，不是在线文档）' }
   }

@@ -35,7 +35,7 @@ import { YzjGoalPage } from './GoalPage.tsx'
 import { YzjPlaceView } from './PlaceView.tsx'
 import { YzjContractPanel } from './ContractPanel.tsx'
 import { YzjTracePanel } from './TracePanel.tsx'
-import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
+import { CopyButton, EmojiButton, ForwardPicker, MentionPicker } from './Compose.tsx'
 import { Attachments, isPlaceholderOnly } from './Attachments.tsx'
 import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
@@ -133,6 +133,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   const [pendingGoal, setPendingGoal] = useState<
     { goalRef: string; goalName: string } | undefined
   >(undefined)
+  /** 带着一场会跳进来时的那句提示。**不是语境**——它什么都不装载，说完就没了。 */
+  const [pendingEvent, setPendingEvent] = useState<string | undefined>(undefined)
   /** Scroll position handed back by a pop, for the frame we return to. */
   const [restoreScroll, setRestoreScroll] = useState<number | undefined>(undefined)
   const back = backTarget()
@@ -168,6 +170,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       // carry. Clearing HERE rather than in its own effect keeps the two out
       // of a race the declaration order would decide.
       setPendingGoal(undefined)
+      setPendingEvent(undefined)
       return
     }
     setVoice(errand.voice)
@@ -187,9 +190,18 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           : value
       ))
     }
-    setPendingGoal(errand.voice === 'place'
+    /*
+      **一场会不装载语境。**
+
+      目标 chip 的意思是「在这个话题里登记的承诺从此继承这个目标」。一场会没有这层
+      含义——把会的 id 当成 goalRef 装载进去，那个话题里每一条新承诺都会挂上一个根本
+      不是目标的 URI，把目标图污染掉，而没有任何地方会报错。
+      带会来的时候只带一句提示：句子由人说，会前那一刀派给谁、在哪派，本来就是他的事。
+    */
+    setPendingGoal(errand.voice === 'place' && errand.subject === 'goal'
       ? { goalRef: errand.goalRef, goalName: errand.goalName }
       : undefined)
+    setPendingEvent(errand.subject === 'event' ? errand.goalName : undefined)
     requestAnimationFrame(() => { boxRef.current?.focus() })
   }, [sessionId, frame.kind])
   /*
@@ -761,6 +773,23 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           looking at — and the whole value of 继承不是推断 is that you can see
           which it is.
         */}
+        {pendingEvent !== undefined && (
+          <div className={`${css.goalChip} ${css.eventChip}`}>
+            <span className={css.goalChipTag}>为这场会准备</span>
+            <span className={css.goalChipName}>{pendingEvent}</span>
+            <span className={css.goalChipNote}>
+              只是一句提示：这个话题**不会**因此挂到这场会上，句子发出去也不会自动登记
+            </span>
+            <button
+              type="button"
+              className={css.goalChipOff}
+              title="不带了"
+              onClick={() => { setPendingEvent(undefined) }}
+            >
+              ×
+            </button>
+          </div>
+        )}
         {(pendingGoal ?? window_.goalContext) !== undefined && (
           <div className={`${css.goalChip} ${pendingGoal === undefined ? css.goalArmed : ''}`}>
             <span className={css.goalChipTag}>{pendingGoal === undefined ? '本话题的目标' : '带着目标来的'}</span>
@@ -869,6 +898,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           </button>
           <span className={css.tools}>
             <EmojiButton insert={insert} />
+            {/* @成员补全 (4h④)：只在公语态出现——私语里 @ 谁都没人听得见。 */}
+            {voice === 'place' && <MentionPicker inject={inject} insert={insert} />}
             {alias !== undefined && voice === 'place' && (
               <button
                 type="button"

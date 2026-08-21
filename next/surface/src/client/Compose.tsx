@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import type { InboxConversationWire, SurfaceInject } from './rpc.ts'
+import type { InboxConversationWire, PersonWire, SurfaceInject } from './rpc.ts'
 import { avatarOf } from './stream.ts'
 import css from './compose.module.css'
 
@@ -222,6 +222,116 @@ export function ForwardPicker(props: ForwardPickerProps): ReactNode {
           })}
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * @成员补全 —— 「执行者选择」在 UI 里的真身 (v3.10 4h④，D13① 余项).
+ *
+ * 翻案：「通讯录不能按名字搜」是一次能力误判——`contact user search --keyword` 一直
+ * 都在。真正的缺口是**群成员列表没有 API**（平台三墙之一），所以这里搜的是**全组织**，
+ * 答不出「这个人在不在这个群」。
+ *
+ * 那一问**不假装校验**：面板上如实写着这一行，而「他在不在这个群」由选场所的人自己
+ * 知道。§1.6 的老话——场所与人选是社交决策，机器代做的那一刻就错了；这里能做的是把
+ * 「打字找人」这件损耗性摩擦归零，不是替谁判断该不该 @ 他。
+ */
+export interface MentionPickerProps {
+  inject: SurfaceInject
+  /** 把 `@名字 ` 放到光标处；正文归 composer own。 */
+  insert(text: string): void
+}
+
+export function MentionPicker(props: MentionPickerProps): ReactNode {
+  const { inject, insert } = props
+  const [open, setOpen] = useState(false)
+  const [keyword, setKeyword] = useState('')
+  const [people, setPeople] = useState<PersonWire[]>([])
+  const [state, setState] = useState<'idle' | 'looking' | 'empty'>('idle')
+  const boxRef = useRef<HTMLDivElement | null>(null)
+  /** 只有最新那一次搜索可以画——慢回包会把新结果盖回旧的。 */
+  const ticket = useRef(0)
+
+  useEffect(() => {
+    if (!open) return undefined
+    const away = (event: MouseEvent): void => {
+      if (boxRef.current?.contains(event.target as Node) !== true) setOpen(false)
+    }
+    document.addEventListener('mousedown', away)
+    return () => { document.removeEventListener('mousedown', away) }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const word = keyword.trim()
+    if (word === '') {
+      setPeople([])
+      setState('idle')
+      return undefined
+    }
+    setState('looking')
+    // 每敲一个字打一次通讯录 = 一次没人要的洪水。等手停下来再问。
+    const timer = setTimeout(() => {
+      ticket.current += 1
+      const mine = ticket.current
+      void inject.people(word).then((found) => {
+        if (mine !== ticket.current) return
+        setPeople(found)
+        setState(found.length === 0 ? 'empty' : 'idle')
+      })
+    }, 220)
+    return () => { clearTimeout(timer) }
+  }, [inject, keyword, open])
+
+  return (
+    <div className={css.wrap} ref={boxRef}>
+      <button
+        type="button"
+        className={css.iconBtn}
+        title="@ 一位同事（按名字搜通讯录）"
+        aria-label="@成员"
+        onClick={() => { setOpen(value => !value) }}
+      >
+        @
+      </button>
+      {open && (
+        <div className={`${css.pop} ${css.mentionPop}`}>
+          <input
+            className={css.mentionInput}
+            value={keyword}
+            autoFocus
+            placeholder="名字…"
+            onChange={(event) => { setKeyword(event.target.value) }}
+          />
+          {state === 'looking' && <div className={css.mentionNote}>在通讯录里找…</div>}
+          {state === 'empty' && <div className={css.mentionNote}>通讯录里没有叫这个名字的人。</div>}
+          {people.map(person => (
+            <button
+              type="button"
+              key={person.openId}
+              className={css.mentionRow}
+              onClick={() => {
+                insert(`@${person.name} `)
+                setOpen(false)
+                setKeyword('')
+              }}
+            >
+              <span className={css.mentionName}>{person.name}</span>
+              <span className={css.mentionMeta}>
+                {[person.department, person.jobTitle].filter(part => part !== undefined).join(' · ')}
+              </span>
+            </button>
+          ))}
+          {/*
+            如实说这一行。
+
+            搜的是全组织，而群成员列表平台没有 API——「他在不在这个群」我们答不了。
+            不说的话，人会以为这份名单已经按当前会话筛过了，而它没有。
+          */}
+          <div className={css.mentionFoot}>搜的是全公司通讯录 · 在不在这个群，只有你知道</div>
+        </div>
+      )}
     </div>
   )
 }

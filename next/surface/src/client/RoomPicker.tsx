@@ -12,6 +12,8 @@ import css from './board.module.css'
 
 /** What a portal is about to carry, while the operator picks the room. */
 export interface Portal {
+  /** 带过去的是目标还是一场会——两者落地后的后果不同，见 `Errand.subject`。 */
+  readonly subject: 'goal' | 'event'
   readonly goalRef: string
   readonly goalName: string
   readonly voice: 'place' | 'private'
@@ -69,7 +71,8 @@ export function RoomPicker(props: {
           <button type="button" className={css.sheetClose} onClick={close} aria-label="关闭">×</button>
         </div>
         <div className={css.sheetNote}>
-          目标：<b>{portal.goalName}</b>
+          {/* 一场会不是一个目标。标签跟着东西走，不跟着组件走。 */}
+          {portal.subject === 'event' ? '这场会' : '目标'}：<b>{portal.goalName}</b>
           <br />
           {portal.note}
         </div>
@@ -109,7 +112,9 @@ export function RoomPicker(props: {
         </div>
         <div className={css.sheetFoot}>
           <span className={css.sheetHint}>
-            跳过去之后 composer 会带着目标 chip——句子由你说，发出去才算数。
+            {portal.subject === 'event'
+              ? '跳过去之后 composer 会带着这场会的提示——句子由你说，发出去才算数；这一步不给话题装载任何语境。'
+              : '跳过去之后 composer 会带着目标 chip——句子由你说，发出去才算数。'}
           </span>
         </div>
       </div>

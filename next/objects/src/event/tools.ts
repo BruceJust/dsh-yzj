@@ -11,6 +11,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { asNumber, asRecord, asString, type GraphViewer } from '@yzj-next/graph'
 import type { TurnBinding } from '../turns.ts'
+import { failureOf } from '../bridge-error.ts'
 import { eventHub, materialsFor, readinessLine } from './hub.ts'
 
 const output = {
@@ -63,7 +64,7 @@ async function observe(
     走错屋。抄下的那份只用来让行上有话可说，判断与显示一律回真身（数据律一）。
   */
   const result = await bridge.run(['calendar', 'event', 'get', '--id', eventId], { timeoutMs: 20_000 })
-  if (!result.ok) return { ok: false, why: result.error ?? '读不到这条日程' }
+  if (!result.ok) return { ok: false, why: failureOf(result, '读不到这条日程') }
   const detail = asRecord(result.json)
   const title = asString(detail?.title)
   const startAt = asNumber(detail?.startDate)
@@ -241,14 +242,14 @@ export function applyEventTools(ctx: Context): () => void {
           eventId: args.eventId,
           postedMaterials: materials,
           postedStatus: result.ok ? 'written' : 'failed',
-          ...(result.ok ? {} : { postedDetail: result.error ?? '写入失败' }),
+          ...(result.ok ? {} : { postedDetail: failureOf(result, '写入失败') }),
         },
         actor: { kind: 'agent' },
       })
       return {
         content: result.ok
           ? `材料清单已写进日程描述，参会的人打开日程就能看到：\n${materials}`
-          : `没写进去（${result.error ?? '写入失败'}）——参会的人**看不到**这份清单，需要你另想办法送过去。`,
+          : `没写进去（${failureOf(result, '写入失败')}）——参会的人**看不到**这份清单，需要你另想办法送过去。`,
       }
     },
   }))

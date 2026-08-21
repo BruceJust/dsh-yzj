@@ -56,7 +56,10 @@ beforeEach(async () => {
     run: (command: string[]) => {
       if (command[1] === 'block' && command[2] === 'insert') {
         inserts.push(command)
-        return Promise.resolve(insertOk ? { ok: true, json: {} } : { ok: false, error: '没有写权限' })
+        // 照真 bridge 的形状：失败带的是 `stderr`，不是 `error`。
+        return Promise.resolve(insertOk
+          ? { ok: true, json: {} }
+          : { ok: false, stderr: 'error: 没有写权限', exitCode: 1 })
       }
       return Promise.resolve({ ok: true, json: {} })
     },

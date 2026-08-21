@@ -90,6 +90,15 @@ export function popFrame(): number {
  * opened later has nothing to do with an errand that has already landed.
  */
 export interface Errand {
+  /**
+   * 带过去的是**什么**。
+   *
+   * 「目标」与「会」都走同一个传送门，可它们落地之后的后果完全不同：目标要装载
+   * 语境（在那个话题里登记的承诺从此继承它），**一场会不装载任何东西**。不分开
+   * 的后果不是标签错了——是会的 id 会被当成 goalRef 写进 `goal-context`，然后那
+   * 个话题里每一条新承诺都挂上一个根本不是目标的 URI，把目标图污染掉。
+   */
+  readonly subject: 'goal' | 'event'
   readonly goalRef: string
   readonly goalName: string
   /** Where the words should go: 公 for delegation, 私 for an assessment. */

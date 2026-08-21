@@ -27,6 +27,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type {
+  BoardEventWire,
   BoardAssessmentWire, BoardGoalWire, BoardRowWire, BoardViewWire, SurfaceInject,
 } from './rpc.ts'
 import { currentBoardLens, pushFrame, sendErrand, setBoardLens } from './store.ts'
@@ -101,6 +102,14 @@ export function YzjBoard(props: BoardProps): ReactNode {
   const [declaring, setDeclaring] = useState(false)
   /** 传送门: the errand waiting for a room to be chosen for it. */
   const [portal, setPortal] = useState<Portal | undefined>(undefined)
+  /*
+    今天的会 —— 事件枢纽在板上的那一段 (§5.6).
+
+    放在承诺板里而不是另开一屏：设计明写**不增殖注意力入口**（收件箱/卡徽标/决断条
+    三层分工已经完整），而板本来就是「跨执行者、我盘子里有什么」那一框。v4.17 也把
+    「今日日程」定为晨报的一个**段**，不是晨报本体。
+  */
+  const [events, setEvents] = useState<BoardEventWire[]>([])
   /** Which goals have their 产出 / 简报 drawers open. */
   const [openDrawer, setOpenDrawer] = useState<Record<string, boolean>>({})
 
@@ -167,6 +176,12 @@ export function YzjBoard(props: BoardProps): ReactNode {
     if (ticket !== fetchSeq.current) return
     setView(next)
   }, [inject])
+
+  /*
+    会前那一眼要读**真身**（平台的日程），所以它是一次独立的异步读，不搭承诺那班车。
+    读失败就是空——一段读不到的日程不该把整块板拖住。
+  */
+  useEffect(() => { void inject.events().then(setEvents) }, [inject])
 
   useEffect(() => {
     let alive = true
@@ -376,6 +391,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
                     title="把这条缺口变成一次委派——同一个传送门，评估喂回执行"
                     onClick={() => {
                       setPortal({
+                       subject: 'goal',
                         goalRef: goal.goalRef,
                         goalName: goal.row?.what ?? goal.goalRef,
                         voice: 'place',
@@ -471,6 +487,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
             title="选一个会话跳进去，用你自己的话说——这一列不做分配表单"
             onClick={() => {
               setPortal({
+               subject: 'goal',
                 goalRef: goal.goalRef,
                 goalName: goal.row?.what ?? goal.goalRef,
                 voice: 'place',
@@ -489,6 +506,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
             title="让 agent 拿子承诺终态与产出对着成功标准写一份差距简报——验收还是你的动作"
             onClick={() => {
               setPortal({
+               subject: 'goal',
                 goalRef: goal.goalRef,
                 goalName: goal.row?.what ?? goal.goalRef,
                 voice: 'private',
@@ -597,6 +615,84 @@ export function YzjBoard(props: BoardProps): ReactNode {
     </div>
   )
 
+
+  /**
+   * 一场会一行 —— 会前那一眼 (§5.6 事件枢纽).
+   *
+   * 一行上只有三样东西：几点、叫什么、**准备好没有**。挂着的活折在下面，因为会前
+   * 真正要决定的只有一件事：还差什么、要不要现在补一刀。
+   */
+  const eventNode = (event: BoardEventWire): ReactNode => {
+    const clock = new Date(event.startAt)
+    const at = event.startAt === 0
+      ? ''
+      : `${String(clock.getHours()).padStart(2, '0')}:${String(clock.getMinutes()).padStart(2, '0')}`
+    return (
+      <div className={css.eventRow} key={event.eventId}>
+        <div className={css.eventHead}>
+          <span className={css.eventAt}>{at}</span>
+          <span className={css.eventTitle}>{event.title}</span>
+          <span className={`${css.eventReady} ${css[`ready_${event.readiness}`] ?? ''}`}>
+            {event.readinessLine}
+          </span>
+          {/*
+            「为此会准备」是**传送门**，不是表单 (§5.6 CTA).
+
+            它不替你派活：跳进你选的那个会话，话由你说。派活是社交决策，机器代做的
+            那一刻就错了——和目标那边的委派 CTA 同一个组件、同一条纪律。
+          */}
+          <button
+            type="button"
+            className={css.eventPrep}
+            title="选一个会话跳进去，用你自己的话把会前要准备的事派出去"
+            onClick={() => {
+              setPortal({
+                subject: 'event',
+                goalRef: `yzj://event/${event.eventId}`,
+                goalName: event.title,
+                voice: 'place',
+                title: '为这场会准备：跳进哪个会话说？',
+                note: '会前要补的那一刀，说给谁听、在哪说，只有你知道。',
+              })
+            }}
+          >
+            为此会准备 ↗
+          </button>
+        </div>
+        {event.prepares.length > 0 && (
+          <div className={css.eventPreps}>
+            {event.prepares.map(item => (
+              <div className={css.eventPrep_} key={item.commitmentId}>
+                <span className={css.eventPrepWhat}>{item.what}</span>
+                <span className={css.eventPrepWho}>{item.who} · {item.status}</span>
+                {item.artifacts.map(artifact => (
+                  <a
+                    key={artifact.uri}
+                    className={css.eventArtifact}
+                    href={safeHref(artifact.uri)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {artifact.title}
+                  </a>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+        {/*
+          材料清单进没进日程描述，是**参会的人看不看得到**的分界线。
+          图上齐全不等于开会的人知道——他们看的是日程条目。
+        */}
+        {event.prepares.some(item => item.artifacts.length > 0) && event.postedMaterials === undefined && (
+          <div className={css.eventNote}>
+            材料还没写进日程描述——参会的人在日程里看不到它们。
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={`${tokens.tokens} ${css.board}`}>
       <div className={css.head}>
@@ -628,6 +724,22 @@ export function YzjBoard(props: BoardProps): ReactNode {
             agent 做了写操作、或你说了期限时，会自动记一条；
             「让张三周五前给结论」这类交给<b>人</b>的事，agent 会登记成一条可跟踪的承诺，
             并把卡投回那个群，让本人能自己回「完成」。
+          </div>
+        )}
+
+        {/*
+          今天的会，排在承诺前面：会有开始时间，承诺没有——**今天几点** 是这一屏上唯一
+          带截止感的东西。没有会就整段不画（空段等于一行噪音）。
+        */}
+        {events.length > 0 && (
+          <div className={css.events}>
+            <div className={css.eventsHead}>
+              <span className={css.eventsTitle}>今天的会</span>
+              <span className={css.eventsNote}>
+                {events.length} 场未开始 · 准备好没有是从挂着的活推出来的，没有人维护它
+              </span>
+            </div>
+            {events.map(eventNode)}
           </div>
         )}
 
@@ -708,6 +820,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
           close={() => { setPortal(undefined) }}
           go={(sessionId) => {
             sendErrand({
+              subject: portal.subject,
               goalRef: portal.goalRef,
               goalName: portal.goalName,
               voice: portal.voice,

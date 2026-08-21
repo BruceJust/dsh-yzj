@@ -134,7 +134,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
   const jump = useCallback((
     voice: 'place' | 'private', seed: string, sessionId: string,
   ): void => {
-    sendErrand({ goalRef, goalName, voice, seed })
+    // 目标页上的传送门带的一定是目标——这一屏本来就是一个目标的放大态。
+    sendErrand({ subject: 'goal', goalRef, goalName, voice, seed })
     openSession(sessionId)
   }, [goalRef, goalName, openSession])
 
@@ -344,6 +345,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                   if (row.sessionId === undefined) {
                     // 登记时不在任何话题里——那就还是得问一句去哪儿说。
                     ask({
+                      subject: 'goal',
                       goalRef, goalName, voice: 'place', seed,
                       title: '催：去哪个会话说？',
                       note: '这条承诺没有记下登记场所，所以落点得你来定。句子还是你自己说。',
@@ -444,6 +446,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 className={css.act}
                 onClick={() => {
                   ask({
+                    subject: 'goal',
                     goalRef, goalName, voice: 'private',
                     seed: `以现在这版成功标准，重新评估目标「${name}」的完成度。`,
                     title: '以新基准重估：在哪个会话里私下问？',
@@ -513,6 +516,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               className={css.cta}
               onClick={() => {
                 ask({
+                  subject: 'goal',
                   goalRef, goalName, voice: 'place', seed: `关于目标「${name}」：`,
                   title: '委派：跳进哪个会话说？',
                   note: '公开委派是施压与透明，私下委派是留余地——这个选择不该由系统替你做。',
@@ -526,6 +530,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               className={css.cta}
               onClick={() => {
                 ask({
+                  subject: 'goal',
                   goalRef, goalName, voice: 'private',
                   seed: `帮我把目标「${name}」拆成子承诺，逐条列出做什么、谁做、什么时候前。`,
                   title: '拆解：在哪个会话里私下问？',
@@ -540,6 +545,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               className={css.cta}
               onClick={() => {
                 ask({
+                  subject: 'goal',
                   goalRef, goalName, voice: 'private',
                   seed: `评估目标「${name}」的完成度，逐条对着成功标准给证据。`,
                   title: '评估：在哪个会话里私下问？',
@@ -555,6 +561,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               className={css.cta}
               onClick={() => {
                 ask({
+                  subject: 'goal',
                   goalRef, goalName, voice: 'private', seed: `关于目标「${name}」，我想问：`,
                   title: '问这个目标：在哪个会话里私下问？',
                   note: '轻问是一次会话 turn，不是页面旁路——所以它落在某个会话的日志里。',
@@ -627,6 +634,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                     const seed = `${row.who}，「${row.what}」这条现在什么情况？`
                     if (row.sessionId === undefined) {
                       ask({
+                        subject: 'goal',
                         goalRef, goalName, voice: 'place', seed,
                         title: '催：去哪个会话说？',
                         note: '这条承诺没有记下登记场所，所以落点得你来定。',
@@ -709,6 +717,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                       className={css.act}
                       onClick={() => {
                         ask({
+                          subject: 'goal',
                           goalRef, goalName, voice: 'place',
                           seed: `关于目标「${name}」还缺的这块：${line.criterion}。`,
                           title: '把这条缺口变成委派：跳进哪个会话说？',
@@ -744,6 +753,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             close={() => { setPortal(undefined) }}
             go={(sessionId) => {
               sendErrand({
+                subject: portal.subject,
                 goalRef: portal.goalRef,
                 goalName: portal.goalName,
                 voice: portal.voice,

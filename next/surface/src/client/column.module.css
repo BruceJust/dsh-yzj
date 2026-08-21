@@ -461,3 +461,11 @@
   0% { background: var(--yzj-pub-tint); }
   100% { background: transparent; }
 }
+
+/*
+  带着一场会跳进来时的那条提示。
+
+  和目标 chip 长得**不一样**是有意的：目标 chip 说的是「这个话题从此挂在它下面」，
+  而这一条什么都不装载——两者画成一个样子，人就会以为会也被挂上了。
+*/
+.eventChip { border-style: dashed; background: transparent; }

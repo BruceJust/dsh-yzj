@@ -20,9 +20,11 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import {
-  assessmentCard, assessmentFamily, commitmentCard, commitmentFamily, goalCommitmentIdFor,
+  assessmentCard, assessmentFamily, commitmentCard, commitmentFamily, eventFamily,
+  goalCommitmentIdFor,
 } from '@yzj-next/objects'
-import { boardFrame, inboxView } from '../src/rpc.ts'
+import { sendErrand, takeErrand } from '../src/client/store.ts'
+import { boardFrame, eventsToday, inboxView } from '../src/rpc.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const GOAL = 'https://yzj.example.com/doc/q3'
@@ -411,5 +413,94 @@ describe('最新的那份简报（对抗审查 #3）', () => {
       都重新长出一个「变委派 ↗」,把人送去派一件二月就做完的活。
     */
     expect(boardFrame(ctx).goals[0]?.assessment?.summary).toBe('三月：已达成')
+  })
+})
+
+/**
+ * 今天的会 —— 事件枢纽在板上的那一段 (§5.6).
+ *
+ * 三条要锁的，都是「它可能变成第二个日历」的样子：
+ *
+ * - **只读今天、且只读还没开完的**：昨天的会没有会前可言；范围一放大，这一段就长成
+ *   一个日程列表，而云之家里已经有一个够用的了；
+ * - **就绪度是推的**：没有任何人维护它，承诺一变它就变；
+ * - **图上没见过的会，说的是「还没挂过东西」**，不是「没准备好」——两者差着一个
+ *   「我们根本还没参与」。
+ */
+describe('板上的今天', () => {
+  const dayStart = new Date()
+  dayStart.setHours(9, 0, 0, 0)
+  const NOW = dayStart.getTime()
+
+  const calendar = (rows: unknown[]): void => {
+    ctx.provide('yzjBridge', {
+      run: (command: string[]) => Promise.resolve(
+        command[1] === 'event' && command[2] === 'list'
+          ? { ok: true, json: rows }
+          : { ok: true, json: {} },
+      ),
+    })
+  }
+
+  it('开完的会不进——会前那一眼对它没有意义', async () => {
+    calendar([
+      { id: 'ev-past', title: '早上开完的', startDate: NOW - 7200_000, endDate: NOW - 3600_000 },
+      { id: 'ev-next', title: '下午那场', startDate: NOW + 3600_000, endDate: NOW + 7200_000 },
+    ])
+    const events = await eventsToday(ctx, NOW)
+    expect(events.map(event => event.eventId)).toEqual(['ev-next'])
+  })
+
+  it('图上没见过的会，说的是「还没挂过东西」', async () => {
+    calendar([{ id: 'ev-new', title: '新会', startDate: NOW + 3600_000, endDate: NOW + 7200_000 }])
+    const [event] = await eventsToday(ctx, NOW)
+    expect(event?.known).toBe(false)
+    expect(event?.readinessLine).toContain('还没挂')
+    expect(event?.prepares).toEqual([])
+  })
+
+  it('挂上活之后，就绪度跟着承诺走——没有人维护它', async () => {
+    graph.defineFamily(eventFamily)
+    await graph.append({
+      type: 'event/observed', data: { eventId: 'ev-1', title: '对齐会' }, actor: OPERATOR,
+    })
+    await child({ id: 'c1', what: '拉数据', topicKey: 'tk-ev' })
+    await graph.append({
+      type: 'event/linked', data: { eventId: 'ev-1', commitmentId: 'c1' }, actor: OPERATOR,
+    })
+    calendar([{ id: 'ev-1', title: '对齐会', startDate: NOW + 3600_000, endDate: NOW + 7200_000 }])
+    expect((await eventsToday(ctx, NOW))[0]?.readiness).toBe('none')
+    await graph.append({
+      type: 'commitment/closed', data: { commitmentId: 'c1', cause: 'done' }, actor: OPERATOR,
+    })
+    // 一个 event/* 事件都没有再追加，就绪度已经变了。
+    expect((await eventsToday(ctx, NOW))[0]?.readiness).toBe('ready')
+  })
+
+  it('通道不在就是空段，不把整块板拖住', async () => {
+    expect(await eventsToday(ctx, NOW)).toEqual([])
+  })
+})
+
+/**
+ * 一场会不是一个目标 —— 传送门带的东西要分清 (自审).
+ *
+ * 「为此会准备」和「委派」共用同一个传送门组件，可它们落地之后的后果完全不同：目标
+ * 要**装载语境**（那个话题里登记的承诺从此继承它），一场会**什么都不装载**。不分开的
+ * 后果不是标签写错了——是会的 id 会被当成 goalRef 写进 `goal-context`，然后那个话题里
+ * 每一条新承诺都挂上一个根本不是目标的 URI，而没有任何地方会报错。
+ */
+describe('传送门带的是什么', () => {
+  it('errand 说得出自己带的是目标还是会', () => {
+    sendErrand({ subject: 'event', goalRef: 'yzj://event/e1', goalName: '对齐会', voice: 'place' })
+    const carried = takeErrand()
+    expect(carried?.subject).toBe('event')
+    // 取走即消费——跳进来一次就没了，不会留给下一个会话。
+    expect(takeErrand()).toBeUndefined()
+  })
+
+  it('目标那一路照旧', () => {
+    sendErrand({ subject: 'goal', goalRef: GOAL, goalName: 'Q3 对账', voice: 'place' })
+    expect(takeErrand()?.subject).toBe('goal')
   })
 })

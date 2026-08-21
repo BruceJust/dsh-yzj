@@ -98,3 +98,36 @@
   font-size: 9.5px; font-weight: 600; padding: 1px 6px; border-radius: 10px;
   background: #F1F3F6; color: var(--yzj-ink-3);
 }
+
+/*
+  @成员补全的面板。
+
+  比表情面板宽：一行要装下名字 + 部门 + 职位——只给名字的话，组织里两个「张伟」就
+  分不开，而分不开的选择器会让人选错人。
+*/
+.mentionPop { width: 260px; padding: 8px; display: block; }
+.mentionInput {
+  width: 100%; box-sizing: border-box;
+  font: inherit; font-size: 12px; padding: 6px 8px;
+  border: 1px solid var(--yzj-line); border-radius: 7px; outline: none;
+  background: var(--yzj-surface); color: var(--yzj-ink);
+}
+.mentionInput:focus { border-color: var(--yzj-pub); }
+.mentionNote { padding: 8px 4px; font-size: 11.5px; color: var(--yzj-ink-3); }
+.mentionRow {
+  width: 100%; display: flex; align-items: baseline; gap: 8px;
+  padding: 6px 6px; margin-top: 2px;
+  border: 0; border-radius: 6px; background: none; cursor: pointer;
+  font: inherit; text-align: left;
+}
+.mentionRow:hover { background: var(--yzj-pub-tint); }
+.mentionName { flex: none; font-size: 12.5px; color: var(--yzj-ink); }
+.mentionMeta {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; color: var(--yzj-ink-3);
+}
+/* 如实说的那一行：搜的是全公司，不是这个群。 */
+.mentionFoot {
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--yzj-line);
+  font-size: 10.5px; color: var(--yzj-ink-3);
+}

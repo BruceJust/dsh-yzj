@@ -39,8 +39,14 @@ let graph: YzjGraph
   的东西**——实测过,往正文里插一段话,节点的 version 与 updateTime 纹丝不动。
   只摆一条,就测不出「取错了指纹」这个最贵的错。
 */
-let body: { ok: boolean; json?: unknown; error?: string }
-let node: { ok: boolean; json?: unknown; error?: string }
+/*
+  照**真 bridge 的形状**造，不照我想象的形状造。
+
+  此前这两个替身带的是 `error`，而 `YzjRunResult` 只有 `stderr`——于是替身和生产代码
+  在一个不存在的字段上达成了一致，线上每一条失败提示都退化成兜底那一句，而测试全绿。
+*/
+let body: { ok: boolean; json?: unknown; stderr?: string }
+let node: { ok: boolean; json?: unknown; stderr?: string }
 let calls: string[][]
 
 beforeEach(async () => {
@@ -163,8 +169,8 @@ describe('看不了 ≠ 没变', () => {
 
   it('文档被删了也是「答不了」，不是「没变」', async () => {
     await goal()
-    body = { ok: false, error: 'DOC_DELETED' }
-    node = { ok: false, error: 'DOC_DELETED' }
+    body = { ok: false, stderr: 'DOC_DELETED' }
+    node = { ok: false, stderr: 'DOC_DELETED' }
     const verdict = await checkGoalTruth(ctx, GOAL)
     expect(verdict.kind).toBe('unknown')
     expect(truthEvents()).toHaveLength(0)
@@ -179,7 +185,7 @@ describe('看不了 ≠ 没变', () => {
 
   it('服务端没给版本号就承认比不出来', async () => {
     await goal()
-    body = { ok: false, error: '不是在线文档' }
+    body = { ok: false, stderr: '不是在线文档' }
     node = { ok: true, json: { id: DOC, title: 'Q3 对账' } }
     expect((await checkGoalTruth(ctx, GOAL)).kind).toBe('unknown')
   })
@@ -277,10 +283,12 @@ describe('读真身正文', () => {
   })
 
   it('读不到就说读不到——不退回副本假装判得了', async () => {
-    body = { ok: false, error: '没有权限' }
+    body = { ok: false, stderr: 'error: API error: 没有权限\n  提示: 换个账号试试' }
     const read = await readGoalBody(ctx, GOAL)
     expect(read.ok).toBe(false)
+    // 只取 stderr 的第一行：CLI 的报错后面常跟着一段 usage，那是它在教你怎么用。
     expect(read.ok === false && read.why).toContain('没有权限')
+    expect(read.ok === false && read.why).not.toContain('提示')
   })
 
   it('上传的文件没有正文块，如实说，而不是给一段空文本', async () => {

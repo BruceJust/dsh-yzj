@@ -73,6 +73,7 @@ export {
 } from './minutes/ingest.ts'
 export { applyCommitmentNotify } from './goal/notify.ts'
 export { applyGoalWriteback, lineFor, writebackIdFor } from './goal/writeback.ts'
+export { failureOf } from './bridge-error.ts'
 export { applyGraphTools, describeObject } from './graph-tools.ts'
 export { applyMemoryTools, memoriesFor, memoryIdFor } from './memory/tools.ts'
 export { processSummary, type ProcessSummaryInput } from './summary.ts'
