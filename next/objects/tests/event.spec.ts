@@ -237,6 +237,33 @@ describe('日程描述：线以上是会议主人的', () => {
     expect(next.split('\n')[0]).toContain('会议议程写在这一行以上')
   })
 
+  /**
+   * 栅栏出现**之前**写下的那一份，是我们的，不是会议主人的。
+   *
+   * 那时候的代码把材料整段盖上去、不带线。现在再写一次，`splitAtFence` 找不到线，
+   * 于是把整段旧材料当成「人写的议程」保在线以上，再在线以下写一份新的——**同一份
+   * 材料两遍，其中一份还冒充了人写的东西**。保护主权的规矩反过来把系统自己的旧输出
+   * 封成了不可动的圣物。
+   */
+  it('栅栏之前我们自己写的那一份，不会被当成人写的议程留下来', () => {
+    const legacy = '【会前材料】\n· 竞品对比 https://y/doc/9'
+    // 图里记着「我们上次写下去的就是这一段」——认它的凭据是这条记录，不是对着文本猜。
+    const next = descriptionFor(legacy, '【会前材料】\n· 定价表 https://y/doc/10', legacy) as string
+    expect(next.split('\n')[0]).toContain('会议议程写在这一行以上')
+    expect(next).toContain('定价表')
+    expect(next, '旧材料被当成人写的议程留在了线上面').not.toContain('竞品对比')
+  })
+
+  it('图里没有记录时，宁可留着 —— 抹掉一段真议程没人知道', () => {
+    /*
+      猜错的方向恰好最坏：把真的议程当成我们的旧输出删掉。多一份重复看得见、
+      改得掉；少一段人写的东西，没有任何地方会报错。
+    */
+    const looksLikeOurs = '【会前材料】\n· 竞品对比 https://y/doc/9'
+    const next = descriptionFor(looksLikeOurs, MATERIALS, undefined) as string
+    expect(next).toContain('竞品对比')
+  })
+
   it('有人在线以下补了字，下一次会被换掉 —— 所以线上写着别在这儿写', () => {
     /*
       这是这条线**做不到**的事，得说在明处：线以下整段归系统，人写在那儿的东西

@@ -338,14 +338,22 @@ export function applyGoalWriteback(ctx: Context): () => void {
 
           版本号是写入回包白送的，不必再读一次；拿不到就不记——记一个猜的版本，比不记
           更坏，那会让一次真的改动被吞掉。
+
+          **图上没有这个目标就不记。** `append` 打在一个不存在的 id 上是**建一个对象**
+          （`store.fold` 对 `previous === undefined` 照建不误），于是这一行会凭空造出一条
+          只有指纹、没有名字没有状态的承诺——一个谁也删不掉的幽灵，而它出现在承诺板上。
+          子承诺的 `parentGoalRef` 是模型报上来的一个链接，`commitment_register` **不校验
+          它指向的目标存不存在**，所以这条路是走得通的，不是假想。`checkGoalTruth` 里那次
+          同样的记录早就有这道闸（`truth.spec.ts` 专门锁着它），我这一处漏了。
         */
-        if (outcome.ok && outcome.version !== undefined) {
+        const goalId = goalCommitmentIdFor(goalRef)
+        if (
+          outcome.ok && outcome.version !== undefined
+          && ctx.yzjGraph.rawObject('commitment', goalId) !== undefined
+        ) {
           await ctx.yzjGraph.append({
             type: 'commitment/updated',
-            data: {
-              commitmentId: goalCommitmentIdFor(goalRef),
-              truthFingerprint: bodyMark(outcome.version),
-            },
+            data: { commitmentId: goalId, truthFingerprint: bodyMark(outcome.version) },
             actor: { kind: 'agent' },
           })
         }

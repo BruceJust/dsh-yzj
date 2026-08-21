@@ -12,6 +12,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import { asNumber, asRecord, asString, type GraphViewer } from '@yzj-next/graph'
 import type { TurnBinding } from '../turns.ts'
 import { failureOf } from '../bridge-error.ts'
+import { splitAtFence } from '../fence.ts'
 import { descriptionFor, eventHub, materialsFor, readinessLine } from './hub.ts'
 
 const output = {
@@ -51,7 +52,7 @@ const unseen = '这里看不到这场会——它的可见范围是第一次被�
  * 这里只剩编排：读回此刻的这场会，算出该写什么，写下去。
  */
 async function post(
-  ctx: Context, eventId: string, materials: string,
+  ctx: Context, eventId: string, materials: string, posted: string | undefined,
 ): Promise<{ ok: true; skipped: boolean } | { ok: false; why: string }> {
   const bridge = ctx.get('yzjBridge')
   if (bridge === undefined) return { ok: false, why: '云之家通道未就绪' }
@@ -73,7 +74,7 @@ async function post(
     return { ok: false, why: '读回这场会时它没有标题，不敢只改描述——平台要的是一份完整的会议' }
   }
   // 实测：`calendar event get` 把描述放在 `content` 上，正是 `--description` 写的那个字段。
-  const next = descriptionFor(asString(detail?.content) ?? '', materials)
+  const next = descriptionFor(asString(detail?.content) ?? '', materials, posted)
   if (next === undefined) return { ok: true, skipped: true }
   const result = await bridge.run(
     ['calendar', 'event', 'update', '--id', eventId, '--title', title, '--description', next],
@@ -91,7 +92,7 @@ async function post(
  */
 async function observe(
   ctx: Context, eventId: string, binding: TurnBinding | undefined,
-): Promise<{ ok: true; title?: string } | { ok: false; why: string }> {
+): Promise<{ ok: true; title?: string; description?: string } | { ok: false; why: string }> {
   const bridge = ctx.get('yzjBridge')
   if (bridge === undefined) return { ok: false, why: '云之家通道未就绪' }
   /*
@@ -106,9 +107,20 @@ async function observe(
   const detail = asRecord(result.json)
   const title = asString(detail?.title)
   const startAt = asNumber(detail?.startDate)
-  if (ctx.yzjGraph.rawObject('event', eventId) !== undefined) {
-    return { ok: true, ...(title === undefined ? {} : { title }) }
-  }
+  /*
+    描述也一起带回来 —— **同一次读白送的**。
+
+    「材料到底送到没有」此前是问图里那份抄件的，而抄件只知道「我们写过」：有人把那段
+    从日程里删了，它不会知道，于是简报说已经送到、参会的人打开日程什么都没有。那是
+    幽灵承诺换了个通道复活，这个仓库为它修过不止一次了。真身就在手上，没有理由问抄件。
+  */
+  const description = asString(detail?.content)
+  const seen = (): { ok: true; title?: string; description?: string } => ({
+    ok: true,
+    ...(title === undefined ? {} : { title }),
+    ...(description === undefined ? {} : { description }),
+  })
+  if (ctx.yzjGraph.rawObject('event', eventId) !== undefined) return seen()
   await ctx.yzjGraph.append({
     type: 'event/observed',
     data: {
@@ -127,7 +139,7 @@ async function observe(
     },
     actor: { kind: 'agent' },
   })
-  return { ok: true, ...(title === undefined ? {} : { title }) }
+  return seen()
 }
 
 export function applyEventTools(ctx: Context): () => void {
@@ -163,7 +175,8 @@ export function applyEventTools(ctx: Context): () => void {
             ? ''
             : `\n  产出：${item.artifacts.map(a => `${a.title} ${a.uri}`).join(' / ')}`)
         )),
-        ...(hub.postedMaterials === undefined
+        // 问的是**此刻的日程**，不是图里那份抄件（见 observe 里那段）。
+        ...(splitAtFence(seen.description ?? '').ledger === undefined
           ? ['材料清单还没写进日程描述——参会的人看不到它。用 event_post_materials 送过去。']
           : []),
       ]
@@ -244,7 +257,7 @@ export function applyEventTools(ctx: Context): () => void {
       if (materials === undefined) {
         return { content: '挂在这场会上的事还没有留下任何产出——现在写进去，参会的人只会看到一串待办。' }
       }
-      const outcome = await post(ctx, args.eventId, materials)
+      const outcome = await post(ctx, args.eventId, materials, hub.postedMaterials)
       if (outcome.ok && outcome.skipped) {
         return { content: '这份材料清单已经在日程描述里了，没有变化。' }
       }

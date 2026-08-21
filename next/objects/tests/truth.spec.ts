@@ -212,6 +212,16 @@ describe('说给 agent 听的那一句', () => {
       过时的不再是手里的标准，是**按旧标准下过的那些结论**——两种情况说同一句话，
       会在明明拿着最新正文的时候仍然叫人去重读一遍正文。
     */
+    /*
+      读不到时，**别再叫它自己去读一遍**。
+
+      走到这一支只有三种可能：通道断了、这份东西不是在线文档、或者线以上一条标准都
+      没有。读一遍一种都救不了；而最后那种更糟——它会把 agent 送进栅栏以下的台账里，
+      把一行「· …· 已完成」当成一条成功标准，正是栅栏要防的事从这句话上开了后门。
+    */
+    expect(changed).not.toContain('yzj_doc_block_list')
+    expect(changed).toContain('照副本判')
+
     const live = truthLine({ kind: 'changed', note: 'blocks:4 → blocks:5' }, true)
     expect(live).toContain('此刻的正文')
     expect(live).not.toContain('副本')

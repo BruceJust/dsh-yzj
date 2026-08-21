@@ -582,6 +582,29 @@ describe('自己的编辑不算真身之变', () => {
     expect(fingerprintOfGoal()).toBe(`blocks:${String(docLines.length)}`)
   })
 
+  /**
+   * 图上没有这个目标，就**一个字都不许写到它身上**。
+   *
+   * `append` 打在不存在的 id 上是**建对象**（`store.fold` 对 `previous === undefined`
+   * 照建不误），于是这一行会凭空造出一条只有指纹、没有名字没有状态的承诺——一个谁也
+   * 删不掉的幽灵，而它会出现在承诺板上。子承诺的 `parentGoalRef` 是模型报上来的一个
+   * 链接，`commitment_register` 不校验它指向的目标存不存在，所以这条路走得通。
+   * `checkGoalTruth` 里那次同样的记录早就有这道闸（truth.spec.ts 专门锁着它）。
+   */
+  it('图上没有这个目标时，不凭空造一条出来', async () => {
+    docLines = ['成功标准一']
+    // 注意：**不**调 goal()。只有一条子承诺，它指着一个没登记过的目标链接。
+    applyGoalWriteback(ctx)
+    await child()
+    await settle(landed(writebackIdFor(GOAL, 'c1', 'born')))
+    // 账照记不误——组里该看到的还是得看到。
+    expect(stateOf(writebackIdFor(GOAL, 'c1', 'born'))?.status).toBe('written')
+    expect(
+      graph.rawObject('commitment', goalCommitmentIdFor(GOAL)),
+      '凭空造出了一条只有指纹的幽灵承诺',
+    ).toBeUndefined()
+  })
+
   it('回写之后再查真身，答的是「没有改动」', async () => {
     docLines = ['成功标准一']
     await goal()

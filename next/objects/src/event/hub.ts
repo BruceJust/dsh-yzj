@@ -205,9 +205,24 @@ export function materialsFor(hub: EventHub): string | undefined {
  * 有人把那段删了它不会知道——于是板上说已送达、日程里什么都没有。那是幽灵承诺换了
  * 个通道复活，这个仓库里已经为它修过一次了。
  */
-export function descriptionFor(current: string, materials: string): string | undefined {
+export function descriptionFor(
+  current: string, materials: string, posted?: string,
+): string | undefined {
   const { human, ledger } = splitAtFence(current)
   // 一模一样就不动：日程描述是全参会人看的，重贴一遍不是小事。
   if (ledger === materials) return undefined
-  return withLedger(human, '会议议程', materials)
+  /*
+    栅栏出现之前写下的那一份，是**我们的**，不是会议主人的。
+
+    那时候的代码把材料整段盖上去、不带线。现在再写一次，`splitAtFence` 找不到线，
+    于是把整段旧材料当成「人写的议程」保在线以上，再在线以下写一份新的——**同一份
+    材料出现两遍，其中一份还冒充了人写的东西**。保护主权的那条规矩，反过来把系统
+    自己的旧输出封成了不可动的圣物。
+
+    认它的凭据是**图里那条记录**（`postedMaterials`：我们上次写下去的原文），不是
+    对着文本猜。猜错的方向恰好最坏：把真的议程当成我们的旧输出删掉。图里没有记录
+    就宁可留着——多一份重复看得见、改得掉；抹掉一段人写的议程没人知道。
+  */
+  const mine = posted !== undefined && human.trim() === posted.trim()
+  return withLedger(mine ? '' : human, '会议议程', materials)
 }
