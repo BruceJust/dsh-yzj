@@ -211,7 +211,18 @@ export function applyCommitmentTools(ctx: Context): () => void {
 
   register(defineTool({
     name: 'commitment_receipt',
-    description: 'Record a reply you observed about an existing commitment — "分析发了" / "明天给" / "做不了了". This is how a commitment breathes after registration; without it the operator has to relay every status by hand. Apply the change the reply actually implies, nothing more.',
+    /*
+      「作废」不是这个工具能干的事，而它长得太像了。
+
+      实跑里出现过一次：操作者说「把这两条探针作废掉」，agent 手上**没有作废工具**
+      （作废是主权动作，只从卡与承诺板出——那个边界是对的），于是它退而求其次记了
+      两条回执。后果不是少做一件事，是**记录变成了假话**：操作者要杀掉的那条承诺，
+      图上留下的是「有人报告了进展」，而这套系统全部的价值就押在记录诚实上。
+
+      少一个动词是设计，悄悄换一个动词不是。所以把这条写进工具描述里——没有的动词
+      就说没有，指回那个按钮。
+    */
+    description: 'Record a reply you observed about an existing commitment — "分析发了" / "明天给" / "做不了了". This is how a commitment breathes after registration; without it the operator has to relay every status by hand. Apply the change the reply actually implies, nothing more. NEVER use this as a stand-in for a verb you do not have: 作废 / 顺延 / 移交 / 合并 are the operator\'s own, and they live on the commitment board and the cards. If you are asked for one of those, say plainly that it is their button to press and where it is — filing a receipt instead leaves the graph saying somebody reported progress on work the operator wanted killed.',
     parameters: {
       commitmentId: { type: 'string', required: true, description: 'The commitment this reply is about (from graph_query).' },
       text: { type: 'string', required: true, description: 'What they said, quoted.' },
