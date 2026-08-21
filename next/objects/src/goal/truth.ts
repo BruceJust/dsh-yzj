@@ -70,6 +70,18 @@ export function docIdOf(goalRef: string): string | undefined {
 }
 
 /**
+ * 正文版本写成指纹的样子。
+ *
+ * 拎成一个函数，是因为**回写那边也要写这个值**：写完一笔账，它顺手把「文档现在是第
+ * 几版」记回目标，好让我们自己的编辑不冒充成「有人改了成功标准」。两处各自拼字符串
+ * 的话，某一天有人给它加个前缀，另一处就会开始报一个永远存在的改动——而一条每次都在
+ * 喊的警告等于没有警告。
+ */
+export function bodyMark(version: number): string {
+  return `blocks:${String(version)}`
+}
+
+/**
  * 读一个知识库节点的指纹。没有通道就是没有,不假装读到了。
  *
  * **先问正文,再退回节点。** 在线文档(otl)的正文版本在 `doc block list` 里;
@@ -87,7 +99,7 @@ async function fingerprint(
     ?? await bridge.run(['doc', 'block', 'list', '--id', docId], { timeoutMs: 20_000 })
   if (body.ok) {
     const version = asNumber(asRecord(asRecord(body.json as JsonValue)?.data)?.version)
-    if (version !== undefined) return { mark: `blocks:${String(version)}`, note: `正文版本 ${String(version)}` }
+    if (version !== undefined) return { mark: bodyMark(version), note: `正文版本 ${String(version)}` }
   }
 
   const node = await bridge.run(['doc', 'get', '--id', docId], { timeoutMs: 15_000 })

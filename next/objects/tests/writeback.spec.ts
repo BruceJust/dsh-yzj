@@ -22,6 +22,7 @@ import { commitmentFamily, goalCommitmentIdFor } from '../src/index.ts'
 import { isFence } from '../src/fence.ts'
 import { waitingFamily } from '../src/task/waiting.ts'
 import { applyGoalWriteback, lineFor, writebackIdFor } from '../src/goal/writeback.ts'
+import { checkGoalTruth } from '../src/goal/truth.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const DOC = '6a7a87ece7eece43b1e36d8e'
@@ -143,7 +144,8 @@ beforeEach(async () => {
         // 照真 bridge 的形状：失败带的是 `stderr`，不是 `error`。
         if (!insertOk) return { ok: false, stderr: 'error: 没有写权限', exitCode: 1 }
         docLines.push(...linesOf(command))
-        return { ok: true, json: {} }
+        // 真回包里带着写完之后的正文版本，和 `doc block list` 是同一个计数器（实测）。
+        return { ok: true, json: { data: { blockId: 'doc', version: docLines.length } } }
       }
       if (command[1] === 'block' && command[2] === 'list') {
         return listOk
@@ -324,7 +326,9 @@ describe('那份文档是全组在读的', () => {
     await graph.append({
       type: 'commitment/closed', data: { commitmentId: 'c-fast', cause: 'done' }, actor: OPERATOR,
     })
-    await settle()
+    await settle(landed(
+      writebackIdFor(GOAL, 'c-fast', 'born'), writebackIdFor(GOAL, 'c-fast', 'settled'),
+    ))
     expect(inserts).toHaveLength(2)
     expect(JSON.stringify(inserts[0])).not.toContain('已完成')
     expect(JSON.stringify(inserts[1])).toContain('已完成')
@@ -552,6 +556,52 @@ describe('写不进去要有人知道', () => {
     await settle(() => openWaitings().length === 2)
     expect(openWaitings(), '第二次故障没开出新的等待——撞在墓碑上了').toHaveLength(2)
     expect(openWaitings()[0]?.waitingId).not.toBe(openWaitings()[1]?.waitingId)
+  })
+})
+
+/**
+ * 自己贴的台账，不能冒充「有人改了成功标准」。
+ *
+ * 真身检查比的是正文版本，而回写就是在改正文。不把自己写出来的那一版记回去，每写一笔
+ * 账，下一次消费就报一句「真身已被改动，照旧标准下过的结论未必还成立」——而那个改动是
+ * 我们自己贴的一行台账。这条警告会在每一次回写后准时响一遍，然后再没有人会认真看它。
+ * 这个仓库自己的话：**反复报出来的警告等于没有警告。**
+ */
+describe('自己的编辑不算真身之变', () => {
+  const fingerprintOfGoal = (): string | undefined =>
+    asString(asRecord(graph.rawObject('commitment', goalCommitmentIdFor(GOAL))?.state)?.truthFingerprint)
+
+  it('写完当场把新版本记回目标', async () => {
+    docLines = ['成功标准一']
+    await goal()
+    applyGoalWriteback(ctx)
+    await child()
+    await settle(() => fingerprintOfGoal() !== undefined)
+    // 栅栏 + 台账两行下去，正文从 1 变 3。
+    expect(docLines).toHaveLength(3)
+    expect(fingerprintOfGoal()).toBe(`blocks:${String(docLines.length)}`)
+  })
+
+  it('回写之后再查真身，答的是「没有改动」', async () => {
+    docLines = ['成功标准一']
+    await goal()
+    applyGoalWriteback(ctx)
+    await child()
+    await settle(() => fingerprintOfGoal() !== undefined)
+    const verdict = await checkGoalTruth(ctx, GOAL)
+    expect(verdict.kind).toBe('unchanged')
+  })
+
+  it('别人真的动了正文，照样报得出来', async () => {
+    docLines = ['成功标准一']
+    await goal()
+    applyGoalWriteback(ctx)
+    await child()
+    await settle(() => fingerprintOfGoal() !== undefined)
+    // 有人在云之家把一条标准改了。
+    docLines = [...docLines, '成功标准二：新加的']
+    const verdict = await checkGoalTruth(ctx, GOAL)
+    expect(verdict.kind).toBe('changed')
   })
 })
 

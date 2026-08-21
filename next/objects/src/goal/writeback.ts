@@ -26,12 +26,12 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asNumber, asRecord, asString, type GraphEvent } from '@yzj-next/graph'
+import { asNumber, asRecord, asString, type GraphEvent, type JsonValue } from '@yzj-next/graph'
 import { failureOf } from '../bridge-error.ts'
 import { fenceLine } from '../fence.ts'
 import { waitingIdFor } from '../task/waiting.ts'
 import { goalCommitmentIdFor } from './family.ts'
-import { docIdOf, fenceOf } from './truth.ts'
+import { bodyMark, docIdOf, fenceOf } from './truth.ts'
 
 /**
  * 回写从哪一条日志开始负责。
@@ -103,8 +103,16 @@ export function lineFor(
   return `· ${what} — ${whoOf(state)} · ${endOf(status, asString(state?.cause as never))}`
 }
 
-/** 一次写入的结果。失败带着原因——「没写成」和「为什么没写成」是两件事。 */
-type WriteOutcome = { readonly ok: true } | { readonly ok: false; readonly why: string }
+/**
+ * 一次写入的结果。失败带着原因——「没写成」和「为什么没写成」是两件事。
+ *
+ * 成功那一支带着**写完之后正文是第几版**：`doc block insert` 的回包里就有它，和
+ * `doc block list` 是同一个计数器（实测）。有了它，我们自己那次编辑就能当场记回目标，
+ * 不必再多打一次 CLI，也不会被下一次检查当成「有人改了成功标准」。
+ */
+type WriteOutcome =
+  | { readonly ok: true; readonly version?: number }
+  | { readonly ok: false; readonly why: string }
 
 /**
  * 往文档尾部贴若干段。一次调用贴完，栅栏和它下面的第一行不会被谁插在中间。
@@ -130,7 +138,8 @@ async function insert(ctx: Context, docId: string, lines: string[]): Promise<Wri
     { timeoutMs: 20_000 },
   )
   if (!result.ok) return { ok: false, why: failureOf(result, '写入失败') }
-  return { ok: true }
+  const version = asNumber(asRecord(asRecord(result.json as JsonValue)?.data)?.version)
+  return { ok: true, ...(version === undefined ? {} : { version }) }
 }
 
 /** 这个目标身上，我们成功写进去过几笔账。0 就是一笔都没写成过。 */
@@ -318,6 +327,28 @@ export function applyGoalWriteback(ctx: Context): () => void {
         await (outcome.ok
           ? clearOutage(ctx, goalRef, generation)
           : reportOutage(ctx, goalRef, generation, outcome.why))
+        /*
+          把**我们刚写出来的那一版**记回目标 —— 否则自己的编辑会冒充「有人改了标准」。
+
+          真身检查比的是正文版本，而回写就是在改正文。不记的话，每写一笔账，下一次消费
+          就报一句「真身已被改动，照旧标准下过的结论未必还成立，需要重新判」——而那个
+          改动是我们自己贴的一行台账，跟成功标准一个字的关系都没有。这条警告会在每一次
+          回写后准时响一遍，然后再也没有人会认真看它。这个仓库里已经写过这句话了：**反复
+          报出来的警告等于没有警告。**
+
+          版本号是写入回包白送的，不必再读一次；拿不到就不记——记一个猜的版本，比不记
+          更坏，那会让一次真的改动被吞掉。
+        */
+        if (outcome.ok && outcome.version !== undefined) {
+          await ctx.yzjGraph.append({
+            type: 'commitment/updated',
+            data: {
+              commitmentId: goalCommitmentIdFor(goalRef),
+              truthFingerprint: bodyMark(outcome.version),
+            },
+            actor: { kind: 'agent' },
+          })
+        }
       })
     } catch (error) {
       console.error('[yzj-next-objects] failed to record the write-back', error)
