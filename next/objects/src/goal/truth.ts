@@ -29,7 +29,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asNumber, asRecord, asString } from '@yzj-next/graph'
+import { asNumber, asRecord, asString, type JsonValue } from '@yzj-next/graph'
 import { goalCommitmentIdFor } from './family.ts'
 
 /** 一次观察的结论。`unknown` 带着原因——看不了必须说出为什么看不了。 */
@@ -138,16 +138,80 @@ export async function checkGoalTruth(ctx: Context, goalRef: string): Promise<Tru
   return { kind: 'changed', note: `${known} → ${seen.mark}` }
 }
 
-/** 一句话,给 agent 读。三种结果各说各的,不合并。 */
-export function truthLine(verdict: TruthVerdict): string {
+/** 真身正文,以及它读不到时的实话。 */
+export type TruthBody =
+  | { readonly ok: true; readonly text: string }
+  | { readonly ok: false; readonly why: string }
+
+/** 一个块里的文字。块的形状各家不同，所以只认「像文字的字段」，认不出就跳过。 */
+function textOfBlock(block: JsonValue | undefined): string {
+  const record = asRecord(block)
+  if (record === undefined) return ''
+  for (const key of ['text', 'content', 'plainText', 'title']) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim() !== '') return value.trim()
+    // 富文本块常把文字装进一个数组：`content: [{text: '…'}]`。
+    if (Array.isArray(value)) {
+      const joined = value
+        .map(item => asString(asRecord(item)?.text) ?? '')
+        .join('')
+        .trim()
+      if (joined !== '') return joined
+    }
+  }
+  return ''
+}
+
+/**
+ * 读目标真身的正文 —— 差距简报的**判据** (v3.10 4h②).
+ *
+ * 此前评估读的是 `criteria`：立目标那一刻抄下的副本。翻案的理由很直接——**CLI 一直
+ * 有 `doc block list`**，"押文档 API" 那条判断是我把 IM 通道的方法面误当成了 CLI
+ * 的能力面。既然读得到，就没有理由拿副本当判据：副本只证明**签发时刻人签了什么**
+ * （环境快照律的用处），而「做到没做到」必须对着此刻的正文判。
+ *
+ * 读不到就说读不到。这一族的第一条纪律在这里同样成立：把「看不了」说成「就按副本
+ * 来吧」，是让一个可能已经过时的标准继续冒充有效标准。
+ */
+export async function readGoalBody(ctx: Context, goalRef: string): Promise<TruthBody> {
+  const docId = docIdOf(goalRef)
+  if (docId === undefined) {
+    return { ok: false, why: '这个目标引用不是云之家知识库链接，读不到它的正文' }
+  }
+  const bridge = ctx.get('yzjBridge')
+  if (bridge === undefined) return { ok: false, why: '云之家通道未就绪' }
+  const result = await bridge.run(['doc', 'block', 'list', '--id', docId], { timeoutMs: 20_000 })
+  if (!result.ok) {
+    return { ok: false, why: asString(asRecord(result)?.error) ?? '读不到这份文档的正文' }
+  }
+  const blocks = asRecord(asRecord(result.json)?.data)?.blocks
+  if (!Array.isArray(blocks)) {
+    return { ok: false, why: '这份文档没有可读的正文块（可能是上传的文件，不是在线文档）' }
+  }
+  const text = blocks.map(block => textOfBlock(block)).filter(line => line !== '').join('\n').trim()
+  if (text === '') return { ok: false, why: '这份文档的正文是空的' }
+  return { ok: true, text }
+}
+
+/**
+ * 一句话,给 agent 读。三种结果各说各的,不合并。
+ *
+ * `liveBody` 说的是「这次读到了此刻的正文没有」。读到了,「变了」就不再意味着手里
+ * 的标准过时——过时的是**按旧标准下过的那些结论**;读不到,才轮到那句「下面是副本」。
+ * 不分这两种,就会在明明拿着最新正文的时候仍然叫人去重读一遍正文 (v3.10 4h②)。
+ */
+export function truthLine(verdict: TruthVerdict, liveBody = false): string {
   switch (verdict.kind) {
     case 'unchanged':
       return `真身：自上次查看以来没有改动（${verdict.note}）`
     case 'first-look':
       return `真身：第一次记下它现在的样子（${verdict.note}）——从现在起它被改动会被发现`
     case 'changed':
-      return `真身已被改动（${verdict.note}）。**下面这份成功标准是我们上次抄下来的副本，`
-        + `可能已经过时**——要对着当前正文判断，先用 yzj_doc_block_list 读一遍真身正文。`
+      return liveBody
+        ? `真身已被改动（${verdict.note}）——下面的成功标准是**此刻的正文**，`
+          + `照旧标准下过的结论（包括已有的差距简报）未必还成立，需要重新判。`
+        : `真身已被改动（${verdict.note}）。**下面这份成功标准是我们上次抄下来的副本，`
+          + `可能已经过时**——要对着当前正文判断，先用 yzj_doc_block_list 读一遍真身正文。`
     default:
       // 「看不了」不是「没变」。说出是哪一堵墙，比给一句「一切正常」诚实。
       return `真身：这次没能查看（${verdict.why}）——所以“有没有被改”这一问，现在答不了`

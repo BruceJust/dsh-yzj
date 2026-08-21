@@ -24,7 +24,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, asRecord, asString, type GraphActor } from '@yzj-next/graph'
 import { commitmentFamily } from '../src/commitment/family.ts'
 import { goalCommitmentIdFor } from '../src/goal/family.ts'
-import { checkGoalTruth, docIdOf, truthLine } from '../src/goal/truth.ts'
+import { checkGoalTruth, docIdOf, readGoalBody, truthLine } from '../src/goal/truth.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const DOC = '6a7a87ece7eece43b1e36d8e'
@@ -199,6 +199,60 @@ describe('说给 agent 听的那一句', () => {
     expect(changed).toContain('已被改动')
     // 最要紧的一句：告诉 agent 它手上那份标准可能已经过时。
     expect(changed).toContain('可能已经过时')
+    /*
+      读到了此刻的正文，那句「下面是副本」就成了假话 (v3.10 4h②)。
+
+      过时的不再是手里的标准，是**按旧标准下过的那些结论**——两种情况说同一句话，
+      会在明明拿着最新正文的时候仍然叫人去重读一遍正文。
+    */
+    const live = truthLine({ kind: 'changed', note: 'blocks:4 → blocks:5' }, true)
+    expect(live).toContain('此刻的正文')
+    expect(live).not.toContain('副本')
+    expect(live).toContain('未必还成立')
     expect(truthLine({ kind: 'unknown', why: '通道没就绪' })).toContain('答不了')
+  })
+})
+
+/**
+ * 判据是此刻的正文，不是签发时抄下的副本 (v3.10 4h②)。
+ *
+ * 副本只证明**签发那一刻人签的是什么**（环境快照律的用处）；而「做到没做到」只能对着
+ * 此刻的标准判——两者不一致时，拿副本判出来的「已达成」是照着一份没人还认的标准得出的
+ * 结论。这一条此前被判为「押文档 API」，是把 IM 通道的方法面误当成了 CLI 的能力面：
+ * `doc block list` 一直都在。
+ */
+describe('读真身正文', () => {
+  it('把正文块拼成可判断的文本', async () => {
+    body = {
+      ok: true,
+      json: { data: { version: 4, blocks: [
+        { text: '三家竞品各一页' },
+        { content: [{ text: '每页含定价与差异' }] },
+        { text: '   ' },
+      ] } },
+    }
+    const read = await readGoalBody(ctx, GOAL)
+    expect(read.ok).toBe(true)
+    expect(read.ok && read.text).toBe('三家竞品各一页\n每页含定价与差异')
+  })
+
+  it('读不到就说读不到——不退回副本假装判得了', async () => {
+    body = { ok: false, error: '没有权限' }
+    const read = await readGoalBody(ctx, GOAL)
+    expect(read.ok).toBe(false)
+    expect(read.ok === false && read.why).toContain('没有权限')
+  })
+
+  it('上传的文件没有正文块，如实说，而不是给一段空文本', async () => {
+    body = { ok: true, json: { data: { version: 1 } } }
+    const read = await readGoalBody(ctx, GOAL)
+    expect(read.ok).toBe(false)
+    expect(read.ok === false && read.why).toContain('不是在线文档')
+  })
+
+  it('不长得像知识库链接的，连问都不问', async () => {
+    const read = await readGoalBody(ctx, 'https://yzj.example.com/doc/q3')
+    expect(read.ok).toBe(false)
+    expect(calls).toHaveLength(0)
   })
 })

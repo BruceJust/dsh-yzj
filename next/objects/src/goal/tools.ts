@@ -28,7 +28,7 @@ import { goalEvidence, visibleGoals } from './evidence.ts'
 import {
   assessmentIdFor, goalCommitmentIdFor, proposalIdFor, proposalSettled, type ProposalState,
 } from './family.ts'
-import { checkGoalTruth, truthLine } from './truth.ts'
+import { checkGoalTruth, readGoalBody, truthLine } from './truth.ts'
 
 const output = {
   schema: {
@@ -334,13 +334,28 @@ export function applyGoalTools(ctx: Context): () => void {
         成立。
       */
       const verdict = await checkGoalTruth(ctx, args.goalRef)
+      /*
+        判据是**此刻的正文**，不是签发时抄下的副本 (v3.10 4h②).
+
+        副本只证明一件事：签发那一刻人签的是什么（环境快照律的用处）。而「做到没做到」
+        只能对着此刻的标准判——两者不一致时，拿副本判出来的「已达成」是照着一份没人
+        还认的标准得出的结论。
+
+        读不到就说读不到，不退回副本假装判得了：这一族的第一条纪律（看不了 ≠ 没变）
+        在这里是同一条。
+      */
+      const body = await readGoalBody(ctx, args.goalRef)
       const lines = [
-        truthLine(verdict),
+        truthLine(verdict, body.ok),
         `目标：${evidence.goalName ?? evidence.goalRef} [${evidence.status}]`,
         `owner：${evidence.owner ?? '未记录'}`,
-        evidence.criteria === undefined
-          ? '成功标准：未记录（立目标时没有写「怎么算完成」——评估只能凭子承诺与产出说话）'
-          : `成功标准：${evidence.criteria}`,
+        body.ok
+          ? `成功标准（真身正文，此刻）：\n${body.text}`
+          : `成功标准：读不到真身正文（${body.why}）——下面这份是签发时抄下的副本，`
+            + `可能已经过时，判断时要说明你是照着副本判的`,
+        ...(body.ok || evidence.criteria === undefined
+          ? []
+          : [`签发时的副本：${evidence.criteria}`]),
         `子承诺：在跟 ${String(evidence.counts.open)} · 逾期 ${String(evidence.counts.overdue)} · 已了 ${String(evidence.counts.settled)}`,
         ...evidence.children.map(child => (
           `- [${child.status}${child.overdue ? '·逾期' : ''}] ${child.what} — ${child.who}`
