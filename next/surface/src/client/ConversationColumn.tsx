@@ -312,6 +312,17 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
 
   const send = useCallback((): void => {
     const text = draft.trim()
+    /*
+      三条拒绝里，**只有一条可以静默**。
+
+      `text === ''` 与 `busy` 都有可见的对应物：按钮此刻是灰的、或者正在转。而
+      `sessionId === undefined` 此前**只在这里挡**，按钮却照常亮着——于是点下去
+      什么都不发生、也不说一个字。这正是这套设计点名过的那种失败：「一次沉默的
+      不回应，是产品教人相信它会随机罢工的方式」。
+
+      现在这一条挡在按钮上（灰掉）并在落点行里说明白；这里留着它只是兜底——键盘
+      回车也走这条路。
+    */
     if (text === '' || busy || sessionId === undefined) return
     setBusy(true)
     setToast('')
@@ -839,7 +850,16 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         */}
         <div className={`${css.anchorBar} ${replyTo === undefined ? '' : css.anchorPinned}`}>
           <span className={css.anchorLabel}>落点</span>
-          {replyTo === undefined
+          {/*
+            **没有落点就说没有落点。**
+
+            这一格此前假设「总有一个会话在下面」，而一个还没有 session 的本地会话
+            不满足它：发送键照常亮着，点下去什么都不发生。说出是哪一堵墙，比给一颗
+            点了没反应的按钮诚实——后者会让人以为是自己打错了什么。
+          */}
+          {sessionId === undefined
+            ? <span className={css.anchorWhere}>这里还没有会话——从左边新建一个，或者打开一个已有的</span>
+            : replyTo === undefined
             ? (
               <span className={css.anchorWhere}>
                 {voice === 'place'
@@ -949,7 +969,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           <button
             type="button"
             className={`${css.send} ${voice === 'place' ? css.sendPub : voice === 'ask' ? css.sendAsk : css.sendPri}`}
-            disabled={busy || draft.trim() === ''}
+            disabled={busy || draft.trim() === '' || sessionId === undefined}
             onClick={send}
           >
             {voice === 'place' ? '发到群' : voice === 'ask' ? '轻问' : '发送'}

@@ -300,6 +300,25 @@ export function YzjBoard(props: BoardProps): ReactNode {
     openSession(row.sessionId)
   }, [openSession])
 
+  /**
+   * 验收 / 打回 —— **双动词，就近**。
+   *
+   * 打回要理由：拒收是一次质量判断，而没有理由的返工会让执行者第二次交上来的东西
+   * 是猜的。验收不要——收下就是收下，追问「为什么收下」是给主权时刻加税。
+   */
+  const judge = useCallback((row: BoardRowWire, verdict: 'accept' | 'reject'): void => {
+    const why = verdict === 'reject'
+      ? window.prompt('打回的理由（会记在卡上，执行者看得到）：')
+      : undefined
+    if (verdict === 'reject' && (why === null || why === undefined || why.trim() === '')) return
+    setBusy(row.id)
+    void inject.cardAct('commitment', row.id, verdict, why ?? undefined).then((result) => {
+      setToast(result?.receipt ?? (verdict === 'accept' ? '已验收。' : '已打回。'))
+      setBusy('')
+      void refresh()
+    })
+  }, [inject, refresh])
+
   /** 修理动词的统一收尾：说一句人话、刷新、把面板收起来。 */
   const runRepair = useCallback((id: string, work: Promise<{ error?: string }>, done: string): void => {
     setBusy(id)
@@ -461,6 +480,39 @@ export function YzjBoard(props: BoardProps): ReactNode {
           >
             {row.signal === 'silent' ? '无信号' : `${sinceText(row.lastSignalAt)}没动`}
           </span>
+        )}
+        {/*
+          **就近动词** —— 板上看得见「待验收」，就该在这一行上按得下去。
+
+          这一格是被一次真装配闭环逼出来的：agent 正确地拒绝了代人验收，并告诉操作者
+          「去承诺板上那张卡按验收」——而板上当时**没有那颗按钮**。徽标竖起来了、动词
+          没跟上，等于把人指到一堵墙上。「信号即门·逐级兑付」说的就是这件事：没有不可
+          兑付的信号。
+
+          只有待验收时出现：没有交付可验的时候摆一颗「验收」，是请人去验收一份不存在
+          的产出（此前修过的僵尸问题）。
+        */}
+        {row.status === 'open' && row.awaitingAcceptance === true && (
+          <>
+            <button
+              type="button"
+              className={css.acceptGo}
+              disabled={busy === row.id}
+              title="收下这份交付——承诺就此终态"
+              onClick={() => { judge(row, 'accept') }}
+            >
+              验收
+            </button>
+            <button
+              type="button"
+              className={css.rejectGo}
+              disabled={busy === row.id}
+              title="打回重做——承诺没死，死的是这一版交付；轮次会记在卡上"
+              onClick={() => { judge(row, 'reject') }}
+            >
+              打回
+            </button>
+          </>
         )}
         {row.notified === 'failed' && (
           <span className={css.unnotified} title="登记落库了，但这条消息没能发到执行者所在的会话——对方并不知道。请自己去说一声。">
