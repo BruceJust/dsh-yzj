@@ -34,6 +34,7 @@ import { currentBoardLens, pushFrame, sendErrand, setBoardLens } from './store.t
 import { RoomPicker, type Portal } from './RoomPicker.tsx'
 import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
+import { assessAsk } from './commission.ts'
 import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
 import tokens from './tokens.module.css'
@@ -41,6 +42,13 @@ import css from './board.module.css'
 
 export interface BoardProps {
   inject: SurfaceInject
+  /**
+   * 把一句话交给 agent —— **CTA 是话语的按钮形态** (§5.3 A6.1 ①).
+   *
+   * 「评估」走这里，不走传送门：它的落点是规则（私语域），不是要问人的社交决策。
+   * 返回一句话 = 没送出去，为什么。
+   */
+  commission(text: string): Promise<string | undefined>
   openSession(sessionId: string): void
   back(): void
   /**
@@ -122,7 +130,7 @@ export function nudgeDraft(
 }
 
 export function YzjBoard(props: BoardProps): ReactNode {
-  const { inject, openSession, back, fromSessionId, restoreScroll } = props
+  const { inject, commission, openSession, back, fromSessionId, restoreScroll } = props
   const [view, setView] = useState<BoardViewWire>(EMPTY)
   /*
     档位从 store 里取初值:进目标页会把板卸载掉,回来是一次全新挂载。
@@ -813,27 +821,33 @@ export function YzjBoard(props: BoardProps): ReactNode {
             委派 ↗
           </button>
         )}
+        {/*
+          评估**不是传送门** —— 按下即是对 agent 说了那句话 (§5.3 A6.1 ①).
+
+          它此前和左边的「委派 ↗」共用一套动作：弹一屏问「在哪个会话里私下问？」，
+          跳过去，把一句现成的话放进输入框等人按发送。可这两颗按钮问的根本不是同一
+          个问题——**委派要问场所**（听众是社交决策，人选不推导），**评估的落点是
+          规则**：简报只在私语域生成，因为它汇集的证据跨场所，投进群里会被可见域
+          悄悄削掉一半。对一个只有一个合法答案的问题弹一屏，收的是纯损耗的摩擦。
+        */}
         {goal.row !== undefined && goal.row.status === 'open' && (
           <button
             type="button"
             className={css.assess}
-            title="让 agent 拿子承诺终态与产出对着成功标准写一份差距简报——验收还是你的动作"
+            disabled={busy === `asm:${goal.goalRef}`}
+            title="按下就是对 agent 说「评估一下」：它拿子承诺终态与产出对着成功标准备料出简报——验收还是你的动作"
             onClick={() => {
-              setPortal({
-               subject: 'goal',
-                goalRef: goal.goalRef,
-                goalName: goal.row?.what ?? goal.goalRef,
-                voice: 'private',
-                /*
-                  A sentence a person would actually say, plus the one thing
-                  the agent cannot derive: which document this goal is. Naming
-                  the tools here would put implementation detail into text the
-                  operator is about to send — the tools' own descriptions
-                  already carry the ordering.
-                */
-                seed: `评估一下这个目标做到什么程度了：${goal.row?.what ?? goal.goalRef}（${goal.goalRef}）`,
-                title: '评估：在哪个会话里私下问？',
-                note: '简报默认只在私语域生成——子承诺跨场所，放到群里会被可见域悄悄削掉一半证据。',
+              const label = goal.row?.what ?? goal.goalRef
+              setBusy(`asm:${goal.goalRef}`)
+              /*
+                句子里带 `goalRef`——**agent 唯一推导不出来的那件事**：成功标准住在
+                云之家那份文档的正文里，不给引用它只能拿手上那份副本对账，而那份副本
+                恰恰是可能已经过时的那一份 (4h②)。工具名不写进去：那是实现细节，而
+                这句话是操作者说出口的话。
+              */
+              void commission(assessAsk(label, goal.goalRef)).then((error) => {
+                setBusy('')
+                if (error !== undefined) setToast(error)
               })
             }}
           >

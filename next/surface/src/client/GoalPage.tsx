@@ -29,6 +29,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { BoardRowWire, GoalPageWire, SurfaceInject } from './rpc.ts'
 import { sendErrand } from './store.ts'
 import { RoomPicker, type Portal } from './RoomPicker.tsx'
+import { assessAsk, breakdownAsk, goalQuestionSeed, rebaseAsk } from './commission.ts'
 import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
 import { ArtifactCard } from './ArtifactCard.tsx'
@@ -40,6 +41,20 @@ export interface GoalPageProps {
   goalRef: string
   goalName: string
   inject: SurfaceInject
+  /**
+   * 把一句话交给 agent —— **CTA 是话语的按钮形态** (§5.3 A6.1 ①).
+   *
+   * 拆解与评估走这里，不走传送门：它们的落点是**规则**（操作者私语域），不是一个
+   * 要问人的社交决策。返回一句话 = 没送出去，为什么。
+   */
+  commission(text: string): Promise<string | undefined>
+  /**
+   * 操作者此刻所在的那个会话 —— 「问这个目标」落在这儿。
+   *
+   * 目标页是一层**画面**，不是一个会话：它盖在某个会话上面。轻问要落进会话日志
+   * （而不是变成一次页面旁路），所以它需要知道自己盖在谁上面。
+   */
+  deskSessionId?: string
   openSession(sessionId: string): void
   /** ‹ 返回 —— 回到板上离开时的那个位置。 */
   back(): void
@@ -61,7 +76,7 @@ function whenLabel(at: number): string {
 
 /** 修理动词族里需要输入的那几个,共用一张就近的小表单。 */
 export function YzjGoalPage(props: GoalPageProps): ReactNode {
-  const { goalRef, goalName, inject, openSession, back } = props
+  const { goalRef, goalName, inject, commission, deskSessionId, openSession, back } = props
   const [view, setView] = useState<GoalPageWire | undefined>(undefined)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
@@ -126,6 +141,25 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
     那句话由你自己按下发送。
   */
   const ask = useCallback((next: Portal): void => { setPortal(next) }, [])
+
+  /**
+   * ⚡ 拆解 / ✓ 评估 —— **按钮就是那句话**，不是通往那句话的路 (A6.1 ①).
+   *
+   * 这两颗此前和「委派」长得一模一样：弹一屏问落点、跳过去、把一句现成的话放进
+   * 输入框等人按发送。可**那个问题只有一个合法答案**——规格写死了「该 turn 落点 =
+   * 操作者私语域」——而那句话是按钮的名字，不是人要说的话。于是三步里两步是纯损耗，
+   * 而且第三步还给了人一个错觉：这句话是他说的。
+   *
+   * 送出去之后由宿主把人带进那个会话：备料的 work 块在那儿，随后的提案卡也在那儿。
+   */
+  const commit = useCallback((key: string, text: string): void => {
+    setBusy(key)
+    void commission(text).then((error) => {
+      setBusy('')
+      // 没送出去才说话；送出去了，人已经在会话里看见那句话了，再弹一条 toast 是噪音。
+      if (error !== undefined) setToast(error)
+    })
+  }, [commission])
 
   const jump = useCallback((
     voice: 'place' | 'private', seed: string, sessionId: string,
@@ -367,15 +401,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               <button
                 type="button"
                 className={css.act}
-                onClick={() => {
-                  ask({
-                    subject: 'goal',
-                    goalRef, goalName, voice: 'private',
-                    seed: `以现在这版成功标准，重新评估目标「${name}」的完成度。`,
-                    title: '以新基准重估：在哪个会话里私下问？',
-                    note: '简报默认落私语域——它汇集的证据来自多个场所，投到群里等于越境。',
-                  })
-                }}
+                disabled={busy === 'rebase'}
+                onClick={() => { commit('rebase', rebaseAsk(name, goalRef)) }}
               >
                 以新基准重估
               </button>
@@ -448,47 +475,52 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             >
               ＋ 委派
             </button>
+            {/*
+              ⚡ 拆解 与 ✓ 评估 **不是**传送门 —— 按下即是对 agent 说了那句话。
+
+              它们和上面那颗「＋ 委派」的差别，正是这一屏上最容易混掉的一条界线：
+              委派要问**场所**（听众是社交决策，人选不推导），而拆解与评估的落点
+              是**规则**——「该 turn 落点 = 操作者私语域」，提案确认之前它既不是
+              承诺、更不是公开话语。对一个只有一个答案的问题弹一屏，是把损耗性
+              摩擦当成主权性摩擦收了一遍。
+            */}
             <button
               type="button"
               className={css.cta}
-              onClick={() => {
-                ask({
-                  subject: 'goal',
-                  goalRef, goalName, voice: 'private',
-                  seed: `帮我把目标「${name}」拆成子承诺，逐条列出做什么、谁做、什么时候前。`,
-                  title: '拆解：在哪个会话里私下问？',
-                  note: 'agent 只有提议权——每条都要过你的手，确认才落库并代发登记话语。',
-                })
-              }}
+              disabled={busy === 'breakdown'}
+              title="按下就是对 agent 说「帮我拆」——它先读真身与成功标准备料，再递一份逐条可裁决的提案；每条都要过你的手"
+              onClick={() => { commit('breakdown', breakdownAsk(name, goalRef)) }}
             >
               ⚡ 拆解
             </button>
             <button
               type="button"
               className={css.cta}
-              onClick={() => {
-                ask({
-                  subject: 'goal',
-                  goalRef, goalName, voice: 'private',
-                  seed: `评估目标「${name}」的完成度，逐条对着成功标准给证据。`,
-                  title: '评估：在哪个会话里私下问？',
-                  note: 'agent 备料，验收权在你——简报默认落私语域。',
-                })
-              }}
+              disabled={busy === 'assess'}
+              title="按下就是对 agent 说「评估一下」——它备料出差距简报，验收仍然是你的动作"
+              onClick={() => { commit('assess', assessAsk(name, goalRef)) }}
             >
               ✓ 评估
             </button>
-            {/* 轻问 = 传送门，不是页内输入框——轻问是会话 turn，不是旁路。 */}
+            {/*
+              轻问 = 落进会话日志的一次**只读投影**，不是页内输入框，也不是一次
+              完整的 agent turn。这颗按钮此前带的是私语语态——名字写着「问一下」，
+              按下去写工具却全部可用。问题是人自己的，所以只起个头。
+            */}
             <button
               type="button"
               className={css.cta}
+              title="跳回你来的那个会话，切到轻问：问一个数得一个数，不开任务、不写任何东西"
               onClick={() => {
-                ask({
+                if (deskSessionId === undefined) {
+                  setToast('这里还没有会话——轻问要落在会话日志里，先从左边打开一个。')
+                  return
+                }
+                sendErrand({
                   subject: 'goal',
-                  goalRef, goalName, voice: 'private', seed: `关于目标「${name}」，我想问：`,
-                  title: '问这个目标：在哪个会话里私下问？',
-                  note: '轻问是一次会话 turn，不是页面旁路——所以它落在某个会话的日志里。',
+                  goalRef, goalName, voice: 'ask', seed: goalQuestionSeed(name),
                 })
+                openSession(deskSessionId)
               }}
             >
               🔍 问这个目标
@@ -506,8 +538,18 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               </button>
             )}
           </div>
+          {/*
+            两类动词，说清楚哪一类是哪一类。
+
+            人得看得出「按下去会发生什么」：委派把你送到该说话的地方（句子由你说），
+            拆解与评估当场就把那句话说给了 agent（落点是你的私语域，不问、也不用问）。
+            一段把两类混成「这四个都是传送门」的说明，比没有说明更坏——它对其中两颗
+            按钮是一句假话。
+          */}
           <div className={css.ctaNote}>
-            这四个都是传送门：话在会话里说。拆解出的每一条都要过你的手，确认即以你的名义把登记消息发到执行者在场的通道——没有静默登记。
+            <b>＋ 委派</b>是传送门：把你送到该说话的地方，句子由你说、发出去才算数。
+            <b>⚡ 拆解</b>与<b>✓ 评估</b>按下即成话——那句话此刻就发给了 agent，落在你的私语域里（没有第二条通道）。
+            拆解出的每一条仍要过你的手：确认才落库，并以你的名义把登记消息发到执行者在场的通道——没有静默登记。
           </div>
         </div>
 

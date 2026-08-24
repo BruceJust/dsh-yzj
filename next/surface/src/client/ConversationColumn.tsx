@@ -218,6 +218,26 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   // Read once: the default selection changes in 设置, not on this screen.
   useEffect(() => { void inject.model().then(setModel) }, [inject])
 
+  /*
+    轻问只在云之家话题里成立 —— 够不着就**当场说**，不要等到按下发送才报错。
+
+    `lightAsk` 对一个不是话题的会话直接抛错（它要的是一条能投影回群里的路由）。
+    传送门可以把「问这个目标」送进轻问语态，可落地的会话未必有话题——那时候
+    继续摆着一个「轻问」的输入框，等人打完一段话再回一句英文错误，是把失败推迟
+    到代价最大的时刻。降级到私语并说清楚：**问答仍然落在会话日志里**（那才是这
+    颗按钮的本意），只是这一次不是只读投影。
+  */
+  useEffect(() => {
+    /*
+      `EMPTY` 同时是「还没读到」和「读失败」的哨兵（`setWindow` 放进去的就是它
+      本身，所以比得出来）。**看不了 ≠ 没有**：窗口读不到的时候不下「这不是话题」
+      这个断言——那正是三值纪律要挡的那种把无信号当成证据的话。
+    */
+    if (voice !== 'ask' || window_ === EMPTY || window_.topic !== undefined) return
+    setVoice('private')
+    setToast('这个会话不是云之家话题，轻问在这里用不了——已经切回「对 agent 说 · 私」，问答一样落在会话日志里。')
+  }, [voice, window_])
+
   // A toast is a receipt, not a log: it says its piece and leaves.
   useEffect(() => {
     if (toast === '') return undefined
@@ -388,6 +408,34 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       .finally(() => { setBusy(false) })
   }, [draft, busy, voice, sessionId, running, prompt, inject, refresh, replyTo, armPending])
 
+  /**
+   * 委托一句话给 agent —— **CTA 只是话语的按钮形态** (§5.3 A6.1 ①).
+   *
+   * 板与目标页上的 ⚡ 拆解 / ✓ 评估 走这里。它们此前是传送门：弹一屏问「在哪个
+   * 会话里私下问？」，跳过去，把一句自己写好的话塞进输入框，等人按发送。三步里
+   * 有两步是纯损耗——**那个问题只有一个合法答案**（落点 = 操作者私语域），而那句
+   * 话不是人要说的话，是那颗按钮的名字。
+   *
+   * 关键在于它走的是**和 composer 一模一样的那条路**（`prompt`），不是一条新的
+   * RPC。规格把这一条写成了机械保证：「无独立 RPC 路径——执行入口统一律」。按下
+   * 按钮和自己打出那句话，在图上必须是同一件事，否则「一个动词，语境来源不同」
+   * 就成了一句只在文档里成立的话。
+   *
+   * 送完就跳进那个会话：备料的 work 块、随后的提案卡都长在那里，而**按钮不豁免
+   * 四答**——落点得看得见，不能是一次悄悄发生的提交。
+   */
+  const commission = useCallback(async (text: string): Promise<string | undefined> => {
+    if (sessionId === undefined) {
+      // 一颗点下去没有下文的按钮比没有按钮更坏；说出是哪一堵墙。
+      return '这里还没有会话可说话——从左边打开或新建一个，再回来按这颗按钮。'
+    }
+    const error = await prompt(sessionId, text, running ? 'steer' : 'queue')
+    if (error !== undefined) return error
+    setFrame({ kind: 'session' })
+    openSession(sessionId)
+    return undefined
+  }, [sessionId, prompt, running, openSession])
+
   /** Put text where the caret is; a picker that appends is a picker you fight. */
   const insert = useCallback((text: string): void => {
     const box = boxRef.current
@@ -481,6 +529,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     return (
       <YzjBoard
         inject={inject}
+        commission={commission}
         {...(sessionId === undefined ? {} : { fromSessionId: sessionId })}
         {...(restoreScroll === undefined ? {} : { restoreScroll })}
         openSession={(id) => {
@@ -505,6 +554,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         goalRef={frame.goalRef}
         goalName={frame.goalName}
         inject={inject}
+        commission={commission}
+        {...(sessionId === undefined ? {} : { deskSessionId: sessionId })}
         openSession={(id) => {
           setFrame({ kind: 'session' })
           openSession(id)

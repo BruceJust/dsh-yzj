@@ -105,8 +105,16 @@ export interface Errand {
   readonly subject: 'goal' | 'event' | 'nudge'
   readonly goalRef: string
   readonly goalName: string
-  /** Where the words should go: 公 for delegation, 私 for an assessment. */
-  readonly voice: 'place' | 'private'
+  /**
+   * Where the words should go: 公 for delegation, 私 for an ordinary turn,
+   * **轻问** for a read-only projection.
+   *
+   * 第三格不是多余的。「问这个目标」这颗按钮此前带的是 `private`——一次**完整的
+   * agent turn，写工具全部可用**——而它的名字和它自己的注释都写着轻问（一次性
+   * 只读投影：不开任务、不写任何东西）。一颗写着「问一下」的按钮按下去可能动手
+   * 写东西，是最不该错的那个方向。
+   */
+  readonly voice: 'place' | 'private' | 'ask'
   /** Text to seed the composer with. The operator edits it; nothing auto-sends. */
   readonly seed?: string
 }
