@@ -700,6 +700,22 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 {goal.assessment.criteriaBasis === undefined
                   ? '（这份简报没有记下它依据的标准版本，所以「标准变没变」这一问它答不了。）'
                   : ''}
+                {/*
+                  验收落座在**卡**上，不在这一屏——但这一屏得有门。
+
+                  上面的「需要你 · 决断」在简报待答时本来就会长出一条（子图范围含简报
+                  所在会话），可那一条是按会话聚合的；人此刻正看着这份简报本身，让他
+                  回头去上面找，就是把一次一跳变成一次寻路。
+                */}
+                {goal.assessment.status === 'open' && goal.assessment.sessionId !== undefined && (
+                  <button
+                    type="button"
+                    className={css.act}
+                    onClick={() => { openSession(goal.assessment?.sessionId as string) }}
+                  >
+                    去答这份简报 ›
+                  </button>
+                )}
               </div>
             </div>
           </>

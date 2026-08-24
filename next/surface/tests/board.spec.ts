@@ -251,6 +251,32 @@ describe('聚合是信号不是状态', () => {
     expect(report?.status).toBe('continued')
     expect(report?.lines[0]?.verdict).toBe('missing')
   })
+
+  /*
+    待答的简报要**按得下去** —— 信号即门 · 逐级兑付。
+
+    板上那句「验收与继续在那张简报卡上答」曾经既不说卡在哪、也不给门：`sessionId`
+    服务端一直算着（注释就写着「决断层要能一跳过去答它」），而客户端的类型没声明它，
+    于是它在线上跑了很久没有一处读。报得出一件待答的事却按不下去，就是幽灵信号。
+  */
+  it('carries the session the report is waiting in, so the board can point at it', async () => {
+    await goal()
+    await graph.append({
+      type: 'assessment/reported',
+      data: {
+        assessmentId: 'asm-2',
+        goalRef: GOAL,
+        summary: '两条部分达成',
+        lines: [{ criterion: 'T+3', verdict: 'partial', evidence: '两条子承诺还没终态' }],
+        sourceAnchor: 'session:s1',
+        topicKey: 'tk-1',
+      },
+      actor: OPERATOR,
+    })
+    const report = boardFrame(ctx).goals[0]?.assessment
+    expect(report?.status).toBe('open')
+    expect(report?.sessionId).toBe('sess-1')
+  })
 })
 
 describe('未挂是合法状态', () => {

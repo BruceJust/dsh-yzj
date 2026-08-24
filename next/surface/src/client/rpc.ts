@@ -332,6 +332,15 @@ export interface BoardAssessmentWire {
   seq?: number
   /** 这份简报当时照着哪一版标准写的。 */
   criteriaBasis?: string
+  /**
+   * 它躺在哪个会话里 —— **一跳指路**，板的合法增量之一。
+   *
+   * 服务端一直带着这个字段（`BoardAssessment.sessionId`，注释写着「决断层要能一跳
+   * 过去答它」），只是客户端的类型没声明，于是它在线上跑了很久而没有任何一处读它。
+   * 后果是板上那句「验收与继续在那张简报卡上答」既不说卡在哪、也不给门——**报得出
+   * 一份待答的东西却按不下去，就是幽灵信号的定义**。
+   */
+  sessionId?: string
   lines: { criterion: string; verdict: string; evidence: string }[]
 }
 

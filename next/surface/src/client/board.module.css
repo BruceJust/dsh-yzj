@@ -319,7 +319,17 @@
   border: 1px solid var(--yzj-pub-line); background: var(--yzj-surface); color: var(--yzj-pub-deep);
 }
 .gapDelegate:hover { background: var(--yzj-pub); color: #fff; }
-.reportFoot { margin-top: 8px; font-size: 10.5px; color: var(--yzj-ink-3); }
+.reportFoot {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin-top: 8px; font-size: 10.5px; color: var(--yzj-ink-3);
+}
+/* 指路：报得出一份待答的简报，就得按得到它 —— 信号即门 · 逐级兑付 */
+.reportGo {
+  flex: none; font: inherit; font-size: 10px; font-weight: 650;
+  padding: 2px 9px; border-radius: 11px; cursor: pointer;
+  border: 1px solid var(--yzj-pub-line); background: var(--yzj-surface); color: var(--yzj-pub-deep);
+}
+.reportGo:hover { background: var(--yzj-pub); color: #fff; }
 
 /* 传送门选场所：只问一件事——在哪儿说 */
 .rooms { max-height: 320px; overflow: auto; margin: 10px 0 4px; }

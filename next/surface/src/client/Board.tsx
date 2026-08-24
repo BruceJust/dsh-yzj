@@ -698,8 +698,32 @@ export function YzjBoard(props: BoardProps): ReactNode {
                 )}
               </div>
             ))}
+            {/*
+              **板不设决断条，但板要指路** (v4.21 合法增量：对账排列 / 一跳指路 /
+              就近动词)。
+
+              验收与「继续」不在这儿答——收件箱是唯一的跨会话聚合处，而那张卡的家
+              在它出生的会话里，前后语境就是决断的证据。但只说一句「去那张卡上答」
+              而不给门，是把人指到一堵墙上：这一屏既没说卡在哪，也没有一跳可走。
+              「报出一件待答的事却按不下去」正是幽灵信号。
+            */}
             <div className={css.reportFoot}>
-              验收与「继续」在那张简报卡上答——这是材料，不是判决。
+              <span>验收与「继续」在那张简报卡上答——这是材料，不是判决。</span>
+              {report.status === 'open' && (
+                report.sessionId === undefined
+                  // 三值纪律：不知道它在哪，就说不知道，别给一颗点了没反应的按钮。
+                  ? <span>（这份简报没有记下它落在哪个会话——去收件箱找「差距简报」那一条。）</span>
+                  : (
+                    <button
+                      type="button"
+                      className={css.reportGo}
+                      title="跳到这份简报所在的会话——卡留在它出生的地方，语境就是判断的依据"
+                      onClick={() => { openSession(report.sessionId as string) }}
+                    >
+                      去答这份简报 ›
+                    </button>
+                  )
+              )}
             </div>
           </div>
         )}
