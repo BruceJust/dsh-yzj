@@ -315,7 +315,12 @@ describe('两面等价：同一个动词，哪一面答都一样', () => {
   const PARITY = [
     { kind: 'task', actionId: 'accept', expected: 'accepted' },
     { kind: 'task', actionId: 'void', input: '需求撤了', expected: 'voided' },
-    { kind: 'commitment', actionId: 'done', expected: 'closed' },
+    /*
+      承诺这一格换成 `void`：**`done` 现在不是一步终态**（v4.21 第一档⑥）——它是
+      交付主张，终态在「验收」那一步。这张表考的是「同一个动词、哪一面答都一样」，
+      所以它要一个**一步可达**的终态；两步的那条另有用例，见下。
+    */
+    { kind: 'commitment', actionId: 'void', input: '不做了', expected: 'voided' },
     { kind: 'waiting', actionId: 'resolve', expected: 'closed' },
     { kind: 'conflict', actionId: 'continue', expected: 'resolved' },
   ] as const
@@ -443,3 +448,29 @@ async function openOne(kind: string, suffix = 'one'): Promise<string> {
       return id
   }
 }
+
+/**
+ * 两步出口的两面等价 (v4.21 第一档⑥)。
+ *
+ * 人执行的承诺现在要走「完成 → 验收」两步。**两步各自在两面等价还不够**——要紧的是
+ * 两步**跨面接得上**：在云之家说完成、回桌面验收，和全程在一面上做，必须落到同一个
+ * 终态。跨面接不上的话，人会被逼着在一个面上把一件事做完，而这套设计的整个前提是
+ * 「同一条会话的两个投影」。
+ */
+describe('承诺的两步出口跨面接得上', () => {
+  it('云之家说完成、桌面验收，与全程一面等价', async () => {
+    const crossed = await openOne('commitment', 'commitment-cross')
+    await cards.act({ kind: 'commitment', id: crossed }, 'done', OPERATOR, 'yzj-text')
+    await cards.act({ kind: 'commitment', id: crossed }, 'accept', OPERATOR, 'desktop')
+
+    const single = await openOne('commitment', 'commitment-single')
+    await cards.act({ kind: 'commitment', id: single }, 'done', OPERATOR, 'desktop')
+    await cards.act({ kind: 'commitment', id: single }, 'accept', OPERATOR, 'desktop')
+
+    for (const id of [crossed, single]) {
+      const state = asRecord(graph.rawObject('commitment', id)?.state)
+      expect(asString(state?.status)).toBe('closed')
+      expect(asString(state?.cause)).toBe('accepted')
+    }
+  })
+})

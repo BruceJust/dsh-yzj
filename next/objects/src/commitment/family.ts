@@ -37,6 +37,34 @@ export type CommitmentExecutor =
 export interface CommitmentState {
   readonly commitmentId: string
   readonly status: CommitmentStatus
+  /**
+   * **交付已被主张，等人验收**（v4.21 第一档⑥「验收断链接通」）。
+   *
+   * 此前板上人执行的行是一条**断头路**：登记有呼吸（登记消息投进场所、对方能回执），
+   * 交付却没有验收落座——执行者说一句「做完了」，系统直接把它判成终态。于是「他说
+   * 做完了」和「我认了这份交付」被压成同一件事，而它们是两个不同的人的两次判断。
+   *
+   * **刻意不新增 status**：`open` 的含义是「这件事还欠着」，而在有人验收之前，它**确实
+   * 还欠着**——这句话一个字都不用改。新增一个 `delivered` 状态则要审 55 处判终态的
+   * 代码，而其中任何一处漏掉，都会让一条没验收的活在某个面上显示成已完成。
+   *
+   * `round` 是返工轮次：拒收 → 返工 → 再验收在同一条上循环（同卡循环），轮次可见。
+   */
+  readonly delivery?: {
+    readonly claim: string
+    readonly at: number
+    /** 交付锚：引用了工件就锚工件，纯话语回执锚那条回执本身。 */
+    readonly anchor?: string
+    readonly round?: number
+  }
+  /**
+   * 谁签发的这条承诺 —— **由 reduce 从事件的 actor 盖上**，生产者不必配合。
+   *
+   * 验收权是 `委派者 ∪ 操作者`（§5.2），而 `allowedActors` 只看得见 `state`，所以这个
+   * 事实必须落在对象上。让每个生产者去传它，意味着历史上所有承诺永远没有它、且漏传
+   * 一处就静默失权；而内核本来就给每条事件记着 actor——**事实一直在，读它就行**。
+   */
+  readonly delegatedBy?: string
   readonly what: string
   readonly executor: CommitmentExecutor
   readonly due?: string
@@ -185,6 +213,31 @@ export const commitmentFamily: GraphFamily = {
         truthFingerprint: z.string().optional(),
       }),
     },
+    /**
+     * 交付被主张 —— 话语门/行为门/结构化门任一确认时。
+     *
+     * 「生效即出卡」：主张立刻生效（这一门本属默认生效可纠类，无第二道确认），
+     * 而它生效的结果**不是终态，是一张待验收的卡**。
+     */
+    'commitment/delivered': {
+      schema: z.object({
+        commitmentId: z.string().min(1),
+        delivery: z.object({
+          claim: z.string().min(1),
+          at: z.number().int(),
+          anchor: z.string().optional(),
+          round: z.number().int().optional(),
+        }),
+      }),
+    },
+    /** 拒收 → 返工。承诺没死，交付主张被撤回，轮次 +1。 */
+    'commitment/rework': {
+      schema: z.object({
+        commitmentId: z.string().min(1),
+        reason: z.string().min(1),
+        round: z.number().int().min(1),
+      }),
+    },
     'commitment/closed': {
       schema: z.object({
         commitmentId: z.string().min(1),
@@ -240,7 +293,38 @@ export const commitmentFamily: GraphFamily = {
     if ((settled === 'voided' || settled === 'merged') && event.type !== 'commitment/reopened') {
       return previous
     }
-    return { ...base, ...next }
+    /*
+      **委派者由内核记的 actor 盖上，生产者不必配合。**
+
+      验收权是「委派者 ∪ 操作者」，而 `allowedActors` 只看得见 `state`——这个事实必须
+      落在对象上。让每个生产者去传它，意味着历史上所有承诺永远没有它，而且漏传一处就
+      静默失权（没人会报错，只是那条活谁都验收不了）。内核本来就给每条事件记着 actor，
+      在这里盖一次，**重放老日志一样补得上**。
+
+      只在出生那一刻盖：后来的更新是别人写的（agent 记回执、系统回写指纹），把它们的
+      actor 盖上去，等于每写一次就换一个验收人。
+    */
+    const born = event.type === 'commitment/opened'
+      ? (event.actor as { openId?: string }).openId
+      : undefined
+    /*
+      拒收 = 交付主张被撤回。
+
+      合并式 reduce 里，「把一个字段变回不存在」要显式写：`{...base, ...next}` 只会
+      新增与覆盖，不会删除。不写这一行，拒收之后那张验收卡还在——被打回的活会一直
+      挂着一份「等你验收」的假信号。
+    */
+    if (event.type === 'commitment/rework') {
+      const { delivery: _dropped, ...rest } = base
+      return { ...rest, ...next }
+    }
+    return {
+      ...base,
+      ...next,
+      ...(typeof born === 'string' && born !== '' && base.delegatedBy === undefined
+        ? { delegatedBy: born }
+        : {}),
+    }
   },
 }
 

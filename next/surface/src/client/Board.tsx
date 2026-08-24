@@ -422,7 +422,19 @@ export function YzjBoard(props: BoardProps): ReactNode {
 
           终态行不显：一件已经结束的事，「多久没动静」不是一个问题。
         */}
-        {row.status === 'open' && row.signal !== 'evidence' && (
+        {/*
+          待验收 —— **断头路修好了，路标也得竖起来** (v4.21 第一档⑥)。
+
+          承诺仍然 `open`（在有人验收之前它确实还欠着），所以不单独说的话，这条行看
+          起来和「在跑」一模一样，而它其实在等你。它排在三值信号前面：等你答的事，
+          比「多久没动」更该先被看见。
+        */}
+        {row.status === 'open' && row.awaitingAcceptance === true && (
+          <span className={css.awaiting} title="对方主张已经交付，等你验收或打回">
+            待验收
+          </span>
+        )}
+        {row.status === 'open' && row.awaitingAcceptance !== true && row.signal !== 'evidence' && (
           <span
             className={row.signal === 'silent' ? css.sigSilent : css.sigStale}
             title={row.signal === 'silent'

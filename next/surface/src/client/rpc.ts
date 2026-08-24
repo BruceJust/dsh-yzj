@@ -274,6 +274,8 @@ export interface BoardRowWire {
    * 产物的事，在「进行中」三个字底下长得一模一样。
    */
   signal: 'evidence' | 'silent' | 'stale'
+  /** 交付已主张、等人验收——承诺仍然 open，所以这一格要单独说。 */
+  awaitingAcceptance?: boolean
   /** 最后一次有动静是什么时候。 */
   lastSignalAt: number
   inferredGoal: boolean

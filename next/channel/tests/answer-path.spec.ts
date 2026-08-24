@@ -158,7 +158,14 @@ const ANSWERABLE = [
   { kind: 'approval', word: '确认', expect: 'approved' },
   { kind: 'task', word: '验收', expect: 'accepted' },
   { kind: 'waiting', word: '已解决', expect: 'closed' },
-  { kind: 'commitment', word: '完成', expect: 'closed' },
+  /*
+    人执行的承诺，IM 出口是**两个动词** (v4.21 第一档⑥「验收断链接通」)。
+
+    「完成」不再直接判终态：说这句话的人和要认这份交付的人是两个人。所以这一格的
+    第一步落在「交付已主张、仍然欠着」，第二步「验收」才是终态——下面另有一条用例
+    把整条出口走完，这里先锁住第一步不再撒谎。
+  */
+  { kind: 'commitment', word: '完成', expect: 'open' },
   { kind: 'conflict', word: '继续', expect: 'resolved' },
 ] as const
 
@@ -202,5 +209,26 @@ describe('every answerable object has a working IM exit', () => {
     // answer path is the desktop.
     const registered = cards.types().filter(type => cards.actionsOf(type).length > 0)
     expect([...registered].sort()).toEqual([...ANSWERABLE.map(entry => entry.kind)].sort())
+  })
+
+  /**
+   * 走完整条出口：**完成 → 验收**。
+   *
+   * 断头路的定义是「走进去出不来」。此前人执行的承诺登记有呼吸、交付没有验收落座，
+   * 于是板上那条行永远停在「进行中」。这条用例把两步都走一遍——只锁住第一步，等于
+   * 把断头路挪后了一格。
+   */
+  it('commitment: 完成之后还能在同一条上验收，终态可达', async () => {
+    const id = await open('commitment')
+    await cards.act({ kind: 'commitment', id }, 'done', { kind: 'operator', openId: IDENTITY.openId }, 'yzj-text')
+    const mid = asRecord(graph.rawObject('commitment', id)?.state)
+    expect(asString(mid?.status)).toBe('open')
+    expect(mid?.delivery).toBeDefined()
+
+    const accepted = await cards.act({ kind: 'commitment', id }, 'accept', { kind: 'operator', openId: IDENTITY.openId }, 'yzj-text')
+    expect(accepted.outcome).toBe('applied')
+    const done = asRecord(graph.rawObject('commitment', id)?.state)
+    expect(asString(done?.status)).toBe('closed')
+    expect(asString(done?.cause)).toBe('accepted')
   })
 })

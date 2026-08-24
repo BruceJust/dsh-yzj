@@ -1117,6 +1117,7 @@ export function boardFrame(ctx: Context): BoardView {
       status,
       ...(due === undefined || due.trim() === '' ? {} : { due: dueOf(due) }),
       ...directionOf(me, asString(executor?.openId), openedBy.get(object.id), nameOf),
+      ...(asRecord(state?.delivery) === undefined ? {} : { awaitingAcceptance: true }),
       overdue: status === 'open' && isOverdue(due, now),
       remindable: status === 'open' && (object.audience?.length ?? 0) > 0,
       inferredGoal: asString(state?.attachedVia) === 'inferred',

@@ -165,10 +165,21 @@ describe('commitment_receipt', () => {
     expect(graph.rawEvents(['receipt/recorded'])).toHaveLength(1)
   })
 
-  it('closes the commitment when the reply says it is done', async () => {
+  /**
+   * 话语门：**生效即出卡** (v4.21 第一档⑥)。
+   *
+   * 「立刻生效、不进 proposed 的等待区」这一条不变——话语门本属「默认生效可纠」类，
+   * 没有第二道确认。变的是**生效成什么**：此前一句「分析发了」直接把承诺判成终态，
+   * 而说这句话的人和要认这份交付的人是两个人。
+   */
+  it('回执说做完了 = 记下交付主张并等验收，不是直接判终态', async () => {
     const id = await open()
     await tools.get('commitment_receipt')?.execute({ commitmentId: id, text: '分析发了', completed: true }, EXEC)
-    expect(stateOf(id)).toMatchObject({ status: 'closed', cause: 'receipt' })
+    const state = stateOf(id) as { status?: string; delivery?: { claim?: string; anchor?: string } }
+    expect(state.status).toBe('open')
+    expect(state.delivery?.claim).toBe('分析发了')
+    // 交付锚：纯话语回执锚回执本身——被验收的是这个**主张**。
+    expect(state.delivery?.anchor).toBeDefined()
   })
 
   it('says so plainly when the commitment does not exist', async () => {
@@ -180,7 +191,14 @@ describe('commitment_receipt', () => {
 })
 
 describe('the card verbs', () => {
-  it('lets anyone in the audience report it done — not only the operator', async () => {
+  /**
+   * 执行者说「完成」= **主张交付**，不是终态 (v4.21 第一档⑥「验收断链接通」)。
+   *
+   * 「他说做完了」和「我认了这份交付」是两个人的两次判断，此前被压成同一件事：执行者
+   * 按一下，系统直接判终态，而**委派的人从来没有被问过**。板上那条人执行的行因此是
+   * 一条断头路——登记有呼吸（登记消息投进场所、对方能回执），交付却没有验收落座。
+   */
+  it('执行者说完成 = 主张交付，承诺仍然欠着，等验收', async () => {
     const id = commitmentIdFor('yzj:msg-1', '出周报')
     await graph.append({
       type: 'commitment/opened',
@@ -194,6 +212,82 @@ describe('the card verbs', () => {
       { kind: 'commitment', id }, 'done', { kind: 'person', openId: 'p-9' }, 'yzj-text',
     )
     expect(result.outcome).toBe('applied')
+    /*
+      **仍然是 open**：在有人验收之前，这件事确实还欠着——这句话一个字都不用改，
+      所以也不必新增一个状态去审那 55 处判终态的代码。
+    */
+    expect(stateOf(id)?.status).toBe('open')
+    expect((stateOf(id) as { delivery?: unknown }).delivery).toBeDefined()
+  })
+
+  it('交付被主张之后，卡换上双动词的脸；验收才是终态', async () => {
+    const id = commitmentIdFor('yzj:msg-2', '核对数据')
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id, what: '核对数据', sourceAnchor: 'yzj:msg-2',
+        executor: { kind: 'human', openId: 'p-9' }, audience: ['yzj-group-g1'],
+      },
+      actor: OPERATOR,
+    })
+    await cards.act({ kind: 'commitment', id }, 'done', { kind: 'person', openId: 'p-9' }, 'yzj-text')
+    // 委派者（出生事件的 actor）验收 —— 这一格由 reduce 从内核记的 actor 盖上。
+    expect((stateOf(id) as { delegatedBy?: string }).delegatedBy).toBe(OPERATOR.openId)
+    const accepted = await cards.act(
+      { kind: 'commitment', id }, 'accept', OPERATOR, 'yzj-text',
+    )
+    expect(accepted.outcome).toBe('applied')
+    expect(stateOf(id)?.status).toBe('closed')
+    expect(stateOf(id)?.cause).toBe('accepted')
+  })
+
+  /**
+   * 打回 ≠ 作废。
+   *
+   * 作废是「这件事不做了」，打回是「这件事还没做好」——两者混成一个按钮，等于让一次
+   * 质量判断顺手杀掉一条承诺。拒收 → 返工 → 再验收在**同一条**上循环，轮次可见。
+   */
+  it('打回让承诺回到在跟，交付主张撤回，轮次 +1', async () => {
+    const id = commitmentIdFor('yzj:msg-3', '出方案')
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id, what: '出方案', sourceAnchor: 'yzj:msg-3',
+        executor: { kind: 'human', openId: 'p-9' }, audience: ['yzj-group-g1'],
+      },
+      actor: OPERATOR,
+    })
+    await cards.act({ kind: 'commitment', id }, 'done', { kind: 'person', openId: 'p-9' }, 'yzj-text')
+    const back = await cards.act(
+      { kind: 'commitment', id }, 'reject', OPERATOR, 'yzj-text', '数据口径不对',
+    )
+    expect(back.outcome).toBe('applied')
+    expect(stateOf(id)?.status).toBe('open')
+    /*
+      合并式 reduce 只会新增与覆盖、不会删除，所以「把交付主张变回不存在」要显式写。
+      不写的话，被打回的活会一直挂着一份「等你验收」的假信号。
+    */
+    expect((stateOf(id) as { delivery?: unknown }).delivery).toBeUndefined()
+    expect(stateOf(id)?.round).toBe(1)
+  })
+
+  /**
+   * 自己欠自己的活，说一句「完成」就该结束。
+   *
+   * 主张的人就是要验收的那个人时，再请他按一次「验收」是同一个主权时刻收两次费——
+   * 和提案裁决确认后不再弹第二张确认卡同一条道理。
+   */
+  it('主张的人就是验收的人时，主张即验收', async () => {
+    const id = commitmentIdFor('yzj:msg-4', '自己的活')
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id, what: '自己的活', sourceAnchor: 'yzj:msg-4',
+        executor: { kind: 'human', openId: OPERATOR.openId }, audience: ['yzj-group-g1'],
+      },
+      actor: OPERATOR,
+    })
+    await cards.act({ kind: 'commitment', id }, 'done', OPERATOR, 'yzj-text')
     expect(stateOf(id)?.status).toBe('closed')
   })
 

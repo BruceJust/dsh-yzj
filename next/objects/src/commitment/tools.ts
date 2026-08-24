@@ -255,14 +255,35 @@ export function applyCommitmentTools(ctx: Context): () => void {
         actor: { kind: 'agent' },
       })
 
-      // Effective IMMEDIATELY, with the correction shown — not held in a
-      // "proposed" limbo. Correction is an append, so applying now and letting
-      // somebody fix it beats making everybody wait for an approval nobody
-      // asked for.
+      /*
+        **生效即出卡** —— 立刻生效，但生效的结果是一张待验收的卡，不是终态
+        (v4.21 第一档⑥「验收断链接通」)。
+
+        Effective IMMEDIATELY, with the correction shown — not held in a
+        "proposed" limbo. 这一条不变：话语门本属「默认生效可纠」类，没有第二道确认。
+        变的是**生效成什么**：此前执行者说一句「做完了」，系统直接判终态——于是
+        「他说做完了」和「我认了这份交付」被压成同一件事，而它们是两个人的两次判断。
+        板上那条人执行的行因此是断头路：登记有呼吸，交付没有验收落座。
+
+        现在它落成**交付主张**：承诺仍然 `open`（在有人验收之前，它确实还欠着），
+        卡换上双动词的脸（验收／打回），拒收→返工→再验收在同一条上循环。
+
+        交付锚：这条回执引用了工件就锚工件，纯话语回执锚回执本身——被验收的是**交付
+        主张**，拒收 = 不认可这个主张。
+      */
       if (args.completed === true) {
+        const existing = asRecord(object.state)?.delivery as { round?: number } | undefined
         await ctx.yzjGraph.append({
-          type: 'commitment/closed',
-          data: { commitmentId: args.commitmentId, cause: 'receipt' },
+          type: 'commitment/delivered',
+          data: {
+            commitmentId: args.commitmentId,
+            delivery: {
+              claim: args.text,
+              at: Date.now(),
+              anchor: asString(asRecord(object.state)?.sourceAnchor) ?? state.sourceAnchor,
+              ...(existing?.round === undefined ? {} : { round: existing.round }),
+            },
+          },
           actor: { kind: 'agent' },
         })
       } else {
@@ -278,7 +299,8 @@ export function applyCommitmentTools(ctx: Context): () => void {
       }
       return {
         content: args.completed === true
-          ? `已记录回执并关闭承诺「${state.what}」。请在回复里公示这一变更（说错了可以直接纠正）。`
+          ? `已记录交付主张「${state.what}」，现在**等验收**——委派的人会在原来那个场所看到`
+            + `一张双动词的卡（验收／打回）。请在回复里公示这一条（说错了可以直接纠正）。`
           : `已记录回执${args.newDue === undefined ? '' : `，期限更新为 ${args.newDue}`}。请在回复里公示（说错了可以直接纠正）。`,
         commitmentId: args.commitmentId,
       }
