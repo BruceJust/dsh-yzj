@@ -368,6 +368,10 @@ export function YzjBoard(props: BoardProps): ReactNode {
       <div
         className={`${css.row} ${row.overdue ? css.rowOverdue : ''} ${row.status !== 'open' ? css.rowDone : ''}`}
         key={row.id}
+        // 指路要有落点：数字是门，门后面得有一扇门牌。
+        data-row={row.id}
+        // 披露一级：hover 看得到出生故事；二级在「修理」面板里，不靠 hover。
+        title={via === '' ? undefined : `挂接来源：${via}`}
       >
         {pickable && (
           <input
@@ -399,9 +403,23 @@ export function YzjBoard(props: BoardProps): ReactNode {
             ✓ {row.acceptor}
           </span>
         )}
-        {/* 继承不是推断: both are shown, and they are not the same claim. */}
-        {via !== '' && (
-          <span className={`${css.via} ${row.inferredGoal ? css.viaGuess : ''}`}>{via}</span>
+        {/*
+          挂接来源**降两级披露** (v4.21 行信息层级)。
+
+          它此前是常显的一枚 chip。常显有预算——四要素 + 三值信号；而**出生故事的差异化
+          在于「有据可查」，不在于「时时刻刻挂在脸上」**。降到两级：hover 一级（这一行
+          的 title），详情二级（「修理」面板里那一行，键盘与触屏都够得着）。
+
+          **hover 永远不是唯一通道**：触屏没有 hover，读屏软件也不念 title。所以二级
+          那一份不是补充，是它的可达性本身。
+
+          只有**推断**来的挂接仍然常显一枚小标记：推断是需要被纠正的东西，而需要纠正
+          的东西不该藏起来——「继承不是推断，两者不是同一种主张」这条分界仍然成立。
+        */}
+        {via !== '' && row.inferredGoal && (
+          <span className={`${css.via} ${css.viaGuess}`} title={`挂接来源：${via}（推断，可纠正）`}>
+            推断
+          </span>
         )}
         <span className={`${css.due} ${row.overdue ? css.dueOverdue : ''}`}>
           {row.status !== 'open'
@@ -519,6 +537,15 @@ export function YzjBoard(props: BoardProps): ReactNode {
         */}
         {repair?.row.id === row.id && (
           <div className={css.repairPanel}>
+            {/*
+              披露二级 —— **不靠 hover**。触屏没有 hover，读屏软件也不念 title，
+              所以这一行不是补充，是出生故事可达性本身。
+            */}
+            <div className={css.detail}>
+              来源：{via === '' ? '未挂任何目标' : via}
+              {row.placeName === undefined ? '' : ` · 登记在 ${row.placeName}`}
+              {row.notified === 'failed' ? ' · 本人未被通知' : ''}
+            </div>
             <div className={css.repairPick}>
               {([['postpone', '顺延期限'], ['handoff', '移交'], ['merge', '合并']] as const)
                 .map(([kind, label]) => (
@@ -960,7 +987,29 @@ export function YzjBoard(props: BoardProps): ReactNode {
         <span className={css.title}>承诺板</span>
         <span className={css.sub}>
           跨执行者 · 共 {String(view.rows.length)} 条
-          {overdue > 0 && <span className={css.overdueCount}> · {String(overdue)} 逾期</span>}
+          {/*
+            **每个数字都是门** —— 逐级兑付定律 (v4.21 第一档②的原则，在板上的适用)。
+
+            这个「N 逾期」此前是一个 `span`：它报出一个异常，却不告诉你它在哪儿——而
+            「报出 3 项逾期却不可点」正是幽灵信号的定义。板的合法增量里有**一跳指路**，
+            所以它该把你送到第一条逾期那一行，而不是新造一个「只看逾期」的透镜
+            （透镜只有系统的三个：方向/时间/目标，板级明拒用户自铸视图）。
+          */}
+          {overdue > 0 && (
+            <button
+              type="button"
+              className={css.overdueCount}
+              title="跳到第一条逾期的承诺"
+              onClick={() => {
+                const first = view.rows.find(row => row.overdue)
+                if (first === undefined) return
+                const node = bodyRef.current?.querySelector(`[data-row="${first.id}"]`)
+                node?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+              }}
+            >
+              · {String(overdue)} 逾期 ›
+            </button>
+          )}
         </span>
         {/*
           方向轴三元 chips (v4.21)。
