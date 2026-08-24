@@ -674,6 +674,7 @@ button.tree-group .chev { width: 16px; height: 18px; margin-left: -4px; }
 .goal-home:hover { text-decoration: underline; }
 .goal-sig { font-size: 10.5px; color: var(--ink-2); flex: none; }
 .goal-final { font-size: 9.5px; color: var(--ink-3); flex: none; border: 1px solid var(--line); border-radius: 20px; padding: 1.5px 8px; }
+.goal-row { flex-wrap: wrap; }
 .goal-children { margin: 0 0 10px 18px; border-left: 2px solid #E4E9F1; padding-left: 10px; }
 .ask-btn {
   display: inline-flex; align-items: center; gap: 5px;
@@ -996,7 +997,7 @@ const AV = {
 };
 const AGENT_ALIAS = /@agent|@智能体|@云小助/i;
 
-const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me' };
+const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null };
 
 /* v4：承诺板数据——图的第三类居民（执行者可为人/agent/流程） */
 const COMMITS = [
@@ -1406,7 +1407,7 @@ const NOTES = {
   20: { title: '听众集合：隔离函数的真自变量',
        body: '隔离的自变量是<b>谁听得见</b>，不是 agent 驻地。私语态检索以<b>提问者本人的可见域</b>为界——你本就看得见销售群，agent 替你跨场所检索对人是零泄漏；公域输出才按在场者最小交集隔离。跨场所信息进入公域的唯一合法通道 = <b>人签发的工件化脱密</b>（入池/摘要），越境留审计。' },
   16: { title: '事件枢纽：日程是时间锚定的图节点',
-       body: '日程与其他节点只有五种边：<b>服务</b>（任务→日程）、<b>生成</b>（日程→任务）、<b>操作</b>（agent 约会订房）、<b>触发</b>（时间→会话）、<b>聚合</b>（本枢纽）。裁决线 = 拉 vs 推：拉现在做，推归域 F（CLI 无 reminder，推力只能来自 DSH 调度器）。<b>材料就绪度从任务状态免费推导</b>——会前一眼看到缺什么。「边也落云之家」：材料链接经确认写入事件 description，全参会人可见。' },
+       body: '日程与其他节点只有五种边：<b>服务</b>（任务→日程）、<b>生成</b>（日程→任务）、<b>操作</b>（agent 约会订房）、<b>触发</b>（时间→会话）、<b>聚合</b>（本枢纽）。裁决线 = 拉 vs 推：拉现在做，推归域 F（CLI 无 reminder，推力只能来自 DSH 调度器）。<b>材料就绪度从任务状态免费推导</b>——会前一眼看到缺什么。「边也落云之家」：材料链接经确认写入事件 description，全参会人可见。<b>交互（v4.18+）</b>：会话头<b>日程锚 chip</b>（D12 锚家族+信号即门）点击即开枢纽；「<b>@云小助 为此会准备…</b>」是<b>传送门</b>——跳到关联任务的话题、composer 预填并携带事件 chip（生成边 · 语境继承挂接），从承诺板等无落点视图点击同样成立；材料交付后就绪度自动翻绿。' },
   14: { title: '对象面：流沉淀为物，验收不出屏',
        body: '中栏是<b>流</b>（时间），右栏是<b>物</b>（空间）。流的三种沉淀：<b>记忆</b>（事实）、<b>引用</b>（语境）、<b>工件</b>（劳动）。「当前」tab 跟会话走：本会话的工件、喂过的引用、关联日程（任务的截止维度）。点任何对象<b>就地只读预览</b>——检验标准③在验收动作上闭合；实现 = 中栏富卡片渲染器复用（presentationMeta 已有），几乎免费。资源 tab 补上此前缺席的<b>表格</b>——交付物最常是表格。编辑永远走对话 + 确认门。' },
   13: { title: '群视图与话题卡：冷=索引，热=任务卡',
@@ -1723,19 +1724,31 @@ function goalActionCards(gid) {
       <button class="btn" data-dgo="dm" style="font-size:11px">张三 · DM（私下登记）</button>
       <button class="btn" data-dgo="x" style="font-size:11px">取消</button>
     </div>`;
-  if (state.decompGoal === gid) h += `
+  if (state.decompGoal === gid && state.decompPhase === 'working') h += `
+    <div class="cm-row" style="background:var(--paper);border-color:var(--paper-line);align-items:flex-start">
+      <span class="ex-tag agent">agent</span>
+      <span style="flex:1;font-size:11.5px;line-height:1.9"><b>云小助 · 拆解备料中…</b><span style="font-size:10px;color:var(--ink-3)">（备料过程仅你可见 · 私）</span>
+        <span style="display:block;font-size:10.5px;color:var(--ink-3);margin-top:3px">✓ 读目标真身正文与成功标准（<b>8/19 版 · 环境快照记录依据</b>）<br>✓ 盘点现有子承诺 4 项 · 工件 2 件（<b>幂等锚预查</b>——防重复拆解）<br>◐ 生成子承诺方案（做什么 / 谁 / 何时 / 登记通道）…</span></span></div>`;
+  if (state.decompGoal === gid && state.decompPhase !== 'working') h += `
     <div class="verdict-card" style="max-width:none;margin:2px 0 10px">
       <div class="vd-head"><b style="font-size:12px">拆解提案 · 云小助</b>
-        <span style="font-size:10.5px;color:var(--ink-3)">agent 只有提议权——每条过你的手；确认即代发登记话语到执行者通道</span></div>
+        <span style="font-size:10.5px;color:var(--ink-3)">依据：真身 8/19 版正文（环境快照）· 挂起态即图数据（重启可恢复）· DM 兜底已推送同一对象 · agent 只有提议权——确认即代发登记话语</span></div>
       ${DECOMP.map((d, i) => {
         const acts = d.decision === null
           ? `<span class="vd-acts"><button class="vd-btn" data-dc="${i}:ok">确认落库</button><button class="vd-btn" data-dc="${i}:no">驳回</button></span>`
           : `<span class="vd-mark ${d.decision}">${d.decision === 'ok' ? '✓ 已落库 · 已代发' : '✗ 已驳回'}</span>`;
         return `<div class="vd-row"><span class="desc">${d.desc}<span class="ev">${d.exec === 'agent' ? 'agent' : '人'} · ${d.who} · ${d.due} · 登记话语将发到：${d.channel}</span></span>${acts}</div>`;
       }).join('')}
-      <div style="padding:8px 14px;font-size:10px;color:var(--ink-3)">落库即代发登记话语——听众集合由代发消息确立，<b>没有静默登记（幽灵承诺禁令）</b>；幂等锚 = 目标+事项</div>
+      <div style="padding:8px 14px;font-size:10px;color:var(--ink-3)">${DECOMP.every(d => d.decision !== null)
+        ? `✔ <b>全部裁决完毕 · ${DECOMP.filter(d => d.decision === 'ok').length} 落库已代发 · ${DECOMP.filter(d => d.decision === 'no').length} 驳回</b>——卡片收敛为摘要（答完即溶家族），提案对象留档（应答序律）`
+        : '落库即代发登记话语——听众集合由代发消息确立，<b>没有静默登记（幽灵承诺禁令）</b>；幂等锚 = 目标+事项'}</div>
     </div>`;
-  if (state.evalGoal === gid) h += `
+  if (state.evalGoal === gid && state.evalPhase === 'working') h += `
+    <div class="cm-row" style="background:var(--paper);border-color:var(--paper-line);align-items:flex-start">
+      <span class="ex-tag agent">agent</span>
+      <span style="flex:1;font-size:11.5px;line-height:1.9"><b>云小助 · 评估备料中…</b><span style="font-size:10px;color:var(--ink-3)">（备料过程仅你可见 · 私）</span>
+        <span style="display:block;font-size:10.5px;color:var(--ink-3);margin-top:3px">✓ 读成功标准 3 条（<b>8/19 版 · 环境快照</b>）<br>✓ 遍历子承诺终态（2 终态 · 2 活跃）<br>✓ 两跳归集工件 2 件（目标→承诺→工件）<br>◐ 语义比对：标准 × 证据（全行业真空——我们有真身证据）…</span></span></div>`;
+  if (state.evalGoal === gid && state.evalPhase !== 'working') h += `
     <div class="verdict-card" style="max-width:none;margin:2px 0 10px">
       <div class="vd-head"><b style="font-size:12px">完成度评估 · 差距简报</b>
         <span style="font-size:10.5px;color:var(--ink-3)">基准 = 真身成功标准（依据 8/19 版正文 · 环境快照记录）· agent 备料，<b>验收权在你</b></span></div>
@@ -1869,7 +1882,7 @@ function renderBoard() {
     const sig = Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(' · ');
     return `<div class="goal-row">
       <span class="ex-tag goal">目标</span>
-      <span style="flex:1;min-width:0"><span class="goal-title-link" style="font-size:12.8px;font-weight:700" data-goalhub="${gid}" role="link" tabindex="0" title="放大：进入目标枢纽（承诺板第二缩放级别）">${g.title} ›</span>
+      <span style="flex:1;min-width:220px"><span class="goal-title-link" style="font-size:12.8px;font-weight:700" data-goalhub="${gid}" role="link" tabindex="0" title="放大：进入目标枢纽（承诺板第二缩放级别）">${g.title} ›</span>
       <span class="goal-home" data-goalhome="1" role="button" tabindex="0">真身：${g.home} ↗</span>
       <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:2px">${g.born}</span></span>
       <span class="goal-sig">信号：${kids.length ? sig : '—'}</span>
@@ -1909,6 +1922,25 @@ function renderBoard() {
     <div class="cm-row" style="background:var(--paper);border-color:var(--paper-line)">
       <span style="flex:1;font-size:12px;line-height:1.7">华南回款 <b>¥2.41M</b>（环比 +12%）· 在途订单 <b>37</b> · 逾期承诺 <b>1</b>（返修数据分析 · 张锐）</span>
     </div>
+    <div class="res-sec" style="display:flex;align-items:baseline;gap:8px">会议 · 近 3 场
+      <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">日程段素材可来自平台 brief（v4.17：素材段非本体）· 就绪度三态 = 图内推导（无期待 ≠ 缺材料）· 每行是门</span></div>
+    ${['ev-meeting', 'ev-review', 'ev-allhands'].map(k => {
+      const ev = EVENTS[k];
+      const ls = ev.linkedSession ? sessions[ev.linkedSession] : null;
+      const ready = ls && ['review', 'archived'].includes(ls.status);
+      /* 就绪度三态：无期待（无徽标——没有期待就没有"缺"）/ 未就绪 ⏳ / 就绪 ✓ */
+      const sub = !ls ? '无关联任务（合法状态）· 准备即创建第一个'
+        : ready ? '✓ 材料就绪'
+        : `⏳ 缺：${ev.expect}（${ls.status === 'confirm' ? '等审批 #7' : '任务运行中'}）`;
+      const badge = !ls ? '' : ready ? '<span class="badge b-review">就绪</span>' : '<span class="badge b-confirm">缺材料</span>';
+      return `<div class="cm-row" data-evhub="${k}" role="button" tabindex="0" style="cursor:pointer">
+        <span class="ex-tag agent" style="background:#EEF2FF;color:#2E63D9;border-color:#D8E2F8">会</span>
+        <span style="flex:1;min-width:0"><span style="font-size:12.5px;font-weight:650">${ev.time.split('–')[0]} · ${ev.title}</span>
+        <span style="display:block;font-size:10.5px;color:var(--ink-3)">${ev.room} · ${ev.organizer} 组织 · ${sub}</span></span>
+        ${badge}
+        <button class="btn" data-evdelegate="${k}" style="font-size:10.5px;padding:2px 9px;flex:none">为此会准备 ›</button>
+      </div>`;
+    }).join('')}
     <div class="res-sec" style="display:flex;align-items:center">全部承诺 · 跨执行者（人 + agent + 流程）
       <button class="btn" data-newgoal="1" style="margin-left:auto;font-size:11px;padding:3px 12px">＋ 立目标</button></div>
     ${goalFormHtml}${rows}
@@ -1976,6 +2008,10 @@ function renderHead() {
   else if (sess.status === 'review') agentChip = `<span class="chip agent-chip off" ${AP}>云小助 · 空闲（等待验收）</span>`;
   else if (sess.status === 'archived') agentChip = `<span class="chip agent-chip off" ${AP}>云小助 · 已归档</span>`;
   else agentChip = `<span class="chip agent-chip off" ${AP}>云小助 · 本地会话（Web 语义）</span>`;
+  /* 会话头日程锚 chip（D12 锚 chip 家族 + 信号即门）：点击开事件枢纽 */
+  const evAnchor = (sess.objects && sess.objects.events && sess.objects.events.length && sess.objects.events[0].pv)
+    ? `<span class="chip" data-evhub="${sess.objects.events[0].pv}" role="button" tabindex="0" style="cursor:pointer">📅 ${sess.objects.events[0].time} ${sess.objects.events[0].t} ›</span>`
+    : '';
   /* v4.14 信号即门：会话头的"需要你"chip 也是门（同对象另一投影） */
   const pend = (sess.kind !== 'board' && sess.kind !== 'goalhub') ? pendingOf(sess) : [];
   const pendChip = pend.length
@@ -1983,7 +2019,7 @@ function renderHead() {
     : '';
   $('sessHead').innerHTML = `
     <div class="sess-title">${titleHtml}${agentChip}</div>
-    <div class="sess-meta">${kindChip}${pendChip}${sidChip}</div>`;
+    <div class="sess-meta">${kindChip}${pendChip}${evAnchor}${sidChip}</div>`;
 }
 
 /* ---------- 侧栏 ---------- */
@@ -2518,6 +2554,7 @@ const RES = {
     { time: '14:00', t: '产品例会', m: '会议室 A · 6 人', pv: 'ev-meeting' },
     { time: '16:30', t: '设计评审：工作台面板', m: '线上 · 王超发起' },
     { time: '明 10:00', t: '管理层竞品评审', m: '会议室 C · 需要对比表', pv: 'ev-review' },
+    { time: '周五 16:00', t: '部门月度全员会', m: '大会议室 · 18 人', pv: 'ev-allhands' },
   ],
 };
 
@@ -2529,6 +2566,9 @@ const EVENTS = {
   'ev-meeting': { title: '产品例会', time: '今天 14:00–15:00', room: '会议室 A', organizer: '王超', parts: 6,
     linkedSession: 'roadmap', expect: 'Q3 路线图草稿',
     desc: '例会固定议程 + Q3 路线图初稿过一遍。' },
+  /* v4.19 空状态样本：无关联任务、未挂目标的会议（合法状态——大多数会议如此） */
+  'ev-allhands': { title: '部门月度全员会', time: '周五 16:00–17:00', room: '大会议室', organizer: '王超', parts: 18,
+    desc: '月度同步：各线进展、公告、答疑。' },
 };
 
 const PREVIEWS = {
@@ -2563,20 +2603,29 @@ function calRow(ev) {
 /* 事件枢纽：关联任务 + 材料就绪度从图状态免费推导 */
 function renderEventHub(key) {
   const ev = EVENTS[key];
-  const sess = sessions[ev.linkedSession];
-  const ready = ['review', 'archived'].includes(sess.status);
-  const taskRow = `<button class="res-item" data-sess="${ev.linkedSession}">
+  /* v4.19 护栏：服务边是可选边——无关联任务的会议是合法状态 */
+  const sess = ev.linkedSession ? sessions[ev.linkedSession] : null;
+  const taskRow = sess ? `<button class="res-item" data-sess="${ev.linkedSession}">
     <span class="ri">🧵</span>
     <span class="rt"><span class="rt1">${sess.title}</span><span class="rt2">${sess.preview}</span></span>
     ${badgeHtml(sess) || ''}
-  </button>`;
-  const materials = sess.objects.artifacts.length
+  </button>` : `<div class="mem-empty">暂无关联任务——服务边是可选边（合法状态）<br>「为此会准备」即创建第一个（<b>生成边的诞生时刻</b>）</div>`;
+  const materials = !sess
+    ? `<div class="mem-empty">无期待材料——就绪度语义未激活（没有期待就没有"缺"）</div>`
+    : sess.objects.artifacts.length
     ? sess.objects.artifacts.map(a => `<button class="res-item" data-preview="${a.pv}">
         <span class="ri">${a.icon}</span>
         <span class="rt"><span class="rt1">${a.t}</span><span class="rt2">${a.m}</span></span>
         <span class="hub-ok">✓ 就绪</span>
       </button>`).join('')
     : `<div class="mem-empty">⏳ ${ev.expect} —— 任务${sess.status === 'confirm' ? '等待审批 #7' : '运行中'}，交付后自动就绪</div>`;
+  const prepChooser = state.evPrepChoose === key ? `
+    <div class="cm-row" style="background:#FDFEFF;border-color:var(--pub-line);flex-wrap:wrap;gap:6px;margin-top:8px">
+      <span style="font-size:11px;color:var(--ink-2)">无天然语境——选择场所（听众是社交决策，人选不推导）：</span>
+      <button class="btn" data-evprep="${key}:prodgroup" style="font-size:11px">产品讨论群（公开委派）</button>
+      <button class="btn" data-evprep="${key}:fingroup" style="font-size:11px">财务群（公开委派）</button>
+      <button class="btn" data-evprep="${key}:x" style="font-size:11px">取消</button>
+    </div>` : '';
   return `<div class="preview">
     <div class="pv-head"><span class="pv-back" data-pback="1" role="button" tabindex="0">‹ 返回</span><span class="pv-title">${ev.title}</span><button class="pin inline" data-note="16" aria-label="设计注解 16">16</button></div>
     <div class="pv-meta">${ev.time} · ${ev.room} · 组织者 ${ev.organizer} · 参会 ${ev.parts} 人</div>
@@ -2585,6 +2634,7 @@ function renderEventHub(key) {
     <div class="res-sec">描述</div>
     <div class="pv-card" style="font-size:11.5px;line-height:1.6;color:var(--ink-2)">${ev.desc}<div style="margin-top:6px;font-size:9.5px;color:var(--ink-3)">关联材料链接可经确认写入描述（边也落云之家 · 全参会人在原生日程可见）</div></div>
     <button class="hub-cta" data-evdelegate="${key}">@云小助 为此会准备…</button>
+    ${prepChooser}
     <div class="pv-open" data-extopen="1" role="button" tabindex="0">在云之家打开 ↗</div>
   </div>`;
 }
@@ -3033,10 +3083,18 @@ document.addEventListener('click', (e) => {
   /* v4.10 完成度评估：验收权 ≠ 验收材料 */
   const gev = e.target.closest('[data-goaleval]');
   if (gev) {
-    state.evalGoal = state.evalGoal === gev.dataset.goaleval ? null : gev.dataset.goaleval;
-    state.delegGoal = null; state.decompGoal = null;
+    const egid = gev.dataset.goaleval;
+    if (state.evalGoal === egid) { state.evalGoal = null; state.evalPhase = null; renderTimeline(); return; }
+    state.evalGoal = egid; state.delegGoal = null; state.decompGoal = null;
+    state.evalPhase = 'working';
     renderTimeline();
-    if (state.evalGoal) toast('差距简报：agent 读真身成功标准 × 承诺终态 × 工件归集——备料不定案');
+    toast('评估开始：agent 备料中（成功标准 × 承诺终态 × 工件归集的语义比对）——备料不定案');
+    setTimeout(() => {
+      if (state.evalGoal !== egid) return;
+      state.evalPhase = 'ready';
+      renderTimeline();
+      toast('差距简报就绪（可应答对象 · DM 兜底已推送）——验收权在你');
+    }, 1500);
     return;
   }
   const gapd = e.target.closest('[data-evd]');
@@ -3162,10 +3220,19 @@ document.addEventListener('click', (e) => {
   /* v4.9 入口A②：拆解提案——确认即代发登记话语（幽灵承诺禁令） */
   const gdc = e.target.closest('[data-goaldecomp]');
   if (gdc) {
-    state.decompGoal = state.decompGoal === gdc.dataset.goaldecomp ? null : gdc.dataset.goaldecomp;
-    state.delegGoal = null;
+    const dgid = gdc.dataset.goaldecomp;
+    if (state.decompGoal === dgid) { state.decompGoal = null; state.decompPhase = null; renderTimeline(); return; }
+    state.decompGoal = dgid; state.delegGoal = null; state.evalGoal = null;
+    /* v4.19+ 交互时序：拆解 = 对目标说「帮我拆」的一次 agent 任务——先备料，提案才有依据 */
+    state.decompPhase = 'working';
     renderTimeline();
-    if (state.decompGoal) toast('拆解提案：agent 产出子承诺清单（提议权）——逐条裁决，确认的才落库');
+    toast('拆解开始：agent 备料中（读真身成功标准 · 盘点现有承诺防重复）——CTA 只是话语的按钮形态');
+    setTimeout(() => {
+      if (state.decompGoal !== dgid) return;
+      state.decompPhase = 'ready';
+      renderTimeline();
+      toast('拆解提案就绪：挂起态即图数据（重启可恢复）· DM 兜底已推送同一对象（先答先赢）——每条过你的手');
+    }, 1500);
     return;
   }
   const dc = e.target.closest('[data-dc]');
@@ -3258,18 +3325,57 @@ document.addEventListener('click', (e) => {
   if (ressub) { state.resSub = ressub.dataset.ressub; state.preview = null; renderRight(); return; }
   const restype = e.target.closest('[data-restype]');
   if (restype) { state.resType = restype.dataset.restype; renderRight(); return; }
+  const evp = e.target.closest('[data-evprep]');
+  if (evp) {
+    const [k, place] = evp.dataset.evprep.split(':');
+    state.evPrepChoose = null;
+    if (place === 'x') { renderRight(); return; }
+    const pev = EVENTS[k];
+    openSession(place);
+    if (!$('voicePub').disabled) setVoice('pub', { silent: true });
+    const pchip = `${pev.title}（日程 · 生成边）`;
+    if (!state.chips.includes(pchip)) state.chips.push(pchip);
+    renderChips();
+    const pin2 = $('input');
+    pin2.value = `@云小助 为「${pev.title}」准备：`;
+    pin2.dispatchEvent(new Event('input'));
+    pin2.focus(); pin2.setSelectionRange(pin2.value.length, pin2.value.length);
+    toast('场所已由你选定（听众人选不推导）——首个准备任务落地后，会议转入有关联态、就绪度激活（生成边诞生）');
+    return;
+  }
   const evd = e.target.closest('[data-evdelegate]');
   if (evd) {
+    /* v4.18+ 「为此会准备」= 传送门：跳到关联任务的话题说话（事件语境随行——生成边 + 语境继承挂接）；
+       旧实现就地预填，在承诺板等无落点视图点击即死 */
     const ev = EVENTS[evd.dataset.evdelegate];
-    const chip = `${ev.title}（日程）`;
+    /* v4.19 双语义：无关联任务 = 发起准备任务（生成边诞生）——无天然语境，场所人选不推导 */
+    if (!ev.linkedSession) {
+      state.resTab = 'cur';
+      state.preview = evd.dataset.evdelegate;
+      state.evPrepChoose = evd.dataset.evdelegate;
+      renderRight();
+      toast('无关联任务的会议：准备 = 生成边的诞生——落点必须由你选（听众人选不推导）');
+      return;
+    }
+    if (state.current !== ev.linkedSession) openSession(ev.linkedSession);
+    if (!$('voicePub').disabled) setVoice('pub', { silent: true });
+    const chip = `${ev.title}（日程 · 生成边）`;
     if (!state.chips.includes(chip)) state.chips.push(chip);
     renderChips();
-    if (!$('voicePub').disabled) setVoice('pub', { silent: true });
     const input = $('input');
-    input.value = `@云小助 为「${ev.title}」`;
+    input.value = `@云小助 为「${ev.title}」准备：`;
     input.dispatchEvent(new Event('input'));
     input.focus();
-    toast('已预填委派并携带事件引用（生成边 · pull 版）——补上要准备什么，发送即可');
+    input.setSelectionRange(input.value.length, input.value.length);
+    toast('传送门：跳到关联任务的话题说话——事件语境随行（生成边：日程→任务 · 语境继承挂接），交付后枢纽就绪度自动翻绿');
+    return;
+  }
+  const evh = e.target.closest('[data-evhub]');
+  if (evh) {
+    state.resTab = 'cur';
+    state.preview = evh.dataset.evhub;
+    renderRight();
+    toast('日程锚 chip 是门（信号即门）：右栏打开事件枢纽——关联任务 · 材料就绪度 · 为此会准备');
     return;
   }
   const pv = e.target.closest('[data-preview]');
