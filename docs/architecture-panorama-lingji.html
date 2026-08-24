@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>yzj 会话图 企业级全景架构 · 灵基宿主版（施工对齐图 · 变体 B）</title>
+<style>
+  :root {
+    --paper: #f2f4f1;
+    --sheet: #f7f8f5;
+    --ink: #1f2a33;
+    --ink-soft: #4a5560;
+    --ink-faint: #8a939b;
+    --hairline: #c9cfcb;
+    --hairline-soft: #dde1dc;
+    --done: #2f7a57;
+    --done-bg: #eef4ef;
+    --plan: #2f5d8a;
+    --plan-bg: #eff3f7;
+    --dep: #be3b2b;
+    --dep-bg: #f9efec;
+    --ext: #737d85;
+    --ext-bg: #f0f1ef;
+    --yzj: #2e6be6;
+    --mono: "SF Mono", "JetBrains Mono", Menlo, ui-monospace, monospace;
+    --sans: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", -apple-system, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { background: var(--paper); }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    padding: 28px 24px 48px;
+    overflow-x: auto;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── 图纸框架：外框 + 坐标刻度 ─────────────────────────── */
+  .sheet-wrap { width: 1560px; margin: 0 auto; position: relative; }
+  .sheet {
+    background: var(--sheet);
+    border: 1.5px solid var(--ink);
+    outline: 1px solid var(--ink);
+    outline-offset: 3px;
+    padding: 34px 40px 30px;
+    position: relative;
+  }
+  .ruler {
+    position: absolute; display: flex;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-faint);
+    letter-spacing: .08em; user-select: none;
+  }
+  .ruler span { flex: 1; text-align: center; }
+  .ruler-top    { top: -22px; left: 0; right: 0; }
+  .ruler-bottom { bottom: -22px; left: 0; right: 0; }
+  .ruler-left, .ruler-right {
+    flex-direction: column; top: 0; bottom: 0; width: 18px;
+  }
+  .ruler-left  { left: -24px; }
+  .ruler-right { right: -24px; }
+  .ruler-left span, .ruler-right span { display: flex; align-items: center; justify-content: center; }
+
+  /* ── 页眉 ───────────────────────────────────────────── */
+  header { border-bottom: 1.5px solid var(--ink); padding-bottom: 18px; margin-bottom: 22px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .32em;
+    color: var(--dep); margin-bottom: 10px;
+  }
+  h1 { font-size: 30px; font-weight: 600; letter-spacing: .04em; line-height: 1.25; }
+  h1 .thin { font-weight: 300; color: var(--ink-soft); }
+  .thesis {
+    margin-top: 8px; font-size: 14px; color: var(--ink-soft); letter-spacing: .02em;
+  }
+  .thesis b { color: var(--ink); font-weight: 600; }
+
+  .header-grid { display: flex; gap: 28px; margin-top: 16px; align-items: stretch; }
+  .status-now {
+    flex: 1.35; border: 1px solid var(--hairline); background: #fff;
+    padding: 10px 14px; font-size: 12px; line-height: 1.8; color: var(--ink-soft);
+  }
+  .status-now .lbl {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .2em;
+    color: var(--ink-faint); display: block; margin-bottom: 2px;
+  }
+  .status-now b { color: var(--ink); }
+  .legend {
+    flex: 1; border: 1px solid var(--hairline); background: #fff;
+    padding: 10px 14px; font-size: 12px; line-height: 2.05;
+  }
+  .legend .lbl {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .2em;
+    color: var(--ink-faint); display: block; margin-bottom: 2px;
+  }
+  .lg { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; white-space: nowrap; }
+  .dot { width: 10px; height: 10px; display: inline-block; border-radius: 1px; }
+  .dot-done { background: var(--done); }
+  .dot-plan { background: repeating-linear-gradient(45deg, var(--plan) 0 2px, transparent 2px 5px); border: 1px solid var(--plan); }
+  .dot-dep  { background: var(--dep-bg); border: 1.5px solid var(--dep); }
+  .dot-ext  { background: var(--ext-bg); border: 1px solid var(--ext); }
+
+  /* ── 变体横幅 ───────────────────────────────────────── */
+  .variant {
+    margin-top: 12px; border: 1.5px solid var(--dep); background: var(--dep-bg);
+    padding: 8px 14px; font-size: 12px; line-height: 1.8; color: var(--ink-soft);
+  }
+  .variant .lbl {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .2em;
+    color: var(--dep); margin-right: 10px;
+  }
+  .variant b { color: var(--ink); }
+  .assume {
+    font-family: var(--mono); font-size: 9px; letter-spacing: .06em;
+    color: var(--dep); border: 1px dashed var(--dep); border-radius: 2px;
+    padding: 0 4px; margin: 0 2px; white-space: nowrap;
+  }
+
+  /* ── 层与块 ─────────────────────────────────────────── */
+  .layer { border: 1.2px solid var(--ink); background: #fff; margin-bottom: 0; }
+  .layer-head {
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 9px 16px 8px; border-bottom: 1px solid var(--hairline);
+  }
+  .layer-tag {
+    font-size: 15px; font-weight: 600; letter-spacing: .14em; white-space: nowrap;
+  }
+  .layer-sub { font-size: 12px; color: var(--ink-soft); letter-spacing: .02em; }
+  .layer-side {
+    margin-left: auto; font-family: var(--mono); font-size: 10px;
+    letter-spacing: .18em; color: var(--ink-faint); white-space: nowrap;
+  }
+  .blocks { display: grid; gap: 10px; padding: 12px 14px 14px; }
+  .cols-5 { grid-template-columns: repeat(5, 1fr); }
+  .cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+  .blk {
+    border: 1px solid var(--hairline); background: #fff;
+    padding: 9px 11px 8px; font-size: 12px; line-height: 1.6;
+    display: flex; flex-direction: column; gap: 5px; position: relative;
+  }
+  .blk-head { font-size: 13px; font-weight: 600; display: flex; align-items: baseline; gap: 6px; letter-spacing: .02em; }
+  .blk-head .st { font-family: var(--mono); font-size: 11px; }
+  .blk-body { color: var(--ink-soft); }
+  .blk-foot {
+    margin-top: auto; padding-top: 5px; border-top: 1px dashed var(--hairline-soft);
+    font-family: var(--mono); font-size: 10px; color: var(--ink-faint); letter-spacing: .04em;
+    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+  }
+  .st-done { border-left: 3px solid var(--done); }
+  .st-done .st { color: var(--done); }
+  .st-plan {
+    border-left: 3px solid var(--plan); border-style: solid solid solid solid;
+    background: linear-gradient(0deg, rgba(47,93,138,.035), rgba(47,93,138,.035)),
+                repeating-linear-gradient(45deg, transparent 0 9px, rgba(47,93,138,.05) 9px 10px);
+  }
+  .st-plan .st { color: var(--plan); }
+  .st-ext { border-left: 3px solid var(--ext); background: var(--ext-bg); }
+  .st-ext .st { color: var(--ext); }
+  .st-dep { border: 1.5px solid var(--dep); border-left-width: 3px; background: var(--dep-bg); }
+  .st-dep .st, .st-dep .blk-head { color: var(--dep); }
+
+  .chip {
+    display: inline-block; font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: .06em; padding: 1px 6px; border: 1px solid currentColor;
+    border-radius: 2px; line-height: 1.6; white-space: nowrap;
+  }
+  .chip-dep { color: var(--dep); background: #fff; }
+  .chip-plan { color: var(--plan); background: #fff; }
+  .chip-done { color: var(--done); background: #fff; }
+  .chip-ext { color: var(--ext); background: #fff; }
+
+  /* 层内横贯注记条 */
+  .strip {
+    margin: 0 14px 13px; border: 1px dashed var(--hairline);
+    background: var(--sheet); padding: 7px 12px;
+    font-size: 11.5px; color: var(--ink-soft); line-height: 1.7;
+  }
+  .strip .k {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .16em;
+    color: var(--ink-faint); margin-right: 8px;
+  }
+  .strip b { color: var(--ink); font-weight: 600; }
+  .strip .sep { color: var(--hairline); margin: 0 8px; }
+
+  /* ── 层间流向带 ──────────────────────────────────────── */
+  .flow {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 40px; position: relative; min-height: 34px;
+  }
+  .flow::before, .flow::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 0;
+    border-left: 1px solid var(--ink-faint);
+  }
+  .flow::before { left: 90px; }
+  .flow::after { right: 90px; }
+  .flow-up, .flow-dn {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .05em;
+    color: var(--ink-soft); background: var(--paper); position: relative; z-index: 1;
+    padding: 2px 10px; border: 1px solid var(--hairline-soft);
+  }
+  .flow-up { margin-left: 24px; }
+  .flow-dn { margin-right: 24px; }
+  .flow-up::before { content: "▲ "; color: var(--done); }
+  .flow-dn::before { content: "▼ "; color: var(--plan); }
+
+  /* ── 宿主底座双列 ───────────────────────────────────── */
+  .substrate { display: grid; grid-template-columns: 2.1fr 1fr; gap: 12px; }
+  .substrate .layer { margin-bottom: 0; }
+
+  /* ── 基建对齐清单 ───────────────────────────────────── */
+  .asks-title {
+    margin: 26px 0 4px; display: flex; align-items: baseline; gap: 14px;
+    border-top: 1.5px solid var(--ink); padding-top: 18px;
+  }
+  .asks-title h2 { font-size: 20px; font-weight: 600; letter-spacing: .12em; color: var(--dep); }
+  .asks-title .note { font-size: 12px; color: var(--ink-soft); }
+  .asks { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 12px; }
+  .ask-col { border: 1.2px solid var(--dep); background: #fff; display: flex; flex-direction: column; }
+  .ask-col.soft { border-color: var(--ink-faint); }
+  .ask-col-head {
+    padding: 8px 12px; border-bottom: 1px solid var(--hairline);
+    background: var(--dep-bg);
+  }
+  .ask-col.soft .ask-col-head { background: var(--ext-bg); }
+  .ask-col-head .t { font-size: 13.5px; font-weight: 600; letter-spacing: .04em; }
+  .ask-col-head .s { font-family: var(--mono); font-size: 9.5px; color: var(--ink-faint); letter-spacing: .08em; display: block; margin-top: 2px; }
+  .ask-list { list-style: none; padding: 8px 12px 10px; font-size: 11.5px; line-height: 1.65; }
+  .ask-list li { padding: 5px 0; border-bottom: 1px dashed var(--hairline-soft); }
+  .ask-list li:last-child { border-bottom: none; }
+  .ask-list b { font-weight: 600; }
+  .ask-list .why { color: var(--ink-faint); display: block; font-size: 10.5px; margin-top: 1px; }
+  .ask-list .ph {
+    font-family: var(--mono); font-size: 9px; letter-spacing: .06em;
+    color: var(--plan); border: 1px solid var(--plan); border-radius: 2px;
+    padding: 0 4px; margin-left: 4px; white-space: nowrap;
+  }
+  .ask-list .open {
+    font-family: var(--mono); font-size: 9px; letter-spacing: .06em;
+    color: var(--dep); border: 1px dashed var(--dep); border-radius: 2px;
+    padding: 0 4px; margin-left: 4px; white-space: nowrap;
+  }
+  .ask-list .ok { color: var(--done); font-family: var(--mono); font-size: 10px; }
+
+  /* ── 执行序（临界路径） ─────────────────────────────── */
+  .path {
+    margin-top: 14px; border: 1.2px solid var(--ink); background: #fff;
+    padding: 10px 16px 11px; font-size: 12px; line-height: 2.0; color: var(--ink-soft);
+  }
+  .path .k {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .2em;
+    color: var(--dep); display: block; margin-bottom: 3px;
+  }
+  .path b { color: var(--ink); }
+  .path .n {
+    font-family: var(--mono); font-size: 10px; color: var(--sheet);
+    background: var(--ink); border-radius: 2px; padding: 1px 5px; margin: 0 2px;
+  }
+  .path .arr { color: var(--dep); font-family: var(--mono); margin: 0 4px; }
+  .path .fine { font-size: 11px; color: var(--ink-faint); display: block; line-height: 1.6; margin-top: 2px; }
+
+  /* ── 底部：边界宣言 + 图签 ───────────────────────────── */
+  .footer-grid { display: grid; grid-template-columns: 1fr 460px; gap: 16px; margin-top: 22px; align-items: stretch; }
+  .boundary {
+    border: 1px solid var(--hairline); background: #fff; padding: 12px 16px;
+    font-size: 12px; line-height: 1.9; color: var(--ink-soft);
+  }
+  .boundary .lbl {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .2em;
+    color: var(--ink-faint); display: block; margin-bottom: 4px;
+  }
+  .boundary b { color: var(--ink); }
+  .titleblock {
+    border: 1.5px solid var(--ink); background: #fff;
+    font-size: 11px; display: grid; grid-template-columns: 84px 1fr 74px 1fr;
+  }
+  .titleblock > div {
+    padding: 6px 10px; border-bottom: 1px solid var(--hairline);
+    display: flex; align-items: center; line-height: 1.5;
+  }
+  .titleblock > div:nth-last-child(-n+2) { border-bottom: none; }
+  .tb-k {
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em;
+    color: var(--ink-faint); border-right: 1px solid var(--hairline);
+    background: var(--sheet);
+  }
+  .tb-v { color: var(--ink); }
+  .tb-span { grid-column: 2 / 5; }
+
+  @media print {
+    body { padding: 0; }
+    .sheet-wrap { width: auto; }
+    .ruler { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet-wrap">
+  <div class="ruler ruler-top"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span></div>
+  <div class="ruler ruler-bottom"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span></div>
+  <div class="ruler ruler-left"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
+  <div class="ruler ruler-right"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
+
+  <div class="sheet">
+
+    <header>
+      <div class="eyebrow">施工对齐图 · 变体 B · LINGEE HOST VARIANT</div>
+      <h1>yzj 会话图 企业级全景架构 <span class="thin">—— 灵基宿主版 · 上下游与基建边界</span></h1>
+      <p class="thesis"><b>一张会话图，任意投影</b>：云之家是组织基座，<b>灵基（Lingee）智能体运行层是宿主与轨迹底座</b>，<b>会话图是唯一的产品实体</b>；桌面工作台、云之家原生消息、移动轻应用全部是图的投影。云之家在本图中出现两次——底部是<b>基座（上游）</b>，顶部是<b>投影面（下游）</b>，回程律把两端接成环。</p>
+      <div class="header-grid">
+        <div class="status-now">
+          <span class="lbl">DEMO 现状 · AS-BUILT</span>
+          单机双实例：<b>3080 旧线</b>（@agent，功能冻结）＋ <b>3090 next 线</b>（@next 试运行）——<b>demo 仍跑在 dsh 上</b>，灵基是企业级化的宿主选项。
+          身份 = <b>寄生操作者真人账号</b>（yzj-cli OAuth）；通道 = <b>纯轮询</b>；存储 = 本地 append-only JSONL；进程必须在线。
+        </div>
+        <div class="legend">
+          <span class="lbl">图例 · LEGEND</span>
+          <span class="lg"><span class="dot dot-done"></span>demo 已落地（next 线验证）</span>
+          <span class="lg"><span class="dot dot-plan"></span>本团队待建（规划内）</span><br>
+          <span class="lg"><span class="dot dot-dep"></span>需其他团队提供 / 解锁</span>
+          <span class="lg"><span class="dot dot-ext"></span>外部既有依赖</span>
+        </div>
+      </div>
+      <div class="variant">
+        <span class="lbl">变体说明 · Δ vs ARCH-PANO-01</span>
+        与 dsh 宿主版的<b>唯一差异是宿主层与其接缝</b>：触达面、产品核心、接入通道、云之家平台各层原样不动。灵基公开口径（2026-05 发布，六层架构）已入图；<b>其扩展点能力面尚未做过与 dsh 同深度的源码级盘点</b>——凡标 <span class="assume">假设</span> 的内容以盘点结果为准，本图的第一个红色前置就是发起这次盘点。
+      </div>
+    </header>
+
+    <!-- ═══════════ L1 触达面 ═══════════ -->
+    <section class="layer">
+      <div class="layer-head">
+        <span class="layer-tag">触达面</span>
+        <span class="layer-sub">投影层 —— 人在哪里，图就投到哪里；卡 = 图对象投影，消息载句柄不载状态，任一投影应答全局生效</span>
+        <span class="layer-side">DOWNSTREAM · 用户侧</span>
+      </div>
+      <div class="blocks cols-5">
+        <div class="blk st-done">
+          <div class="blk-head"><span class="st">●</span>桌面工作台</div>
+          <div class="blk-body">宿主 Web 三列：侧栏名录 · 融合话题流（IM×轨迹一条时间线）· 对象面；承诺板 / 目标页 / 收件箱 / 审计导出</div>
+          <div class="blk-foot">next·surface 主体已交付<span class="chip chip-plan">v4.8+ 增量待做</span></div>
+        </div>
+        <div class="blk st-done">
+          <div class="blk-head"><span class="st">●</span>云之家原生文本</div>
+          <div class="blk-body">自足文本 + 卡片句柄 + 关键词应答；进度回帖 + 终态回声（append-only，未装客户端同事完整可用）</div>
+          <div class="blk-foot">文本动词兜底 · 永久保留</div>
+        </div>
+        <div class="blk st-plan">
+          <div class="blk-head"><span class="st">◐</span>云之家原生消息卡</div>
+          <div class="blk-body">模板 + 按钮回调 + 按人独享状态 + updateCardMsg 活更新——全平台唯一可编辑消息，edit-in-place 载体</div>
+          <div class="blk-foot"><span class="chip chip-dep">押回调中继</span><span class="chip chip-dep">管理员开通</span></div>
+        </div>
+        <div class="blk st-plan">
+          <div class="blk-head"><span class="st">◐</span>移动轻应用</div>
+          <div class="blk-body">三端内嵌 H5 + ticket 免登 + qing.js 桥；承载注意力面：收件箱三态 / 卡片应答 / 轻问 / status</div>
+          <div class="blk-foot">next·lightapp 未开工<span class="chip chip-dep">管理员注册</span></div>
+        </div>
+        <div class="blk st-plan">
+          <div class="blk-head"><span class="st">◐</span>待办 / 提醒投影</div>
+          <div class="blk-body">generatetodo + passUrl 快捷回调；平台原生声明式提醒，redirectUrl 必须回链图上可应答对象（应答环不外包）</div>
+          <div class="blk-foot"><span class="chip chip-dep">押回调中继</span><span class="chip chip-dep">internal 写入口</span></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="flow">
+      <div class="flow-up">投影：图查询 / 订阅 / RPC —— 全部视图无独立状态</div>
+      <div class="flow-dn">应答回流：先答先赢 · 落败方收冲突回执 · 终态回声补投</div>
+    </div>
+
+    <!-- ═══════════ L2 产品核心 ═══════════ -->
+    <section class="layer">
+      <div class="layer-head">
+        <span class="layer-tag">产品核心</span>
+        <span class="layer-sub">本团队 · 插件王国（next/ 十包，全部为宿主插件——现跑在 dsh；灵基下重做装配层，包语义不变）—— 依赖只向左，内核不知道宿主与云之家</span>
+        <span class="layer-side">OUR TEAM · @yzj-next/*</span>
+      </div>
+      <div class="blocks cols-5">
+        <div class="blk st-done">
+          <div class="blk-head"><span class="st">●</span>graph 图内核</div>
+          <div class="blk-body">append-only 图日志 + 快照重放 + viewer 可见域查询（读按提问者可见域 / 出按在场者交集）+ 订阅 + 读取域钩子</div>
+          <div class="blk-foot">唯一产品实体<span class="chip chip-plan">量级到位换 sqlite</span></div>
+        </div>
+        <div class="blk st-done">
+          <div class="blk-head"><span class="st">●</span>cards 可应答对象</div>
+          <div class="blk-body">卡型注册表 + 动作总线（单点裁决）+ 四投影通道协调：会话流 / 工作台 / IM 文本 / 原生卡</div>
+          <div class="blk-foot">凡向人提问的都是对象非文本</div>
+        </div>
+        <div class="blk st-done">
+          <div class="blk-head"><span class="st">●</span>objects 对象族</div>
+          <div class="blk-body">已落地：审批 · 任务/等待/冲突 · 承诺/流程。待建：裁决 / 租约 / 目标动线 / 记忆三轴 / 实体 / 日程五边</div>
+          <div class="blk-foot">新对象族 = 新插件即插即入<span class="chip chip-plan">六族待建</span></div>
+        </div>
+        <div class="blk st-done">
+          <div class="blk-head"><span class="st">●</span>tools 工具面</div>
+          <div class="blk-body">41 个 yzj_* 模型工具 + guard 写门禁（确认 / 强确认 / 租约 / 合同三层）+ 血缘自动记录 + env 快照</div>
+          <div class="blk-foot">写操作单点闸门 · 无旁路</div>
+        </div>
+        <div class="blk st-done">
+          <div class="blk-head"><span class="st">●</span>channel 通道编排</div>
+          <div class="blk-body">transport（轮询 / 分诊 / 回声协议 / 通道健康）+ orchestrator（路由 / 命令集 / 回合绑定 / 幂等纪律）</div>
+          <div class="blk-foot">CLI 适配器已落地<span class="chip chip-plan">platform-api 适配器</span></div>
+        </div>
+        <div class="blk st-done">
+          <div class="blk-head"><span class="st">●</span>surface 工作台</div>
+          <div class="blk-body">三槽整列替换：融合话题视图 + 双语态 composer + 锚定条 + Back/Up 栈 + 群视图冷热链 + 承诺板</div>
+          <div class="blk-foot"><span class="chip chip-plan">目标页 / 决断条 / 预览三态</span></div>
+        </div>
+        <div class="blk st-plan">
+          <div class="blk-head"><span class="st">◐</span>relay 回调中继端</div>
+          <div class="blk-body">接收平台一切回调（机器人 @ / 卡片按钮 / passUrl / 组织 / 审批 / 日程事件），验签在本机完成</div>
+          <div class="blk-foot">未开工<span class="chip chip-dep">押公网 HTTPS 端点</span></div>
+        </div>
+        <div class="blk st-plan">
+          <div class="blk-head"><span class="st">◐</span>scheduler 调度器</div>
+          <div class="blk-body">effect 定时器：晨报 cron / 盯 watchers / 租约到期 / 等待升级——职责收窄为 agent 侧唤醒（对人提醒用平台原生）</div>
+          <div class="blk-foot">未开工 · 灵基若带调度则收窄<span class="assume">假设</span></div>
+        </div>
+        <div class="blk st-plan">
+          <div class="blk-head"><span class="st">◐</span>lightapp 移动投影</div>
+          <div class="blk-body">轻应用 H5 壳 + 免登接入 + 注意力面渲染；换设备不换心智，文本兜底永久保留</div>
+          <div class="blk-foot">未开工 · P5 门</div>
+        </div>
+        <div class="blk st-done">
+          <div class="blk-head"><span class="st">●</span>bridge / bundle</div>
+          <div class="blk-body">bridge：yzj-cli 有界子进程通道（argv 直启无 shell，凭据不过手）；bundle：装配 + 双实例部署 + 平价切换</div>
+          <div class="blk-foot">试运行分区靠触发词 @next</div>
+        </div>
+      </div>
+      <div class="strip">
+        <span class="k">数据主权</span>
+        <b>图日志</b>（自有词汇 · 产品级事实 · ~/.dsh-next/yzj-next/graph）<span class="sep">|</span>
+        <b>session 日志</b>（宿主官方词汇 · turn 级，绝不写自定义事件）<span class="sep">|</span>
+        <b>channel 运行态</b>（游标 / 去重 / 出站登记，非事实不入图）<span class="sep">|</span>
+        跨界只用锚点：{sessionId,seq} · {groupId,msgId} · {docId} · URI
+      </div>
+    </section>
+
+    <div class="flow">
+      <div class="flow-up">宿主扩展点：插件装配 / agents / approval seam / toolview / RPC</div>
+      <div class="flow-dn">模型调用：经灵基模型与算力层网关（现状 settings.yaml provider）</div>
+    </div>
+
+    <!-- ═══════════ L3 宿主与模型 ═══════════ -->
+    <div class="substrate">
+      <section class="layer">
+        <div class="layer-head">
+          <span class="layer-tag">宿主 · 灵基（Lingee）</span>
+          <span class="layer-sub">金蝶企业 AI 操作系统——「智能体运行」+「智能体编排与开发」两层承接宿主职责</span>
+          <span class="layer-side">INTERNAL · 六层架构</span>
+        </div>
+        <div class="blocks cols-3">
+          <div class="blk st-dep">
+            <div class="blk-head"><span class="st">★</span>宿主能力面齐平清单（前置盘点）</div>
+            <div class="blk-body">产品核心消费的扩展点须逐项对照：插件装配与装配补丁 · agent 运行时（create/resume/followup/steer/cancel）· 工具管道 pre-execute ask + 审批 seam 与审计事件 · 会话流 keyed 卡片槽 · 三列 UI 槽族与整列替换 · connection RPC · 原子写存储 · systemPrompt 注入 · session 存储与轨迹视图</div>
+            <div class="blk-foot">对照基准 = 2026-08 dsh 源码级核验清单<span class="chip chip-dep">灵基团队盘点</span></div>
+          </div>
+          <div class="blk st-plan">
+            <div class="blk-head"><span class="st">◐</span>内部化红利（开源 asks 转需求单）</div>
+            <div class="blk-body">dsh 版四条 RFC——会话层级 provider / session 读取 ACL / 列替换一等 / 耐久事件注册面——从「等开源」变<b>可排期内部需求</b>；cron 调度若宿主自带则 scheduler 收窄；治理与可信层对接审计导出<span class="assume">假设</span></div>
+            <div class="blk-foot">风险置换：破坏性变更风险 → 能力差距风险</div>
+          </div>
+          <div class="blk st-plan">
+            <div class="blk-head"><span class="st">◐</span>迁移接缝与并存期</div>
+            <div class="blk-body">装配层（bundle）与 client UI 半是主要移植面；图日志 / 对象系统 / 工具语义零改动（依赖只向左，内核不知宿主）；并存期 = dsh 实例照跑、灵基实例试运行、平价切换——与 3080→3090 同一剧本</div>
+            <div class="blk-foot">只迁图不迁 session：turn 级事实留原宿主可审计</div>
+          </div>
+        </div>
+        <div class="strip">
+          <span class="k">六层对位<span class="assume">假设</span></span>
+          模型与算力 → LLM 供给收敛<span class="sep">|</span>知识与本体 → 记忆三轴对接待议<span class="sep">|</span>编排与开发（Build · Skill 原子化）→ yzj_* 工具面封装映射<span class="sep">|</span><b>智能体运行 → 本图宿主职责</b><span class="sep">|</span>治理与可信 → 审计 / 合同对接（本体不移交）<span class="sep">|</span>MCP/API 连接面 → bridge / channel 适配器接口
+        </div>
+      </section>
+      <section class="layer">
+        <div class="layer-head">
+          <span class="layer-tag">模型与算力</span>
+          <span class="layer-side">灵基 L1 <span class="assume">假设</span></span>
+        </div>
+        <div class="blocks" style="grid-template-columns: 1fr;">
+          <div class="blk st-plan">
+            <div class="blk-head"><span class="st">◐</span>LLM 供给收敛</div>
+            <div class="blk-body">灵基「模型与算力」层承接模型供给 / 配额 / 密钥管理<span class="assume">假设</span>——dsh 版的「企业供给待对齐」在本变体归于灵基团队。现状仍为个人 provider 配置；完成质量的设计层杠杆不变（拒收→学习回路）</div>
+            <div class="blk-foot"><span class="chip chip-dep">随宿主内部化收敛</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="flow">
+      <div class="flow-up">入站：消息轮询 / 平台回调 → 回声抑制 → 命令 → 卡片动作 → 受话判定</div>
+      <div class="flow-dn">出站：读写工具（guard 门控）· 投递纪律（回帖锚定 / 进度上限）</div>
+    </div>
+
+    <!-- ═══════════ L4 接入通道 ═══════════ -->
+    <section class="layer">
+      <div class="layer-head">
+        <span class="layer-tag">接入通道</span>
+        <span class="layer-sub">双适配器混合定式：机器人收触发，CLI 读语境 —— 平台无消息流订阅，轮询永远保留</span>
+        <span class="layer-side">CHANNEL · 身份三阶段</span>
+      </div>
+      <div class="blocks cols-3">
+        <div class="blk st-done">
+          <div class="blk-head"><span class="st">●</span>yzj-cli 适配器（阶段一 · 现状）</div>
+          <div class="blk-body">真人 OAuth · 凭据存 OS 密钥链 · spawn 无 shell · 轮询 recent+list 锚点游标。以登录者本人身份读写——确认卡门控的写无需机器人</div>
+          <div class="blk-foot">0.1.4 已升级：群搜索 / 建群 / doc 整篇写 / exit 3 确认协议</div>
+        </div>
+        <div class="blk st-plan">
+          <div class="blk-head"><span class="st">◐</span>platform-api 适配器（阶段二 / 三）</div>
+          <div class="blk-body">HTTPS + token 直连，不等 CLI：对话机器人 @ 回调（触发从 5s 轮询变秒级）· 群机器人 webhook 出站 · 消息卡片收发更新 · 待办 · cloudflow · 组织读取 + 九类变更回调（→ 本地组织镜像：@对的人 / audience 成员解析 / 汇报链）· 公共号双向 DM</div>
+          <div class="blk-foot"><span class="chip chip-dep">回调中继</span><span class="chip chip-dep">管理员开通</span><span class="chip chip-dep">应用注册三级 token</span></div>
+        </div>
+        <div class="blk st-dep">
+          <div class="blk-head"><span class="st">★</span>回调中继（阶段二第一块基建）</div>
+          <div class="blk-body">公网可达 HTTPS 端点 → 转发到宿主进程（云函数 / 轻量服务器 / 内网穿透）。机器人 @ / 卡片按钮 / passUrl / 组织 / 审批 / 日程事件全部是「云之家 POST 到我方」——没有它，阶段二整层不通</div>
+          <div class="blk-foot"><span class="chip chip-dep">载体与归属待对齐：IT 自建 或 平台侧事件推送服务</span></div>
+        </div>
+      </div>
+      <div class="strip">
+        <span class="k">身份阶梯</span>
+        <b>阶段一</b> 真人寄生（现状：读写俱真人名义）
+        <span class="sep">→</span><b>阶段二</b> 真人读语境 + 机器人收发（回调中继 + 管理员开通）
+        <span class="sep">→</span><b>阶段三</b> 企业应用三级 token（app / team / resGroupSecret，彻底摆脱寄生真人 OAuth；真人通道仅余读消息流）
+        <span class="sep">|</span>证据门纪律：阶段二触发器 = 轮询延迟成真实疼痛 + 凭据到位，不提前建
+        <span class="sep">|</span>频控事实（容量规划输入）：app 3500 / team 2000 / resGroupSecret 1500 次·分 · 机器人 60 条·分 · 单 IP 20 万·时
+      </div>
+    </section>
+
+    <div class="flow">
+      <div class="flow-up">HTTPS API（token）· CLI spawn（OAuth 登录态）</div>
+      <div class="flow-dn">平台回调 POST（HmacSHA1 验签 · 经中继）</div>
+    </div>
+
+    <!-- ═══════════ L5 云之家平台 ═══════════ -->
+    <section class="layer">
+      <div class="layer-head">
+        <span class="layer-tag" style="color: var(--yzj);">云之家平台</span>
+        <span class="layer-sub">组织基座（上游）—— 身份 / 消息 / 文档 / 日程的真身所在；同时是顶部触达面的投影载体（下游）</span>
+        <span class="layer-side">UPSTREAM · 金蝶云之家</span>
+      </div>
+      <div class="blocks cols-4">
+        <div class="blk st-ext">
+          <div class="blk-head"><span class="st">◇</span>公开开放面（CLI 已覆盖）</div>
+          <div class="blk-body">IM 消息 / 群 · 知识库 doc · 多维表格 sheet · 日程 · 通讯录 · 文件——六域读写全量，demo 全部在用</div>
+          <div class="blk-foot">open.yunzhijia.com · 稳定可依赖</div>
+        </div>
+        <div class="blk st-ext">
+          <div class="blk-head"><span class="st">◇</span>平台增强面（待接入）</div>
+          <div class="blk-body">对话机器人 · 消息卡片 · 待办 generatetodo/passUrl · 智能审批 cloudflow · 组织读取 + 九类变更回调 · 公共号 · 群机器人 webhook · 轻应用 · cloudwork 任务日程</div>
+          <div class="blk-foot">能力齐备<span class="chip chip-dep">接入押中继 + 管理员</span></div>
+        </div>
+        <div class="blk st-dep">
+          <div class="blk-head"><span class="st">★</span>内网 yapi 面（可达性分层）</div>
+          <div class="blk-body">9 服务 749 接口：AI 速记 aisteno（纪要→目标 / 待办→承诺双桥）· 待办四层（internal upsert）· 日程 V12 · 冲突族 · getFlowInfo · workreport。可达性：417 日程 = 唯一确认开放写；aisteno 待实测；391 需中继；<b>待办 internal 零 gateway 化</b></div>
+          <div class="blk-foot"><span class="chip chip-dep">平台开洞 / 网关化是解锁前提</span></div>
+        </div>
+        <div class="blk st-dep">
+          <div class="blk-head"><span class="st">★</span>平台硬缺口（asks 在册）</div>
+          <div class="blk-body">无通用消息流订阅（轮询是常态）· 普通消息不可编辑撤回 · reaction 无接口 · richText 内嵌图无下载路 · 无群成员列表 API · 无消息搜索 · 桌面内嵌小程序未开放</div>
+          <div class="blk-foot"><span class="chip chip-dep">前两条为长期约束 · 设计已按此定形</span></div>
+        </div>
+      </div>
+      <div class="strip">
+        <span class="k">对接三角色定律</span>
+        平台对象在本设计中只扮演三种角色：<b>投影</b>（触达面）· <b>证据源</b>(回执签字) · <b>素材段</b>——<b>图的本体论一寸不移</b>，承诺 / 会话 / 听众的真身永远在图；目标表、OA 单、周报等真身外挂是采纳轴裁决，图记发起边与状态回流。每个 adapter 首行声明角色。
+      </div>
+      <div class="strip">
+        <span class="k">实测清单 · adapter 开工前置（零基建即可先动）</span>
+        ① aisteno 会话获取（企业应用 / 代理凭证）<span class="sep">|</span>② callBackUrl 事件载荷与覆盖<span class="sep">|</span>③ meetingId↔stenoId 桥<span class="sep">|</span>④ 391 冲突族网关鉴权<span class="sep">|</span>⑤ user-action-item sourceType 自定义值校验<span class="sep">|</span>⑥ schedule/brief 响应结构<span class="sep">|</span>⑦ 417 detail/queryByUser 真实字段<span class="sep">|</span>⑧ 知识库自动上传 docId 的 ACL × 听众集合对齐<span class="sep">|</span>⑨ 群历史对新入群成员可见性（audience 动态解析的事实前提）
+      </div>
+    </section>
+
+    <!-- ═══════════ 基建对齐清单 ═══════════ -->
+    <div class="asks-title">
+      <h2>基建对齐清单</h2>
+      <span class="note">按提供方分组 —— 红框 = 阻塞企业级化的外部依赖；灰框 = 内部施工与运营配合。标注：<span class="ph" style="font-family: var(--mono); font-size: 9px; color: var(--plan); border: 1px solid var(--plan); border-radius: 2px; padding: 0 4px;">阶段</span> = 文档已确认的演进门；<span class="open" style="font-family: var(--mono); font-size: 9px; color: var(--dep); border: 1px dashed var(--dep); border-radius: 2px; padding: 0 4px;">待对齐</span> = 归属 / 形态尚未拍板，本图即为发起对齐用</span>
+    </div>
+    <div class="asks">
+      <div class="ask-col">
+        <div class="ask-col-head">
+          <span class="t">云之家平台团队</span>
+          <span class="s">PLATFORM · 能力开洞与事件面</span>
+        </div>
+        <ul class="ask-list">
+          <li><b>回调事件面接入规范</b><span class="ph">阶段二</span><span class="why">机器人 @ / 卡片按钮 / 待办 passUrl / 组织 / 审批 / 日程回调——秒级触发与原生卡的总前提</span></li>
+          <li><b>待办 internal 写入口 gateway 化</b><span class="open">待对齐</span><span class="why">现为服务间信任零鉴权，人类承诺 adapter 最大门槛；fallback = 日程投影 + IM 登记</span></li>
+          <li><b>aisteno 网关鉴权形态</b><span class="open">待对齐</span><span class="why">企业应用 / 代理凭证能否换会话——AI 速记双桥（纪要→目标提案）的解锁条件</span></li>
+          <li><b>391 内网面网关开洞或中继</b><span class="open">待对齐</span><span class="why">日程冲突族 / 提案池 extract 大概率仅内网可达</span></li>
+          <li><b>能力缺口</b>：群成员列表 API · 消息 reaction · richText 内嵌图下载 · 消息搜索<span class="why">F13 三墙 + 搜索缺口，均已入 asks 清单</span></li>
+        </ul>
+      </div>
+      <div class="ask-col">
+        <div class="ask-col-head">
+          <span class="t">yzj-cli 团队</span>
+          <span class="s">CLI · 内部建联（与直连并行）</span>
+        </div>
+        <ul class="ask-list">
+          <li><b>robot 子命令族</b><span class="why">webhook 凭据管理 / send / serve 回调端</span></li>
+          <li><b>card send / update</b><span class="why">templateId + dataContent + outTrackId——edit-in-place 的 CLI 路径</span></li>
+          <li><b>todo create / action</b>、<b>org 同步族</b>、<b>日程 recurrence</b><span class="why">与 platform-api 直连二选一或并行，transport 接缝一致</span></li>
+          <li><span class="ok">✓ 已交付</span>：群搜索 / 建群 / doc 整篇写 / --jq / exit 3 确认协议（0.1.4，agent-first 转向）</li>
+          <li><b>消息搜索</b>仍缺<span class="why">「提及我」查询需求已提</span></li>
+        </ul>
+      </div>
+      <div class="ask-col">
+        <div class="ask-col-head">
+          <span class="t">灵基 harness 团队</span>
+          <span class="s">HOST · 内部需求单</span>
+        </div>
+        <ul class="ask-list">
+          <li><b>宿主能力面盘点</b><span class="open">待对齐</span><span class="why">与 2026-08 dsh 源码级核验同深度的扩展点对照——本变体一切排期的前置</span></li>
+          <li><b>会话层级 provider / session 读取 ACL / 列替换一等主视图</b><span class="why">dsh 版 RFC-1/3/4 的内部对应物，从等开源变可排期</span></li>
+          <li><b>插件耐久事件注册面</b><span class="why">F4 对应物；即便开面，图日志仍保留（数据主权），仅审计冗余可简化</span></li>
+          <li><b>cron / 调度服务</b><span class="why">F5 对应物；宿主自带则 scheduler 收窄为图 watcher</span></li>
+          <li><b>模型网关与配额</b><span class="open">待对齐</span><span class="why">模型与算力层承接 LLM 企业供给——归属以盘点为准</span></li>
+          <li><b>治理与可信层对接口径</b><span class="open">待对齐</span><span class="why">审计导出 / 场所合同与平台治理面的边界——图的本体论不移交</span></li>
+        </ul>
+      </div>
+      <div class="ask-col">
+        <div class="ask-col-head">
+          <span class="t">IT / 运维基建</span>
+          <span class="s">INFRA · 企业级化载体</span>
+        </div>
+        <ul class="ask-list">
+          <li><b>公网 HTTPS 回调中继载体</b><span class="open">待对齐</span><span class="why">云函数 / 轻量服务器 / 内网穿透 + 域名证书；验签在业务侧完成，中继零信任转发</span></li>
+          <li><b>常驻服务化部署</b><span class="open">待对齐</span><span class="why">现状 = 桌面机进程必须在线（轮询 + 审批都依赖它活着）；企业级需服务器化与守护；私有云 endpoint 已预留（CLI --endpoint）</span></li>
+          <li><b>外部触达通道（中期）</b><span class="open">待对齐</span><span class="why">邮件 / 短信 / 外部日程邀请——组织外实体（客户）的触达 infra</span></li>
+          <li><b>存储与备份</b><span class="why">图日志 JSONL→sqlite 是本团队内的换底（日志重放，API 不变）；备份策略需运维接手</span></li>
+          <li><b>安全与合规评审</b><span class="open">待对齐</span><span class="why">@同事拉上下文的法务口径（预研文档已点名）· 审计导出留存 · 「永不记忆场所」合规条款</span></li>
+        </ul>
+      </div>
+      <div class="ask-col soft">
+        <div class="ask-col-head">
+          <span class="t">组织管理员</span>
+          <span class="s">ADMIN · 无 API 的 UI 操作</span>
+        </div>
+        <ul class="ask-list">
+          <li><b>企业应用注册</b><span class="ph">阶段三</span><span class="why">appId / secret · team token · resGroupSecret（只读 / 可编辑分级）</span></li>
+          <li><b>机器人逐群创建</b><span class="ph">阶段二</span><span class="why">机器人按群存在、逐群 UI 创建、token 互不通用</span></li>
+          <li><b>轻应用注册</b><span class="why">管理中心注册，自建免审核——移动投影入口</span></li>
+          <li><b>审批类应用设置（signKey）</b><span class="why">待办 passUrl 快捷审批的前提</span></li>
+          <li><b>专号（第二真人账号）</b><span class="why">身份阶梯过渡形态：归因清晰 + 移动轻问通道</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═══════════ 执行序 ═══════════ -->
+    <div class="path">
+      <span class="k">执行序 · CRITICAL PATH —— 每个团队现在就能动的那一步</span>
+      <span class="n">0</span><b>实测清单 ①-⑨</b>（零基建，业务侧即可执行）<span class="arr">→</span>
+      <span class="n">1</span><b>回调中继载体拍板</b>（IT × 平台，待对齐项之首——阶段二整层的门）<span class="arr">→</span>
+      <span class="n">2</span><b>管理员开通</b>（测试群机器人 / signKey / 轻应用注册）<span class="arr">→</span>
+      <span class="n">3</span><b>阶段二接入</b>（秒级触发 + 原生卡 + 待办闭环）<span class="arr">→</span>
+      <span class="n">4</span><b>企业应用注册三级 token</b>（阶段三身份独立）<span class="arr">→</span>
+      <span class="n">5</span><b>内网面网关化</b>（aisteno / 391 / internal）<span class="arr">→</span>
+      <span class="n">6</span><b>adapter 族开工</b>（速记双桥 / 人类承诺叶子 / OA 轨 / 日程 V12）
+      <span class="fine">证据门纪律不破：每一步由真实疼痛 + 凭据到位触发，不提前建；0 与 1 可并行，1 不通则 3 以后全部只剩 fallback 形态（轮询 + 文本投影 + IM 登记）。</span>
+      <span class="fine"><b>宿主线并行（本变体新增）</b>：灵基能力面盘点 → 装配层与 UI 接缝移植 → 双宿主并存试运行 → 平价切换——与上面平台线互不阻塞，两线在「常驻服务化部署」处汇合。</span>
+    </div>
+
+    <!-- ═══════════ 底部：边界宣言 + 图签 ═══════════ -->
+    <div class="footer-grid">
+      <div class="boundary">
+        <span class="lbl">边界宣言 · 给对齐会的三句话</span>
+        ① <b>我们不向任何团队移交本体</b>：承诺 / 会话 / 听众的真身在会话图，平台对象只当投影、证据源、素材段——对灵基治理与可信层同理，治理对接不等于本体移交。<br>
+        ② <b>红色块是企业级化的临界路径</b>：回调中继 → 阶段二整层；应用 token → 阶段三身份独立；internal 网关化 → 人类承诺闭环；<b>灵基能力面盘点 → 宿主线全部排期</b>。每块都有 fallback，缺了不死但形态降级。<br>
+        ③ <b>宿主替换不动核心</b>：图与对象系统、工具语义、通道协议一行不改，动的是装配层与 UI 接缝——3080→3090 的双实例平价切换剧本原样复用到 dsh→灵基；接缝对不齐的部分才是真实工作量，盘点先行。
+      </div>
+      <div class="titleblock">
+        <div class="tb-k">图名</div><div class="tb-v tb-span">yzj 会话图 企业级全景架构 —— 灵基宿主版</div>
+        <div class="tb-k">图号</div><div class="tb-v">ARCH-PANO-02</div>
+        <div class="tb-k">版本</div><div class="tb-v">v1.0 · 2026-08-24</div>
+        <div class="tb-k">依据</div><div class="tb-v tb-span">ARCH-PANO-01（dsh 宿主版 v1.1）· 灵基公开发布口径（2026-05 AI 峰会 · 六层架构）——能力面未盘点，标 [假设]</div>
+        <div class="tb-k">用途</div><div class="tb-v tb-span">内部团队对齐：宿主替换的边界、前置盘点与灵基团队需求单</div>
+        <div class="tb-k">比例</div><div class="tb-v">NTS 不按比例</div>
+        <div class="tb-k">状态</div><div class="tb-v">假设稿 · 待灵基能力盘点后修订</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
