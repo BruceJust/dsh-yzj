@@ -1020,6 +1020,7 @@ let goalSeq = 1; /* 立目标 = 登记动词复用；三入口共用此序列 */
 /* v4.11 文件即工件：人发的文件消息与 agent 交付工件同一张卡、同一套三态预览（真身在云之家，预览是投影） */
 const FILES = {
   pdf1:  { kind: 'pdf',  name: '发布物料清单.pdf',  meta: '2.4 MB · 李婷 上传 · 云之家文件', pages: 6 },
+  pdf2:  { kind: 'pdf',  name: '返修数据分析.pdf',  meta: '1.1 MB · 张锐 上传 · 云之家文件', pages: 4 },
   md1:   { kind: 'md',   name: '竞品对比分析.md',   meta: '18 KB · 云小助 交付 · 血缘：本话题任务产出' },
   html1: { kind: 'html', name: 'Q3路线图评审.html', meta: '312 KB · 云小助 交付 · 自包含单页' },
 };
@@ -1128,6 +1129,8 @@ const sessions = {
       { type: 'file', who: 'liting', name: '李婷', time: '10:32', file: 'pdf1' },
       { type: 'topiccard', target: 'competitor', meta: '李婷发起 · 14 条 · 刚刚活跃', pin: 13 },
       { type: 'im', who: 'wang', name: '王超', time: '11:05', text: '收到。多维表格那份记得带定价列。' },
+      { type: 'file', who: 'zhang', name: '张锐', time: '11:38', file: 'pdf2' },
+      { type: 'dlvinfer', id: 'dv1', state: null, pin: 24, commit: '返修数据分析', file: 'pdf2' },
     ],
   },
 
@@ -1402,6 +1405,8 @@ const NOTES = {
        body: '委派是对话的<b>特例</b>，不是对话的全部——以 agent 为圆心设计对话器，会把"人和人说话"这个母集丢掉（§1.3 曾只搬 IM 习语的渲染半边）。公语态补全为完整对话器：<b>就地回复</b>（hover 消息 → ↩）、@成员、图片/表情——全是老小窗 composer 的能力移植。深一层：<b>回复是边界的输入动词</b>——回复链本就是话题锚定的基础设施（replyRootMsgId），话题回帖技术上必然是一次回复。<b>v4.7 收拢</b>：一次发送在回答四个正交问题——<b>落点 / 受话 / 指涉 / 可见域</b>。回复=挂链，落点=链根所在边界，边界规则决定链是否划界（群：<b>冷链平铺热链收纳</b>——链是话题的胚胎、受话 agent 是点火；DM：流即界，回复退化为纯指涉）；委派触发=<b>受话者含 agent</b>（@ 或回复 agent 的消息）；composer 常显<b>锚定条</b>=A0 锚定层级的 UI 真身——落点在按下发送前永远可见，「新」是推导不是选择。消息 hover 提供<b>双动词</b>：↩ 回复（挂链）与 ⚡ @云小助（挂链+受话一步到位——「就这事让 agent 干」的最短路径，实现=预填 @，删 @ 即降回普通回复，零隐藏状态；agent 消息上 ↩ 本身已是受话，故不重复出现）。' },
   23: { title: 'Back 与 Up：返回精确原位',
        body: '面包屑给的是 <b>Up</b>（回群顶），你要的是 <b>Back</b>（回离开时的精确位置）——Android 导航模型区分了十几年的两个语义。进话题 = push 导航栈，「‹ 返回原位」= pop + 恢复滚动位置。配套：话题卡<b>就地展开</b>（零导航扫一眼——主次关系是当下意图的属性，不是场所的固有属性：深工作居中栏、扫一眼就地展开）。展开是用户手势不是默认渲染，卡片索引密度不损。' },
+  24: { title: '交付推断：回执面的第三个门（v4.20）',
+       body: 'Bruce 问：执行者没在话题下回复结果、或忘了承诺板在跟踪，怎么办？答案分五段，四段是既有机制：<b>出生代发 + 待办投影</b>堵住"不知道被跟踪"；<b>三值状态 + staleness</b> 让静默本身可见（无信号 ≠ 没问题）；<b>无信号老化进留意层 + 晨报</b>让信号来找 owner；<b>催 = agent 拟稿 + owner 亲发</b>（社交摩擦不碰）。真缺口是第五段：执行者<b>只甩文件不说话</b>——回执解析原来只认话语（"发了"），v4.20 扩展到行为：executor 侧 agent 在<b>自己的可见域内</b>识别疑似交付（查自己名下承诺是合法查询），提议「挂为交付回执？」，确认后以执行者名义按<b>回程律</b>回流登记场所——登记的听众看到出生，也该看到交付。与 ack 推断同族：保守推断、亮出可纠、宁空勿错。<b>地板明标</b>：口头/邮件等图外交付，唯一入口是人一句话补登——agent 不扫描图外世界比对承诺，那是监工不是跟踪（摩擦检验句）。跟踪的对象是话语与事实，不是人的行为。' },
   21: { title: '目标拆解：视角要，子系统不要，目标即工件',
        body: '目标 = <b>复合承诺</b>（拆解是委派的递归闭包），本分组只是承诺板的一个缩放级别。<b>聚合是信号不是状态</b>：计数帮你决定看哪里，父目标终态永远走人工验收。<b>真身 = 云之家对象</b>（采纳轴：非操作者同事的全组可达之地就是云之家——目标文档/表格今天即可承载），图上只记父目标引用——P1 唯一增量。<b>生命周期</b>：生于会议（纪要接入 = 规划中输入通道）→ agent 书记员确认流落库（<b>不可作者</b>：方向承诺是人的特权）→ 挂接（推断必须 ack 可见可纠正）→ 信号 → 人工验收。拒绝：甘特/依赖/百分比/自建 OKR 机制。<b>v4.8 出生与动线</b>：立目标 = 登记动词复用（<b>人签发</b>铁律——agent 只能提案），三入口：<b>AI 速记纪要 → 提案裁决</b>（内部已有速记产品：纪要→目标提案、待办→承诺提案双桥）/ 对话登记（"立个目标：…，我 own"）/ 本板入口；挂接六路径收拢<b>三时刻</b>：出生（<b>语境继承</b>——挂接引用是语境的属性 + 显式说）→ ack（保守推断可纠）→ 事后（/link + <b>无归属组</b>）；<b>未挂是合法状态</b>——强制对齐产生垃圾对齐。<b>v4.9 执行动线</b>：执行入口统一律——一个动词，语境来源不同。目标行「＋ 委派」是<b>传送门不是表单</b>（选执行者与<b>场所</b>→跳会话带目标 chip；听众是社交决策，人选不推导）；「⚡ 拆解」= agent 提子承诺清单（提议权）→ 逐条裁决 → <b>落库即代发登记话语</b>（听众集合由代发消息确立——幽灵承诺禁令）。目标三看：状态=信号、产出=归集、<b>过程=一跳不搬运</b>（承诺行点击即进话题真身）；回写只在生与死；验收句：<b>目标活着不需要人维护目标</b>（OKR 死于维护成本）。<b>v4.10 特权 ≠ 劳动</b>：磨目标（作者权≠思考伙伴——对话+可见域检索+登记，磨点在"可验收"，血缘指向磨稿会话，见 dsh-yzj 工作夹的磨稿示例）与完成度评估（验收权≠验收材料——差距简报逐条证据锚点，<b>真身证据非自报数</b>，差距一键变委派）。人机分工收口：<b>人只出现在签发、裁决、验收三个主权时刻</b>。' },
   20: { title: '听众集合：隔离函数的真自变量',
@@ -1617,6 +1622,30 @@ function renderItem(item, sess) {
       </div></div>`;
   }
 
+  /* v4.20 交付推断：回执面第三个门（行为回执）——执行者甩文件不说话，agent 提议挂为交付回执 */
+  if (item.type === 'dlvinfer') {
+    const f = FILES[item.file];
+    const body = item.state === 'ok'
+      ? `<div class="cc-done-note">✓ 已挂为交付回执 · 以<b>张锐</b>名义回流登记场所（本群 · 上周五登记话语处）· 验收卡已出，等 Bruce 验收（交付即出卡）</div>`
+      : item.state === 'no'
+        ? `<div class="cc-done-note" style="color:var(--red)">✗ 已标注「不是交付」——保守推断亮出可纠，误报一次点掉，图不记错账（宁空勿错）</div>`
+        : `<div class="cc-actions">
+             <button class="btn primary" data-dlv="${item.id}:ok">挂为交付回执（以张锐名义回流）</button>
+             <button class="btn" data-dlv="${item.id}:no">不是交付</button>
+           </div>`;
+    return `<div class="msg msg--pub enter">
+      <div class="rail"><span class="rail-tag">公</span><span class="rline"></span></div>
+      <div class="mbody">
+        <div class="confirm-card${item.state === 'ok' ? ' approved' : ''}" id="dv-${item.id}">
+          <div class="cc-head"><span class="cc-domain">交付推断</span><span class="cc-title">这像是『${item.commit}』的交付</span>${pinInline(item.pin)}</div>
+          <div style="font-size:11px;color:var(--ink-3);padding:2px 0 6px">张锐名下 · 昨天 18:00 到期 · 图内无回执——文件进了群，但没有回在登记话语下</div>
+          <div style="font-size:11.5px;color:var(--ink-2);border-left:2px solid var(--line);padding-left:8px;margin-bottom:8px">识别依据：▤ ${f.name} × 张锐名下承诺（executor 侧可见域查询，§1.6 不破）· 保守推断，不自动挂</div>
+          ${body}
+        </div>
+        <div class="mfoot">回执面三个门：话语（"发了"）/ <b>行为（甩文件）</b>/ 结构化（待办勾完成）——确认权在执行者张锐（demo 代演其视角），公示可纠</div>
+      </div></div>`;
+  }
+
   if (item.type === 'topiccard') {
     const t = sessions[item.target];
     const hot = ['running', 'confirm', 'review'].includes(t.status);
@@ -1796,9 +1825,11 @@ function hubCommitRow(c) {
   const stateH = c.exec === 'agent'
     ? (c.sess ? (badgeHtml(sessions[c.sess]) || '<span class="badge b-done">已归档</span>') : `<span class="cm-due">${c.state || '已登记'}</span>`)
     : c.overdue ? `<span class="badge b-unread">逾期</span>` : `<span class="cm-due">${c.state || '进行中'}</span>`;
-  const signal = c.nosignal
-    ? `<span style="color:var(--amber)">无信号 · 最后信号：${c.lastSignal}（观察型承诺，"没消息"≠"没问题"）</span>`
-    : (c.sess ? '有证据 · 最新轨迹 2h 前' : '已登记');
+  const signal = c.receipt
+    ? `<span style="color:var(--green)">有证据 · ${c.receipt}</span>`
+    : c.nosignal
+      ? `<span style="color:var(--amber)">无信号 · 最后信号：${c.lastSignal}（观察型承诺，"没消息"≠"没问题"）</span>`
+      : (c.sess ? '有证据 · 最新轨迹 2h 前' : '已登记');
   const prod = (c.prod || []).map(k => `<button class="btn" data-fpv="${k}" style="font-size:10px;padding:1px 8px">▤ ${FILES[k].name}</button>`).join(' ')
     || '<span style="font-size:10px;color:var(--ink-3)">尚无产物</span>';
   const sessLink = c.sess
@@ -1856,7 +1887,13 @@ function renderGoalHub() {
         <span class="ex-tag agent">决断</span>
         <span style="flex:1">审批对象 #7 · 竞品对比表要写入 12 条记录<span style="display:block;font-size:10.5px;color:var(--ink-3)">与收件箱<b>同一个可应答对象</b>的过滤投影——任一投影应答即全局生效（先答先赢），绝非复制列表</span></span>
         <span class="badge b-confirm">待确认</span></div>`;
-  const attend = isZR ? '' : `
+  const zrc = COMMITS.find(c => c.name === '返修数据分析');
+  const attend = isZR ? '' : zrc.receipt ? `
+    <div class="cm-row"><span class="ex-tag human">决断</span>
+      <span style="flex:1">验收卡 · 返修数据分析（回执：返修数据分析.pdf · 行为回执）<span style="display:block;font-size:10.5px;color:var(--ink-3)">交付即出卡——回执已挂，逾期/无信号退场，验收落座决断层（信号即门 · 逐级兑付）</span></span>
+      <span style="display:flex;gap:5px;flex:none">
+        <button class="btn" data-fpv="pdf2" style="font-size:10.5px;padding:2px 9px">预览回执</button>
+        <button class="btn" data-sess="prodgroup" style="font-size:10.5px;padding:2px 9px">去登记场所验收 ›</button></span></div>` : `
     <div class="cm-row overdue"><span class="ex-tag human">留意</span>
       <span style="flex:1">返修数据分析 · 张锐 · <b>昨天 18:00 逾期</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">逾期是信号不是可应答对象——动词就在旁边（决断层/留意层分立）</span></span>
       <span style="display:flex;gap:5px;flex:none">
@@ -3271,6 +3308,24 @@ document.addEventListener('click', (e) => {
       toast('目标已落库：AI 速记纪要 → 提案 → 人签发 → 真身落云之家（出生主产地 · 入口①）');
     } else {
       toast('提案已驳回：agent 不可作者目标，提案止于提案');
+    }
+    renderTimeline();
+    return;
+  }
+  /* v4.20 交付推断裁决：确认 = 以执行者名义回流登记场所（回程律）；驳回 = 可纠，图不记错账 */
+  const dlv = e.target.closest('[data-dlv]');
+  if (dlv) {
+    const [dvid, act] = dlv.dataset.dlv.split(':');
+    const item = sessions.prodgroup.timeline.find(i => i.type === 'dlvinfer' && i.id === dvid);
+    if (!item || item.state) return;
+    item.state = act;
+    if (act === 'ok') {
+      const c = COMMITS.find(x => x.name === item.commit);
+      c.nosignal = false; c.overdue = false; c.state = '待验收';
+      c.receipt = '行为回执 · 返修数据分析.pdf（交付推断 · 张锐确认 · 刚刚）'; c.prod = [item.file];
+      toast('回执已回流登记场所：登记的听众看到出生，也看到交付（回程律）——承诺板/目标页同步「待验收」，验收卡已出');
+    } else {
+      toast('已标注不是交付：保守推断亮出可纠，宁空勿错——承诺保持「无信号」，不记错账');
     }
     renderTimeline();
     return;
