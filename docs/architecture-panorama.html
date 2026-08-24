@@ -225,6 +225,23 @@
   }
   .ask-list .ok { color: var(--done); font-family: var(--mono); font-size: 10px; }
 
+  /* ── 执行序（临界路径） ─────────────────────────────── */
+  .path {
+    margin-top: 14px; border: 1.2px solid var(--ink); background: #fff;
+    padding: 10px 16px 11px; font-size: 12px; line-height: 2.0; color: var(--ink-soft);
+  }
+  .path .k {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .2em;
+    color: var(--dep); display: block; margin-bottom: 3px;
+  }
+  .path b { color: var(--ink); }
+  .path .n {
+    font-family: var(--mono); font-size: 10px; color: var(--sheet);
+    background: var(--ink); border-radius: 2px; padding: 1px 5px; margin: 0 2px;
+  }
+  .path .arr { color: var(--dep); font-family: var(--mono); margin: 0 4px; }
+  .path .fine { font-size: 11px; color: var(--ink-faint); display: block; line-height: 1.6; margin-top: 2px; }
+
   /* ── 底部：边界宣言 + 图签 ───────────────────────────── */
   .footer-grid { display: grid; grid-template-columns: 1fr 460px; gap: 16px; margin-top: 22px; align-items: stretch; }
   .boundary {
@@ -465,7 +482,7 @@
         </div>
         <div class="blk st-plan">
           <div class="blk-head"><span class="st">◐</span>platform-api 适配器（阶段二 / 三）</div>
-          <div class="blk-body">HTTPS + token 直连，不等 CLI：对话机器人 @ 回调（触发从 5s 轮询变秒级）· 群机器人 webhook 出站 · 消息卡片收发更新 · 待办 · cloudflow · 组织读取 + 九类变更回调 · 公共号双向 DM</div>
+          <div class="blk-body">HTTPS + token 直连，不等 CLI：对话机器人 @ 回调（触发从 5s 轮询变秒级）· 群机器人 webhook 出站 · 消息卡片收发更新 · 待办 · cloudflow · 组织读取 + 九类变更回调（→ 本地组织镜像：@对的人 / audience 成员解析 / 汇报链）· 公共号双向 DM</div>
           <div class="blk-foot"><span class="chip chip-dep">回调中继</span><span class="chip chip-dep">管理员开通</span><span class="chip chip-dep">应用注册三级 token</span></div>
         </div>
         <div class="blk st-dep">
@@ -480,6 +497,7 @@
         <span class="sep">→</span><b>阶段二</b> 真人读语境 + 机器人收发（回调中继 + 管理员开通）
         <span class="sep">→</span><b>阶段三</b> 企业应用三级 token（app / team / resGroupSecret，彻底摆脱寄生真人 OAuth；真人通道仅余读消息流）
         <span class="sep">|</span>证据门纪律：阶段二触发器 = 轮询延迟成真实疼痛 + 凭据到位，不提前建
+        <span class="sep">|</span>频控事实（容量规划输入）：app 3500 / team 2000 / resGroupSecret 1500 次·分 · 机器人 60 条·分 · 单 IP 20 万·时
       </div>
     </section>
 
@@ -520,6 +538,10 @@
       <div class="strip">
         <span class="k">对接三角色定律</span>
         平台对象在本设计中只扮演三种角色：<b>投影</b>（触达面）· <b>证据源</b>(回执签字) · <b>素材段</b>——<b>图的本体论一寸不移</b>，承诺 / 会话 / 听众的真身永远在图；目标表、OA 单、周报等真身外挂是采纳轴裁决，图记发起边与状态回流。每个 adapter 首行声明角色。
+      </div>
+      <div class="strip">
+        <span class="k">实测清单 · adapter 开工前置（零基建即可先动）</span>
+        ① aisteno 会话获取（企业应用 / 代理凭证）<span class="sep">|</span>② callBackUrl 事件载荷与覆盖<span class="sep">|</span>③ meetingId↔stenoId 桥<span class="sep">|</span>④ 391 冲突族网关鉴权<span class="sep">|</span>⑤ user-action-item sourceType 自定义值校验<span class="sep">|</span>⑥ schedule/brief 响应结构<span class="sep">|</span>⑦ 417 detail/queryByUser 真实字段<span class="sep">|</span>⑧ 知识库自动上传 docId 的 ACL × 听众集合对齐<span class="sep">|</span>⑨ 群历史对新入群成员可见性（audience 动态解析的事实前提）
       </div>
     </section>
 
@@ -575,10 +597,11 @@
         </div>
         <ul class="ask-list">
           <li><b>公网 HTTPS 回调中继载体</b><span class="open">待对齐</span><span class="why">云函数 / 轻量服务器 / 内网穿透 + 域名证书；验签在业务侧完成，中继零信任转发</span></li>
-          <li><b>常驻服务化部署</b><span class="open">待对齐</span><span class="why">现状 = 桌面机进程必须在线（轮询 + 审批都依赖它活着）；企业级需服务器化与守护</span></li>
+          <li><b>常驻服务化部署</b><span class="open">待对齐</span><span class="why">现状 = 桌面机进程必须在线（轮询 + 审批都依赖它活着）；企业级需服务器化与守护；私有云 endpoint 已预留（CLI --endpoint）</span></li>
           <li><b>LLM API 企业供给</b><span class="open">待对齐</span><span class="why">配额 / 密钥管理 / 网关与合规审计——现为个人 provider 配置</span></li>
           <li><b>外部触达通道（中期）</b><span class="open">待对齐</span><span class="why">邮件 / 短信 / 外部日程邀请——组织外实体（客户）的触达 infra</span></li>
           <li><b>存储与备份</b><span class="why">图日志 JSONL→sqlite 是本团队内的换底（日志重放，API 不变）；备份策略需运维接手</span></li>
+          <li><b>安全与合规评审</b><span class="open">待对齐</span><span class="why">@同事拉上下文的法务口径（预研文档已点名）· 审计导出留存 · 「永不记忆场所」合规条款</span></li>
         </ul>
       </div>
       <div class="ask-col soft">
@@ -596,6 +619,19 @@
       </div>
     </div>
 
+    <!-- ═══════════ 执行序 ═══════════ -->
+    <div class="path">
+      <span class="k">执行序 · CRITICAL PATH —— 每个团队现在就能动的那一步</span>
+      <span class="n">0</span><b>实测清单 ①-⑨</b>（零基建，业务侧即可执行）<span class="arr">→</span>
+      <span class="n">1</span><b>回调中继载体拍板</b>（IT × 平台，待对齐项之首——阶段二整层的门）<span class="arr">→</span>
+      <span class="n">2</span><b>管理员开通</b>（测试群机器人 / signKey / 轻应用注册）<span class="arr">→</span>
+      <span class="n">3</span><b>阶段二接入</b>（秒级触发 + 原生卡 + 待办闭环）<span class="arr">→</span>
+      <span class="n">4</span><b>企业应用注册三级 token</b>（阶段三身份独立）<span class="arr">→</span>
+      <span class="n">5</span><b>内网面网关化</b>（aisteno / 391 / internal）<span class="arr">→</span>
+      <span class="n">6</span><b>adapter 族开工</b>（速记双桥 / 人类承诺叶子 / OA 轨 / 日程 V12）
+      <span class="fine">证据门纪律不破：每一步由真实疼痛 + 凭据到位触发，不提前建；0 与 1 可并行，1 不通则 3 以后全部只剩 fallback 形态（轮询 + 文本投影 + IM 登记）。</span>
+    </div>
+
     <!-- ═══════════ 底部：边界宣言 + 图签 ═══════════ -->
     <div class="footer-grid">
       <div class="boundary">
@@ -607,7 +643,7 @@
       <div class="titleblock">
         <div class="tb-k">图名</div><div class="tb-v tb-span">dsh-yzj 企业级全景架构 —— 上下游与基建边界</div>
         <div class="tb-k">图号</div><div class="tb-v">ARCH-PANO-01</div>
-        <div class="tb-k">版本</div><div class="tb-v">v1.0 · 2026-08-24</div>
+        <div class="tb-k">版本</div><div class="tb-v">v1.1 · 2026-08-24</div>
         <div class="tb-k">依据</div><div class="tb-v tb-span">终极形态设计 v4.20 · 技术方案 v3.11 · 开放平台能力盘点（2026-08-21）· 集成方案 v1.6</div>
         <div class="tb-k">用途</div><div class="tb-v tb-span">内部团队对齐：企业级产品规划的基建边界与提供方分工</div>
         <div class="tb-k">比例</div><div class="tb-v">NTS 不按比例</div>
