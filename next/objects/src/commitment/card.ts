@@ -200,7 +200,8 @@ export const commitmentCard: CardDefinition<CommitmentState> = {
           data: {
             commitmentId: state.commitmentId,
             reason: input === undefined || input.trim() === '' ? '未说明' : input.trim(),
-            round: (state.delivery?.round ?? 0) + 1,
+            // 轮次从承诺上数，不从那份即将被删掉的交付主张里数。
+            round: (state.round ?? 0) + 1,
           },
           actor,
         }],
@@ -232,7 +233,8 @@ export const commitmentCard: CardDefinition<CommitmentState> = {
           delivery: {
             claim: input === undefined || input.trim() === '' ? '（说了完成，没有细节）' : input.trim(),
             at: Date.now(),
-            ...(state.delivery?.round === undefined ? {} : { round: state.delivery.round }),
+            // 重交时把承诺上的轮次抄进这一版交付，卡上才写得出「已返工 N 轮」。
+            ...(state.round === undefined ? {} : { round: state.round }),
           },
         },
         actor,

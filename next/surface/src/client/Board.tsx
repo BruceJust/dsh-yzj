@@ -819,9 +819,24 @@ export function YzjBoard(props: BoardProps): ReactNode {
         </div>
       )}
       {!closed && <div className={css.goalChildren}>
+        {/*
+          **空状态要分清「真的没有」和「被筛掉了」。**
+
+          方向轴只取舍不改事实，可这句「还没有工作挂在这个目标下」是一句关于**事实**的话。
+          切到「欠我的」之后，一个挂满了别人的活的目标会显示这句话——那是筛选造成的假话，
+          而它长得和真的空目标一模一样。出生故事律的对偶：每一类空状态都得说清自己是**哪
+          一种**空。
+        */}
         {goal.children.length === 0
           ? <div className={css.goalEmpty}>还没有工作挂在这个目标下。</div>
-          : goal.children.filter(inAxis).map(child => rowNode(child, false, true))}
+          : goal.children.filter(inAxis).length === 0
+            ? (
+              <div className={css.goalEmpty}>
+                这个目标下有 {goal.children.length} 条，
+                但<b>没有一条落在当前这个方向</b>上——切回「全部」看得到。
+              </div>
+            )
+            : goal.children.filter(inAxis).map(child => rowNode(child, false, true))}
       </div>}
       {/*
         产出 = 两跳派生归集（目标→承诺→工件）.
@@ -1080,6 +1095,16 @@ export function YzjBoard(props: BoardProps): ReactNode {
           </div>
         )}
 
+        {/*
+          全部视图里也要分清两种空：板上真的没有承诺（那是空板的出生故事，上面那段
+          `view.rows.length === 0` 管），和**这个方向上没有**（切回去就看得到）。
+        */}
+        {lens === 'all' && view.rows.length > 0 && view.rows.filter(inAxis).length === 0 && (
+          <div className={css.calm}>
+            可见域里有 {String(view.rows.length)} 条承诺，
+            但<b>没有一条是「{axis === 'mine' ? '我欠的' : '欠我的'}」</b>——切回「全部」看得到。
+          </div>
+        )}
         {lens === 'all' && view.rows.filter(inAxis).map(row => rowNode(row))}
 
         {lens === 'goals' && (
@@ -1105,9 +1130,17 @@ export function YzjBoard(props: BoardProps): ReactNode {
                   <b>这是合法状态</b>，不是错误；勾上几条可以一次补挂。
                 </span>
               </div>
+              {/* 同一条纪律：分清「真的都挂上了」和「被方向轴筛掉了」。 */}
               {view.unattached.length === 0
                 ? <div className={css.goalEmpty}>看得见的工作都挂上了。</div>
-                : view.unattached.filter(inAxis).map(row => rowNode(row, true))}
+                : view.unattached.filter(inAxis).length === 0
+                  ? (
+                    <div className={css.goalEmpty}>
+                      有 {view.unattached.length} 条没挂目标，
+                      但<b>没有一条落在当前这个方向</b>上——切回「全部」看得到。
+                    </div>
+                  )
+                  : view.unattached.filter(inAxis).map(row => rowNode(row, true))}
               {picked.length > 0 && (
                 <div className={css.batch}>
                   <span className={css.batchCount}>已选 {picked.length} 条 → 挂到</span>

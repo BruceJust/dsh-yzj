@@ -48,7 +48,9 @@ export interface CommitmentState {
    * 还欠着**——这句话一个字都不用改。新增一个 `delivered` 状态则要审 55 处判终态的
    * 代码，而其中任何一处漏掉，都会让一条没验收的活在某个面上显示成已完成。
    *
-   * `round` 是返工轮次：拒收 → 返工 → 再验收在同一条上循环（同卡循环），轮次可见。
+   * `round` 在**承诺上**，不在这份 `delivery` 里——因为打回会把 `delivery` 变回不存在
+   * （见 reduce），住在里面的轮次会跟着一起消失。这里的 `round` 是「这一版交付是第几次
+   * 重交」，由承诺上的那个计数抄过来。
    */
   readonly delivery?: {
     readonly claim: string
@@ -65,6 +67,14 @@ export interface CommitmentState {
    * 一处就静默失权；而内核本来就给每条事件记着 actor——**事实一直在，读它就行**。
    */
   readonly delegatedBy?: string
+  /**
+   * 已经被打回过几次 —— **轮次的家在承诺上**。
+   *
+   * 打回把 `delivery` 变回不存在（否则被打回的活一直挂着一份假的待验收信号），所以轮次
+   * 不能住在里面：住进去，下一次主张时它就没了，第二版交付上不再写「已返工 N 轮」，
+   * 验收的人看不出这是重交的——而「轮次在卡上可见」正是这个循环存在的意义。
+   */
+  readonly round?: number
   readonly what: string
   readonly executor: CommitmentExecutor
   readonly due?: string

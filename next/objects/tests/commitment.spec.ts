@@ -272,6 +272,32 @@ describe('the card verbs', () => {
   })
 
   /**
+   * **轮次要活过一轮返工** —— 「拒收→返工→再验收同卡循环，轮次可见」。
+   *
+   * 打回会把交付主张变回不存在（否则被打回的活一直挂着假的待验收信号），于是下一次
+   * 主张时那个轮次**必须从别处读回来**。读错地方的后果是安静的：第二版交付上不再写
+   * 「已返工 1 轮」，验收的人看不出这是重交的——而「轮次在卡上可见」正是这个循环存在
+   * 的意义。
+   */
+  it('打回之后再交付，轮次仍然写在卡上', async () => {
+    const id = commitmentIdFor('yzj:msg-5', '改口径')
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id, what: '改口径', sourceAnchor: 'yzj:msg-5',
+        executor: { kind: 'human', openId: 'p-9' }, audience: ['yzj-group-g1'],
+      },
+      actor: OPERATOR,
+    })
+    await cards.act({ kind: 'commitment', id }, 'done', { kind: 'person', openId: 'p-9' }, 'yzj-text')
+    await cards.act({ kind: 'commitment', id }, 'reject', OPERATOR, 'yzj-text', '口径还是不对')
+    await cards.act({ kind: 'commitment', id }, 'done', { kind: 'person', openId: 'p-9' }, 'yzj-text')
+
+    expect((stateOf(id) as { delivery?: { round?: number } }).delivery?.round).toBe(1)
+    expect(cards.renderText({ kind: 'commitment', id })?.body).toContain('已返工 1 轮')
+  })
+
+  /**
    * 自己欠自己的活，说一句「完成」就该结束。
    *
    * 主张的人就是要验收的那个人时，再请他按一次「验收」是同一个主权时刻收两次费——

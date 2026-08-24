@@ -568,7 +568,7 @@ describe('信号序', () => {
   const order = (rows: unknown[]): string[] =>
     [...rows as never[]].sort(bySignal(NOW)).map(r => (r as { id: string }).id)
 
-  it('逾期 > 无信号 > 过时 > 今日到期 > 在跑 > 终态', () => {
+  it('待决 > 逾期 > 无信号 > 过时 > 今日到期 > 在跑 > 终态', () => {
     expect(order([
       row({ id: 'done', status: 'closed' }),
       row({ id: 'running' }),
@@ -576,7 +576,21 @@ describe('信号序', () => {
       row({ id: 'stale', signal: 'stale' }),
       row({ id: 'silent', signal: 'silent' }),
       row({ id: 'late', overdue: true }),
-    ])).toEqual(['late', 'silent', 'stale', 'today', 'running', 'done'])
+      row({ id: 'await', awaitingAcceptance: true }),
+    ])).toEqual(['await', 'late', 'silent', 'stale', 'today', 'running', 'done'])
+  })
+
+  /**
+   * 待决压过逾期。
+   *
+   * 一条等你答的事，比一条等别人动的事更该先被看见：逾期要的是**催**（去推动别人），
+   * 待决要的是**你现在就能做完的一个动作**。
+   */
+  it('待决压过逾期 —— 哪怕它同时逾期着', () => {
+    expect(order([
+      row({ id: 'late', overdue: true }),
+      row({ id: 'await-late', overdue: true, awaitingAcceptance: true }),
+    ])).toEqual(['await-late', 'late'])
   })
 
   it('无戳的行沉底，但不消失', () => {
@@ -666,5 +680,38 @@ describe('方向轴与责任锚', () => {
       冒充一个判断——宁可少说，不可错说。
     */
     expect(directionOf(undefined, 'op-2', 'op-2', names).direction).toBe('observed')
+  })
+})
+
+
+/**
+ * 交付被主张之后，板上那条行要**说出来它在等你** (v4.21 第一档⑥)。
+ *
+ * 承诺仍然 `open`（在有人验收之前它确实还欠着），所以不单独说的话，这条行看起来和
+ * 「在跑」一模一样——断头路修好了，路标却没竖起来，等于没修。
+ *
+ * 这条用例同时守着一个**自审时才发现的洞**：`awaitingAcceptance` 一度只被生产、
+ * 从没在 `BoardRow` 上声明——`rows.push({...spread})` 的展开不触发多余属性检查，
+ * 于是运行时有、类型上没有，排序也就看不见它。
+ */
+describe('交付已主张的行', () => {
+  it('板上标出「等你验收」，并排到最前面', async () => {
+    await goal()
+    await child({ id: 'c-await', what: '等验收的活', goalRef: GOAL })
+    await child({ id: 'c-plain', what: '在跑的活', goalRef: GOAL })
+    await graph.append({
+      type: 'commitment/delivered',
+      data: {
+        commitmentId: 'c-await',
+        delivery: { claim: '发你了', at: Date.now() },
+      },
+      actor: OPERATOR,
+    })
+    const rows = boardFrame(ctx).rows
+    const awaiting = rows.find(row => row.id === 'c-await')
+    expect(awaiting?.awaitingAcceptance).toBe(true)
+    expect(rows.find(row => row.id === 'c-plain')?.awaitingAcceptance).toBeUndefined()
+    // 待决压过一切：它是「你现在就能做完的一个动作」。
+    expect(rows.filter(row => row.id.startsWith('c-')).map(row => row.id)[0]).toBe('c-await')
   })
 })

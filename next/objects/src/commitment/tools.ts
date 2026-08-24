@@ -272,7 +272,8 @@ export function applyCommitmentTools(ctx: Context): () => void {
         主张**，拒收 = 不认可这个主张。
       */
       if (args.completed === true) {
-        const existing = asRecord(object.state)?.delivery as { round?: number } | undefined
+        // 轮次的家在承诺上（打回会删掉 delivery），所以从那里读。
+        const round = asRecord(object.state)?.round
         await ctx.yzjGraph.append({
           type: 'commitment/delivered',
           data: {
@@ -281,7 +282,7 @@ export function applyCommitmentTools(ctx: Context): () => void {
               claim: args.text,
               at: Date.now(),
               anchor: asString(asRecord(object.state)?.sourceAnchor) ?? state.sourceAnchor,
-              ...(existing?.round === undefined ? {} : { round: existing.round }),
+              ...(typeof round === 'number' ? { round } : {}),
             },
           },
           actor: { kind: 'agent' },

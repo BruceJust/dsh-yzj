@@ -644,23 +644,36 @@ export function directionOf(
  * - **有证据**：正常在跑——它就该安静地待在下面；
  * - **终态**：沉底。板要浮起的是**正在滑掉的东西**，不是做一份完整档案。
  *
- * **待决那一档没有实现**，不是忘了：它要一张「可应答对象 → 承诺」的反查索引，而图上
- * 此刻没有（只有提案族携带 `commitmentId`）。而且待决本就归收件箱聚合——板上少这一档，
- * 少的是排序精度，不是可达性。宁可少一档也不假装有：一个按猜测排出来的顺序，比一个
- * 少一档的顺序更难发现错。
+ * **待决那一档实现了**，就在最前面：交付被主张的那一刻，「有人在等你答」这个事实就在
+ * 这条承诺自己身上（`awaitingAcceptance`），不需要任何反查索引。（这一条是自审时改的：
+ * 上一版这里写着「待决要一张可应答对象→承诺的反查索引所以没做」——验收链接通之后那句
+ * 话就不成立了，而一条过期的理由留在注释里，比没有注释更能挡住下一个人。）
+ *
+ * 别的待决形态（提案、租约…）确实还要那张索引，它们仍然只在收件箱聚合——板不设决断条。
  *
  * 同档之内按**账龄**排（`lastSignalAt` 越旧越靠前）——账龄折进排序权重，不做独立结构。
  * 无戳的行不因此消失，它只是没有「今日到期」这一层可参与。
  */
 export function bySignal(now: number): (left: BoardRow, right: BoardRow) => number {
   const tier = (row: BoardRow): number => {
-    if (row.status !== 'open') return 5
-    if (row.overdue) return 0
-    if (row.signal === 'silent') return 1
-    if (row.signal === 'stale') return 2
+    if (row.status !== 'open') return 6
+    /*
+      **待决排在最前** —— 而且它是可推导的。
+
+      我先前写过「待决那一档没有实现，它要一张可应答对象→承诺的反查索引」。验收链接通
+      之后那句话不再成立：交付被主张的那一刻，事实**就在这条承诺自己身上**（`delivery`
+      在，人在等你验收或打回）。反查索引是别的待决形态才需要的东西，不是这一种。
+
+      它压过逾期：一条等你答的事，比一条等别人动的事更该先被看见——逾期要的是催，
+      而待决要的是**你现在就能做完的一个动作**。
+    */
+    if (row.awaitingAcceptance === true) return 0
+    if (row.overdue) return 1
+    if (row.signal === 'silent') return 2
+    if (row.signal === 'stale') return 3
     // 今日到期：有戳才谈得上，无戳的落到普通「运行」档而不是被顶上来。
-    if (row.due?.ts !== undefined && row.due.ts - now < DAY_MS && row.due.ts >= now) return 3
-    return 4
+    if (row.due?.ts !== undefined && row.due.ts - now < DAY_MS && row.due.ts >= now) return 4
+    return 5
   }
   return (left, right) => tier(left) - tier(right) || left.lastSignalAt - right.lastSignalAt
 }
@@ -735,6 +748,17 @@ export interface BoardRow {
    * 在服务端算而不是发原始 id 让界面猜：方向是**相对查看者**的判断，判断该和数据一起
    * 出厂，否则每个消费方都要重新发明一次「我是谁」。
    */
+  /**
+   * 交付被主张了，**等人验收** (v4.21 第一档⑥「验收断链接通」)。
+   *
+   * 承诺仍然 `open`——在有人验收之前它确实还欠着——所以这一格必须单独说出来，否则板上
+   * 那条行看起来和「在跑」一模一样，而它其实在等你。断头路修好了，路标也得竖起来。
+   *
+   * （这个字段一度**只被生产、从没被声明**：`rows.push({...spread})` 里的展开不触发
+   * 多余属性检查，于是运行时有、类型上没有，`bySignal` 也就看不见它。教训写在这儿：
+   * 每一次文本替换都要断言它真的换到了东西，一次静默的空替换比一次报错贵得多。）
+   */
+  readonly awaitingAcceptance?: boolean
   readonly direction: 'mine' | 'owed-to-me' | 'observed'
   /**
    * 谁验收 —— **恒为人** (v4.21 责任锚两槽位)。
