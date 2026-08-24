@@ -25,7 +25,7 @@ import {
   goalCommitmentIdFor,
 } from '@yzj-next/objects'
 import { sendErrand, takeErrand } from '../src/client/store.ts'
-import { boardFrame, bySignal, eventsToday, inboxView } from '../src/rpc.ts'
+import { boardFrame, bySignal, directionOf, eventsToday, inboxView } from '../src/rpc.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const GOAL = 'https://yzj.example.com/doc/q3'
@@ -615,5 +615,56 @@ describe('账龄的人话', () => {
     expect(sinceText(NOW - 30 * 60_000, NOW)).toBe('刚刚')
     expect(sinceText(NOW - 5 * 3_600_000, NOW)).toBe('5 小时')
     expect(sinceText(NOW - 3 * 24 * 3_600_000, NOW)).toBe('3 天')
+  })
+})
+
+
+/**
+ * 方向轴与责任锚 (v4.21)。
+ *
+ * 三格**互斥且穷尽**：我欠的 / 欠我的 / 我旁观的。第三格不是兜底——板 = 查看者可见域的
+ * 并集，**不是「公开承诺板」**，所以「看得见但既不欠也不被欠」是真实且常见的关系。少了
+ * 它，那些行要么被硬塞进前两格（撒谎），要么消失（板不再是可见域的并集）。
+ */
+describe('方向轴与责任锚', () => {
+  const names = new Map([['op-2', '张锐']])
+
+  it('我执行的 = 我欠的', () => {
+    expect(directionOf('me', 'me', 'op-2', names).direction).toBe('mine')
+  })
+
+  it('我签发、别人执行的 = 欠我的', () => {
+    expect(directionOf('me', 'op-2', 'me', names).direction).toBe('owed-to-me')
+  })
+
+  it('既不是我执行也不是我签发的 = 我旁观的', () => {
+    // 组织透明是特性不是缺陷：这一格必须存在，否则板不再是可见域的并集。
+    expect(directionOf('me', 'op-2', 'op-3', names).direction).toBe('observed')
+  })
+
+  it('agent 在跑的活，验收人仍是那个签发的人', () => {
+    // an agent cannot be held accountable —— 执行者与验收人两槽正交。
+    const out = directionOf('me', undefined, 'op-2', names)
+    expect(out.direction).toBe('observed')
+    expect(out.acceptor).toBe('张锐')
+  })
+
+  it('验收人是本人就不发 —— 本人省略', () => {
+    /*
+      绝大多数行的验收人都是你自己，全印出来只会把真正需要说清的那几行淹掉。
+    */
+    expect(directionOf('me', 'op-2', 'me', names).acceptor).toBeUndefined()
+  })
+
+  it('查不到名字就用 openId，不猜', () => {
+    expect(directionOf('me', 'op-2', 'op-9', names).acceptor).toBe('op-9')
+  })
+
+  it('还不知道我是谁的时候，一律「旁观」', () => {
+    /*
+      通道拿到身份之前，`me` 是空的。这时候替人断言「这些是你欠的」，是拿一个未知
+      冒充一个判断——宁可少说，不可错说。
+    */
+    expect(directionOf(undefined, 'op-2', 'op-2', names).direction).toBe('observed')
   })
 })

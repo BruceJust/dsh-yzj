@@ -257,6 +257,10 @@ export interface BoardRowWire {
    * 把「下周初」渲染成一个具体日期，是拿我们的解析冒充他的承诺。`ts` 只参与排序。
    */
   due?: { text: string; ts?: number }
+  /** 我欠的 / 欠我的 / 我旁观的 —— 板是可见域的并集，第三格是真实关系不是兜底。 */
+  direction: 'mine' | 'owed-to-me' | 'observed'
+  /** 谁验收，恒为人；等于本人时不下发（本人省略）。 */
+  acceptor?: string
   overdue: boolean
   status: string
   goalRef?: string

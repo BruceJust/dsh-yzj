@@ -129,6 +129,14 @@ export function YzjBoard(props: BoardProps): ReactNode {
     刚才停在的那一行一起消失,恢复滚动位置也就无从谈起。
   */
   const [lens, setLensState] = useState<Lens>(currentBoardLens)
+  /*
+    方向轴 —— **默认「全部」**。
+
+    不记忆、不持久化：它是一次对账时的取景，不是一个偏好。记住它的后果是，下次打开
+    板时你看到的是上次的取景，而板的承诺是「每次打开都能对上账」——一个记着旧筛选的
+    板，正是 Viva Goals 那句验尸词说的「专程去喂的目的地」。
+  */
+  const [axis, setAxis] = useState<'all' | 'owed-to-me' | 'mine'>('all')
   const setLens = useCallback((next: Lens): void => {
     setBoardLens(next)
     setLensState(next)
@@ -339,6 +347,19 @@ export function YzjBoard(props: BoardProps): ReactNode {
           {row.who}
         </span>
         <span className={css.what}>{row.what}</span>
+        {/*
+          责任锚第二槽：**谁验收** (v4.21)。
+
+          与「谁执行」正交——an agent cannot be held accountable。一条 agent 在跑的活，
+          执行者是 agent、验收人仍是某个人；两件事挤在一格里，「这活归谁」和「这活最后
+          谁点头」就永远分不开。**等于查看者本人时服务端不下发**（本人省略）：绝大多数
+          行的验收人都是你自己，全都印出来只会把真正需要说清的那几行淹掉。
+        */}
+        {row.acceptor !== undefined && (
+          <span className={css.acceptor} title={`由 ${row.acceptor} 验收——验收人恒为人`}>
+            ✓ {row.acceptor}
+          </span>
+        )}
         {/* 继承不是推断: both are shown, and they are not the same claim. */}
         {via !== '' && (
           <span className={`${css.via} ${row.inferredGoal ? css.viaGuess : ''}`}>{via}</span>
@@ -634,7 +655,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
       <div className={css.goalChildren}>
         {goal.children.length === 0
           ? <div className={css.goalEmpty}>还没有工作挂在这个目标下。</div>
-          : goal.children.map(child => rowNode(child, false, true))}
+          : goal.children.filter(inAxis).map(child => rowNode(child, false, true))}
       </div>
       {/*
         产出 = 两跳派生归集（目标→承诺→工件）.
@@ -772,6 +793,12 @@ export function YzjBoard(props: BoardProps): ReactNode {
     )
   }
 
+  /*
+    方向轴只**取舍**，不改事实：它不重排、不改状态，只决定哪些行此刻在视野里。
+    目标组里同样生效——否则「我欠的」切过去，组里还躺着一堆别人的活。
+  */
+  const inAxis = (row: BoardRowWire): boolean => axis === 'all' || row.direction === axis
+
   return (
     <div className={`${tokens.tokens} ${css.board}`}>
       <div className={css.head}>
@@ -780,6 +807,33 @@ export function YzjBoard(props: BoardProps): ReactNode {
           跨执行者 · 共 {String(view.rows.length)} 条
           {overdue > 0 && <span className={css.overdueCount}> · {String(overdue)} 逾期</span>}
         </span>
+        {/*
+          方向轴三元 chips (v4.21)。
+
+          **第三格「我旁观的」由「全部」承载**，而「全部」是默认——板 = 查看者可见域的
+          并集，不是「公开承诺板」，也不是私人待办。看得见但既不欠也不被欠的那些行是
+          真实关系：组织透明是特性不是缺陷。默认落在两栏中的任何一栏，都是在替人把一
+          部分同事的工作从视野里摘掉。
+
+          它是**透镜不是清单**：三个都是系统给的（无用户自铸视图），切换只改排列与取舍，
+          不改任何事实。
+        */}
+        <div className={css.lens}>
+          {([['all', '全部'], ['owed-to-me', '欠我的'], ['mine', '我欠的']] as const)
+            .map(([id, label]) => (
+              <button
+                type="button"
+                key={id}
+                className={`${css.lensBtn} ${axis === id ? css.lensOn : ''}`}
+                title={id === 'all'
+                  ? '可见域里的全部——包含我旁观的（既不欠也不被欠）'
+                  : id === 'owed-to-me' ? '别人欠我的' : '我欠别人的'}
+                onClick={() => { setAxis(id) }}
+              >
+                {label}
+              </button>
+            ))}
+        </div>
         <div className={css.lens}>
           {([['all', '全部'], ['goals', '按目标']] as const).map(([id, label]) => (
             <button
@@ -822,7 +876,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
           </div>
         )}
 
-        {lens === 'all' && view.rows.map(row => rowNode(row))}
+        {lens === 'all' && view.rows.filter(inAxis).map(row => rowNode(row))}
 
         {lens === 'goals' && (
           <>
@@ -849,7 +903,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
               </div>
               {view.unattached.length === 0
                 ? <div className={css.goalEmpty}>看得见的工作都挂上了。</div>
-                : view.unattached.map(row => rowNode(row, true))}
+                : view.unattached.filter(inAxis).map(row => rowNode(row, true))}
               {picked.length > 0 && (
                 <div className={css.batch}>
                   <span className={css.batchCount}>已选 {picked.length} 条 → 挂到</span>

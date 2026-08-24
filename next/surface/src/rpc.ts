@@ -599,6 +599,35 @@ export interface InboxView {
  * 没有 `ts` 的行**沉底，但不消失**：看不出时间不等于这件事不存在。
  */
 /**
+ * 这一条和查看者的关系，以及谁验收它 (v4.21 方向轴 + 责任锚)。
+ *
+ * 三格互斥且**穷尽**：我欠的 / 欠我的 / 我旁观的。第三格不是兜底——板 = 查看者可见域
+ * 的并集，**不是「公开承诺板」**，所以「看得见但既不欠也不被欠」是真实且常见的关系。
+ * 少了它，那些行要么被硬塞进前两格（撒谎），要么消失（板不再是可见域的并集）。
+ *
+ * 验收人**恒为人**，与执行者正交：an agent cannot be held accountable。P1 里它就是
+ * 签发者。**等于查看者本人就不发**——本人省略，那一格留给真正需要说清的情形。
+ *
+ * 查看者身份未知时（通道还没拿到身份）一律 `observed`：不知道我是谁，就不该替我
+ * 断言哪些是我欠的。宁可少说，不可错说。
+ */
+export function directionOf(
+  me: string | undefined,
+  executorOpenId: string | undefined,
+  registrar: string | undefined,
+  names: ReadonlyMap<string, string>,
+): { direction: 'mine' | 'owed-to-me' | 'observed'; acceptor?: string } {
+  const direction = me === undefined
+    ? 'observed' as const
+    : executorOpenId === me
+      ? 'mine' as const
+      : registrar === me ? 'owed-to-me' as const : 'observed' as const
+  if (registrar === undefined || registrar === me) return { direction }
+  // 名字取自登记时抄下的那份名录；查不到就用 openId——**不猜**，宁可难看。
+  return { direction, acceptor: names.get(registrar) ?? registrar }
+}
+
+/**
  * 组内**信号序** (v4.21)：异常浮起，正常安静。
  *
  * 板是**账本的对账面**，它的合法增量只有「对账排列 + 一跳指路 + 就近动词」——
@@ -695,6 +724,26 @@ export interface BoardRow {
    * 全部推导,不落任何字段:只有出生那一下 = 无信号(图上这个对象只有一个事件);
    * 有过后续但很久没动 = 信号过时;其余 = 有证据。
    */
+  /**
+   * 这一条**和查看者的关系** (v4.21 方向轴三元)。
+   *
+   * `mine` 我欠的 / `owed-to-me` 欠我的 / `observed` 我旁观的。第三格不是凑数：板 =
+   * 查看者可见域的并集，**不是「公开承诺板」**，所以「我看得见但既不欠也不被欠」是一种
+   * 真实且常见的关系——组织透明是特性不是缺陷。把它藏起来，板就变成了一份只有两栏的
+   * 私人待办。
+   *
+   * 在服务端算而不是发原始 id 让界面猜：方向是**相对查看者**的判断，判断该和数据一起
+   * 出厂，否则每个消费方都要重新发明一次「我是谁」。
+   */
+  readonly direction: 'mine' | 'owed-to-me' | 'observed'
+  /**
+   * 谁验收 —— **恒为人** (v4.21 责任锚两槽位)。
+   *
+   * 与「谁执行」正交：an agent cannot be held accountable（Linear 的 assign/delegate
+   * 同构）。P1 里它就是当初签发这条承诺的人（§5.2 `allowedActors = 委派者 ∪ 操作者`）。
+   * **等于查看者本人时不发**——本人省略，那一格留给真正需要说清的情形。
+   */
+  readonly acceptor?: string
   readonly signal: 'evidence' | 'silent' | 'stale'
   /** 最后一次有动静是什么时候——「无信号」必须说出它从什么时候起没信号。 */
   readonly lastSignalAt: number
@@ -990,6 +1039,35 @@ export function boardFrame(ctx: Context): BoardView {
   const rows: BoardRow[] = []
   /** 一次渲染读一个「现在」——同一屏上两行按不同的此刻判过时,是没法解释的。 */
   const now = Date.now()
+  /*
+    **谁签发的这条承诺** —— 从内核记下的 actor 里读，不新加字段。
+
+    承诺族上没有「委派者」这个字段，而方向轴（欠我的／我欠的）与责任锚（谁验收）
+    都要它。内核给每条事件都记着 actor，`commitment/opened` 的那个 actor 就是当初
+    签发它的人——事实一直在，只是没人读过。**不改 schema、不动生产者**：加一个字段
+    意味着历史上所有承诺永远没有它，而从事件里读，老数据一样答得出来。
+  */
+  const openedBy = new Map<string, string>()
+  /** openId → 名字。承诺登记时抄下的执行者名字，是这里唯一现成的名录。 */
+  const nameOf = new Map<string, string>()
+  for (const event of ctx.yzjGraph.rawEvents(['commitment/opened'])) {
+    const data = asRecord(event.data)
+    const id = asString(data?.commitmentId)
+    const who = (event.actor as { openId?: string }).openId
+    if (id !== undefined && typeof who === 'string' && who !== '') openedBy.set(id, who)
+    const executor = asRecord(data?.executor)
+    const openId = asString(executor?.openId)
+    const name = asString(executor?.name)
+    if (openId !== undefined && name !== undefined) nameOf.set(openId, name)
+  }
+  /*
+    查看者是谁。
+
+    `boardFrame` 此前不需要知道——它只是把图铺开。方向轴要求它知道：一条承诺是不是
+    「我欠的」，答案取决于「我」是谁。桌面 actor 就是操作者本人（通道拿到身份之后设的，
+    身份未知时它是一个 fail-closed 的空壳）。
+  */
+  const me = asString((ctx.yzjCards.desktopActor() as { openId?: string }).openId)
   /** commitment id → the topic it was registered in, for the artifact hop. */
   const topicOfRow = new Map<string, string>()
   for (const object of ctx.yzjGraph.query({ kind: 'operator', openId: '' }, { kind: 'commitment' })) {
@@ -1038,6 +1116,7 @@ export function boardFrame(ctx: Context): BoardView {
         : 'agent',
       status,
       ...(due === undefined || due.trim() === '' ? {} : { due: dueOf(due) }),
+      ...directionOf(me, asString(executor?.openId), openedBy.get(object.id), nameOf),
       overdue: status === 'open' && isOverdue(due, now),
       remindable: status === 'open' && (object.audience?.length ?? 0) > 0,
       inferredGoal: asString(state?.attachedVia) === 'inferred',
