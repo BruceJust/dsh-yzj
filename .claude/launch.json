@@ -15,6 +15,15 @@
         "DSH_HOME=$HOME/.dsh-next exec node $HOME/.npm-global/bin/dsh web --port 3090 --no-open"
       ],
       "port": 3090
+    },
+    {
+      "name": "yzj-legacy",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "exec node $HOME/.npm-global/bin/dsh web --port 3080 --no-open"
+      ],
+      "port": 3080
     }
   ]
 }
