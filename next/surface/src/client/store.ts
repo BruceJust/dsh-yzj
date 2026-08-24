@@ -102,7 +102,11 @@ export interface Errand {
    * 任何语境。催不是委派，它不该让那个话题从此继承什么——它只是把人送到该说话的
    * 地方，并且把话先起个头。
    */
-  readonly subject: 'goal' | 'event' | 'nudge'
+  /**
+   * `draft` 是**还没有对象的那一句**：磨目标的时候目标还不存在，它正是要磨出来的
+   * 东西。所以它和催办一样只带一句起头，不装载任何语境——区别只在名字得说实话。
+   */
+  readonly subject: 'goal' | 'event' | 'nudge' | 'draft'
   readonly goalRef: string
   readonly goalName: string
   /**

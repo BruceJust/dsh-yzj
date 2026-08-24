@@ -29,7 +29,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { BoardRowWire, GoalPageWire, SurfaceInject } from './rpc.ts'
 import { sendErrand } from './store.ts'
 import { RoomPicker, type Portal } from './RoomPicker.tsx'
-import { assessAsk, breakdownAsk, goalQuestionSeed, rebaseAsk } from './commission.ts'
+import {
+  assessAsk, breakdownAsk, delegateSeed, gapSeed, goalQuestionSeed, rebaseAsk,
+} from './commission.ts'
 import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
 import { ArtifactCard } from './ArtifactCard.tsx'
@@ -467,7 +469,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               onClick={() => {
                 ask({
                   subject: 'goal',
-                  goalRef, goalName, voice: 'place', seed: `关于目标「${name}」：`,
+                  goalRef, goalName, voice: 'place', seed: delegateSeed(name),
                   title: '委派：跳进哪个会话说？',
                   note: '公开委派是施压与透明，私下委派是留余地——这个选择不该由系统替你做。',
                 })
@@ -684,7 +686,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                         ask({
                           subject: 'goal',
                           goalRef, goalName, voice: 'place',
-                          seed: `关于目标「${name}」还缺的这块：${line.criterion}。`,
+                          seed: gapSeed(name, line.criterion),
                           title: '把这条缺口变成委派：跳进哪个会话说？',
                           note: '句子还是你自己说——这里只负责把你送到该说话的地方。',
                         })

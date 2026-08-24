@@ -34,7 +34,9 @@ import { currentBoardLens, pushFrame, sendErrand, setBoardLens } from './store.t
 import { RoomPicker, type Portal } from './RoomPicker.tsx'
 import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
-import { assessAsk } from './commission.ts'
+import {
+  assessAsk, delegateSeed, eventPrepSeed, gapSeed, goalCraftSeed,
+} from './commission.ts'
 import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
 import tokens from './tokens.module.css'
@@ -687,7 +689,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
                         goalRef: goal.goalRef,
                         goalName: goal.row?.what ?? goal.goalRef,
                         voice: 'place',
-                        seed: `${line.criterion}`,
+                        seed: gapSeed(goal.row?.what ?? goal.goalRef, line.criterion),
                         title: '把这条缺口变成委派：跳进哪个会话说？',
                         note: '句子还是你自己说——这里只负责把你送到该说话的地方。',
                       })
@@ -837,6 +839,8 @@ export function YzjBoard(props: BoardProps): ReactNode {
                 goalRef: goal.goalRef,
                 goalName: goal.row?.what ?? goal.goalRef,
                 voice: 'place',
+                // 起头，不是稿子：派什么、派给谁、什么时候前，都是他要说的话。
+                seed: delegateSeed(goal.row?.what ?? goal.goalRef),
                 title: '委派：跳进哪个会话说？',
                 note: '公开委派是施压与透明，私下委派是留余地——这个选择不该由系统替你做。',
               })
@@ -1027,6 +1031,11 @@ export function YzjBoard(props: BoardProps): ReactNode {
                 goalRef: `yzj://event/${event.eventId}`,
                 goalName: event.title,
                 voice: 'place',
+                /*
+                  连催办都拟稿了，这一颗没有理由让人从零打起——起头把「为哪场会」
+                  摆好，要补的那一刀是什么、派给谁，仍然是他说。
+                */
+                seed: eventPrepSeed(event.title),
                 title: '为这场会准备：跳进哪个会话说？',
                 note: '会前要补的那一刀，说给谁听、在哪说，只有你知道。',
               })
@@ -1264,6 +1273,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
       {declaring && (
         <DeclareGoal
           inject={inject}
+          openSession={openSession}
           {...(fromSessionId === undefined ? {} : { fromSessionId })}
           close={() => { setDeclaring(false) }}
           done={(message) => {
@@ -1311,10 +1321,12 @@ export function YzjBoard(props: BoardProps): ReactNode {
 function DeclareGoal(props: {
   inject: SurfaceInject
   fromSessionId?: string
+  /** 磨稿的出口：这张表通往一次对话，而不是通往第二张表。 */
+  openSession(sessionId: string): void
   close(): void
   done(message: string): void
 }): ReactNode {
-  const { inject, close, done, fromSessionId } = props
+  const { inject, close, done, fromSessionId, openSession } = props
   const [what, setWhat] = useState('')
   const [goalRef, setGoalRef] = useState('')
   const [owner, setOwner] = useState('')
@@ -1409,6 +1421,42 @@ function DeclareGoal(props: {
         {refusal !== '' && <div className={css.refusal}>{refusal}</div>}
         <div className={css.sheetFoot}>
           <span className={css.sheetHint}>按下就是签发——agent 只能提案，不能立目标。</span>
+          {/*
+            🤝 先和 agent 磨一磨 —— **作者权 ≠ 思考伙伴** (v4.10).
+
+            这一格此前整个缺席：表单只给了「想清楚了的人」一条路，而立目标最常见的
+            处境恰恰是**还没想清楚**——尤其是「怎么算完成」这一栏，它是日后差距简报
+            唯一的对账基准，也是最磨人的一栏。没有这条路，人要么填一句糊弄过去的
+            标准（那份糊弄会在三个月后变成一份没法验收的目标），要么自己跳出去找
+            agent 聊、聊完再回来重填一遍表。
+
+            磨稿的家在私语会话里，不在这张表上：**对话就是制定界面，没有第二个表单**。
+            磨完回来签发时，`fromSessionId` 就是那个会话——出生血缘因此指向磨稿处，
+            而不是指向「桌面」。
+          */}
+          <button
+            type="button"
+            className={css.sheetGrind}
+            disabled={busy}
+            title="磨点在「怎么算完成」：agent 追问、检索你可见域里的相关材料，磨好了递提案——签发仍然是你的动作"
+            onClick={() => {
+              if (fromSessionId === undefined) {
+                setRefusal('磨稿要有个说话的地方——先从左边打开一个会话，再回来。')
+                return
+              }
+              sendErrand({
+                subject: 'draft',
+                goalRef: '',
+                goalName: what.trim(),
+                voice: 'private',
+                seed: goalCraftSeed(what),
+              })
+              close()
+              openSession(fromSessionId)
+            }}
+          >
+            🤝 先和 agent 磨一磨
+          </button>
           <button
             type="button"
             className={css.sheetGo}
