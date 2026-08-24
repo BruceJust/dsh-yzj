@@ -657,7 +657,7 @@ button.tree-group .chev { width: 16px; height: 18px; margin-left: -4px; }
 .ex-tag.process { background: #E5E8ED; color: var(--ink-2); border: 1px solid var(--line); }
 .cm-due { font-size: 10.5px; color: var(--ink-3); }
 .cm-due.overdue { color: var(--red); font-weight: 700; }
-.remind-btn {
+.remind-btn { /* v4.21 已废：一键借身提醒违 B4，保留类名防外链样式断裂 */
   font-size: 11px; font-weight: 650; padding: 4px 11px; border-radius: 7px;
   border: 1px solid var(--line); color: var(--ink-2); flex: none;
   transition: box-shadow .15s;
@@ -899,7 +899,7 @@ body.annotate .pin.inline { display: inline-flex; }
 
 <div class="hintbar" id="hintbar">
   <span>v4 沙盘</span>
-  <span class="k">① 侧栏「◫ 承诺板」：目标分组（真身外挂 · 信号计数）+ 人/agent/流程、逾期提醒、时间回顾</span>
+  <span class="k">① 侧栏「◫ 承诺板」：对账面：目标分组 + 方向/时间透镜、三值信号、修理动词就近、时间回顾（v4.21）</span>
   <span class="k">② ⚡ 轻问：问"销售群里凯瑞的最新口径"看跨场所即答</span>
   <span class="k">③ 财务群「7月对账」：裁决卡；其合同里有授权租约与记忆策略</span>
   <span class="k">④ hover 消息「↩ 回复」· 话题卡「⌄ 展开」· 进话题后「‹ 返回原位」</span>
@@ -997,16 +997,22 @@ const AV = {
 };
 const AGENT_ALIAS = /@agent|@智能体|@云小助/i;
 
-const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null };
+const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null, boardLens: 'all' };
 
 /* v4：承诺板数据——图的第三类居民（执行者可为人/agent/流程） */
+/* v4.21 字段语义：due=话语原文（真身）；dueT=解析投影（可空可纠：'today'/'soon'/null——无戳沉底不消失）；
+   owner=验收人（缺省=查看者 Bruce，本人省略不显示）；reg=登记场所（人执行行的一跳真身）；
+   staleSig=三值第三值「信号过时」样本（有过信号但太久，自报状态无轨迹背书） */
 const COMMITS = [
-  { name: '竞品对比表', exec: 'agent', who: '云小助', due: '明 10:00 前', sess: 'competitor', goal: 'g1', linked: '推断 · ack 公示可纠', prod: ['md1'], aud: 'all' },
-  { name: 'Q3 路线图整理', exec: 'agent', who: '云小助', due: '今天 14:00 前', sess: 'roadmap', goal: 'g1', linked: '显式指定', prod: ['html1'], aud: 'all' },
-  { name: '返修数据分析', exec: 'human', who: '张锐', due: '昨天 18:00', overdue: true, reminded: false, goal: 'g1', linked: '登记时指定', aud: 'all', nosignal: true, lastSignal: '登记时 · 上周五' },
-  { name: '管理层沟通准备', exec: 'human', who: '王超', due: '周四', state: '进行中', goal: 'g1', linked: '私下登记（DM）', aud: 'dm' },
-  { name: '7月对账核对', exec: 'agent', who: '云小助', due: '8/5 前', sess: 'recon' },
-  { name: '售后 FAQ 更新', exec: 'human', who: '小唐', due: '周五', state: '进行中' },
+  { name: '竞品对比表', exec: 'agent', who: '云小助', due: '明 10:00 前', dueT: 'soon', sess: 'competitor', goal: 'g1', linked: '推断 · ack 公示可纠', prod: ['md1'], aud: 'all' },
+  { name: 'Q3 路线图整理', exec: 'agent', who: '云小助', due: '今天 14:00 前', dueT: 'today', sess: 'roadmap', goal: 'g1', linked: '显式指定', prod: ['html1'], aud: 'all' },
+  { name: '返修数据分析', exec: 'human', who: '张锐', due: '昨天 18:00', overdue: true, goal: 'g1', linked: '登记时指定', aud: 'all', reg: 'prodgroup', nosignal: true, lastSignal: '登记时 · 上周五' },
+  { name: '管理层沟通准备', exec: 'human', who: '王超', due: '周四', dueT: 'soon', state: '进行中', goal: 'g1', linked: '私下登记（DM）', aud: 'dm', staleSig: '8/14 · 自报，无轨迹背书' },
+  { name: '走访汇总', exec: 'human', who: '张三', due: '本周内', state: '待验收', sess: 'zhangsan', linked: '私下登记（DM）', aud: 'dm' },
+  { name: '7月对账核对', exec: 'agent', who: '云小助', due: '8/25 前', dueT: 'soon', sess: 'recon' },
+  { name: 'Q3 预算口径确认', exec: 'human', who: 'Bruce（我）', owner: '郑慧', due: '周三前', dueT: 'soon', state: '进行中', reg: 'fingroup', linked: '群内登记', aud: 'all', mine: true },
+  { name: '发票归档核对', exec: 'human', who: '小唐', owner: '郑慧', due: '月底', state: '进行中', reg: 'fingroup', linked: '群内登记', aud: 'all', observer: true },
+  { name: '售后 FAQ 更新', exec: 'human', who: '小唐', due: '周五', dueT: 'soon', state: '进行中' },
   { name: '月结流程', exec: 'process', who: '流程 · 每月 1-5 日', due: '下次 9/1 启动', state: '休眠' },
 ];
 /* v4.1：目标 = 复合承诺；真身外挂（采纳轴裁决），图上只记父目标引用（URI） */
@@ -1396,7 +1402,7 @@ const NOTES = {
   15: { title: '对象树：类型是属性，不是容器',
        body: '文档与多维表格<b>同住一棵工作区树</b>（云之家原生语义"归类用父文档挂载"——看「走访记录表」挂在走访汇总下面）。浏览器按<b>组织维度</b>分 tab：空间树（知识库）/ 时间轴（日程），永不按对象类型——类型的归宿是图标、过滤 chip、预览渲染器。<b>找东西按容器，看东西按类型</b>（Notion / 飞书云空间 / Drive 同款收敛）。' },
   17: { title: '承诺板：图的第三类居民',
-       body: '管理单位是<b>承诺</b>（谁在何时交付什么），执行者可以是 <b>agent、人或流程</b>——五个剧本收敛的最大缺口，"C门面+A协议+B记录"里模式 B 的补全。agent 对人类承诺是<b>观察者+跟催者</b>（F-read 供电），不代做。人类承诺经会话<b>登记</b>而生（"张锐负责 X"——见群视图上周五的登记场景）；目标组内每行的<b>挂接来源</b>逐行可见：显式指定 / 推断（ack 公示可纠）/ 登记时指定——三个孩子恰好覆盖三条路径。两个新取景框：跨执行者（本板）与时间回顾（周报的 pull 版）。克制：节点+边+取景框，不做甘特图/依赖图。' },
+       body: '管理单位是<b>承诺</b>（谁在何时交付什么），执行者可以是 <b>agent、人或流程</b>——五个剧本收敛的最大缺口，"C门面+A协议+B记录"里模式 B 的补全。agent 对人类承诺是<b>观察者+跟催者</b>（F-read 供电），不代做。人类承诺经会话<b>登记</b>而生（"张锐负责 X"——见群视图上周五的登记场景）；目标组内每行的<b>挂接来源</b>逐行可见：显式指定 / 推断（ack 公示可纠）/ 登记时指定——三个孩子恰好覆盖三条路径。两个新取景框：跨执行者（本板）与时间回顾（周报的 pull 版）。克制：节点+边+取景框，不做甘特图/依赖图。<b>v4.21 定性：板 = 账本的对账面</b>——注意力归收件箱、推送归晨报、作业台归 hub 与会话；合法增量只有<b>对账排列 + 一跳指路 + 就近动词</b>，板不设决断条（收件箱是唯一聚合处——「哪里不对劲」由排列满足：异常即排序与分节，正常行安静）。方向轴三元透镜（全部含"我旁观的"=组织透明/欠我的/我欠的）；时间透镜两层规则（due 话语是真身、时间戳是可空可纠的解析投影——无戳沉底不消失）；行 = 四要素 + 三值信号，出生故事降 hover 一级 + 枢纽二级。板的每次打开必须是"来取，不是来喂"（Viva Goals 验尸）。' },
   18: { title: '轻问：F-read 的旗舰',
        body: '<b>信任门槛是写权限的函数，不是主动性的函数</b>（高管剧本）。轻问 = <b>一次性投影</b>：问一个数得一个数，不产生 ack+话题卡+待验收全家桶。F-read（轻问/晨报/盯承诺/status）全部只读、信任成本趋近于零，提前至 P2.5；F-act（自主写）维持推迟。高管的主契约是问答，不是委派。' },
   19: { title: '裁决卡：第二种确认卡',
@@ -1544,7 +1550,9 @@ function renderItem(item, sess) {
     const rejected = item.state === 'rejected';
     let inner;
     /* v4.14 交付即出卡：终态回帖是可应答对象——验收/拒收动词长在交付上，带"等你验收"的脸 */
-    if (done) inner = `<span class="lab">🗂 已验收归档 · 记忆已蒸馏</span>`;
+    if (done) inner = item.commit
+      ? `<span class="lab">✓ 已验收 · 承诺终态（人工签发）· 已回写云之家真身</span>`
+      : `<span class="lab">🗂 已验收归档 · 记忆已蒸馏</span>`;
     else if (rejected) inner = `<span class="lab" style="color:var(--amber)">↩ 已打回 · 返工第 ${item.round || 2} 轮 · 新旧交付 diff 已挂到任务</span>`;
     else inner = `<div class="aw-face">✋ 验收点 · 等你验收<span style="font-weight:400;color:var(--ink-3)">（可应答对象——与收件箱同一真身）</span></div>
           <span class="lab">交付物就在上方——边看边验（点工件可就地预览）</span>
@@ -1728,20 +1736,43 @@ function commitState(c) {
   if (c.overdue) return c.reminded ? '已提醒' : '逾期';
   return c.state;
 }
+/* v4.21 三值信号（有证据 / 无信号+最后时间 / 信号过时）——板与 hub 共享同一推导（数据同一查询） */
+function signalOf(c) {
+  if (c.receipt) return `<span style="color:var(--green)">有证据 · ${c.receipt}</span>`;
+  if (c.state === '待验收' && c.sess) return `<span style="color:var(--green)">有证据 · 交付已回帖，等你验收</span>`;
+  if (c.nosignal) return `<span style="color:var(--amber)">无信号 · 最后信号：${c.lastSignal}（观察型承诺，"没消息"≠"没问题"）</span>`;
+  if (c.staleSig) return `<span style="color:var(--amber)">⚠ 信号过时 · 最后信号 ${c.staleSig}</span>`;
+  if (c.exec === 'agent' && c.sess) return '有证据 · 最新轨迹 2h 前';
+  return '已登记';
+}
+/* v4.21 信号序（组内排序成文）：待决 > 逾期 > 无信号/过时 > 运行 > 进行中 > 休眠 > 终态 */
+function rankOf(c) {
+  if (c.void || c.state === '已验收') return 9;
+  if (c.state === '待验收' || c.receipt) return 0;
+  if (c.overdue) return 1;
+  if (c.nosignal || c.staleSig) return 2;
+  if (c.exec === 'agent' && c.sess) return 3;
+  if (c.state === '休眠') return 5;
+  return 4;
+}
 function commitRow(c) {
-  const i = COMMITS.indexOf(c);
   let stateH;
-  if (c.exec === 'agent') stateH = c.sess ? (badgeHtml(sessions[c.sess]) || `<span class="badge b-done">已归档</span>`) : `<span class="cm-due">${c.state || '已登记'}</span>`;
-  else if (c.overdue) stateH = c.reminded
-    ? `<span class="badge b-running"><span class="pulse"></span>已提醒 · 等回复</span>`
-    : `<button class="remind-btn" data-remind="${i}">让云小助提醒</button>`;
-  else stateH = `<span class="cm-due">${c.state}</span>`;
-  const link = c.exec === 'agent' && c.sess ? ` data-sess="${c.sess}" role="link" tabindex="0" style="cursor:pointer"` : '';
-  return `<div class="cm-row${c.overdue ? ' overdue' : ''}"${link}>
+  if (c.state === '待验收' || c.receipt) stateH = `<span class="badge b-review">待验收</span>`;
+  else if (c.exec === 'agent') stateH = c.sess ? (badgeHtml(sessions[c.sess]) || `<span class="badge b-done">已归档</span>`) : `<span class="cm-due">${c.state || '已登记'}</span>`;
+  else if (c.overdue) stateH = `<span class="badge b-unread">逾期</span>`;
+  else stateH = `<span class="cm-due">${c.state || '已登记'}</span>`;
+  /* 一跳真身：agent 行进执行会话；人执行行进交付会话或登记场所（注解 21：承诺行点击即进话题真身） */
+  const dest = c.sess || c.reg;
+  const link = dest ? ` data-sess="${dest}" role="link" tabindex="0" style="cursor:pointer"` : '';
+  /* 责任锚两槽位：验收人 = 查看者本人时省略（Bruce 视角），非本人时显示 */
+  const anchor = c.owner ? ` · <span style="color:#8A6D3B">验收：${c.owner}</span>` : '';
+  const dueChip = c.dueT === 'today' ? ` <span class="badge b-confirm" style="font-size:9px;padding:0 5px">今日到期</span>` : '';
+  return `<div class="cm-row${c.overdue ? ' overdue' : ''}"${link} id="cm-${COMMITS.indexOf(c)}" title="挂接：${c.linked || '—'}（出生故事：hover 一级 · 目标枢纽行二级）">
     <span class="ex-tag ${c.exec}">${c.exec === 'agent' ? 'agent' : c.exec === 'human' ? '人' : '流程'}</span>
-    <span style="flex:1;min-width:0"><span style="font-size:12.8px;font-weight:650">${c.name}</span>
-    <span style="display:block;font-size:10.5px;color:var(--ink-3)">${c.who} · <span class="cm-due${c.overdue ? ' overdue' : ''}">${c.due}</span>${c.linked ? ` · <span style="color:#A6ADBB">挂接：${c.linked}</span>` : ''}</span></span>
-    ${stateH}</div>`;
+    <span style="flex:1;min-width:0"><span style="font-size:12.8px;font-weight:650">${c.name}</span>${dueChip}
+    <span style="display:block;font-size:10.5px;color:var(--ink-3)">${c.who}${anchor} · <span class="cm-due${c.overdue ? ' overdue' : ''}">${c.due}</span> · ${signalOf(c)}</span></span>
+    <span style="display:flex;gap:5px;align-items:center;flex:none">${c.overdue && !c.receipt ? `<button class="btn" data-hurge="1" style="font-size:10px;padding:1px 8px">催</button>` : ''}<button class="btn" data-hmenu="${c.name}" style="font-size:10px;padding:1px 8px" title="修理动词族：催/顺延/作废/合并/移交/收养">⋯</button>
+    ${stateH}</span></div>`;
 }
 /* v4.12 共享动作卡（委派传送门/拆解提案/差距简报）——承诺板与目标枢纽同一套（数据同一查询，割裂不存在） */
 function goalActionCards(gid) {
@@ -1822,14 +1853,12 @@ function openGoalHub(gid) {
   openSession('goalhub');
 }
 function hubCommitRow(c) {
-  const stateH = c.exec === 'agent'
+  const stateH = (c.state === '待验收' || c.receipt)
+    ? `<span class="badge b-review">待验收</span>`
+    : c.exec === 'agent'
     ? (c.sess ? (badgeHtml(sessions[c.sess]) || '<span class="badge b-done">已归档</span>') : `<span class="cm-due">${c.state || '已登记'}</span>`)
     : c.overdue ? `<span class="badge b-unread">逾期</span>` : `<span class="cm-due">${c.state || '进行中'}</span>`;
-  const signal = c.receipt
-    ? `<span style="color:var(--green)">有证据 · ${c.receipt}</span>`
-    : c.nosignal
-      ? `<span style="color:var(--amber)">无信号 · 最后信号：${c.lastSignal}（观察型承诺，"没消息"≠"没问题"）</span>`
-      : (c.sess ? '有证据 · 最新轨迹 2h 前' : '已登记');
+  const signal = signalOf(c);
   const prod = (c.prod || []).map(k => `<button class="btn" data-fpv="${k}" style="font-size:10px;padding:1px 8px">▤ ${FILES[k].name}</button>`).join(' ')
     || '<span style="font-size:10px;color:var(--ink-3)">尚无产物</span>';
   const sessLink = c.sess
@@ -1864,11 +1893,11 @@ function renderGoalHub() {
       <span class="badge b-running"><span class="pulse"></span>活跃（零存储 · 纯推导）</span>
       <span style="margin-left:auto;font-size:10.5px;color:var(--ink-3)">owner：Bruce · Q3 末人工验收</span>
     </div>
-    <div style="font-size:10.5px;color:var(--ink-3);margin-top:5px">真身：<span class="goal-home" data-goalhome="1" role="button" tabindex="0">${g.home} ↗</span> · 关联任务区截至 <b>${g.wrote}</b> 回写（生与死之间不回写）· 图内最新轨迹 <b>2 小时前</b>（在跑——空态背书）</div>
-    <div style="margin-top:7px;font-size:11.5px">成功标准（真身正文派生投影 · 非字段）：${std}</div>
-    <div class="hub-warn">⚠ 真身之变：8/19 正文被修改（第③条措辞变更）——当前评估基准<b>未对账</b>
+    <div style="font-size:10.5px;color:var(--ink-3);margin-top:5px">真身：<span class="goal-home" data-goalhome="1" role="button" tabindex="0">${g.home} ↗</span>${g.wrote ? ` · 关联任务区截至 <b>${g.wrote}</b> 回写（生与死之间不回写）· 图内最新轨迹 <b>2 小时前</b>（在跑——空态背书）` : ' · 尚无回写（回写只在生与死）'}</div>
+    <div style="margin-top:7px;font-size:11.5px">成功标准（真身正文派生投影 · 非字段）：${std || '<span style="color:var(--ink-3)">正文尚未磨出——「先和 agent 磨一磨」，磨点在可验收</span>'}</div>
+    ${gid === 'g1' ? `<div class="hub-warn">⚠ 真身之变：8/19 正文被修改（第③条措辞变更）——当前评估基准<b>未对账</b>
       <button class="btn" data-tchange="diff" style="font-size:10.5px;padding:2px 9px">查看差异</button>
-      <button class="btn" data-tchange="rebase" style="font-size:10.5px;padding:2px 9px">以新基准重估</button></div>
+      <button class="btn" data-tchange="rebase" style="font-size:10.5px;padding:2px 9px">以新基准重估</button></div>` : ''}
     <div style="display:flex;gap:6px;margin-top:9px;align-items:center;flex-wrap:wrap">
       <button class="btn" data-goaldeleg="${gid}" style="font-size:10.5px;padding:2px 9px">＋ 委派</button>
       <button class="btn" data-goaldecomp="${gid}" style="font-size:10.5px;padding:2px 9px">⚡ 拆解</button>
@@ -1879,7 +1908,8 @@ function renderGoalHub() {
       <button class="btn${isZR ? ' primary' : ''}" data-viewas="zhangrui" style="font-size:10.5px;padding:2px 9px">张锐（执行者）</button>
     </div>
   </div>`;
-  const decide = isZR
+  /* Zone1 = 收件箱同源过滤投影（过滤条件 = 本目标）——非 g1 目标无待决数据，渲染空态而非幽灵内容 */
+  const decide = gid !== 'g1' ? '' : isZR
     ? `<div class="cm-row"><span class="ex-tag human">决断</span>
         <span style="flex:1">我欠的：返修数据分析 · <b>昨天 18:00 已到期</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">交付/求助 = 回复登记消息即可（IM 习语，不必造按钮）</span></span>
         <button class="btn" data-sess="prodgroup" style="font-size:10.5px;padding:2px 9px">去登记场所 ›</button></div>`
@@ -1888,12 +1918,13 @@ function renderGoalHub() {
         <span style="flex:1">审批对象 #7 · 竞品对比表要写入 12 条记录<span style="display:block;font-size:10.5px;color:var(--ink-3)">与收件箱<b>同一个可应答对象</b>的过滤投影——任一投影应答即全局生效（先答先赢），绝非复制列表</span></span>
         <span class="badge b-confirm">待确认</span></div>`;
   const zrc = COMMITS.find(c => c.name === '返修数据分析');
-  const attend = isZR ? '' : zrc.receipt ? `
+  const zrcActive = gid === 'g1' && zrc && !zrc.void && zrc.state !== '已验收';
+  const attend = (isZR || !zrcActive) ? '' : zrc.receipt ? `
     <div class="cm-row"><span class="ex-tag human">决断</span>
       <span style="flex:1">验收卡 · 返修数据分析（回执：返修数据分析.pdf · 行为回执）<span style="display:block;font-size:10.5px;color:var(--ink-3)">交付即出卡——回执已挂，逾期/无信号退场，验收落座决断层（信号即门 · 逐级兑付）</span></span>
       <span style="display:flex;gap:5px;flex:none">
         <button class="btn" data-fpv="pdf2" style="font-size:10.5px;padding:2px 9px">预览回执</button>
-        <button class="btn" data-sess="prodgroup" style="font-size:10.5px;padding:2px 9px">去登记场所验收 ›</button></span></div>` : `
+        <button class="btn" data-sess="prodgroup" style="font-size:10.5px;padding:2px 9px">去登记场所验收 ›</button></span></div>` : !zrc.overdue ? '' : `
     <div class="cm-row overdue"><span class="ex-tag human">留意</span>
       <span style="flex:1">返修数据分析 · 张锐 · <b>昨天 18:00 逾期</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">逾期是信号不是可应答对象——动词就在旁边（决断层/留意层分立）</span></span>
       <span style="display:flex;gap:5px;flex:none">
@@ -1904,34 +1935,46 @@ function renderGoalHub() {
     ${header}
     ${goalActionCards(gid)}
     <div class="res-sec">需要你${isZR ? ' · 张锐的可见域' : ''}</div>
-    ${decide}${attend}
+    ${decide || attend ? decide + attend : `<div style="font-size:11px;color:var(--ink-3);padding:6px 0">此目标暂无需要你的事项——决断层与留意层都是推导，空即是空（不造待办）。</div>`}
     <div class="res-sec" style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">执行清单（环行：每行携带自己的迷你闭环）· 信号：${sig}
       ${isZR ? `<span style="font-weight:400;color:var(--pub);letter-spacing:0">「我的切片」已置顶</span><span style="font-weight:400;color:var(--ink-3);letter-spacing:0">（另有 ${hidden} 项私下登记不在你的可见域——真实实现连计数也不泄漏，此注仅为演示）</span>` : ''}</div>
     ${ordered.map(hubCommitRow).join('')}
     <div style="margin-top:12px;font-size:10px;color:var(--ink-3);line-height:1.8">闭环自检（环路完整性检验对页面自我适用）：拆解/委派 ✓ · 执行一跳+三值状态 ✓ · 产物 chips+归集 ✓ · 回执/验收落座 ✓ · 修理动词族 ✓ · 评估 ✓ · 真身回写显形 ✓ —— 每环<b>既可见又可动</b>，缺一即割裂债。凡只能在这一页获得的能力就是违规能力。</div>
   </div>`;
 }
+/* v4.21 方向轴三元透镜：全部（默认，含「我旁观的」——组织透明是特性）/ 欠我的 / 我欠的 */
+function lensPass(c) {
+  if (state.boardLens === 'mine') return !!c.mine;
+  if (state.boardLens === 'owed') return !c.mine && !c.observer;
+  return true;
+}
 function renderBoard() {
   const goalBlocks = Object.entries(GOALS).map(([gid, g]) => {
-    const kids = COMMITS.filter(c => c.goal === gid && !c.void);
+    const kids = COMMITS.filter(c => c.goal === gid && !c.void && lensPass(c))
+      .sort((a, b) => rankOf(a) - rankOf(b));
     const counts = {};
     kids.forEach(c => { const s = commitState(c); counts[s] = (counts[s] || 0) + 1; });
-    const sig = Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(' · ');
+    /* 组头计数带异常语义：异常前置——折叠组也能对账 */
+    const anomalies = kids.filter(c => rankOf(c) <= 2).length;
+    const sig = `${kids.length} 承诺${anomalies ? ` · <b style="color:var(--red)">${anomalies} 需留意</b>` : ''}${kids.length ? ' · ' + Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(' · ') : ''}`;
+    const ckey = 'board:' + gid;
+    const folded = !!state.collapsed[ckey];
     return `<div class="goal-row">
+      <span class="chev${folded ? ' closed' : ''}" data-chev="${ckey}" role="button" tabindex="0" aria-label="${folded ? '展开' : '收起'}目标组">${CHEV_SVG}</span>
       <span class="ex-tag goal">目标</span>
       <span style="flex:1;min-width:220px"><span class="goal-title-link" style="font-size:12.8px;font-weight:700" data-goalhub="${gid}" role="link" tabindex="0" title="放大：进入目标枢纽（承诺板第二缩放级别）">${g.title} ›</span>
       <span class="goal-home" data-goalhome="1" role="button" tabindex="0">真身：${g.home} ↗</span>
-      <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:2px">${g.born}</span></span>
-      <span class="goal-sig">信号：${kids.length ? sig : '—'}</span>
-      <span class="goal-final">终态：人工验收</span>
+      <span class="goal-born-hint" data-goalhub="${gid}" role="link" tabindex="0" title="${g.born}" style="font-size:10px;color:var(--ink-3);cursor:pointer">出生 ›</span></span>
+      <span class="goal-sig">${kids.length ? sig : '信号：—'}</span>
       <button class="btn" data-goaldeleg="${gid}" style="font-size:10.5px;padding:2px 9px" title="传送门：带着目标语境去说话（挂接=语境继承）">＋ 委派</button>
       <button class="btn" data-goaldecomp="${gid}" style="font-size:10.5px;padding:2px 9px" title="让 agent 提拆解方案——每条过你的手">⚡ 拆解</button>
       <button class="btn" data-goaleval="${gid}" style="font-size:10.5px;padding:2px 9px" title="差距简报：agent 备料，验收权在你">✓ 评估</button>
       <button class="pin inline" data-note="21" aria-label="设计注解 21">21</button>
     </div>
     ${goalActionCards(gid)}
-    <div class="goal-children">${kids.length ? kids.map(commitRow).join('')
-      : `<div style="font-size:11px;color:var(--ink-3);padding:6px 0">尚无挂接的承诺——从本目标语境发起的委派将自动继承挂接（语境继承 · 出生时刻），或在任务 ack 中补挂。</div>`}</div>`;
+    ${folded ? '' : `<div class="goal-children">${kids.length ? kids.map(commitRow).join('')
+      : state.boardLens !== 'all' ? `<div style="font-size:11px;color:var(--ink-3);padding:6px 0">本透镜下无匹配承诺（透镜是本地视角，切回「全部」看全集）。</div>`
+      : `<div style="font-size:11px;color:var(--ink-3);padding:6px 0">尚无挂接的承诺——从本目标语境发起的委派将自动继承挂接（语境继承 · 出生时刻），或在任务 ack 中补挂。</div>`}</div>`}`;
   }).join('');
   const goalFormHtml = state.goalForm ? `
     <div class="cm-row" style="background:#FDFEFF;border-color:var(--pub-line);gap:8px">
@@ -1943,28 +1986,45 @@ function renderBoard() {
       <button class="btn" data-goalcancel="1">取消</button>
     </div>
     <div style="font-size:10.5px;color:var(--ink-3);margin:-4px 0 8px 2px">立目标 = 登记动词复用 · <b>人签发</b> —— 另两个入口：任意会话直接说「立个目标：…，我 own」（对话登记）；AI 速记纪要 → 提案裁决（主产地，见产品讨论群主楼今晨的提案卡）</div>` : '';
-  const loose = COMMITS.filter(c => !c.goal && !c.void);
+  const loose = COMMITS.filter(c => !c.goal && !c.void && lensPass(c)).sort((a, b) => rankOf(a) - rankOf(b));
   const rows = goalBlocks + (loose.length ? `
     <div class="res-sec" style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">无归属 · ${loose.length} 项
-      <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">未挂目标是合法状态——不是所有工作都为目标服务（强制对齐 = 垃圾对齐）；周会可在此批量 /link 补挂</span></div>` + loose.map(commitRow).join('') : '');
+      <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">未挂目标是合法状态——不是所有工作都为目标服务（强制对齐 = 垃圾对齐）；周会时对 agent 说 /link 逐条收养（行内 ⋯ 同门）</span></div>` + loose.map(commitRow).join('') : '');
+  /* v4.21 空板出生样本：登记覆盖率是承诺板价值的分母——冷启动第一眼是分母的出生地 */
+  const emptyBoard = (!goalBlocks && !loose.length && !state.goalForm) ? `
+    <div class="cm-row" style="background:var(--paper);border-color:var(--paper-line);flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px">
+      <span style="font-size:12.5px;font-weight:650">还没有任何承诺——承诺经登记话语而生</span>
+      <span style="font-size:11px;color:var(--ink-2);line-height:1.8">在群里说「返修数据分析由张锐负责，周日 18:00 前给结论」，或对云小助说「立个目标：…，我 own」——登记即上板，板上永远不用手工建行。三入口：群内登记 · 对话立目标 · AI 速记纪要 → 提案裁决。</span>
+    </div>` : '';
   const weekly = state.weeklyShown ? `
     <div class="cm-row" style="background:linear-gradient(160deg,#FDFEFF,#F4F8FF);border-color:var(--pub-line)">
       <span class="ex-tag agent">回顾</span>
       <span style="flex:1"><b>本周产出 · 5 项</b>
-      <span style="display:block;font-size:10.5px;color:var(--ink-3)">竞品评审表 · 过程摘要 ×2 · 走访汇总 · bridge 重构 —— pull 版汇总，可一键生成周报文档发老板</span></span>
+      <span style="display:block;font-size:10.5px;color:var(--ink-3)">竞品对比分析.md · 过程摘要 ×2 · 走访汇总 · bridge 重构 —— pull 版汇总（只列已存在的工件，真身证据非自报数），可一键生成周报文档发老板</span></span>
     </div>` : '';
   return `<div class="board">
     <button class="pin" data-note="17" style="position:absolute;right:26px;top:10px" aria-label="设计注解 17">17</button>
-    <div class="res-sec" style="padding-top:6px">晨报 · 8月17日 08:00 <span style="font-weight:400;color:var(--ink-3)">（F-read：cron + 只读 + DM 投递）</span></div>
-    <div class="cm-row" style="background:var(--paper);border-color:var(--paper-line)">
-      <span style="flex:1;font-size:12px;line-height:1.7">华南回款 <b>¥2.41M</b>（环比 +12%）· 在途订单 <b>37</b> · 逾期承诺 <b>1</b>（返修数据分析 · 张锐）</span>
+    <div class="res-sec" style="padding-top:6px">晨报 · 8月20日 08:00 <span style="font-weight:400;color:var(--ink-3)">（F-read：cron + 只读 + DM 投递 · 晨报主体 = 图的投影，每个数字是门）</span></div>
+    <div class="cm-row" style="background:var(--paper);border-color:var(--paper-line);flex-direction:column;align-items:flex-start;gap:3px">
+      <span style="flex:1;font-size:12px;line-height:1.7">${(() => {
+        const live = COMMITS.filter(c => !c.void);
+        const od = live.filter(c => c.overdue);
+        const ns = live.filter(c => c.nosignal || c.staleSig);
+        const pa = live.filter(c => c.state === '待验收' || c.receipt);
+        const td = live.filter(c => c.dueT === 'today');
+        const seg = (arr, label, color) => arr.length ? `<span class="chip" data-dgoto="cm-${COMMITS.indexOf(arr[0])}" role="button" tabindex="0" style="cursor:pointer${color ? ';color:' + color : ''}">${label} <b>${arr.length}</b></span>` : '';
+        return [seg(od, '逾期', 'var(--red)'), seg(ns, '信号异常', 'var(--amber)'), seg(pa, '待验收', 'var(--green)'), seg(td, '今日到期', '')].filter(Boolean).join(' ') || '<span style="color:var(--ink-3)">账面平静——无逾期、无信号异常、无待验收</span>';
+      })()}</span>
+      <span style="font-size:10px;color:var(--ink-3)">素材段：华南回款 ¥2.41M（环比 +12%）· 在途订单 37 <span title="平台数不入图——升格自财务群轻问（8/19），素材段非晨报本体（v4.17）">（轻问升格 · 素材非本体）</span></span>
     </div>
     <div class="res-sec" style="display:flex;align-items:baseline;gap:8px">会议 · 近 3 场
       <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">日程段素材可来自平台 brief（v4.17：素材段非本体）· 就绪度三态 = 图内推导（无期待 ≠ 缺材料）· 每行是门</span></div>
     ${['ev-meeting', 'ev-review', 'ev-allhands'].map(k => {
       const ev = EVENTS[k];
       const ls = ev.linkedSession ? sessions[ev.linkedSession] : null;
-      const ready = ls && ['review', 'archived'].includes(ls.status);
+      /* 就绪度 = 工件事实驱动（交付即翻绿）；等确认中 = 内容未定稿，仍是 ⏳（审批门是事实不是脸色） */
+      const delivered = ls && (ls.objects.artifacts.length || ls.timeline.some(i => (i.type === 'file' && i.who === 'agent') || i.type === 'artifact'));
+      const ready = !!(ls && ((delivered && ls.status !== 'confirm') || ['review', 'archived'].includes(ls.status)));
       /* 就绪度三态：无期待（无徽标——没有期待就没有"缺"）/ 未就绪 ⏳ / 就绪 ✓ */
       const sub = !ls ? '无关联任务（合法状态）· 准备即创建第一个'
         : ready ? '✓ 材料就绪'
@@ -1978,9 +2038,12 @@ function renderBoard() {
         <button class="btn" data-evdelegate="${k}" style="font-size:10.5px;padding:2px 9px;flex:none">为此会准备 ›</button>
       </div>`;
     }).join('')}
-    <div class="res-sec" style="display:flex;align-items:center">全部承诺 · 跨执行者（人 + agent + 流程）
+    <div class="res-sec" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">全部承诺 · 跨执行者（人 + agent + 流程）
+      <span class="chip gfilter${state.boardLens === 'all' ? ' on' : ''}" data-blens="all" role="button" tabindex="0" title="含「我旁观的」——委派发生在你在场的语境里（组织透明）">全部</span>
+      <span class="chip gfilter${state.boardLens === 'owed' ? ' on' : ''}" data-blens="owed" role="button" tabindex="0">欠我的</span>
+      <span class="chip gfilter${state.boardLens === 'mine' ? ' on' : ''}" data-blens="mine" role="button" tabindex="0">我欠的</span>
       <button class="btn" data-newgoal="1" style="margin-left:auto;font-size:11px;padding:3px 12px">＋ 立目标</button></div>
-    ${goalFormHtml}${rows}
+    ${goalFormHtml}${rows}${emptyBoard}
     <div style="margin-top:12px"><button class="btn" data-weekly="1">⏱ 生成本周产出汇总（时间回顾）</button></div>
     ${weekly}
   </div>`;
@@ -2012,7 +2075,7 @@ function renderHead() {
   const sess = sessions[state.current];
   let kindChip = '';
   if (sess.kind === 'goalhub') kindChip = `<span class="chip">对象枢纽 · 目标</span><span class="chip">承诺板第二缩放级别</span><span class="chip">范围 = 目标子图全量</span>`;
-  else if (sess.kind === 'board') kindChip = `<span class="chip">取景框 · 跨执行者</span><span class="chip">${COMMITS.length} 项承诺</span><span class="chip">时间回顾</span>`;
+  else if (sess.kind === 'board') kindChip = `<span class="chip">对账面 · 跨执行者</span><span class="chip">${COMMITS.filter(c => !c.void).length} 项承诺</span><span class="chip">时间回顾</span>`;
   else if (sess.kind === 'groupview') { const g = GROUPS.find(x => x.head === state.current); kindChip = `<span class="chip">群视图 · 主楼</span><span class="chip">${g ? g.keys.length : 0} 个话题</span><span class="chip gfilter${state.groupFilter === 'all' ? ' on' : ''}" data-gfilter="all" role="button" tabindex="0">全部</span><span class="chip gfilter${state.groupFilter === 'topics' ? ' on' : ''}" data-gfilter="topics" role="button" tabindex="0">只看话题</span>`; }
   else if (sess.kind === 'topic') kindChip = `<span class="chip">群 · ${sess.group}</span><span class="chip">话题</span>`;
   else if (sess.kind === 'dm') kindChip = `<span class="chip">私聊</span>`;
@@ -2097,6 +2160,15 @@ function groupAggBadge(keys) {
 }
 const ACTIVE_STATUSES = ['confirm', 'review', 'running'];
 function renderSidebar() {
+  /* v4.21 板入口徽标 = 图的投影（信号即门：死徽标是对自己撒谎） */
+  const bd = document.querySelector('.board-entry .bd');
+  if (bd) {
+    const od = COMMITS.filter(c => c.overdue && !c.void).length;
+    const pa = COMMITS.filter(c => (c.state === '待验收' || c.receipt) && !c.void).length;
+    const t = od ? `${od} 逾期` : pa ? `${pa} 待验收` : '';
+    bd.textContent = t;
+    bd.style.display = t ? '' : 'none';
+  }
   let lastSec = null;
   $('tree').innerHTML = GROUPS.map(g => {
     const sec = g.sec || 'yzj';
@@ -2454,6 +2526,17 @@ function handleCardAction(ccId, act) {
 
 /* 验收归档 → 记忆蒸馏 */
 function handleAccept(acId) {
+  /* v4.21 人类承诺的验收卡：验收 = 承诺终态，不归档所在会话（群主楼没有终态） */
+  const commitCard = Object.values(sessions).flatMap(s => s.timeline).find(i => i.type === 'accept' && i.id === acId && i.commit);
+  if (commitCard) {
+    if (commitCard.state === 'done') return;
+    commitCard.state = 'done';
+    const c = COMMITS.find(x => x.name === commitCard.commit);
+    if (c) { c.state = '已验收'; c.receipt = null; }
+    renderTimeline(); renderHead(); renderSidebar();
+    toast('验收通过 = 人工终态：回写云之家真身（生与死的回写）· 板行退出待决、hub 环行闭合——迟交但已清账');
+    return;
+  }
   const sessKey = acId.replace('ac-', '');
   const sess = sessions[sessKey];
   const item = sess.timeline.find(i => i.type === 'accept' && i.id === acId);
@@ -2655,7 +2738,9 @@ function renderEventHub(key) {
         <span class="rt"><span class="rt1">${a.t}</span><span class="rt2">${a.m}</span></span>
         <span class="hub-ok">✓ 就绪</span>
       </button>`).join('')
-    : `<div class="mem-empty">⏳ ${ev.expect} —— 任务${sess.status === 'confirm' ? '等待审批 #7' : '运行中'}，交付后自动就绪</div>`;
+    : sess.status !== 'confirm' && sess.timeline.some(i => (i.type === 'file' && i.who === 'agent') || i.type === 'artifact')
+    ? `<div class="mem-empty" style="color:var(--green)">✓ ${ev.expect} 已交付（回帖在话题）——工件事实驱动，就绪度自动翻绿</div>`
+    : `<div class="mem-empty">⏳ ${ev.expect} —— 任务${sess.status === 'confirm' ? '等待审批 #7（定稿未落库）' : '运行中'}，交付后自动就绪</div>`;
   const prepChooser = state.evPrepChoose === key ? `
     <div class="cm-row" style="background:#FDFEFF;border-color:var(--pub-line);flex-wrap:wrap;gap:6px;margin-top:8px">
       <span style="font-size:11px;color:var(--ink-2)">无天然语境——选择场所（听众是社交决策，人选不推导）：</span>
@@ -2769,7 +2854,7 @@ function renderRight() {
       `<span class="wd${i === 0 ? ' today' : ''}">${d}<br>${17 + i}${(i === 0 || i === 1) ? '<span class="dot"></span>' : ''}</span>`).join('');
     body.innerHTML = subNav +
       `<div class="res-sec">8月 · 本周</div><div class="week-strip">${week}</div>` +
-      `<div class="res-sec">今天 · 8月17日</div>` + RES.cal.slice(0, 2).map(calRow).join('') +
+      `<div class="res-sec">今天 · 8月20日</div>` + RES.cal.slice(0, 2).map(calRow).join('') +
       `<div class="res-sec">明天</div>` + calRow(RES.cal[2]);
   }
 }
@@ -2859,7 +2944,7 @@ function openSession(key) {
 function filePvBody(f) {
   if (f.kind === 'md') return `<div class="fpv-doc">
     <h2>竞品对比分析</h2>
-    <p class="fpv-dim">生成：云小助 · 血缘：本话题任务产出 · 8/17</p>
+    <p class="fpv-dim">生成：云小助 · 血缘：本话题任务产出 · 8/20</p>
     <h3>1. 结论摘要</h3>
     <p>三家竞品中，<b>A 家</b>协作能力最全但定价最高（¥98/席/月）；<b>B 家</b>移动端体验最佳，API 开放度中等；<b>C 家</b>以低价换市场，实时协作仅部分支持。</p>
     <h3>2. 能力矩阵</h3>
@@ -2962,12 +3047,12 @@ document.addEventListener('click', (e) => {
   const ap = e.target.closest('[data-apanel]');
   if (ap) { openAgentPanel(); return; }
 
-  /* v4：承诺板与裁决卡交互 */
-  const remind = e.target.closest('[data-remind]');
-  if (remind) {
-    COMMITS[+remind.dataset.remind].reminded = true;
+  /* v4：承诺板与裁决卡交互（v4.21：一键借身提醒已废——催办统一走拟稿+传送门+亲发，见 data-hurge） */
+  const blens = e.target.closest('[data-blens]');
+  if (blens) {
+    state.boardLens = blens.dataset.blens;
     renderTimeline();
-    toast('F-read 盯承诺：云小助将以「周明的助理（代周明）」名义私聊提醒张锐——观察与提醒，不代做（on-behalf-of）');
+    if (state.boardLens !== 'all') toast(state.boardLens === 'mine' ? '我欠的：你是执行者的承诺——验收人非你本人时行上显示责任锚' : '欠我的：等着向你交付的承诺——方向是账本的原生轴，透镜是本地视角不动存储');
     return;
   }
   const gh = e.target.closest('[data-goalhome]');
@@ -3323,17 +3408,19 @@ document.addEventListener('click', (e) => {
       const c = COMMITS.find(x => x.name === item.commit);
       c.nosignal = false; c.overdue = false; c.state = '待验收';
       c.receipt = '行为回执 · 返修数据分析.pdf（交付推断 · 张锐确认 · 刚刚）'; c.prod = [item.file];
-      toast('回执已回流登记场所：登记的听众看到出生，也看到交付（回程律）——承诺板/目标页同步「待验收」，验收卡已出');
+      /* v4.21 验收卡家族延伸适用人类交付回执：回执确认即在登记场所生成验收对象——终态自此可达 */
+      appendItems('prodgroup', [{ type: 'accept', id: 'ac-fanxiu', state: 'pending', commit: item.commit }]);
+      toast('回执已回流登记场所：登记的听众看到出生，也看到交付（回程律）——验收卡已出（就在下方），承诺板/目标页同步「待验收」');
     } else {
       toast('已标注不是交付：保守推断亮出可纠，宁空勿错——承诺保持「无信号」，不记错账');
     }
-    renderTimeline();
+    renderTimeline(); renderHead(); renderSidebar();
     return;
   }
   const chev = e.target.closest('[data-chev]');
   if (chev) {
     state.collapsed[chev.dataset.chev] = !state.collapsed[chev.dataset.chev];
-    renderSidebar();
+    if (chev.dataset.chev.startsWith('board:')) renderTimeline(); else renderSidebar();
     return;
   }
   const item = e.target.closest('[data-sess]');
