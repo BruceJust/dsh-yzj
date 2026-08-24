@@ -137,6 +137,16 @@ export function YzjBoard(props: BoardProps): ReactNode {
     板，正是 Viva Goals 那句验尸词说的「专程去喂的目的地」。
   */
   const [axis, setAxis] = useState<'all' | 'owed-to-me' | 'mine'>('all')
+  /*
+    折叠起来的目标组 (v4.21「组折叠 + 组头计数带异常语义」)。
+
+    **折叠是查看者对注意力的主权**——它和租约（系统替你修剪已终态的东西）是正交的两件
+    事：租约剪掉已经结束的，折叠收起一整个「还活着但今天不是我的事」的组。
+
+    折叠之后**组头的计数必须还在**：折叠组仍然可对账。一个折叠起来就什么都不说的组，
+    等于把一段账藏进抽屉——而板的定性就是账本的对账面。
+  */
+  const [shut, setShut] = useState<readonly string[]>([])
   const setLens = useCallback((next: Lens): void => {
     setBoardLens(next)
     setLensState(next)
@@ -515,7 +525,9 @@ export function YzjBoard(props: BoardProps): ReactNode {
     )
   }
 
-  const goalNode = (goal: BoardGoalWire): ReactNode => (
+  const goalNode = (goal: BoardGoalWire): ReactNode => {
+    const closed = shut.includes(goal.goalRef)
+    return (
     <div className={css.goalBlock} key={goal.goalRef}>
       {/*
         虚线框 = 真身在云之家，不在图上. The dashes are the claim: this row is a
@@ -523,6 +535,34 @@ export function YzjBoard(props: BoardProps): ReactNode {
         way to see the thing itself.
       */}
       <div className={css.goal}>
+        {/*
+          披露列在行的最左边，和侧栏**同位同行为**（同构复制原则）——同一个手势在两个
+          地方意思一样，人才不用为第二个地方重新学一遍。
+        */}
+        <button
+          type="button"
+          className={`${css.chev} ${closed ? css.chevClosed : ''}`}
+          aria-label={closed ? '展开这个目标组' : '折叠这个目标组'}
+          title={closed ? '展开' : '折叠——组头的计数会留下，折叠组仍然可对账'}
+          onClick={() => {
+            setShut(value => (
+              value.includes(goal.goalRef)
+                ? value.filter(ref => ref !== goal.goalRef)
+                : [...value, goal.goalRef]
+            ))
+          }}
+        >
+          <svg viewBox="0 0 10 10" width="9" height="9" aria-hidden="true">
+            <path
+              d="M2 3.5 5 6.5 8 3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
         <span className={css.goalTag}>目标</span>
         {/*
           放大 = 缩放语法的第四次复用 (v4.12):板 → 目标页。
@@ -646,23 +686,27 @@ export function YzjBoard(props: BoardProps): ReactNode {
           </button>
         )}
       </div>
-      {goal.criteria !== undefined && (
+      {/*
+        折叠收起的是**身体**，不是**账**：成功标准、执行清单、产出都收起来，而组头那一行
+        （计数与异常）留在上面。折叠组仍然可对账——这是折叠与「藏起来」的分界。
+      */}
+      {!closed && goal.criteria !== undefined && (
         <div className={css.criteria}>
           <span className={css.criteriaLabel}>怎么算完成</span>
           {goal.criteria}
         </div>
       )}
-      <div className={css.goalChildren}>
+      {!closed && <div className={css.goalChildren}>
         {goal.children.length === 0
           ? <div className={css.goalEmpty}>还没有工作挂在这个目标下。</div>
           : goal.children.filter(inAxis).map(child => rowNode(child, false, true))}
-      </div>
+      </div>}
       {/*
         产出 = 两跳派生归集（目标→承诺→工件）.
         Folded by default: the goal view answers "where does this stand" first,
         and a wall of artifacts would bury the signal it exists to show.
       */}
-      {goal.artifacts.length > 0 && (
+      {!closed && goal.artifacts.length > 0 && (
         <div className={css.drawer}>
           <button
             type="button"
@@ -711,9 +755,14 @@ export function YzjBoard(props: BoardProps): ReactNode {
           )}
         </div>
       )}
-      {goal.assessment !== undefined && reportNode(goal, goal.assessment)}
+      {/*
+        差距简报**折叠时也收起**：它是这个目标的身体，不是它的账。组头的计数已经
+        回答了「这个组现在什么样」。
+      */}
+      {!closed && goal.assessment !== undefined && reportNode(goal, goal.assessment)}
     </div>
-  )
+    )
+  }
 
 
   /**
