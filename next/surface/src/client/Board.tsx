@@ -32,6 +32,7 @@ import type {
 } from './rpc.ts'
 import { currentBoardLens, pushFrame, sendErrand, setBoardLens } from './store.ts'
 import { RoomPicker, type Portal } from './RoomPicker.tsx'
+import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
 import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
@@ -147,6 +148,19 @@ export function YzjBoard(props: BoardProps): ReactNode {
     等于把一段账藏进抽屉——而板的定性就是账本的对账面。
   */
   const [shut, setShut] = useState<readonly string[]>([])
+  /*
+    期中修理动词族**就近** (v4.21 第一档③)。
+
+    顺延/移交/合并此前只长在目标页上，于是**一条没挂目标的承诺，它的修理动词在整个
+    产品里都不可达**——它没有目标页可进，而板行上只有「移出」。你在板上看得见它，
+    却对它什么都做不了。
+
+    默认收起：行的常显只有四要素 + 三值信号（行信息层级），修理是**要的时候才亮出来**
+    的东西。颜色预算同理——它是灰阶的一颗小按钮，不跟异常抢注意力。
+  */
+  const [repair, setRepair] = useState<Repair | undefined>(undefined)
+  const [field, setField] = useState('')
+  const [field2, setField2] = useState('')
   const setLens = useCallback((next: Lens): void => {
     setBoardLens(next)
     setLensState(next)
@@ -286,6 +300,21 @@ export function YzjBoard(props: BoardProps): ReactNode {
     openSession(row.sessionId)
   }, [openSession])
 
+  /** 修理动词的统一收尾：说一句人话、刷新、把面板收起来。 */
+  const runRepair = useCallback((id: string, work: Promise<{ error?: string }>, done: string): void => {
+    setBusy(id)
+    void work.then((result) => {
+      setToast(result.error ?? done)
+      setBusy('')
+      if (result.error === undefined) {
+        setRepair(undefined)
+        setField('')
+        setField2('')
+        void refresh()
+      }
+    })
+  }, [refresh])
+
   /** 事后补挂: attach everything selected to one goal, in one motion. */
   const linkPicked = useCallback((goalRef: string): void => {
     if (picked.length === 0) return
@@ -419,6 +448,27 @@ export function YzjBoard(props: BoardProps): ReactNode {
             催一下
           </button>
         )}
+        {/*
+          修理动词**就近** (v4.21 第一档③)。
+
+          三个动词（顺延/移交/合并）此前只在目标页上，而没挂目标的承诺没有目标页——
+          于是它在整个产品里都修不了。收起来是因为行的常显只有四要素 + 三值信号；
+          灰阶是因为颜色预算只留给状态与异常。
+        */}
+        {row.status === 'open' && (
+          <button
+            type="button"
+            className={css.repairOpen}
+            title="顺延期限 / 移交他人 / 合并到另一条——改的都是当初说出口的话"
+            onClick={() => {
+              setRepair(current => (current?.row.id === row.id ? undefined : { kind: 'postpone', row }))
+              setField(row.due?.text ?? '')
+              setField2('')
+            }}
+          >
+            修理
+          </button>
+        )}
         {inGoal && row.status === 'open' && (
           <button
             type="button"
@@ -450,6 +500,39 @@ export function YzjBoard(props: BoardProps): ReactNode {
         )}
         {row.progress !== undefined && (
           <span className={css.progress} title={row.progress}>{row.progress}</span>
+        )}
+        {/*
+          三个动词并排在面板里，而不是三颗按钮排在行上：行的常显有预算，
+          而「顺延还是移交还是合并」是打开之后才需要分的岔路。
+        */}
+        {repair?.row.id === row.id && (
+          <div className={css.repairPanel}>
+            <div className={css.repairPick}>
+              {([['postpone', '顺延期限'], ['handoff', '移交'], ['merge', '合并']] as const)
+                .map(([kind, label]) => (
+                  <button
+                    type="button"
+                    key={kind}
+                    className={`${css.repairTab} ${repair.kind === kind ? css.repairTabOn : ''}`}
+                    onClick={() => { setRepair({ kind, row }); setField(kind === 'postpone' ? row.due?.text ?? '' : '') }}
+                  >
+                    {label}
+                  </button>
+                ))}
+            </div>
+            <RepairVerbs
+              repair={repair}
+              siblings={siblingsOf(row)}
+              inject={inject}
+              busy={busy !== ''}
+              field={field}
+              setField={setField}
+              field2={field2}
+              setField2={setField2}
+              close={() => { setRepair(undefined) }}
+              run={runRepair}
+            />
+          </div>
         )}
       </div>
     )
@@ -847,6 +930,17 @@ export function YzjBoard(props: BoardProps): ReactNode {
     目标组里同样生效——否则「我欠的」切过去，组里还躺着一堆别人的活。
   */
   const inAxis = (row: BoardRowWire): boolean => axis === 'all' || row.direction === axis
+
+  /*
+    可以合并进去的同伴。
+
+    **同组之内**：挂同一个目标的，或者同为「无归属」的。跨目标合并不在这里给——
+    两条服务于不同目标的承诺长得再像，合并它们也是一次改变归属的判断，不该藏在
+    一颗「合并」按钮后面。
+  */
+  const siblingsOf = (row: BoardRowWire): readonly BoardRowWire[] => (
+    view.rows.filter(one => one.id !== row.id && one.status === 'open' && one.goalRef === row.goalRef)
+  )
 
   return (
     <div className={`${tokens.tokens} ${css.board}`}>

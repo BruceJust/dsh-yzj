@@ -60,7 +60,8 @@
 .goalChildren { margin: 0 0 12px 18px; border-left: 2px solid #E4E9F1; padding-left: 10px; }
 
 .row {
-  display: flex; align-items: center; gap: 10px;
+  /* 修理面板整幅换行落在行下面（flex-basis:100%），所以这一行要允许换行。 */
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 10px 13px; margin-bottom: 8px;
   border: 1px solid var(--yzj-line); border-radius: 10px;
   background: var(--yzj-surface); box-shadow: var(--yzj-shadow);
@@ -484,3 +485,25 @@
 .chev svg { display: block; }
 .chev:hover { background: rgb(70 83 107 / 10%); color: var(--yzj-ink); }
 .chevClosed { transform: rotate(-90deg); }
+
+
+/*
+  修理动词就近 (v4.21 第一档③)：默认收起，灰阶。
+
+  行的常显有预算（四要素 + 三值信号），而颜色预算只留给状态与异常——修理是「要的
+  时候才亮出来」的东西，它不该和逾期抢同一眼。
+*/
+.repairOpen {
+  flex: none; font: inherit; font-size: 10.5px; color: var(--yzj-ink-3);
+  padding: 2px 9px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
+}
+.repairOpen:hover { border-color: var(--yzj-pub-line); color: var(--yzj-pub-deep); }
+.repairPanel { flex-basis: 100%; margin-top: 8px; }
+.repairPick { display: flex; gap: 6px; margin-bottom: 6px; }
+.repairTab {
+  font: inherit; font-size: 10.5px; color: var(--yzj-ink-2); cursor: pointer;
+  padding: 2px 10px; border-radius: 12px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
+}
+.repairTabOn { border-color: var(--yzj-pub); color: var(--yzj-pub-deep); background: var(--yzj-pub-tint); }

@@ -29,6 +29,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { BoardRowWire, GoalPageWire, SurfaceInject } from './rpc.ts'
 import { sendErrand } from './store.ts'
 import { RoomPicker, type Portal } from './RoomPicker.tsx'
+import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
 import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
@@ -59,11 +60,6 @@ function whenLabel(at: number): string {
 }
 
 /** 修理动词族里需要输入的那几个,共用一张就近的小表单。 */
-type Repair =
-  | { kind: 'postpone'; row: BoardRowWire }
-  | { kind: 'handoff'; row: BoardRowWire }
-  | { kind: 'merge'; row: BoardRowWire }
-
 export function YzjGoalPage(props: GoalPageProps): ReactNode {
   const { goalRef, goalName, inject, openSession, back } = props
   const [view, setView] = useState<GoalPageWire | undefined>(undefined)
@@ -178,105 +174,31 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
   /** 目标结束后还在跟的那些——级联的对象。 */
   const stillOpen = goal.children.filter(child => child.status === 'open')
 
-  const repairForm = (row: BoardRowWire): ReactNode => {
-    if (repair === undefined || repair.row.id !== row.id) return null
-    if (repair.kind === 'postpone') {
-      return (
-        <div className={css.repair}>
-          <span className={css.repairWhy}>
-            改的是当初说出口的那个日子——公事，别人看得见。
-            <b>「这条先别再烦我」是另一回事</b>，那只动你自己的计划，这套系统还没有那个闹钟。
-          </span>
-          <input
-            className={css.repairInput}
-            value={field}
-            placeholder="新的期限，例如 2026-09-05"
-            onChange={event => { setField(event.target.value) }}
-          />
-          <button
-            type="button"
-            className={css.repairGo}
-            disabled={field.trim() === '' || busy !== ''}
-            onClick={() => {
-              run(row.id, inject.postponeCommitment(row.id, field.trim()), `已把期限改到 ${field.trim()}。`)
-            }}
-          >
-            顺延期限
-          </button>
-          <button type="button" className={css.repairX} onClick={() => { setRepair(undefined) }}>取消</button>
-        </div>
+  /*
+    修理动词族已经搬到 `RepairVerbs.tsx` —— **板和目标页共用一份**。
+
+    搬的理由不是整洁：一条**没挂目标的承诺**没有目标页可进，于是它的顺延/移交/合并
+    在整个产品里都不可达（v4.21 第一档③）。板上要接同一套动词，而抄一份迟早会在
+    「顺延到底改的是谁的日子」这件事上和原件分道扬镳。
+  */
+  const repairForm = (row: BoardRowWire): ReactNode => (
+    repair === undefined || repair.row.id !== row.id
+      ? null
+      : (
+        <RepairVerbs
+          repair={repair}
+          siblings={goal.children}
+          inject={inject}
+          busy={busy !== ''}
+          field={field}
+          setField={setField}
+          field2={field2}
+          setField2={setField2}
+          close={() => { setRepair(undefined) }}
+          run={run}
+        />
       )
-    }
-    if (repair.kind === 'handoff') {
-      return (
-        <div className={css.repair}>
-          <span className={css.repairWhy}>
-            换人，不换承诺——出生边、听众、已有的回执都还在这一条上。
-            <b>新执行者还不知道</b>：改完图之后，得有人在场所里说出口（幽灵承诺禁令对移交同样成立）。
-          </span>
-          <input
-            className={css.repairInput}
-            value={field}
-            placeholder="新执行者的 openId"
-            onChange={event => { setField(event.target.value) }}
-          />
-          <input
-            className={css.repairInput}
-            value={field2}
-            placeholder="显示名（可空）"
-            onChange={event => { setField2(event.target.value) }}
-          />
-          <button
-            type="button"
-            className={css.repairGo}
-            disabled={field.trim() === '' || busy !== ''}
-            onClick={() => {
-              run(
-                row.id,
-                inject.handoffCommitment(row.id, field.trim(), field2.trim() === '' ? undefined : field2.trim()),
-                '已移交。记得去登记场所说一声——图改了不等于人知道了。',
-              )
-            }}
-          >
-            移交
-          </button>
-          <button type="button" className={css.repairX} onClick={() => { setRepair(undefined) }}>取消</button>
-        </div>
-      )
-    }
-    const others = goal.children.filter(child => child.id !== row.id && child.status === 'open')
-    return (
-      <div className={css.repair}>
-        <span className={css.repairWhy}>
-          两条登记其实是同一件事。<b>相似度分不该替人做这个判断</b>——两条听上去一样的，
-          可能是两个部门各自要一份。合并之后被合掉的这条不再被任何动词唤醒（墓碑律）。
-        </span>
-        {others.length === 0
-          ? <span className={css.repairWhy}>这个目标下没有别的在跟的承诺可以合并。</span>
-          : (
-            <select
-              className={css.repairInput}
-              value={field}
-              onChange={event => { setField(event.target.value) }}
-            >
-              <option value="">合并进哪一条…</option>
-              {others.map(other => (
-                <option key={other.id} value={other.id}>{other.what}</option>
-              ))}
-            </select>
-          )}
-        <button
-          type="button"
-          className={css.repairGo}
-          disabled={field === '' || busy !== ''}
-          onClick={() => { run(row.id, inject.mergeCommitment(row.id, field), '已合并。') }}
-        >
-          合并
-        </button>
-        <button type="button" className={css.repairX} onClick={() => { setRepair(undefined) }}>取消</button>
-      </div>
-    )
-  }
+  )
 
   /*
     环行 —— 每一行承诺带着自己的迷你闭环。
