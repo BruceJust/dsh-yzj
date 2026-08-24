@@ -97,8 +97,12 @@ export interface Errand {
    * 语境（在那个话题里登记的承诺从此继承它），**一场会不装载任何东西**。不分开
    * 的后果不是标签错了——是会的 id 会被当成 goalRef 写进 `goal-context`，然后那
    * 个话题里每一条新承诺都挂上一个根本不是目标的 URI，把目标图污染掉。
+   *
+   * `nudge` 是催办（v4.21 第一档①「催办统一」）：**只带一句拟好的稿**，不装载
+   * 任何语境。催不是委派，它不该让那个话题从此继承什么——它只是把人送到该说话的
+   * 地方，并且把话先起个头。
    */
-  readonly subject: 'goal' | 'event'
+  readonly subject: 'goal' | 'event' | 'nudge'
   readonly goalRef: string
   readonly goalName: string
   /** Where the words should go: 公 for delegation, 私 for an assessment. */

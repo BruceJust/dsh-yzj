@@ -250,7 +250,13 @@ export interface BoardRowWire {
   what: string
   executorKind: 'agent' | 'human'
   who: string
-  due?: string
+  /**
+   * 何时 —— **两层** (v4.21 时间透镜)。
+   *
+   * `text` 是当初说出口的那句话（真身），`ts` 是解析投影、可空。界面**只显示 text**：
+   * 把「下周初」渲染成一个具体日期，是拿我们的解析冒充他的承诺。`ts` 只参与排序。
+   */
+  due?: { text: string; ts?: number }
   overdue: boolean
   status: string
   goalRef?: string
@@ -428,7 +434,6 @@ export interface SurfaceInject {
   lightAsk(sessionId: string, text: string): Promise<{ answer?: string; error?: string }>
   forgetMemory(memoryId: string): Promise<boolean>
   /** Re-deliver a commitment card into the place it was registered in. */
-  remindCommitment(id: string): Promise<{ placeName?: string; error?: string }>
   /** The model actually in force, for the head chip. */
   model(): Promise<{ provider?: string; model?: string }>
   /** 群视图: the place's own thread with its topics laid over it. */
@@ -616,15 +621,6 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     },
     async model() {
       return await call<{ provider?: string; model?: string }>('model', {}) ?? {}
-    },
-    async remindCommitment(id) {
-      // The value carried a name and was thrown away, so the receipt said
-      // 「来源场所」 every time — a placeholder standing in for a fact we had.
-      const { value, error } = await write<{ placeKey: string; placeName?: string }>(
-        'commitment-remind', { id },
-      )
-      if (error !== undefined) return { error }
-      return value?.placeName === undefined ? {} : { placeName: value.placeName }
     },
     /*
       A card action is a WRITE, so it goes through the helper that keeps the

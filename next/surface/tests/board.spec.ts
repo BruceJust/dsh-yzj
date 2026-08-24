@@ -19,12 +19,13 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
+import { nudgeDraft, sinceText } from '../src/client/Board.tsx'
 import {
   assessmentCard, assessmentFamily, commitmentCard, commitmentFamily, eventFamily,
   goalCommitmentIdFor,
 } from '@yzj-next/objects'
 import { sendErrand, takeErrand } from '../src/client/store.ts'
-import { boardFrame, eventsToday, inboxView } from '../src/rpc.ts'
+import { boardFrame, bySignal, eventsToday, inboxView } from '../src/rpc.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const GOAL = 'https://yzj.example.com/doc/q3'
@@ -502,5 +503,117 @@ describe('传送门带的是什么', () => {
   it('目标那一路照旧', () => {
     sendErrand({ subject: 'goal', goalRef: GOAL, goalName: 'Q3 对账', voice: 'place' })
     expect(takeErrand()?.subject).toBe('goal')
+  })
+})
+
+
+/**
+ * 催办的拟稿 (v4.21 第一档①「催办统一」).
+ *
+ * 这颗按钮此前是**一键借身**：点一下，系统以操作者的名义把承诺卡重新投进那个群。省下
+ * 的是打字，付出的是「谁在说话」不再由说话的人决定——群里看到的是你在催，而你只点了
+ * 一颗按钮，甚至没看见催出去的是什么。换成拟稿之后，这段文字是**要被人看着发出去的**，
+ * 所以它得经得起看。
+ */
+describe('催办拟稿', () => {
+  it('带上当初那句原话 —— 催的是一条承诺，不是一个 id', () => {
+    const text = nudgeDraft({ what: '拉三家竞品各一页', due: { text: '本周内' }, overdue: false })
+    expect(text).toContain('拉三家竞品各一页')
+    // 「那件事怎么样了」要对方回头翻记录才知道问的是哪一件——那份翻找正是催办要消掉的。
+    expect(text).not.toBe('问一下这条现在到哪一步了')
+  })
+
+  it('期限用当初说的那句话，不改写成日期', () => {
+    /*
+      时间透镜两层规则：话语原文是真身，时间戳只是解析投影。把人说过的「下周初」改写成
+      一个具体日期再发给他，是拿我们的解析冒充他的承诺。
+    */
+    const text = nudgeDraft({ what: '出结论', due: { text: '下周初' }, overdue: false })
+    expect(text).toContain('下周初')
+  })
+
+  it('逾期了就说过了，没期限就不提期限', () => {
+    expect(nudgeDraft({ what: 'X', due: { text: '周五' }, overdue: true })).toContain('已经过了')
+    const none = nudgeDraft({ what: 'X', overdue: false })
+    expect(none).not.toContain('当时说的是')
+    expect(none).not.toContain('undefined')
+  })
+
+  it('不替人定调 —— 语气是发话人自己的事', () => {
+    /*
+      「请尽快」「麻烦了」是社交决策。拟稿只把事实摆上，剩下的留给他改——
+      这正是主权性摩擦该保留的那一部分。
+    */
+    const text = nudgeDraft({ what: 'X', due: { text: '周五' }, overdue: true })
+    for (const tone of ['请尽快', '麻烦', '辛苦', '催']) expect(text).not.toContain(tone)
+  })
+})
+
+
+/**
+ * 组内信号序 (v4.21)：**异常浮起，正常安静**。
+ *
+ * 板是账本的对账面，合法增量只有「对账排列 + 一跳指路 + 就近动词」——「3 分钟知道
+ * 哪里不对劲」这件事**由排列满足，不由聚合满足**（聚合归收件箱，板不设决断条）。
+ * 所以这个比较器不是排版偏好，它就是板的主要功能本身。
+ */
+describe('信号序', () => {
+  const NOW = 1_700_000_000_000
+  const row = (over: Partial<Record<string, unknown>>): never => ({
+    id: 'x', what: 'x', executorKind: 'human', who: '张锐', overdue: false,
+    status: 'open', remindable: false, signal: 'evidence', lastSignalAt: NOW,
+    inferredGoal: false, ...over,
+  }) as never
+
+  const order = (rows: unknown[]): string[] =>
+    [...rows as never[]].sort(bySignal(NOW)).map(r => (r as { id: string }).id)
+
+  it('逾期 > 无信号 > 过时 > 今日到期 > 在跑 > 终态', () => {
+    expect(order([
+      row({ id: 'done', status: 'closed' }),
+      row({ id: 'running' }),
+      row({ id: 'today', due: { text: '今天', ts: NOW + 3_600_000 } }),
+      row({ id: 'stale', signal: 'stale' }),
+      row({ id: 'silent', signal: 'silent' }),
+      row({ id: 'late', overdue: true }),
+    ])).toEqual(['late', 'silent', 'stale', 'today', 'running', 'done'])
+  })
+
+  it('无戳的行沉底，但不消失', () => {
+    /*
+      看不出时间不等于这件事不存在。它落到普通「在跑」档——排在今日到期之后，
+      但排在终态之前，而且**一定还在列表里**。
+    */
+    const ids = order([
+      row({ id: 'done', status: 'closed' }),
+      row({ id: 'vague', due: { text: '下周初' } }),
+      row({ id: 'today', due: { text: '今天', ts: NOW + 3_600_000 } }),
+    ])
+    expect(ids).toEqual(['today', 'vague', 'done'])
+    expect(ids).toContain('vague')
+  })
+
+  it('同档之内，账龄越老越靠前', () => {
+    // 账龄折进排序权重，不做独立结构。
+    expect(order([
+      row({ id: 'fresh', signal: 'silent', lastSignalAt: NOW - 1_000 }),
+      row({ id: 'old', signal: 'silent', lastSignalAt: NOW - 9_000_000 }),
+    ])).toEqual(['old', 'fresh'])
+  })
+
+  it('终态一律沉底 —— 板浮起的是正在滑掉的东西，不是一份完整档案', () => {
+    expect(order([
+      row({ id: 'settled-late', status: 'closed', overdue: true, signal: 'silent' }),
+      row({ id: 'open-fine' }),
+    ])).toEqual(['open-fine', 'settled-late'])
+  })
+})
+
+describe('账龄的人话', () => {
+  const NOW = 1_700_000_000_000
+  it('刻意只到天/小时 —— 精确的数字会让人以为它精确', () => {
+    expect(sinceText(NOW - 30 * 60_000, NOW)).toBe('刚刚')
+    expect(sinceText(NOW - 5 * 3_600_000, NOW)).toBe('5 小时')
+    expect(sinceText(NOW - 3 * 24 * 3_600_000, NOW)).toBe('3 天')
   })
 })

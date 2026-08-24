@@ -588,6 +588,61 @@ export interface InboxView {
  * 就可能在同一次渲染里对不上——差几毫秒不改变结论,但那条「一次渲染读一个
  * 现在」的注释就不再是真的,而注释一旦开始说谎就没人再信它。
  */
+/**
+ * 把「何时」拆成**真身 + 投影**两层 (v4.21 时间透镜)。
+ *
+ * `text` 是当初说出口的那句话，原样保留；`ts` 只在**真解析得出来**的时候才有。
+ * 「下周初」解析不出日期，那就没有 `ts`——而不是替他挑一个周一。把人说过的话改写成
+ * 一个他没承诺过的日期，是拿我们的解析冒充他的承诺；这一条和 `isOverdue` 里
+ * 「含糊的期限永远不算逾期」是同一条纪律的两面。
+ *
+ * 没有 `ts` 的行**沉底，但不消失**：看不出时间不等于这件事不存在。
+ */
+/**
+ * 组内**信号序** (v4.21)：异常浮起，正常安静。
+ *
+ * 板是**账本的对账面**，它的合法增量只有「对账排列 + 一跳指路 + 就近动词」——
+ * 「3 分钟知道哪里不对劲」这件事，**由排列满足，不由聚合满足**（聚合是收件箱的职责，
+ * 板上不设决断条）。所以这个比较器不是排版偏好，它就是板的主要功能本身。
+ *
+ * 方案给的序：待决 > 逾期 > 无信号/过时 > 运行 > 进行中 > 休眠 > 终态。这里落到能
+ * **精确推导**的那几档：
+ *
+ * - **逾期**：有真日期且已过（含糊的期限永远不算——见 `isOverdue`）；
+ * - **无信号**：登记之后再没有任何东西碰过它。「没消息」不等于「没问题」，一条人欠的
+ *   事登记完就没有下文，和一条有回执有产物的事，在「进行中」三个字底下长得一模一样；
+ * - **过时**：有过动静，但已经旧了；
+ * - **有证据**：正常在跑——它就该安静地待在下面；
+ * - **终态**：沉底。板要浮起的是**正在滑掉的东西**，不是做一份完整档案。
+ *
+ * **待决那一档没有实现**，不是忘了：它要一张「可应答对象 → 承诺」的反查索引，而图上
+ * 此刻没有（只有提案族携带 `commitmentId`）。而且待决本就归收件箱聚合——板上少这一档，
+ * 少的是排序精度，不是可达性。宁可少一档也不假装有：一个按猜测排出来的顺序，比一个
+ * 少一档的顺序更难发现错。
+ *
+ * 同档之内按**账龄**排（`lastSignalAt` 越旧越靠前）——账龄折进排序权重，不做独立结构。
+ * 无戳的行不因此消失，它只是没有「今日到期」这一层可参与。
+ */
+export function bySignal(now: number): (left: BoardRow, right: BoardRow) => number {
+  const tier = (row: BoardRow): number => {
+    if (row.status !== 'open') return 5
+    if (row.overdue) return 0
+    if (row.signal === 'silent') return 1
+    if (row.signal === 'stale') return 2
+    // 今日到期：有戳才谈得上，无戳的落到普通「运行」档而不是被顶上来。
+    if (row.due?.ts !== undefined && row.due.ts - now < DAY_MS && row.due.ts >= now) return 3
+    return 4
+  }
+  return (left, right) => tier(left) - tier(right) || left.lastSignalAt - right.lastSignalAt
+}
+
+const DAY_MS = 24 * 60 * 60_000
+
+function dueOf(due: string): { text: string; ts?: number } {
+  const parsed = Date.parse(due)
+  return Number.isFinite(parsed) ? { text: due, ts: parsed } : { text: due }
+}
+
 function isOverdue(due: string | undefined, now: number): boolean {
   if (due === undefined) return false
   const parsed = Date.parse(due)
@@ -614,7 +669,15 @@ export interface BoardRow {
   readonly what: string
   readonly executorKind: 'agent' | 'human'
   readonly who: string
-  readonly due?: string
+  /**
+   * 何时 —— **两层** (v4.21 时间透镜两层规则)。
+   *
+   * `text` 是**当初说出口的那句话**（「下周初」「本周内」），它是真身；`ts` 是我们把
+   * 它解析成时间戳的**投影**，解析不出来就没有这个字段。合成一个字符串的后果是：要么
+   * 把「下周初」硬解析成一个人没承诺过的日期（拿我们的解析冒充他的承诺），要么整条
+   * 失去可排序性。宁空勿错——**无戳的行沉底，但不消失**。
+   */
+  readonly due?: { readonly text: string; readonly ts?: number }
   readonly overdue: boolean
   readonly status: string
   readonly goalRef?: string
@@ -974,10 +1037,10 @@ export function boardFrame(ctx: Context): BoardView {
         ? asString(executor?.name) ?? asString(executor?.openId) ?? '某人'
         : 'agent',
       status,
+      ...(due === undefined || due.trim() === '' ? {} : { due: dueOf(due) }),
       overdue: status === 'open' && isOverdue(due, now),
       remindable: status === 'open' && (object.audience?.length ?? 0) > 0,
       inferredGoal: asString(state?.attachedVia) === 'inferred',
-      ...(due === undefined ? {} : { due }),
       ...(asString(state?.attachedVia) === undefined
         ? {}
         : { attachedVia: asString(state?.attachedVia) as string }),
@@ -990,10 +1053,7 @@ export function boardFrame(ctx: Context): BoardView {
       ...(topic === undefined ? {} : { sessionId: topic.sessionId, placeName: topic.groupName }),
     })
   }
-  // Overdue first, then open, then everything settled: the board exists to
-  // surface what is slipping, not to be a complete archive.
-  const rank = (row: BoardRow): number => (row.overdue ? 0 : row.status === 'open' ? 1 : 2)
-  const sorted = rows.sort((left, right) => rank(left) - rank(right))
+  const sorted = [...rows].sort(bySignal(now))
 
   /*
     Group by URI. A goal row and its children meet because they name the same
@@ -1806,37 +1866,18 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             })
             return { ok: true, value: { memoryId } }
           }
-          case 'commitment-remind': {
-            /**
-             * 催一下 — re-deliver the commitment card into the place it was
-             * registered in.
-             *
-             * Deliberately not a new "reminder" message type: the card carries
-             * its own answer path, so the person being nudged can close it
-             * where they read it. A nudge with no way to reply is how a board
-             * turns into a place where the operator relays status by hand.
-             */
-            const id = stringField(payload, 'id')
-            if (id === undefined) return failure('commitment-remind requires id')
-            const object = scoped.yzjGraph.rawObject('commitment', id)
-            if (object === undefined) return failure(`找不到承诺 ${id}`)
-            const placeKey = object.audience?.[0]
-            if (placeKey === undefined) {
-              return failure('这条承诺没有记录场所，无法催办（登记时不在任何群里）')
-            }
-            const channel = scoped.get('yzjCardChannel')
-            if (channel === undefined) return failure('云之家通道未就绪')
-            const projection = await channel.deliverToPlace({ kind: 'commitment', id }, placeKey)
-            if (projection === undefined) return failure('催办投递失败')
-            // The receipt has always had a slot for the place's NAME and has
-            // never been given one, so it said 「来源场所」 every single time.
-            const named = (scoped.get('yzjTopics')?.tree() ?? [])
-              .find(entry => entry.place.placeKey === placeKey)?.place.groupName
-            return {
-              ok: true,
-              value: { placeKey, ...(named === undefined ? {} : { placeName: named }) },
-            }
-          }
+          /*
+            `commitment-remind` **已废** (v4.21 第一档①「催办统一」).
+
+            它做的事是：点一下，系统以操作者的名义把承诺卡重新投进登记它的那个群。
+            省下的是打字，付出的是**「谁在说话」不再由说话的人决定**——群里的人看到
+            的是你在催，而你只点了一颗按钮，甚至没看见催出去的是什么。B4 禁令挡的正是
+            这个，而它在板上一直没有兑现。
+
+            替代品不在这里，在板上：催 = **拟稿 + 传送门 + 你自己发**（`Board.tsx`
+            的 `nudge`）。端点整个删掉而不是留着不调用——留着的路早晚会被再接上，而
+            那时它看起来会像一次「复用」。
+          */
           case 'board':
             return { ok: true, value: boardFrame(scoped) }
           /**

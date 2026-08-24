@@ -82,6 +82,44 @@ const VIA_LABEL: Record<string, string> = {
   chip: '从 chip 选定',
 }
 
+/**
+ * 「多久没动了」的人话。
+ *
+ * 刻意**粗**：只到天/小时。板上要回答的是「这条是不是在滑掉」，而不是精确到分钟——
+ * 一个精确的数字会让人以为它精确到那个程度，而 `lastSignalAt` 本身是「最后一次有东西
+ * 碰过这个对象」的近似。
+ */
+export function sinceText(at: number, now: number = Date.now()): string {
+  const minutes = Math.max(0, Math.round((now - at) / 60_000))
+  if (minutes < 60) return '刚刚'
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${String(hours)} 小时`
+  return `${String(Math.floor(hours / 24))} 天`
+}
+
+/**
+ * 催办的拟稿 —— 一句**能直接发出去**的话，不是一个模板。
+ *
+ * 三条讲究，每一条都对着一种「拟了等于没拟」：
+ *
+ * - **带上原话**：催的是当初那句承诺，不是一个 id。「那件事怎么样了」对方要回头翻记录
+ *   才知道你在问哪一件——那份翻找就是催办本该消掉的损耗。
+ * - **期限用原话语**（`due` 是当初说的那句「下周初」，不是解析出来的时间戳）：把人说过
+ *   的话改写成日期，是拿我们的解析冒充他的承诺（时间透镜两层规则，v4.21）。
+ * - **不替人定调**：不写「请尽快」「麻烦了」。语气是社交决策，是发话的人自己的事——
+ *   拟稿只把事实摆上，剩下的留给他改。
+ */
+export function nudgeDraft(
+  row: { what: string; due?: { text: string }; overdue: boolean },
+): string {
+  // 用 `text` 而不是解析出的日期：催的是他说过的那句话。
+  const said = row.due?.text?.trim() ?? ''
+  const when = said === ''
+    ? ''
+    : row.overdue ? `（当时说的是${said}，已经过了）` : `（当时说的是${said}）`
+  return `问一下「${row.what}」这条现在到哪一步了${when}`
+}
+
 export function YzjBoard(props: BoardProps): ReactNode {
   const { inject, openSession, back, fromSessionId, restoreScroll } = props
   const [view, setView] = useState<BoardViewWire>(EMPTY)
@@ -199,14 +237,36 @@ export function YzjBoard(props: BoardProps): ReactNode {
     return () => { clearTimeout(timer) }
   }, [toast])
 
-  const remind = useCallback((row: BoardRowWire): void => {
-    setBusy(row.id)
-    void inject.remindCommitment(row.id).then((result) => {
-      setToast(result.error ?? `已把这张承诺卡重新投到 ${result.placeName ?? '来源场所'}，对方可以直接在那里回「完成」。`)
-      setBusy('')
-      void refresh()
+  /**
+   * 催一下 —— **拟稿 + 传送门 + 你自己发** (v4.21 第一档①「催办统一」).
+   *
+   * 此前这颗按钮是**一键借身**：点一下，系统就用操作者的名义把承诺卡重新投进那个群。
+   * 省下的是打字，付出的是**「谁在说话」这件事不再由说话的人决定**——群里的人看到的
+   * 是你在催，而你只是点了一颗按钮，甚至没看见催出去的是什么。这正是 B4 禁令要挡的
+   * 事，而它在板上一直没有兑现。
+   *
+   * 换成传送门：把你送到那条承诺呼吸的地方，composer 里已经有一句拟好的稿——**改不改、
+   * 发不发、怎么措辞，都还是你的**。摩擦再分配的原话：损耗性摩擦（找到那个会话、把事情
+   * 重述一遍）归零；主权性摩擦（以我的名义向同事施压）保留并显式设计。
+   *
+   * 催不装载语境（`subject: 'nudge'`）：催不是委派，那个话题不该因为你催了一句就从此
+   * 继承什么。
+   */
+  const nudge = useCallback((row: BoardRowWire): void => {
+    if (row.sessionId === undefined) {
+      // 没有可说话的地方就直说。一颗点下去没有下文的按钮，比没有按钮更坏。
+      setToast('这条承诺没有可跳进去的会话——它登记时不在任何话题里。请自己去跟对方说一声。')
+      return
+    }
+    sendErrand({
+      subject: 'nudge',
+      goalRef: row.goalRef ?? '',
+      goalName: row.what,
+      voice: 'place',
+      seed: nudgeDraft(row),
     })
-  }, [inject, refresh])
+    openSession(row.sessionId)
+  }, [openSession])
 
   /** 事后补挂: attach everything selected to one goal, in one motion. */
   const linkPicked = useCallback((goalRef: string): void => {
@@ -286,13 +346,32 @@ export function YzjBoard(props: BoardProps): ReactNode {
         <span className={`${css.due} ${row.overdue ? css.dueOverdue : ''}`}>
           {row.status !== 'open'
             ? row.status === 'closed' ? '已完成' : row.status === 'voided' ? '已作废' : '已合并'
-            : row.due ?? '无期限'}
+            : row.due?.text ?? '无期限'}
         </span>
         {/*
           幽灵承诺禁令的失败模式：落库了，但没呼吸。
           It is louder than 逾期 on purpose — an overdue commitment is late,
           this one is work somebody has been assigned and does not know about.
         */}
+        {/*
+          三值信号下板 (v4.21 第一档④)。
+
+          `signal` 这个字段在线上躺了很久，而板一个字都没显——于是「登记完就再没有
+          下文」的那条，和一条有回执有产物的事，在同一行里长得一模一样。**「没消息」
+          不等于「没问题」**，这句话此前只在目标页兑现，第一缩放级看不见。
+
+          终态行不显：一件已经结束的事，「多久没动静」不是一个问题。
+        */}
+        {row.status === 'open' && row.signal !== 'evidence' && (
+          <span
+            className={row.signal === 'silent' ? css.sigSilent : css.sigStale}
+            title={row.signal === 'silent'
+              ? '登记之后再没有任何东西碰过它——没消息不等于没问题'
+              : `最后一次有动静是${sinceText(row.lastSignalAt)}，之后就没动了`}
+          >
+            {row.signal === 'silent' ? '无信号' : `${sinceText(row.lastSignalAt)}没动`}
+          </span>
+        )}
         {row.notified === 'failed' && (
           <span className={css.unnotified} title="登记落库了，但这条消息没能发到执行者所在的会话——对方并不知道。请自己去说一声。">
             未通知 · 请亲发
@@ -303,8 +382,8 @@ export function YzjBoard(props: BoardProps): ReactNode {
             type="button"
             className={css.remind}
             disabled={busy === row.id}
-            title="把这张承诺卡重新投到它被登记的那个群，对方可以就地回执"
-            onClick={() => { remind(row) }}
+            title="跳到这条承诺所在的会话，composer 里会有一句拟好的稿——改不改、发不发，都还是你的"
+            onClick={() => { nudge(row) }}
           >
             催一下
           </button>

@@ -302,7 +302,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
           {/* 来源 = 出生边:这条承诺是怎么长出来的。 */}
           <span>来源：{row.placeName ?? '未记录场所'}{row.attachedVia === undefined ? '' : ` · ${row.attachedVia}`}</span>
           <span>{row.who}</span>
-          {row.due !== undefined && <span className={row.overdue ? css.due : ''}>{row.due}{row.overdue && ' · 逾期'}</span>}
+          {row.due !== undefined && <span className={row.overdue ? css.due : ''}>{row.due.text}{row.overdue && ' · 逾期'}</span>}
           {row.notified === 'failed' && (
             <span className={css.ghost} title="登记落库了，但没能告诉本人——幽灵承诺禁令要求这件事永不静默">
               未通知
@@ -341,7 +341,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 type="button"
                 className={css.act}
                 onClick={() => {
-                  const seed = `${row.who}，「${row.what}」这条现在什么情况？${row.due === undefined ? '' : `原定 ${row.due}。`}`
+                  // 原话语，不是解析出的日期——否则拟稿会把他没承诺过的日子写进催办里。
+                  const seed = `${row.who}，「${row.what}」这条现在什么情况？${row.due === undefined ? '' : `原定 ${row.due.text}。`}`
                   if (row.sessionId === undefined) {
                     // 登记时不在任何话题里——那就还是得问一句去哪儿说。
                     ask({
@@ -355,7 +356,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               >
                 催（去说）
               </button>
-              <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'postpone', row }); setField(row.due ?? '') }}>顺延期限</button>
+              <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'postpone', row }); setField(row.due?.text ?? '') }}>顺延期限</button>
               <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'handoff', row }); setField(''); setField2('') }}>移交</button>
               <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'merge', row }); setField('') }}>合并</button>
               <button
@@ -403,7 +404,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             <span className={css.goalTag}>目标</span>
             <span className={css.headerName}>{name}</span>
             {goal.row?.who !== undefined && <span className={css.owner}>owner {goal.row.who}</span>}
-            {goal.row?.due !== undefined && <span className={css.owner}>{goal.row.due}</span>}
+            {goal.row?.due !== undefined && <span className={css.owner}>{goal.row.due.text}</span>}
             <span className={css.manual}>终态：人工验收</span>
           </div>
           <div className={css.headerMeta}>
