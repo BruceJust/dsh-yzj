@@ -350,6 +350,21 @@ export function buildStream(
   }
   const audibilityOf = (text: string, when: number): Audibility => {
     if (!inPlace) return 'private'
+    /*
+      **空窗口不是「很久以前」。**
+
+      下面那条「比窗口更早就维持旧假定」是给历史留的余地。可一条消息都没读到时，
+      「更早」对**每一条**都成立——包括刚生成的那一条。真装配里就是这么翻车的：
+      在一个群话题里按下 ⚡ 拆解，agent 私下答了一句，这一列写着「已发到 dsh-2 ·
+      群内所有人可见」，而那句话在群里根本不存在。
+
+      两个方向的谎代价不对称。说成公的：人以为同事看见了（没有），而且**「↗ 发到
+      群里」那颗键只长在私的行上**——于是那句话再也送不出去，是一条死路。说成私的：
+      最坏是多发一遍，而那一下是人自己按的。何况这里连证据的影子都没有——一条消息
+      都没读到的时候，「群内所有人可见」是一句关于房间的断言，而我们对这个房间一无
+      所知（看不了 ≠ 发过）。
+    */
+    if (messages.length === 0) return 'private'
     // Older than anything we can see: keep the historical assumption.
     if (!Number.isFinite(earliestMessage) || when < earliestMessage) return 'public'
     return spokenHere.has(openingOf(text)) ? 'public' : 'private'

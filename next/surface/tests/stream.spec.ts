@@ -881,7 +881,14 @@ describe('who could hear this', () => {
   it('marks the agent\'s answer public and the operator\'s typing private', () => {
     const rows = buildStream(
       [said(1, '改一下价格', 1_000), answered(2, '改好了', 2_000)],
-      [],
+      /*
+        公要有**证据**。
+
+        这个夹具原本是空的，而空窗口曾经让每一条答案都读成「已发到群里」——这条
+        用例当时也就是靠那个漏洞绿的。它想锁的是**轨道分得清谁在说话**，不是
+        「凭空判公」，所以现在给 agent 那句一份真实的投递痕迹。
+      */
+      [message({ own: true, time: 1_500, content: '改好了' })],
       [],
     )
     const rendered = rows.filter(row => row.kind === 'said')
@@ -1366,6 +1373,22 @@ describe('「已发到群里」得有证据（实测缺陷）', () => {
 
   it('never claims delivery in a local session', () => {
     expect(voiceOf(buildStream(nodes, [], [], [], false))).toBe('private')
+  })
+
+  /*
+    **空窗口不是「很久以前」**（真装配里抓到的）。
+
+    「比窗口更早就维持旧假定」这一条，在一条消息都没读到时会套到**全部**答案头上——
+    包括刚刚生成的那一条。现场：在一个群话题里按下 ⚡ 拆解，agent 私下答了一句，
+    这一列写着「已发到 dsh-2 · 群内所有人可见」，而那句话在群里根本不存在。
+
+    两个方向的谎都要看代价：说成公的，人以为同事看见了（没有），而且**「↗ 发到群里」
+    那颗键只长在私的行上**——于是那句话再也送不出去，是一条死路。说成私的，最坏是
+    多发一遍，而那一下是人自己按的。何况这里根本没有证据：一条消息都没读到的时候，
+    「群里所有人可见」是一句关于房间的断言，而我们对这个房间一无所知。
+  */
+  it('claims nothing when the window holds no messages at all', () => {
+    expect(voiceOf(buildStream(nodes, [], [], [], true))).toBe('private')
   })
 })
 

@@ -61,12 +61,33 @@ function viewerOf(binding: TurnBinding | undefined): GraphViewer {
 }
 
 /**
+ * 提案投给**问的那个人**，不是投给这个会话所在的房间。
+ *
+ * 「跟着对话走」这条原则本身没错，错在读成了「跟着 binding 的 placeKey 走」：一个
+ * 群话题的会话**同时**装着两种发问——群里有人 @ 了一句（`messageId` 在），和操作者
+ * 在同一个话题的**私语侧**说了一句（没有 `messageId`，桌面上的 ⚡ 拆解就是这一种）。
+ * 两者的 binding 只差这一个字段，而后果差得很远：
+ *
+ * - 群里问的：提案投回群里，全组都能纠正它——这是对的，问题本来就是当众问的。
+ * - 桌面私下问的：提案投回**操作者本人**。规格写死过——「**该 turn 落点 = 操作者私语
+ *   域**，提案确认前不是承诺、更不是公开话语」。一份还没人裁决的清单出现在群里，等于
+ *   替操作者当众提了个议案；而**确认之前它不存在**，出现在群里的那份就是一次幽灵承诺
+ *   的预告片。
+ *
+ * 卡本身两边都答得了：桌面的卡列表按 `topicKey` 取对象，跟这份文本投影投到哪儿无关。
+ * 所以这一改只把**文本投影**从群里挪回私聊，desktop 上那张卡一动不动。
+ */
+function proposalGoesTo(binding: TurnBinding | undefined): string | undefined {
+  // `messageId` = 这一回合是被一条群消息叫起来的。没有它就是桌面自发的回合。
+  return binding?.messageId === undefined ? undefined : binding.placeKey
+}
+
+/**
  * Deliver a freshly written proposal to where it was asked for.
  *
  * A proposal read in a group is a proposal the whole group can correct, and one
  * read in a DM stays between two people — which is the right default depends
- * entirely on where the conversation was, so it follows the conversation rather
- * than picking.
+ * entirely on where the ASKING happened (see `proposalGoesTo`).
  */
 async function show(ctx: Context, kind: string, id: string, placeKey: string | undefined): Promise<boolean> {
   const channel = ctx.get('yzjCardChannel')
@@ -176,7 +197,7 @@ export function applyGoalTools(ctx: Context): () => void {
         },
         actor: { kind: 'agent' },
       })
-      const shown = await show(ctx, 'proposal', proposalId, binding?.placeKey)
+      const shown = await show(ctx, 'proposal', proposalId, proposalGoesTo(binding))
       return {
         content: [
           `已把目标提案递上去：「${args.what}」。`,
@@ -272,7 +293,7 @@ export function applyGoalTools(ctx: Context): () => void {
         },
         actor: { kind: 'agent' },
       })
-      const shown = await show(ctx, 'proposal', proposalId, binding?.placeKey)
+      const shown = await show(ctx, 'proposal', proposalId, proposalGoesTo(binding))
       return {
         content: [
           `已递上 ${String(items.length)} 条拆解提案，等人逐条裁决。`,

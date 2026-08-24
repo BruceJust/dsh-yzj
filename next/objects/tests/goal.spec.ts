@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { YzjGraph, type GraphActor } from '@yzj-next/graph'
+import { YzjGraph, asRecord, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import { commitmentCard } from '../src/commitment/card.ts'
 import { commitmentFamily, processFamily, type CommitmentState } from '../src/commitment/family.ts'
@@ -69,6 +69,13 @@ let delivered: { kind: string; id: string; placeKey: string }[]
  * one channel anyway.
  */
 let channel: 'ok' | 'refuses' | 'throws'
+/**
+ * 这一回合是**谁问的**。
+ *
+ * 默认是群里有人 @ 起来的（`messageId` 在），因为绝大多数既有用例都在那条线上。
+ * 桌面自发的回合把它去掉——两者的 binding 只差这一个字段，而提案投给谁全看它。
+ */
+let binding: TurnBinding
 let proposalCard: ReturnType<typeof createProposalCard>
 
 const EXEC = { agent: { session: { id: 'session-1' } } }
@@ -108,7 +115,8 @@ beforeEach(async () => {
   cards.register(proposalCard)
   cards.register(assessmentCard)
   cards.setDesktopActor(OPERATOR)
-  ctx.provide('yzjTurns', { bindingFor: () => BINDING, defaultBinding: () => BINDING })
+  binding = BINDING
+  ctx.provide('yzjTurns', { bindingFor: () => binding, defaultBinding: () => binding })
   delivered = []
   channel = 'ok'
   /*
@@ -465,6 +473,42 @@ describe('提案的出口', () => {
       items: [{ what: '还想往下派' }],
     }, EXEC) as { content: string }
     expect(result.content).toContain('已经结束')
+  })
+})
+
+describe('提案投给问的那个人', () => {
+  /*
+    一个群话题的会话**同时**装着两种发问：群里 @ 的那一句，和操作者在同一个话题私语侧
+    说的那一句（桌面上的 ⚡ 拆解就是后者）。两者的 binding 只差 `messageId`。
+
+    落到群里的后果不是「多发了一条消息」：**确认之前那份清单不存在**——它既不是承诺，
+    也不该是公开话语。让它出现在群里，等于替操作者当众提了个还没人裁决的议案，也正是
+    幽灵承诺的预告片。
+  */
+  it('sends a group-triggered proposal back into the group', async () => {
+    await openBreakdown()
+    expect(delivered.filter(one => one.kind === 'proposal').map(one => one.placeKey))
+      .toEqual(['yzj-group-g1'])
+  })
+
+  it('keeps a desk-triggered proposal in the operator\'s own chat', async () => {
+    // 桌面自发：没有把这一回合叫起来的那条群消息。
+    binding = { ...BINDING, messageId: undefined }
+    await openBreakdown()
+    expect(delivered.filter(one => one.kind === 'proposal').map(one => one.placeKey))
+      .toEqual(['operator'])
+  })
+
+  /*
+    卡本身两边都答得了——桌面的卡列表按 `topicKey` 取**对象**，跟文本投影投到哪儿
+    无关。所以这一改只把投影从群里挪回私聊，desktop 上那张卡一动不动：挂起态仍然
+    是图数据，DM 只是兜底的那一份。
+  */
+  it('still files the desk proposal under the topic, so the desk can answer it', async () => {
+    binding = { ...BINDING, messageId: undefined }
+    const proposalId = await openBreakdown()
+    const object = graph.object(VIEWER, 'proposal', proposalId)
+    expect(asRecord(object?.state)?.topicKey).toBe('yzj-topic-1')
   })
 })
 
