@@ -32,10 +32,30 @@
   font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; flex: none;
   background: #EEF2F9; color: #3D4C66; border: 1px solid #C9D4E6;
 }
+/*
+  目标名是**一个可以点进去的标题**，不是一枚按钮。
+
+  这条规则原先只写了排版，没做原生按钮重置——而它是个 `<button>`，于是浏览器把
+  自己那套画了上去：`buttonface` 灰底、`2px outset` 立体边框、文字居中、连
+  `cursor: pointer` 都没有。配上 `flex: 1`，一个「v37目标-17733」被摊成一条
+  623px 宽的灰色色块，短标题浮在正中。这一屋子每一个可点的东西都显式写了
+  `font: inherit / cursor / border / background`，只有它漏了。
+
+  顺带把伸缩改掉：**点击区域要正好是标题本身**。`flex: 1` 会让这个按钮吃掉整行余量，
+  于是标题右边那一大片空白也是可点的——点一下空处就跳进目标页，是会吓人一跳的那种
+  意外。改成不生长、只收缩，余量交给后面那一组元数据用 `margin-left: auto` 顶到右边。
+  `max-width` 是给那种把 URL 当名字的目标留的：它该被省略号截断，而不是把动词挤出行外。
+*/
 .goalName {
-  flex: 1; min-width: 0; font-size: 12.5px; color: var(--yzj-ink);
+  flex: 0 1 auto; min-width: 0; max-width: 52%; text-align: left;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--yzj-ink);
+  padding: 2px 0; cursor: pointer;
+  border: none; background: none; appearance: none;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.goalName:hover { color: var(--yzj-pub-deep); text-decoration: underline; }
+/* 标题不再生长，余量就得有人接——紧随其后的那一格把右边这一组顶到行尾。 */
+.goalName + * { margin-left: auto; }
 .goalSig { flex: none; font-size: 10.5px; color: var(--yzj-ink-2); }
 .goalChildren { margin: 0 0 12px 18px; border-left: 2px solid #E4E9F1; padding-left: 10px; }
 
