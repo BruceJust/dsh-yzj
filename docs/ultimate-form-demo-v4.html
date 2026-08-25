@@ -1812,7 +1812,7 @@ function commitRow(c) {
     <span style="flex:1;min-width:0"><span style="font-size:12.8px;font-weight:650">${c.name}</span>${dueChip}${gchip}
     <span style="display:block;font-size:10.5px;color:var(--ink-3)">${c.who}${anchor} · <span class="cm-due${c.overdue ? ' overdue' : ''}">${c.due}</span> · ${signalOf(c)}</span></span>
     <span style="display:flex;gap:5px;align-items:center;flex:none">${!c.owner && c.overdue && !c.receipt ? `<button class="btn" data-hurge="1" style="font-size:10px;padding:1px 8px">催</button>` : ''}${!c.owner ? `<button class="btn" data-hmenu="${c.name}" style="font-size:10px;padding:1px 8px" title="修理动词族：催/顺延/作废/合并/移交/收养/摘除——主权=该承诺的验收人（v4.22）">⋯</button>` : ''}
-    ${stateH}</span></div>`;
+    ${stateH}</span></div>` + repairStrip(c);
 }
 /* v4.12 共享动作卡（委派传送门/拆解提案/差距简报）——承诺板与目标枢纽同一套（数据同一查询，割裂不存在） */
 function goalActionCards(gid) {
@@ -1941,7 +1941,7 @@ function hubCommitRow(c) {
       <span style="display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px">来源：${c.linked || '—'} · ${c.who}${c.owner && c.owner !== viewerName ? ` · <span style="color:#8A6D3B">验收：${c.owner}</span>` : ''} · ${c.due} · ${signal}</span>
       <span style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;align-items:center">${sessLink} ${prod}
         ${iOwn ? `<button class="btn" data-hmenu="${c.name}" style="font-size:10px;padding:1px 8px" title="修理动词主权 = 该承诺的验收人（无主权不渲染——非灰化不禁言）">⋯ 修理</button>` : ''}</span>
-    </span>${stateH}</div>`;
+    </span>${stateH}</div>` + (state.viewAs === 'me' || (c.owner && c.owner === ({ zhangrui: '张锐', zhenghui: '郑慧', wangchao: '王超' }[state.viewAs])) ? repairStrip(c) : '');
 }
 function renderGoalHub() {
   const gid = state.hubGoal || 'g1';
@@ -1983,7 +1983,8 @@ function renderGoalHub() {
     <div style="display:flex;gap:6px;margin-top:9px;align-items:center;flex-wrap:wrap">
       ${isMe ? `<button class="btn" data-goaldeleg="${gid}" style="font-size:10.5px;padding:2px 9px">＋ 委派</button>
       <button class="btn" data-goaldecomp="${gid}" style="font-size:10.5px;padding:2px 9px">⚡ 拆解</button>
-      <button class="btn" data-goaleval="${gid}" style="font-size:10.5px;padding:2px 9px">✓ 评估</button>` : ''}
+      <button class="btn" data-goaleval="${gid}" style="font-size:10.5px;padding:2px 9px">✓ 评估</button>
+      <button class="btn" data-gvoid="${gid}" style="font-size:10.5px;padding:2px 9px${state.gvoidArm ? ';color:var(--red)' : ''}" title="目标终态 = 已验收/已作废——作废是人签发终态：子承诺显形级联（既有裁决保持，不自动作废）、回写真身">${state.gvoidArm ? '确认作废目标？' : '作废目标…'}</button>` : ''}
       ${isZR ? `<button class="btn" data-zrdecomp="1" style="font-size:10.5px;padding:2px 9px" title="递归闭包：你对自己的承诺就是再委派的 owner——拆下去的子承诺验收人是你">⚡ 把我的活拆下去</button>` : ''}
       <button class="btn" data-goalask="${gid}" style="font-size:10.5px;padding:2px 9px" title="传送门：跳私语会话，问答落私语日志（非页面旁路）· 按提问者可见域作答">🔍 问这个目标</button>
       ${isMe ? '' : `<span style="font-size:10px;color:var(--ink-3)" title="v4.22 裁决②：无主权的动词不渲染（非灰化、不禁言）">·· owner 动词未渲染（动词主权 = 节点主权派生）</span>`}
@@ -2019,7 +2020,7 @@ function renderGoalHub() {
       <span style="display:flex;gap:5px;flex:none">
         <button class="btn" data-hurge="1" style="font-size:10.5px;padding:2px 9px">催</button>
         <button class="btn" data-hdelay="1" style="font-size:10.5px;padding:2px 9px">顺延期限</button>
-        <button class="btn" data-hvoid="返修数据分析" style="font-size:10.5px;padding:2px 9px">作废</button></span></div>`;
+        <button class="btn" data-hvoid="返修数据分析" style="font-size:10.5px;padding:2px 9px${state.voidConfirm === '返修数据分析' ? ';color:var(--red)' : ''}">${state.voidConfirm === '返修数据分析' ? '确认作废？' : '作废…'}</button></span></div>`;
   return `<div class="board">
     ${header}
     ${goalActionCards(gid)}
@@ -2038,7 +2039,7 @@ function lensPass(c) {
   return true;
 }
 function renderBoard() {
-  const goalBlocks = Object.entries(GOALS).map(([gid, g]) => {
+  const goalBlocks = Object.entries(GOALS).filter(([, g]) => !g.void).map(([gid, g]) => {
     const kids = COMMITS.filter(c => c.goal === gid && !c.void && lensPass(c))
       .sort((a, b) => rankOf(a) - rankOf(b));
     const counts = {};
@@ -3086,6 +3087,7 @@ function openSession(key) {
   state.preview = null;
   state.quote = null; /* 锚不跨会话残留：落点真身随所在框重算 */
   state.chips = []; state.delegCtx = null; renderChips(); /* 语境 chip 同律：不跨会话残留——否则传送门语境会越境粘上别处话语（§1.6） */
+  state.repairFor = null; state.voidConfirm = null; state.gvoidArm = false; /* 修理条与确认门同律：不跨会话残留 */
   state.filePreview = null; renderFilePv(); /* 预览随语境走：切会话即收 */
   renderSidebar(); renderHead(); renderTimeline(); refreshVoiceAvail(); renderRight();
 }
@@ -3460,17 +3462,74 @@ document.addEventListener('click', (e) => {
     toast('顺延期限 = 公域事实：经确认流回写 + ack 公示（与「顺延提醒」分立——那是你的私事）');
     return;
   }
+  /* v4.23+ 作废确认门：不可逆终态两段式（一键作废与一键验收同罪——决策 #57） */
   const hvoid = e.target.closest('[data-hvoid]');
   if (hvoid) {
-    const c = COMMITS.find(x => x.name === hvoid.dataset.hvoid);
+    const name = hvoid.dataset.hvoid;
+    if (state.voidConfirm !== name) {
+      state.voidConfirm = name;
+      renderTimeline();
+      toast('作废是不可逆的人签发终态——再点一次确认（确认门 = 写操作的摩擦片）');
+      return;
+    }
+    const c = COMMITS.find(x => x.name === name);
     if (c) c.void = true;
-    renderTimeline();
-    toast('作废 = 人签发的终态：级联等待对象、回写真身（生与死的「死」）——不留僵尸行');
+    state.voidConfirm = null;
+    renderTimeline(); renderHead(); renderSidebar();
+    toast('作废 = 人签发的终态：级联等待对象、回写真身（生与死的「死」）——不留僵尸行，档案经归档可达');
     return;
   }
+  /* v4.23+ 决策 #57：⋯ 从占位升为可执行动词条——既可见又可动 */
   const hmenu = e.target.closest('[data-hmenu]');
   if (hmenu) {
-    toast('修理动词族（目标的中年）：催 / 顺延期限 / 顺延提醒 / 作废 / 合并（两人做重）/ 移交（/handoff，含离职断链）/ 收养（/link 把无归属拉进来）/ 摘除（/unlink——与收养对称的减法，v4.22）——全部走传送门，话语在会话里说；主权 = 该承诺的验收人');
+    state.repairFor = state.repairFor === hmenu.dataset.hmenu ? null : hmenu.dataset.hmenu;
+    state.voidConfirm = null;
+    renderTimeline();
+    return;
+  }
+  const rback = e.target.closest('[data-rback]');
+  if (rback) { state.repairFor = null; state.voidConfirm = null; renderTimeline(); return; }
+  const rdelay = e.target.closest('[data-rdelay]');
+  if (rdelay) {
+    const c = COMMITS.find(x => x.name === rdelay.dataset.rdelay);
+    if (c) { c.overdue = false; c.due = '顺延至下周五'; c.state = c.state === '待验收' ? c.state : '已顺延'; c.dueT = 'soon'; }
+    state.repairFor = null;
+    renderTimeline(); renderHead(); renderSidebar();
+    toast('顺延期限 = 公域事实：经确认流回写 + ack 公示（与「顺延提醒」分立——那是你的私事）');
+    return;
+  }
+  const rvoid = e.target.closest('[data-rvoid]');
+  if (rvoid) { state.voidConfirm = rvoid.dataset.rvoid; renderTimeline(); return; }
+  const rvoidok = e.target.closest('[data-rvoidok]');
+  if (rvoidok) {
+    const c = COMMITS.find(x => x.name === rvoidok.dataset.rvoidok);
+    if (c) c.void = true;
+    state.repairFor = null; state.voidConfirm = null;
+    renderTimeline(); renderHead(); renderSidebar();
+    toast('作废 = 人签发的终态：级联等待对象、回写真身（生与死的「死」）——不留僵尸行，档案经归档可达');
+    return;
+  }
+  const rmove = e.target.closest('[data-rmove]');
+  if (rmove) {
+    toast('移交 = /handoff 传送门：选新执行者与场所 → 跨场所移交 + 脱密背景包（工件链接 + 验收标准 + 决议摘要随包走，私语不迁移）——话语在会话里说');
+    return;
+  }
+  const runlink = e.target.closest('[data-runlink]');
+  if (runlink) {
+    const c = COMMITS.find(x => x.name === runlink.dataset.runlink);
+    if (c) { c.goal = undefined; c.linked = '已摘除（/unlink）· 回无归属组'; }
+    state.repairFor = null;
+    renderTimeline();
+    toast('摘除 = /unlink：承诺不死，回无归属组——与收养对称的减法（owner 对子图边界的加减法成对，v4.22）');
+    return;
+  }
+  const radopt = e.target.closest('[data-radopt]');
+  if (radopt) {
+    const c = COMMITS.find(x => x.name === radopt.dataset.radopt);
+    if (c) { c.goal = 'g1'; c.linked = '/link 收养 · 事后挂接（第三时刻）'; }
+    state.repairFor = null;
+    renderTimeline();
+    toast('收养 = /link：无归属承诺挂进目标（挂接三时刻之三：事后）——ack 公示可纠，宁空勿错');
     return;
   }
   /* v4.23 提案演进：重提话语 = 第四应答类——新一轮替代旧卡（superseded 吸收态），剩余域细拆、挂起跨轮存续 */
@@ -3487,6 +3546,27 @@ document.addEventListener('click', (e) => {
     state.decompRound = 2;
     renderTimeline();
     toast('重提话语 = 第四应答类：新一轮已替代旧卡（superseded 留档带血缘）——已落库项是承诺不受影响，挂起项跨轮存续，剩余域细拆重递（DM 兜底已重推新对象）');
+    return;
+  }
+  /* v4.23+ 目标级作废（决策 #57）：两段式确认——子承诺显形级联、既有裁决保持、回写真身 */
+  const gvoid = e.target.closest('[data-gvoid]');
+  if (gvoid) {
+    const gid = gvoid.dataset.gvoid;
+    if (!state.gvoidArm) {
+      state.gvoidArm = true;
+      renderTimeline();
+      toast(`作废目标 = 人签发终态：${COMMITS.filter(c => c.goal === gid && !c.void).length} 条子承诺将显形级联（既有裁决保持，不自动作废——半途而废的目标不再变僵尸）、回写真身——再点一次确认`);
+      return;
+    }
+    state.gvoidArm = false;
+    if (gid === 'g1') {
+      toast('演示保护：g1 是 demo 主线数据不真作废——真实语义：目标转已作废终态、板组退场、档案与真身经归档可达。立一个新目标可体验完整作废');
+      renderTimeline();
+      return;
+    }
+    GOALS[gid].void = true;
+    openSession('board');
+    toast('目标已作废：人签发终态 · 板组退场 · 子承诺显形级联（各自裁决保持）· 真身回写「已作废」——档案经归档可达');
     return;
   }
   /* v4.9 入口A①：目标行「＋ 委派」= 传送门（选执行者与场所 → 跳会话带目标 chip） */
