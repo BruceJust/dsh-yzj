@@ -1448,6 +1448,18 @@ export interface GoalPageView {
   readonly retired: boolean
   /** 目标的作废/验收理由,如果记了。 */
   readonly closedNote?: string
+  /**
+   * **我的切片** —— 一页 N 个查看者 N 种渲染的落点 (v4.22 参与者视角).
+   *
+   * 语义成文：**我执行的 ∪ 我委派的**（方向轴那两册在 hub 切片下的同构）。这一条容易
+   * 被实现成「我执行的」一册——那会让一个把整个目标拆下去、自己一件不做的 owner 打开
+   * 页面看见一个空切片，而那一屏上每一件事都是他的事。
+   *
+   * 它是**排列**，不是过滤：切片里的行照旧留在执行清单里（这一页的合法增量只有决断
+   * 落座、一跳导航、就近动词，多一个筛子就是多一个要维护的视图）。置顶来自**切片律**，
+   * 不来自决断层——逾期对任何视角都不是可应答对象。
+   */
+  readonly mySlice: readonly string[]
 }
 
 
@@ -1488,6 +1500,20 @@ export function goalPageFrame(ctx: Context, goalRef: string): GoalPageView | und
     .flatMap(place => place.topics)
     .filter(item => sessions.has(item.sessionId) && item.demand !== undefined)
 
+  /*
+    我的切片 = 我执行的 ∪ 我委派的。
+
+    两册合一，而不是两个独立的筛子：一条我委派、又恰好我自己执行的活，在一屏上只该
+    出现一次。方向轴那边同一个事实拆成两册是因为**那里在问方向**；这里问的是「哪些
+    行与我有关」，答案是并集。
+  */
+  const me = asString((ctx.yzjCards.desktopActor() as { openId?: string }).openId)
+  const mySlice = me === undefined
+    ? []
+    : goal.children
+      .filter(child => child.direction === 'mine' || child.direction === 'owed-to-me')
+      .map(child => child.id)
+
   const open = goal.children.filter(child => child.status === 'open')
   const pulse: GoalPulse = goal.children.length === 0
     ? 'idle'
@@ -1499,6 +1525,7 @@ export function goalPageFrame(ctx: Context, goalRef: string): GoalPageView | und
     decisions,
     pulse,
     retired,
+    mySlice,
     ...(goal.lastActivityAt === undefined
       ? {}
       : { staleDays: daysSince(goal.lastActivityAt, Date.now()) }),

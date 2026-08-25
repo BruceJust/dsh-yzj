@@ -286,3 +286,98 @@ describe('决断层是过滤投影，不是复制列表', () => {
     expect(decisions.some(item => item.preview.includes('差距简报'))).toBe(false)
   })
 })
+
+/**
+ * **查看者样本律** —— 样本律第三条 (v4.22 裁决④).
+ *
+ * 出生故事律的第一条对偶是空状态样本，第三条是**查看者**：凡按可见域/主权渲染的视图，
+ * fixture 必含**四席位**并对每席跑渲染断言。理由写在走查结论里——「N 人 N 渲染」只造
+ * 一个查看者的 demo 就是**采样偏差的视角版**（v4.22 走查实证：此前 demo 只造了 1.5 人）。
+ *
+ * 四席位：owner（签发它的人）／执行者（干活的人）／跨域执行者（干活但看不到正文的人）／
+ * 旁观者（既不欠也不被欠，但看得见）。
+ */
+describe('四席位：一页 N 个查看者 N 种渲染', () => {
+  const SEATS = {
+    owner: 'op-1',
+    executor: 'u-li',
+    crossDomain: 'u-zhang',
+    bystander: 'u-wang',
+  } as const
+
+  /** 一个目标，两条活：owner 委派给李婷、张锐各一条，王磊只是看得见。 */
+  async function department(): Promise<void> {
+    await goal()
+    for (const [id, what, openId, name] of [
+      ['c-li', '统一模板', 'u-li', '李婷'],
+      ['c-zhang', '对账脚本', 'u-zhang', '张锐'],
+    ] as const) {
+      await graph.append({
+        type: 'commitment/opened',
+        data: {
+          commitmentId: id,
+          what,
+          executor: { kind: 'human', openId, name },
+          sourceAnchor: `yzj:${id}`,
+          topicKey: 'tk-1',
+          parentGoalRef: GOAL,
+        },
+        actor: OPERATOR,
+      })
+    }
+  }
+
+  const asSeat = (openId: string): void => {
+    ctx.yzjCards.setDesktopActor({ kind: 'operator', openId })
+  }
+
+  it('owner 席：三条都在切片里 —— 我委派的也算我的', async () => {
+    await department()
+    asSeat(SEATS.owner)
+    const view = goalPageFrame(ctx, GOAL)
+    /*
+      **这一条最容易实现错。** 把切片实现成「我执行的」一册，一个把整个目标拆下去、
+      自己一件不做的 owner 打开页面会看见一个空切片——而那一屏上每一件事都是他的事。
+    */
+    expect(view?.mySlice.sort()).toEqual(['c-li', 'c-zhang'])
+  })
+
+  it('执行者席：只有自己那一条在切片里', async () => {
+    await department()
+    asSeat(SEATS.executor)
+    expect(goalPageFrame(ctx, GOAL)?.mySlice).toEqual(['c-li'])
+  })
+
+  it('跨域执行者席：也只有自己那一条', async () => {
+    await department()
+    asSeat(SEATS.crossDomain)
+    expect(goalPageFrame(ctx, GOAL)?.mySlice).toEqual(['c-zhang'])
+  })
+
+  /*
+    **旁观者的切片是空的，而页面不是空的。**
+
+    既不欠也不被欠是一种真实关系（板 = 可见域的并集，组织透明是特性不是缺陷）。切片空
+    不该让这一页看起来像坏了——所以执行清单照旧有三行，只是没有哪一行需要顶到前面。
+  */
+  it('旁观者席：切片是空的，但执行清单一条不少', async () => {
+    await department()
+    asSeat(SEATS.bystander)
+    const view = goalPageFrame(ctx, GOAL)
+    expect(view?.mySlice).toEqual([])
+    expect(view?.goal.children).toHaveLength(2)
+  })
+
+  /*
+    切片是**排列**不是过滤：每一席看到的行数一样多，不一样的只是哪些被顶到前面。
+    多一个筛子就是多一个要维护的视图，而这一页的合法增量里没有那一条。
+  */
+  it('四席看到的行数一样多 —— 切片只改顺序，不改事实', async () => {
+    await department()
+    const counts = Object.values(SEATS).map((openId) => {
+      asSeat(openId)
+      return goalPageFrame(ctx, GOAL)?.goal.children.length
+    })
+    expect(counts).toEqual([2, 2, 2, 2])
+  })
+})

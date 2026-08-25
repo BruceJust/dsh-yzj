@@ -194,7 +194,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
     )
   }
 
-  const { goal, decisions, pulse, staleDays, retired } = view
+  const { goal, decisions, pulse, staleDays, retired, mySlice } = view
   const name = goal.row?.what ?? goalName
   const href = safeHref(goalRef)
 
@@ -657,7 +657,26 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 {pulse === 'stalled' && <><b>停摆</b> · 底下的事都在等别人，没有一条有新证据</>}
                 {pulse === 'idle' && <>空转</>}
               </div>
-              {goal.children.map(loopRow)}
+              {/*
+                **我的切片置顶** —— 一页 N 个查看者 N 种渲染 (v4.22 参与者视角).
+
+                切片 = **我执行的 ∪ 我委派的**（两册合一：一条我委派、又恰好我自己执行
+                的活，在一屏上只该出现一次）。置顶来自**切片律**，不来自决断层——逾期对
+                任何视角都不是可应答对象，它是信号，动词就近长在行上。
+
+                这是**排列，不是过滤**：切片之外的行一条不少地留在下面。这一页的合法
+                增量只有决断落座、一跳导航、就近动词，多一个筛子就是多一个要维护的视图；
+                而「另有 N 条你没看」那种装饰是明拒条款点名过的。
+              */}
+              {mySlice.length > 0 && mySlice.length < goal.children.length && (
+                <div className={css.sliceNote}>
+                  下面这 {mySlice.length} 条与你有关（你执行的、或你委派出去的），先摆在前面。
+                </div>
+              )}
+              {[
+                ...goal.children.filter(child => mySlice.includes(child.id)),
+                ...goal.children.filter(child => !mySlice.includes(child.id)),
+              ].map(loopRow)}
             </>
           )}
 

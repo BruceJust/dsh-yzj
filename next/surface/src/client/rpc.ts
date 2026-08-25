@@ -368,6 +368,14 @@ export interface GoalPageWire {
   pulse: GoalPulseWire
   staleDays?: number
   retired: boolean
+  /**
+   * **我的切片** = 我执行的 ∪ 我委派的 (v4.22 参与者视角).
+   *
+   * 一页 N 个查看者 N 种渲染的落点。是**排列**不是过滤：切片里的行照旧留在执行清单
+   * 里，只是被顶到前面——这一页的合法增量只有决断落座、一跳导航、就近动词，多一个
+   * 筛子就是多一个要维护的视图。
+   */
+  mySlice: string[]
 }
 
 export interface BoardViewWire {

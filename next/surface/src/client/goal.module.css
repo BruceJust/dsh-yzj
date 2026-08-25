@@ -416,3 +416,10 @@
   line-height: 1.9;
   color: var(--yzj-ink-3);
 }
+
+/* 我的切片：置顶是排列不是过滤——说一句为什么它们在前面，剩下的一条不少在下面 */
+.sliceNote {
+  margin: 2px 0 8px; padding: 6px 11px; border-radius: 8px;
+  background: var(--yzj-paper); color: var(--yzj-ink-2);
+  font-size: 11px; line-height: 1.6;
+}
