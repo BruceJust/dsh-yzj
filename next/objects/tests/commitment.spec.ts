@@ -572,3 +572,55 @@ describe('作废/顺延/移交：话语兜底', () => {
     expect(stateOf('c4').due).toBeUndefined()
   })
 })
+
+/**
+ * 谁能按这张卡上的哪一颗 —— **验收权借得到，隐私主权借不到**。
+ *
+ * 这一组是自审时补的，而它差点没被补上：委派者一落到实处（`delegatedBy` 现在真的有值
+ * 了），`ownsCommitment` 那条「老数据放行」的分支就不再触发——于是**过去靠一个空字段
+ * 撑着的每一条权限都要重新回答一遍**。回答错的方向有两个，这一组把它们分开钉住。
+ */
+describe('卡上的主权边界', () => {
+  const card = (): { actions: readonly { id: string; allowedActors?: (actor: { openId?: string }, state: CommitmentState) => boolean }[] } =>
+    createCommitmentCard(ctx) as never
+  const may = (id: string, openId: string, state: Partial<CommitmentState>): boolean => {
+    const action = card().actions.find(one => one.id === id)
+    if (action?.allowedActors === undefined) throw new Error(`没有这颗按钮：${id}`)
+    return action.allowedActors({ openId }, { executor: { kind: 'agent' }, ...state } as CommitmentState)
+  }
+
+  beforeEach(() => { cards.setDesktopActor({ kind: 'operator', openId: 'op-me' }) })
+
+  it('委派者能验收', () => {
+    expect(may('accept', 'op-a', { delegatedBy: 'op-a' })).toBe(true)
+  })
+
+  /*
+    §5.2 的 ∪ 操作者。此前它从来没被真的实现过——空字段替它挡着。委派者一有值，一条
+    同事委派的活，操作者就会在自己的桌面上按不动。
+  */
+  it('跑这台桌面的人也能验收', () => {
+    expect(may('accept', 'op-me', { delegatedBy: 'op-a' })).toBe(true)
+  })
+
+  it('路人按不动', () => {
+    expect(may('accept', 'op-x', { delegatedBy: 'op-a' })).toBe(false)
+    expect(may('reject', 'op-x', { delegatedBy: 'op-a' })).toBe(false)
+  })
+
+  /*
+    **另一个方向**：公示是 owner 的隐私主权，不是可借的权限。让操作者能替同事把一条
+    私下登记的活写进全组可读的目标文档，是一次真泄漏——而它只差一次「顺手统一」。
+  */
+  it('公示/不公示只归 owner —— 操作者那一半在这里不适用', () => {
+    const open = { delegatedBy: 'op-a', status: 'open' as const, parentGoalRef: 'https://y/doc/q3' }
+    expect(may('publish', 'op-a', open)).toBe(true)
+    expect(may('publish', 'op-me', open)).toBe(false)
+    expect(may('unpublish', 'op-me', open)).toBe(false)
+  })
+
+  it('老数据没有委派者时仍然放行 —— 一条谁都动不了的承诺更坏', () => {
+    expect(may('accept', 'op-x', {})).toBe(true)
+  })
+})
+

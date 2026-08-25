@@ -16,12 +16,13 @@ import { goalCommitmentIdFor } from '../goal/family.ts'
 import { isSettled, ownsCommitment, type CommitmentState } from './family.ts'
 
 /**
- * 谁能验收这份交付 —— **委派者 ∪ 操作者**（§5.2）。
+ * 这条归谁管 —— 委派者那一半（v4.22 裁决②：与修理动词族、三个 CTA **同一个谓词**）。
  *
- * 验收自己委派的活是主权本义，所以它问的就是「这条归谁管」——和修理动词族、三个 CTA
- * 是**同一个谓词**（v4.22 裁决②：渲染过滤与执行校验共用单一事实源）。这里曾经自己抄
- * 了一份一模一样的实现；两份一样的判断迟早在某一次「要不要放宽老数据」上分道扬镳，
- * 而分开之后界面与端点就会各说各话——那正是主权法则最不能出的那种错。
+ * 这里曾经自己抄了一份一模一样的实现；两份一样的判断迟早在某一次「要不要放宽老数据」
+ * 上分道扬镳，而分开之后界面与端点就会各说各话——那正是主权法则最不能出的那种错。
+ *
+ * 验收权还有 ∪ **操作者** 那一半（§5.2），它在工厂里（`mayAnswer`）：要问「谁是这台
+ * 桌面的操作者」得有 ctx。**这一半刻意不进 `claimIsAcceptance`**，理由见那里。
  */
 const mayAccept = ownsCommitment
 
@@ -33,6 +34,13 @@ const mayAccept = ownsCommitment
  * 是审批疲劳的教科书样本。
  */
 export function claimIsAcceptance(openId: string | undefined, state: CommitmentState): boolean {
+  /*
+    **只认委派者那一半，不认操作者那一半。**
+
+    「主张即验收」省的是同一个主权时刻的第二次点击。而操作者对一条**别人委派给他的**
+    活，两个身份是分开的：他是执行者，验收权是借 §5.2 那一条来的。让这两件事在这里合流
+    等于「我自己说做完了，于是自动算验收过了」——委派者一次都没看过。省一次点击不值这个。
+  */
   return mayAccept(openId, state) && state.executor.kind === 'human'
     && state.executor.openId === openId
 }
@@ -93,6 +101,24 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
     return [`承 ${name ?? ref}${guess}`]
   }
 
+  /**
+   * 谁能答这张卡 —— **委派者 ∪ 操作者**（§5.2）。
+   *
+   * 委派者那一半是主权本义。操作者那一半此前是**靠一个空字段撑着的**：会话路径上
+   * `delegatedBy` 一直没人写，于是 `ownsCommitment` 的「老数据放行」分支让所有人都能
+   * 按——既包含了操作者，也包含了不该包含的每一个人。委派者一落到实处，那个分支就不
+   * 再触发，而 ∪ 操作者 这一半从来没被真的实现过：一条同事委派的活，操作者会在自己的
+   * 桌面上按不动。
+   *
+   * 「操作者」不需要新字段：跑这台桌面的那个人**就是**这台桌面的 actor。（注意
+   * `actor.kind === 'operator'` 判不出来——群里每个人的动作都记成 operator kind。）
+   */
+  const mayAnswer = (openId: string | undefined, state: CommitmentState): boolean => {
+    if (openId === undefined) return false
+    if (mayAccept(openId, state)) return true
+    return openId === asString((ctx.yzjCards.desktopActor() as { openId?: string }).openId)
+  }
+
   /** ack 上那一行：这条边会不会被写进目标文档，以及怎么改。 */
   const projectionLine = (state: CommitmentState, placeKey?: string): string[] => {
     const ref = state.parentGoalRef
@@ -138,7 +164,7 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
       label: '验收',
       style: 'primary',
       keywords: ['验收', '收下了', '可以', 'accept'],
-      allowedActors: (actor, state) => mayAccept(actor.openId, state),
+      allowedActors: (actor, state) => mayAnswer(actor.openId, state),
       available: state => state.status === 'open' && state.delivery !== undefined,
     },
     {
@@ -153,7 +179,7 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
       style: 'danger',
       keywords: ['打回', '拒收', '不行', '返工'],
       needsInput: true,
-      allowedActors: (actor, state) => mayAccept(actor.openId, state),
+      allowedActors: (actor, state) => mayAnswer(actor.openId, state),
       available: state => state.status === 'open' && state.delivery !== undefined,
     },
     {
@@ -165,6 +191,10 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
         本来就不是一次主权时刻：默认已经生效了，这里只是改主意。
 
         主权归 owner：把不把自己委派的这件事说给全组听，是他的隐私主权。
+      */
+      /*
+        主权归 owner，**操作者那一半不适用**：验收权借得到，隐私主权借不到。把不把
+        同事私下登记的这件事说给全组听，不是「跑这台桌面的人」能替他决定的。
       */
       id: 'publish',
       label: '写进目标文档',
