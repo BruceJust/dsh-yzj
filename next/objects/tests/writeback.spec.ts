@@ -180,6 +180,14 @@ async function child(id = 'c1', extra: Record<string, unknown> = {}): Promise<vo
       parentGoalRef: GOAL,
       executor: { kind: 'human', openId: 'p-9', name: '张锐' },
       sourceAnchor: 'yzj:m-1',
+      /*
+        常态是**在群里说出口的**那一种登记：听众集合就是那个群。
+
+        这个夹具此前不带听众集合，于是整族用例都跑在「最私密的那一档」上——而回写
+        当时对听众一视同仁，所以没人看得出来。v4.22 裁决③ 之后，不带听众集合的边
+        不再投影，夹具必须说出它到底是哪一种边（默认那一种，就是群里登记的）。
+      */
+      audience: ['yzj-group-g1'],
       ...extra,
     },
     actor: OPERATOR,
@@ -350,6 +358,8 @@ describe('那份文档是全组在读的', () => {
       data: {
         commitmentId: 'c-x', what: '一件事', parentGoalRef: 'https://example.com/plan',
         executor: { kind: 'human', openId: 'p-9' }, sourceAnchor: 'b',
+        // 群里登记的——这一条要测的是「真身不是知识库文档」，不是私隐那一关。
+        audience: ['yzj-group-g1'],
       },
       actor: OPERATOR,
     })
@@ -695,5 +705,78 @@ describe('补账只补上线之后的', () => {
     await settle()
     expect(graph.rawEvents(['goal/writeback-began'])).toHaveLength(1)
     expect(inserts).toHaveLength(1)
+  })
+})
+
+/**
+ * 私下登记的边，**默认不投影进全组可读的真身** (v4.22 裁决③).
+ *
+ * 两条已冻结的定律在这儿撞上了：承诺继承登记话语的听众集合（§1.6），而同一条边的两个
+ * 听众要覆盖它的一生（回写律）。裁决是：**是否把这条边投影进全组可读的真身 = owner 的
+ * 隐私主权**，私下登记的边默认不投影明细。
+ *
+ * 撞之前的实现是「凡挂了目标的子承诺一律写」——于是一条在私聊里登记的活，它的事由、
+ * 执行者、期限会**原样出现在一份全组打开就能读的文档里**，而登记它的时候在场的只有
+ * 两个人。这一族的错法本来就比平常贵一档，这一种是最贵的：泄漏收不回来。
+ *
+ * 「不投影」是**什么都不写**，不是写一行「某条私下的活」——隐藏物的计数就是泄漏
+ * （不设匿名占位行，v4.22）。
+ */
+describe('私下登记的边不进全组可读的真身', () => {
+  it('群里登记的照写', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await child('c1', { audience: ['yzj-group-g1'] })
+    await settle(landed(writebackIdFor(GOAL, 'c1', 'born')))
+    expect(inserts).toHaveLength(1)
+  })
+
+  it('私聊里登记的一个字都不写', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await child('c2', { audience: ['yzj-dm-u9'] })
+    await settle()
+    expect(inserts).toHaveLength(0)
+    // 也不留一行占位——隐藏物的计数就是泄漏。
+    expect(JSON.stringify(inserts)).not.toContain('拉三家竞品')
+  })
+
+  /*
+    **没有听众集合 = 只有操作者看得见**（`audienceAllows`：audience 缺席时任何场所
+    viewer 都读不到它）。往一份全组在读的文档里贴它，是把最私密的那一档直接公开。
+  */
+  it('没记听众集合的，按最私密处理', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    // 不走夹具：这一条要的正是**没有** audience 这个键，而夹具默认带着它。
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c3',
+        what: '只有操作者看得见的一件事',
+        parentGoalRef: GOAL,
+        executor: { kind: 'human', openId: 'p-9', name: '张锐' },
+        sourceAnchor: 'yzj:m-9',
+      },
+      actor: OPERATOR,
+    })
+    await settle()
+    expect(inserts).toHaveLength(0)
+  })
+
+  /*
+    终态跟着出生走：一条从没在文档里出现过的活，突然冒出一行「已完成」，组里看到的是
+    一件他们从没见过被登记的事完成了——「只报死不报生」那一条错法的私隐版本。
+  */
+  it('没投影过的边，终态也不写', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await child('c4', { audience: ['yzj-dm-u9'] })
+    await settle()
+    await graph.append({
+      type: 'commitment/closed', data: { commitmentId: 'c4', cause: 'accepted' }, actor: OPERATOR,
+    })
+    await settle()
+    expect(inserts).toHaveLength(0)
   })
 })

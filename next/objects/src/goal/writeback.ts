@@ -377,10 +377,39 @@ export function applyGoalWriteback(ctx: Context): () => void {
     return status === 'open' ? 'born' : 'settled'
   }
 
+  /*
+    **私下登记的边默认不投影明细** (v4.22 裁决③).
+
+    两条已冻结的定律在这儿撞上：承诺继承登记话语的听众集合（§1.6），而同一条边的两个
+    听众要覆盖它的一生（回写律）。裁决把优先级定死了——**是否把这条边投影进全组可读的
+    真身，是 owner 的隐私主权**。
+
+    此前这里写的是「凡挂了目标的子承诺一律写」：一条在私聊里登记的活，它的事由、执行者、
+    期限会**原样出现在一份全组打开就能读的文档里**，而登记它的时候在场的只有两个人。
+    这一族的错法本来就比平常贵一档，这一种最贵：泄漏收不回来。
+
+    判据是**正着问的**：听众里有没有一个群。不是「是不是私聊」——`audience` 缺席时
+    `audienceAllows` 让任何场所 viewer 都读不到它，那是**最私密**的一档，而反着问会
+    把它当成「不确定」放行。
+  */
+  const inGroup = (audience: readonly string[] | undefined): boolean => (
+    // `yzj-group-` / `yzj-dm-` 的出处是通道的 `placeKeyFor`；这一层只读它的形状。
+    audience?.some(place => place.startsWith('yzj-group-')) === true
+  )
+
   const consider = async (commitmentId: string): Promise<void> => {
-    const state = asRecord(ctx.yzjGraph.rawObject('commitment', commitmentId)?.state)
+    const object = ctx.yzjGraph.rawObject('commitment', commitmentId)
+    const state = asRecord(object?.state)
     const goalRef = asString(state?.parentGoalRef as never)
     if (goalRef === undefined || goalRef === '') return
+    /*
+      听众集合读的是**对象上那一份**（图自己用来判可见的那一份），不是 state 里抄的
+      副本：判「谁看得见」的事实只能有一个来源，否则迟早出现「图说看不见、回写说看得见」。
+
+      终态跟着出生走，是因为下面那句「死了就补生」：没投影过的边不该突然冒出一行
+      「已完成」——组里看到的会是一件他们从没见过被登记的事完成了。
+    */
+    if (!inGroup(object?.audience)) return
     const moment = momentOf(state)
     if (moment === undefined) return
     /*
