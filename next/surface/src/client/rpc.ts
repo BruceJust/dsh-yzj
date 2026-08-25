@@ -425,7 +425,14 @@ export interface SurfaceInject {
   declareGoal(input: {
     what: string
     goalRef: string
-    owner?: string
+    /**
+     * 目标的 owner —— **一个可核对的人，不是一个名字**。
+     *
+     * 留空 = 我（由端点从桌面身份读，客户端不替它编）。填了人就必须是从通讯录里
+     * **选中**的那一位：名字当 id 用，通讯录里五位李婷就成了同一个人。
+     */
+    ownerOpenId?: string
+    ownerName?: string
     due?: string
     /** 怎么算完成——磨目标磨出来的那句，也是日后差距简报的比对基准。 */
     criteria?: string

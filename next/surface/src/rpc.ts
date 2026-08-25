@@ -2331,10 +2331,51 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
           case 'declare-goal': {
             const what = stringField(payload, 'what')
             const goalRef = stringField(payload, 'goalRef')
-            const owner = stringField(payload, 'owner')
             if (what === undefined || goalRef === undefined) {
               return failure('立目标需要目标名和真身链接')
             }
+            /*
+              **owner 是一个人，不是一个字符串** —— 一次 id 伪造的修复。
+
+              这里此前是 `openId: owner ?? 'op-1', name: owner ?? '我'`：owner 框里
+              是自由文本，于是**填进去的名字直接当了 openId**，而留空时 owner 变成
+              一个凭空的 `'op-1'`。两个后果都不是排版问题：
+
+              - 留空 = 我，界面是这么写的，而记下来的执行者是个**陌生 id**。于是我自己
+                立的目标全部落进「欠我的」（别人欠我的）——刚做好的应收账簿第一屏，
+                九行全是我自己的目标，真正的应收（李婷、张锐）一条都不在。「我的切片」
+                同样漏掉它们：它们的执行者不是我。
+              - 填了名字 = 名字当 id。通讯录里有五位李婷，在这套记法里她们是同一个人。
+
+              修法只有一个方向：**要么是可核对的真人，要么就是我自己**。名字解析归
+              通讯录（`people` 端点，@补全一直在用的那条路），解析不了就拒绝——绝不
+              再造一个看起来像 id 的东西。
+            */
+            const ownerOpenId = stringField(payload, 'ownerOpenId')
+            const ownerName = stringField(payload, 'ownerName')
+            const meOpenId = asString((scoped.yzjCards.desktopActor() as { openId?: string }).openId)
+            if (ownerOpenId === undefined && ownerName !== undefined) {
+              // 客户端本不该发到这里（选人才有 openId），但端点是门，不是提示。
+              return failure(`还不知道「${ownerName}」是通讯录里的哪一位——在 owner 框里搜名字并选中那个人。`)
+            }
+            if (ownerOpenId === undefined && meOpenId === undefined) {
+              /*
+                身份未知时**不立**。
+
+                「留空 = 我」这句话在这一刻没有指称：通道还没拿到身份，我是谁没有答案。
+                此前它落成 `'op-1'`——一个占位符被当成人写进了账本。宁可这一刻立不了。
+              */
+              return failure('还不知道你是谁（云之家身份还没就绪），先等一会儿再立目标。')
+            }
+            const executor = ownerOpenId === undefined
+              ? {
+                kind: 'human' as const,
+                openId: meOpenId as string,
+                // 名字取通道拿到的那个真名；实在没有才退回「我」——这时它至少和 openId
+                // 指的是同一个人，只是不好看。
+                name: scoped.yzjCards.operatorName() ?? '我',
+              }
+              : { kind: 'human' as const, openId: ownerOpenId, ...(ownerName === undefined ? {} : { name: ownerName }) }
             const due = stringField(payload, 'due')
             /*
               磨点在「可验收」(v4.10).
@@ -2384,7 +2425,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                   what,
                   goalRef,
                   // The owner carries it. A goal with no owner is a wish.
-                  executor: { kind: 'human', openId: owner ?? 'op-1', name: owner ?? '我' },
+                  executor,
                   sourceAnchor: from === undefined ? 'desktop:board' : `session:${from}`,
                   attachedVia: 'explicit',
                   // 幂等锚: declaring the same goal twice is one goal.

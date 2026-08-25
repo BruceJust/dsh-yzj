@@ -28,7 +28,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type {
   BoardEventWire,
-  BoardAssessmentWire, BoardGoalWire, BoardRowWire, BoardViewWire, SurfaceInject,
+  BoardAssessmentWire, BoardGoalWire, BoardRowWire, BoardViewWire, PersonWire, SurfaceInject,
 } from './rpc.ts'
 import {
   currentBoardLens, pushFrame, sendErrand, setBoardLens, setSpotlight,
@@ -1454,12 +1454,44 @@ function DeclareGoal(props: {
   const { inject, close, done, fromSessionId, openSession } = props
   const [what, setWhat] = useState('')
   const [goalRef, setGoalRef] = useState('')
-  const [owner, setOwner] = useState('')
+  /**
+   * owner 是**选中的那个人**，不是打出来的那串字。
+   *
+   * 此前这里是一个自由文本框，而它的值被端点直接当成了 openId——通讯录里五位李婷在
+   * 那种记法里是同一个人。现在框里打字只是**搜索**，落到表单上的必须是一次选中。
+   */
+  const [owner, setOwner] = useState<PersonWire | undefined>(undefined)
+  const [ownerKeyword, setOwnerKeyword] = useState('')
+  const [ownerHits, setOwnerHits] = useState<readonly PersonWire[]>([])
+  const [ownerLook, setOwnerLook] = useState<'idle' | 'looking' | 'empty'>('idle')
+  /** 只有最新那一次搜索可以画——慢回包会把新结果盖回旧的。 */
+  const ownerTicket = useRef(0)
   const [due, setDue] = useState('')
   const [criteria, setCriteria] = useState('')
   const [busy, setBusy] = useState(false)
   /** Why the last press did not land. Shown in place, with the form intact. */
   const [refusal, setRefusal] = useState('')
+
+  useEffect(() => {
+    const word = ownerKeyword.trim()
+    if (word === '' || owner !== undefined) {
+      setOwnerHits([])
+      setOwnerLook('idle')
+      return undefined
+    }
+    setOwnerLook('looking')
+    // 每敲一个字打一次通讯录 = 一次没人要的洪水。等手停下来再问。
+    const timer = setTimeout(() => {
+      ownerTicket.current += 1
+      const mine = ownerTicket.current
+      void inject.people(word).then((found) => {
+        if (mine !== ownerTicket.current) return
+        setOwnerHits(found)
+        setOwnerLook(found.length === 0 ? 'empty' : 'idle')
+      })
+    }, 220)
+    return () => { clearTimeout(timer) }
+  }, [inject, owner, ownerKeyword])
 
   const ready = what.trim() !== '' && goalRef.trim() !== ''
 
@@ -1526,12 +1558,53 @@ function DeclareGoal(props: {
         <div className={css.fieldRow}>
           <label className={css.field}>
             <span className={css.fieldLabel}>owner</span>
-            <input
-              className={css.input}
-              value={owner}
-              placeholder="留空 = 我"
-              onChange={(event) => { setOwner(event.target.value) }}
-            />
+            {owner === undefined
+              ? (
+                <>
+                  <input
+                    className={css.input}
+                    value={ownerKeyword}
+                    placeholder="留空 = 我；或搜通讯录选一个人"
+                    onChange={(event) => { setOwnerKeyword(event.target.value) }}
+                  />
+                  {/*
+                    打字**不等于**指定了人。这一段是它与旧版最实质的差别：框里留着字而
+                    没选中人，落下去的是「留空 = 我」，所以这句提示必须出现——否则人以为
+                    自己已经把目标交出去了。
+                  */}
+                  {ownerLook === 'looking' && <span className={css.fieldHint}>在通讯录里找…</span>}
+                  {ownerLook === 'empty' && <span className={css.fieldHint}>通讯录里没有叫这个名字的人。没选中人 = 这个目标算我的。</span>}
+                  {ownerHits.length > 0 && (
+                    <div className={css.ownerHits}>
+                      {ownerHits.map(person => (
+                        <button
+                          type="button"
+                          key={person.openId}
+                          className={css.ownerHit}
+                          onClick={() => { setOwner(person); setOwnerKeyword(''); setOwnerHits([]) }}
+                        >
+                          <b>{person.name}</b>
+                          <span className={css.ownerHitMeta}>
+                            {[person.department, person.jobTitle].filter(part => part !== undefined).join(' · ')}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+              : (
+                <button
+                  type="button"
+                  className={css.ownerPicked}
+                  title="取消这次指定（改回「我」）"
+                  onClick={() => { setOwner(undefined) }}
+                >
+                  {owner.name}
+                  {owner.department === undefined ? '' : ` · ${owner.department}`}
+                  <span className={css.ownerDrop}>×</span>
+                </button>
+              )}
           </label>
           <label className={css.field}>
             <span className={css.fieldLabel}>验收期</span>
@@ -1592,7 +1665,7 @@ function DeclareGoal(props: {
               void inject.declareGoal({
                 what: what.trim(),
                 goalRef: goalRef.trim(),
-                ...(owner.trim() === '' ? {} : { owner: owner.trim() }),
+                ...(owner === undefined ? {} : { ownerOpenId: owner.openId, ownerName: owner.name }),
                 ...(due.trim() === '' ? {} : { due: due.trim() }),
                 ...(criteria.trim() === '' ? {} : { criteria: criteria.trim() }),
                 // 出生血缘：磨稿会话,而不是「桌面」。

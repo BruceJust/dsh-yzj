@@ -207,7 +207,7 @@ export function apply(ctx: Context, config: Config): void {
       // The desktop surface acts as the operator. Until this is set, the card
       // system's actor is a bare `operator` that no `allowedActors` accepts —
       // fail closed while the identity is still unknown.
-      ctx.yzjCards.setDesktopActor({ kind: 'operator', openId: identity.openId })
+      ctx.yzjCards.setDesktopActor({ kind: 'operator', openId: identity.openId }, identity.name)
       const delivery = new YzjCardDelivery(ctx, client, identity.openId)
       disposers.push(ctx.provide('yzjCardChannel', delivery))
       // The read/write face the desktop surface consumes. Provided only once

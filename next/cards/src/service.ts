@@ -94,13 +94,31 @@ export class YzjCards extends Service {
    */
   private operator: GraphActor = { kind: 'operator' }
 
+  /**
+   * 操作者自己叫什么。
+   *
+   * **和 actor 分开存**：`GraphActor` 上不加 `name`，否则每一条事件里都躺着一份显示
+   * 用的名字，而名字是会变的——那就是第二本名录，且是永不更新的那种。这里存的是**当前
+   * 会话的显示名**，只用来渲染与登记那一刻抄下的那份快照。
+   *
+   * 不知道就是 undefined。**不猜**：没有名字的时候写「我」，对任何第二个查看者都是
+   * 一句假话。
+   */
+  private operatorDisplayName: string | undefined
+
   /** Bind the desktop's actor identity. Called by the channel at boot. */
-  setDesktopActor(actor: GraphActor): void {
+  setDesktopActor(actor: GraphActor, name?: string): void {
     this.operator = actor
+    this.operatorDisplayName = name
   }
 
   desktopActor(): GraphActor {
     return this.operator
+  }
+
+  /** 操作者的显示名；通道还没拿到身份时是 undefined。 */
+  operatorName(): string | undefined {
+    return this.operatorDisplayName
   }
 
   /** One card type's definition, for surfaces that render it themselves. */
