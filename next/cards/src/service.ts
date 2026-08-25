@@ -34,6 +34,14 @@ export interface PendingDemand {
   readonly at: number
   /** 它归属哪段语境。决断条「只收本语境直属」靠它。 */
   readonly topicKey?: string
+  /**
+   * 它升在哪个会话里 —— **本地会话是一等可应答语境** (v3.15 裁决③).
+   *
+   * 不是每张卡都住在云之家话题里：写确认常常升在一个本地会话中，那时 `topicKey` 是
+   * 空的。只按话题定位的收件箱因此报得出数、却指不了路——「✋1」点下去跳到一个无关的
+   * 群话题，逐级兑付在那里断掉。**兑付落点 = 对象真实所在面。**
+   */
+  readonly sessionAnchor?: string
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -269,11 +277,13 @@ export class YzjCards extends Service {
       const demand = this.demandOf(object)
       if (demand === undefined) continue
       const topicKey = contextOf(object)
+      const sessionAnchor = asString(asRecord(object.state)?.sessionAnchor)
       out.push({
         ref: { kind: object.kind, id: object.id },
         demand,
         at: object.createdAt,
         ...(topicKey === undefined ? {} : { topicKey }),
+        ...(sessionAnchor === undefined ? {} : { sessionAnchor }),
       })
     }
     return out

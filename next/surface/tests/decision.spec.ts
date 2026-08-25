@@ -641,3 +641,57 @@ describe('本地会话里的卡也答得了', () => {
     expect(cardsFor(ctx, undefined)).toEqual([])
   })
 })
+
+/**
+ * **兑付落点 = 对象真实所在面** (v3.15 裁决③b).
+ *
+ * 「✋1」那个数一直算得出来，可它点下去只能跳到某个碰巧带着同一音调的群话题——因为
+ * 收件箱按话题键归档，而升在本地会话里的写确认根本没有话题键。**报得出却指错路**，
+ * 正是逐级兑付要禁的那种信号：没有不可兑付的信号。
+ */
+describe('收件箱指得到本地会话', () => {
+  const localCard = async (id: string, sessionAnchor: string): Promise<void> => {
+    await graph.append({
+      type: 'approval/opened',
+      data: {
+        approvalId: id, toolName: 'yzj_doc_create', reason: '在本地会话里建文档',
+        level: 'standard', args: {}, argsDigest: 'd', decider: 'op-1',
+        deadline: Date.now() + 60_000, sessionAnchor, audience: [],
+      },
+      actor: { kind: 'agent' },
+    })
+  }
+
+  it('本地会话里那张卡，兑付跳的就是那个会话', async () => {
+    await localCard('ap-l1', 'session-local-9')
+    const view = inboxView(ctx)
+    expect(view.counts.confirm).toBe(1)
+    // 此前这里会是某个群话题的 sessionId——数对了，路错了。
+    expect(view.firstOf.confirm).toBe('session-local-9')
+  })
+
+  /*
+    它自成一册，不塞进任何一个群的分组下面：本地会话本来就没有场所，硬挂一个是给一段
+    没有出身的对话编一个出身。**排在最前**——一件在应用内答不了的事，比任何群里的事
+    更容易被永远拖着（它没有群视图可以回头翻）。
+  */
+  it('自成一段，排在最前面，不冒充某个群', async () => {
+    await localCard('ap-l1', 'session-local-9')
+    const [first] = inboxView(ctx).places
+    expect(first?.placeKey).toBe('local')
+    expect(first?.groupName).toBe('本地会话')
+    expect(first?.topics.map(row => row.sessionId)).toEqual(['session-local-9'])
+  })
+
+  it('一个会话里两张卡，先到的那张说了算', async () => {
+    await localCard('ap-l1', 'session-local-9')
+    await localCard('ap-l2', 'session-local-9')
+    const [first] = inboxView(ctx).places
+    expect(first?.topics).toHaveLength(1)
+  })
+
+  it('没有这种卡就没有这一段——不造空分组', async () => {
+    await approval()
+    expect(inboxView(ctx).places.some(place => place.placeKey === 'local')).toBe(false)
+  })
+})

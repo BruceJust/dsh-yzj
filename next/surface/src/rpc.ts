@@ -1748,9 +1748,29 @@ export function inboxView(ctx: Context): InboxView {
     **信号**(逾期、老化、真身之变)都不进——把可纠升格成待答,人就得为每一个
     默认值签一次字,零维护当场阵亡。
   */
+  /*
+    住在**会话**里而不是话题里的那些 (v3.15 裁决③b).
+
+    写确认常常升在一个本地会话中，那时 `topicKey` 是空的——`note()` 按话题键归档，于是
+    这张卡进不了任何一段。后果不是少显示一行：**「✋1」那个数照样算得出来**（计数走的是
+    另一条路），可它点下去只能跳到某个碰巧带着同一音调的群话题。**报得出却指错路**，
+    正是逐级兑付要禁的那种信号。
+
+    所以按会话再收一册。它们不属于任何场所——本地会话本来就没有场所，硬塞进一个群的
+    分组下面是替它编一个出身。
+  */
+  const loose = new Map<string, { tone: TopicTone; label: string; demand: AnswerableDemand }>()
   for (const pending of ctx.yzjCards.demands(viewer)) {
     if (pending.demand.layer !== 'blocking') continue
-    note(pending.topicKey, toneOf(pending.demand.mode), pending.demand.label, pending.demand)
+    const tone = toneOf(pending.demand.mode)
+    if (pending.topicKey === undefined && pending.sessionAnchor !== undefined) {
+      // 一个会话里可能不止一张：先到的那张说了算，和话题那一路同一条规矩。
+      if (!loose.has(pending.sessionAnchor)) {
+        loose.set(pending.sessionAnchor, { tone, label: pending.demand.label, demand: pending.demand })
+      }
+      continue
+    }
+    note(pending.topicKey, tone, pending.demand.label, pending.demand)
   }
   /*
     留意层：进行中与等待中。
@@ -1770,6 +1790,26 @@ export function inboxView(ctx: Context): InboxView {
 
   const counts = { confirm: 0, review: 0, running: 0 }
   const firstOf: Partial<Record<TopicTone, string>> = {}
+
+  /*
+    本地会话这一册 —— **兑付落点 = 对象真实所在面**。
+
+    它是一个伪场所（`placeKey: 'local'`）：这些会话不在任何群里，而收件箱的结构是
+    场所→话题。伪造一个场所比把它们塞进某个真群下面诚实——后者是给一段没有出身的
+    对话编一个出身。
+  */
+  const localRows: InboxItem[] = [...loose.entries()].map(([sessionId, item]) => ({
+    sessionId,
+    placeKey: 'local',
+    title: item.label,
+    placeName: '本地会话',
+    preview: clip(item.label),
+    tone: item.tone,
+    live: false,
+    // 徽标跟着**模式**走；家族没写就退回音调的那一份，和话题那一路同一条规矩。
+    badge: item.demand.badge ?? TONE_BADGE[item.tone],
+    demand: item.demand,
+  }))
 
   const places: InboxPlace[] = tree.map((entry) => {
     const kind = entry.topics[0]?.conversationKind ?? 'group'
@@ -1819,6 +1859,28 @@ export function inboxView(ctx: Context): InboxView {
       topics: visible,
     }
   })
+
+  /*
+    排在**最前面**：一件在应用内答不了的事，比任何群里的事更容易被永远拖着——它没有
+    群视图可以回头翻，也不会有人替你在群里顶起来。
+  */
+  if (localRows.length > 0) {
+    for (const row of localRows) {
+      if (row.tone === 'confirm') counts.confirm += 1
+      if (row.tone === 'review') counts.review += 1
+      if (row.tone === 'running') counts.running += 1
+      if (firstOf[row.tone] === undefined) firstOf[row.tone] = row.sessionId
+    }
+    places.unshift({
+      placeKey: 'local',
+      groupName: '本地会话',
+      conversationKind: 'direct',
+      tone: localRows[0]?.tone ?? 'idle',
+      badge: localRows[0]?.badge ?? TONE_BADGE.idle,
+      archived: 0,
+      topics: localRows,
+    })
+  }
 
   let open = 0
   let overdue = 0
