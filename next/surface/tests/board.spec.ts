@@ -945,3 +945,58 @@ describe('登记句式：分类靠先验，这里只做抽取', () => {
     expect(registrationFrom('登记承诺：核对定价，李婷负责，周五前。', '张三')).toBeUndefined()
   })
 })
+
+/**
+ * 非操作者听众已经多久没有可读的对账 (v4.22 裁决③ 配套留意层信号).
+ *
+ * 板上一切正常，而组里打开那份目标文档看到的还是上一次回写时的样子——**两个听众两种
+ * 刷新率，而只有一个听众有人盯着**。这条信号让那段距离显形。
+ *
+ * 它是**信号不是可应答对象**：动词是评估（owner 的主权行为），就近长在目标上；
+ * **不给上级加自动推送**——上级的正确供给是更勤的简报，不是一条越过 owner 的提醒。
+ */
+describe('真身沉默了多久', () => {
+  const DAY = 24 * 60 * 60 * 1000
+  /*
+    事件的时间由内核盖（`Date.now()`），测试改不了它——所以**把「现在」往后推**，
+    而不是把事件往前挪。`boardFrame(ctx, now)` 收下这个此刻：这几个数本来就是时间的
+    函数，不把时间提出来，它们就只能靠真的等上九天才测得到，于是永远没人测。
+  */
+  const wrote = async (status = 'written'): Promise<void> => {
+    await graph.append({
+      type: 'goal/written-back',
+      data: {
+        writebackId: `${GOAL}#c1#born`, goalRef: GOAL, commitmentId: 'c1',
+        moment: 'born', line: '· 拉数据 — 张锐', status,
+      },
+      actor: { kind: 'agent' },
+    })
+  }
+
+  /*
+    **从没对过账 ≠ 很久没对账。**
+
+    一份从没投影过任何一条边的目标文档，本来就没有「对账」可言——那是私下登记的合法
+    状态。把它算成 999 天无对账，就是把合法渲染成异常（空状态三义的同一条纪律）。
+  */
+  it('一次都没写进去过的目标，不报这条信号', async () => {
+    await goal()
+    expect(boardFrame(ctx).goals[0]?.truthSilentDays).toBeUndefined()
+  })
+
+  it('写进去过就开始计时', async () => {
+    await goal()
+    await wrote()
+    expect(boardFrame(ctx, Date.now() + 9 * DAY).goals[0]?.truthSilentDays).toBe(9)
+  })
+
+  /*
+    **失败的那一笔不算数。** 组里看到的是文档，而失败的一笔一个字都没写进去——拿它
+    当「对过账了」，正是这一族最贵的那种错：板上说已回写，文档里什么都没有。
+  */
+  it('写失败的那一笔不算对账', async () => {
+    await goal()
+    await wrote('failed')
+    expect(boardFrame(ctx, Date.now() + 9 * DAY).goals[0]?.truthSilentDays).toBeUndefined()
+  })
+})

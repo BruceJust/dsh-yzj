@@ -395,6 +395,34 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
           )}
 
           {/*
+            **非操作者听众已经 x 天没有可读的对账** (v4.22 裁决③ 配套留意层信号)。
+
+            板上一切正常，而组里打开那份目标文档看到的还是上一次回写时的样子——两个听众
+            两种刷新率，而只有一个听众有人盯着。它是**信号不是可应答对象**：动词是评估
+            （owner 的主权行为），就近摆在旁边；**不给上级加自动推送**——上级的正确供给
+            是更勤的简报，不是一条越过 owner 的提醒。
+
+            七天才说：低于这个数的沉默是正常节奏（回写只在生与死），天天提醒就是把一条
+            信号做成了催促。
+          */}
+          {(view.goal.truthSilentDays ?? 0) >= 7 && (
+            <div className={css.drift}>
+              <span className={css.driftText}>
+                组里那份文档已经 <b>{view.goal.truthSilentDays} 天</b>没有新的对账了——
+                板上这些动静，非操作者是看不到的。
+              </span>
+              <button
+                type="button"
+                className={css.act}
+                disabled={busy === 'assess'}
+                onClick={() => { commit('assess', assessAsk(name, goalRef)) }}
+              >
+                写一份简报
+              </button>
+            </div>
+          )}
+
+          {/*
             真身之变显形。
 
             结论会过期，而过期的结论比没有结论更危险——它看起来仍然成立。

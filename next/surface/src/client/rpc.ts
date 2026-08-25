@@ -326,6 +326,13 @@ export interface BoardGoalWire {
   criteriaDrifted?: boolean
   /** agent 最近一次看出真身被改动了，它当时说了什么。 */
   truthChanged?: { at: number; detail: string }
+  /**
+   * 非操作者听众已经多少天没有可读的对账 (v4.22 裁决③ 配套信号)。
+   *
+   * 板上一切正常，而组里打开那份文档看到的还是上次回写时的样子——**信号，不是可应答
+   * 对象**：动词是「评估」，就近长在目标上；**不给上级加自动推送**。
+   */
+  truthSilentDays?: number
 }
 
 export interface GoalArtifactWire {
