@@ -568,6 +568,9 @@ export class YzjOrchestrator {
           sourceAnchor: anchor,
           topicKey: route.topicKey,
           audience: [route.placeKey],
+          // 委派者 = 说这句话的人。这一条的 actor 是 agent（活是它接的），所以内核
+          // 盖不上——不写的话，「这条归谁」在群里没有答案。
+          ...(trigger.fromOpenId === '' ? {} : { delegatedBy: trigger.fromOpenId }),
           idemKey: `cmt:${commitmentId.replace('cmt-', '')}`,
         },
         actor: { kind: 'agent' },

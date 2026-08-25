@@ -183,6 +183,14 @@ export const commitmentFamily: GraphFamily = {
         status: z.literal('open').default('open'),
         due: z.string().optional(),
         parentGoalRef: z.string().optional(),
+        /**
+         * 谁派的这条活。
+         *
+         * 内核会从出生事件的 actor 盖上它（见 reduce），**但 actor 是 agent 的那些
+         * 路径盖不上**——登记是人说的、agent 记的。那些生产者要自己带上委派者，
+         * 否则方向轴与主权谓词在整条会话路径上都是空的。
+         */
+        delegatedBy: z.string().optional(),
         /*
           出生时就说清也合法——默认从登记场所派生，但**派生只是默认**：一条明知要私下
           处理的活，登记它的时候就可以说「这条不写进目标文档」，不必等 ack 再反转一次。

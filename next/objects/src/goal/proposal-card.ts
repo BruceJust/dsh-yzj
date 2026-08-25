@@ -140,6 +140,14 @@ function mint(
         what: item.what,
         executor,
         sourceAnchor: anchor,
+        /*
+          委派者 = **接下这份提案的那个人**。
+
+          提案由 agent 落库，所以内核盖不上委派者（它盖的是 actor，而 actor 是 agent）。
+          而「谁把这几条活派出去了」有一个确定的答案：按下「就这么办」的那个人，也就是
+          这张卡的 `decider`。没有它，方向轴与主权谓词在这条路径上同样是空的。
+        */
+        ...(state.decider === undefined || state.decider === '' ? {} : { delegatedBy: state.decider }),
         idemKey: isGoal && goalRef !== undefined
           ? `goal:${goalRef}`
           : commitmentIdemKeyFor(anchor, item.what),

@@ -125,6 +125,7 @@ export function applyCommitmentTools(ctx: Context): () => void {
     isConcurrencySafe: () => false,
     async execute(args, exec) {
       const binding = bindingOf(ctx, exec.agent)
+      const delegator = operatorOf(ctx, exec.agent)
       const anchor = sourceAnchorOf(binding, exec.agent)
       const idemKey = commitmentIdemKeyFor(anchor, args.what)
       const existing = ctx.yzjGraph.findByIdemKey(idemKey)
@@ -190,6 +191,21 @@ export function applyCommitmentTools(ctx: Context): () => void {
           // Inherited from the utterance that registered it — the manager's
           // frame and the listener-set rule are the same rule.
           ...(binding?.audience === undefined ? {} : { audience: [...binding.audience] }),
+          /*
+            **谁派的这条活** —— 委派者写在出生事件上，因为内核盖不上它 (v4.21 方向轴).
+
+            家族的 reduce 会把出生事件的 actor 盖成 `delegatedBy`，而**这一条的 actor
+            是 agent**：登记是人说的、agent 记的（人签发铁律的另一面）。于是这条路径
+            上委派者一直是空的，后果不是少一个字段：
+
+            - 「欠我的」应收账簿**永远空着**。我让 agent 登记的每一条别人的活，方向轴
+              都判成「我旁观的」——这个透镜存在的理由，恰好就是这些行；
+            - 修理动词的主权谓词读的也是它，空 = 放行，于是「这条归谁」在群里没有答案。
+
+            取 `decider`：绑定里那格「谁有权答这一回合开出来的卡」，在群里就是 @ 它的
+            那个人，在桌面就是操作者。**不是「谁在说话」**——主权是节点的属性。
+          */
+          ...(delegator === undefined ? {} : { delegatedBy: delegator }),
           idemKey,
         },
         actor: { kind: 'agent' },

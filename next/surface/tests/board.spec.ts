@@ -22,7 +22,7 @@ import { YzjCards } from '@yzj-next/cards'
 import { boardShape, nudgeDraft, sinceText } from '../src/client/Board.tsx'
 import {
   assessmentCard, assessmentFamily, createCommitmentCard, commitmentFamily, eventFamily,
-  goalCommitmentIdFor,
+  goalCommitmentIdFor, taskFamily,
 } from '@yzj-next/objects'
 import { sendErrand, takeErrand } from '../src/client/store.ts'
 import { errandFor } from '../src/client/RoomPicker.tsx'
@@ -50,6 +50,8 @@ beforeEach(async () => {
   graph = new YzjGraph(ctx, { root })
   graph.defineFamily(commitmentFamily)
   graph.defineFamily(assessmentFamily)
+  // 老行的委派者要从「那一回合的活」里认领，没有这个家族就认领不到。
+  graph.defineFamily(taskFamily)
   await graph.selectAccount('acct-1')
   /*
     决断层就是卡注册表 (v4.15 家族即接口)。
@@ -998,5 +1000,67 @@ describe('真身沉默了多久', () => {
     await goal()
     await wrote('failed')
     expect(boardFrame(ctx, Date.now() + 9 * DAY).goals[0]?.truthSilentDays).toBeUndefined()
+  })
+})
+
+/**
+ * 「欠我的」读的是**承诺自己那一格委派者** (v4.21 方向轴 / v4.22 单一事实源).
+ *
+ * `directionOf` 那一组测的是函数，而出事的是**取值**：委派者此前从「出生事件的 actor」
+ * 里读，而会话路径上那个 actor 是 **agent**——登记是人说的、agent 记的。于是我让 agent
+ * 登记的每一条别人的活都判成「我旁观的」，应收账簿永远空着：这个透镜存在的理由，恰好
+ * 就是这些行。函数是对的，喂给它的东西是空的——这一族缺陷只有在这一层测得到。
+ */
+describe('欠我的：委派者从哪一格来', () => {
+  const agentRegistered = async (id: string, extra: Record<string, unknown> = {}): Promise<void> => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id,
+        what: '季度复盘材料，给初稿',
+        executor: { kind: 'human', openId: 'u-li', name: '李婷' },
+        sourceAnchor: `yzj:${id}`,
+        topicKey: 'tk-1',
+        audience: ['yzj-group-g1'],
+        ...extra,
+      },
+      // 人签发、agent 落库——这一条就是整条会话路径的形状。
+      actor: { kind: 'agent' },
+    })
+  }
+  const directionOfRow = (id: string): string | undefined =>
+    boardFrame(ctx).rows.find(row => row.id === id)?.direction
+
+  beforeEach(() => { ctx.yzjCards.setDesktopActor(OPERATOR) })
+
+  it('我让 agent 登记的别人的活 = 欠我的', async () => {
+    await agentRegistered('cmt-li-1', { delegatedBy: 'op-1' })
+    expect(directionOfRow('cmt-li-1')).toBe('owed-to-me')
+  })
+
+  it('这条修复之前的老行：从同一条消息那一回合的活里认领委派者', async () => {
+    await agentRegistered('cmt-li-2')
+    await graph.append({
+      type: 'task/opened',
+      data: {
+        taskId: 'task-2',
+        what: '登记一下：季度复盘材料由李婷负责',
+        sourceAnchor: 'yzj:cmt-li-2',
+        topicKey: 'tk-1',
+        audience: ['yzj-group-g1'],
+        delegatedBy: 'op-1',
+        operator: 'op-1',
+      },
+      actor: { kind: 'agent' },
+    })
+    // 同一条消息 = 同一回合 = 同一个委派者。这是查表，不是推断。
+    expect(directionOfRow('cmt-li-2')).toBe('owed-to-me')
+  })
+
+  it('认不出委派者就说「旁观」，不猜', async () => {
+    // 没有 `delegatedBy`，也没有对得上的那一回合——「不知道谁派的」和「是我派的」是
+    // 两回事，把前者渲染成后者就是给应收账簿灌假账。
+    await agentRegistered('cmt-li-3')
+    expect(directionOfRow('cmt-li-3')).toBe('observed')
   })
 })

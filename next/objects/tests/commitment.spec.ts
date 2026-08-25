@@ -112,6 +112,21 @@ describe('commitment_register', () => {
       .toEqual(['yzj-group-g1'])
   })
 
+  /*
+    **谁派的这条活，得写在这条活上。**
+
+    家族的 reduce 会把出生事件的 actor 盖成 `delegatedBy`，而这条路径的 actor 是
+    agent——登记是人说的、agent 记的。于是委派者一直是空的，后果是「欠我的」应收账簿
+    永远空着：我让 agent 登记的每一条别人的活，方向轴都判成「我旁观的」。
+  */
+  it('把委派者记在承诺上：登记是人说的，agent 只是记', async () => {
+    const result = await tools.get('commitment_register')?.execute({
+      what: '核对一版竞品定价', executorOpenId: 'p-9', executorName: '张锐',
+    }, EXEC)
+    // `decider` = 这一回合里「谁有权答它开出来的卡」，在群里就是 @ 它的那个人。
+    expect(stateOf(String(result?.commitmentId))?.delegatedBy).toBe('op-1')
+  })
+
   it('collapses the same utterance registered twice onto one object', async () => {
     const first = await tools.get('commitment_register')?.execute({ what: '出周报' }, EXEC)
     const second = await tools.get('commitment_register')?.execute({ what: '出周报' }, EXEC)

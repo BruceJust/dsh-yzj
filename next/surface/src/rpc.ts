@@ -1166,26 +1166,34 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
   const rows: BoardRow[] = []
   // 一次渲染读一个「现在」——同一屏上两行按不同的此刻判过时,是没法解释的。它现在
   // 是入参（见函数注释），默认仍是此刻。
-  /*
-    **谁签发的这条承诺** —— 从内核记下的 actor 里读，不新加字段。
-
-    承诺族上没有「委派者」这个字段，而方向轴（欠我的／我欠的）与责任锚（谁验收）
-    都要它。内核给每条事件都记着 actor，`commitment/opened` 的那个 actor 就是当初
-    签发它的人——事实一直在，只是没人读过。**不改 schema、不动生产者**：加一个字段
-    意味着历史上所有承诺永远没有它，而从事件里读，老数据一样答得出来。
-  */
-  const openedBy = new Map<string, string>()
   /** openId → 名字。承诺登记时抄下的执行者名字，是这里唯一现成的名录。 */
   const nameOf = new Map<string, string>()
   for (const event of ctx.yzjGraph.rawEvents(['commitment/opened'])) {
     const data = asRecord(event.data)
-    const id = asString(data?.commitmentId)
-    const who = (event.actor as { openId?: string }).openId
-    if (id !== undefined && typeof who === 'string' && who !== '') openedBy.set(id, who)
     const executor = asRecord(data?.executor)
     const openId = asString(executor?.openId)
     const name = asString(executor?.name)
     if (openId !== undefined && name !== undefined) nameOf.set(openId, name)
+  }
+  /*
+    **老数据的委派者：从那一回合的活里认领** (v4.21 方向轴的补丁，只对旧行生效).
+
+    委派者现在写在承诺自己身上（`delegatedBy`：桌面路径由内核从 actor 盖上，会话路径
+    由生产者带上）。但在这条修复之前落库的每一条会话登记都没有它——而那正是「欠我的」
+    存在的理由：我让 agent 登记的别人的活。
+
+    这里不猜：承诺的 `sourceAnchor` 是**触发那一回合的那条消息**，而任务对象记着同一个
+    anchor 与 `delegatedBy`（谁 @ 的它）。同一条消息 = 同一回合 = 同一个委派者，这是
+    一次查表，不是一次推断。新写的行走不到这里。
+  */
+  const askerOfAnchor = new Map<string, string>()
+  for (const object of ctx.yzjGraph.query({ kind: 'operator', openId: '' }, { kind: 'task' })) {
+    const state = asRecord(object.state)
+    const anchor = asString(state?.sourceAnchor)
+    const asker = asString(state?.delegatedBy)
+    if (anchor !== undefined && asker !== undefined && !askerOfAnchor.has(anchor)) {
+      askerOfAnchor.set(anchor, asker)
+    }
   }
   /*
     查看者是谁。
@@ -1258,7 +1266,13 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
         : 'agent',
       status,
       ...(due === undefined || due.trim() === '' ? {} : { due: dueOf(due) }),
-      ...directionOf(me, asString(executor?.openId), openedBy.get(object.id), nameOf),
+      ...directionOf(
+        me,
+        asString(executor?.openId),
+        // 单一事实源：方向轴与主权谓词读同一格。老行退回那一回合的活（见上）。
+        delegatedBy ?? askerOfAnchor.get(asString(state?.sourceAnchor) ?? ''),
+        nameOf,
+      ),
       ...(steward === undefined ? {} : { stewardedBy: steward }),
       ...(asRecord(state?.delivery) === undefined ? {} : { awaitingAcceptance: true }),
       overdue: status === 'open' && isOverdue(due, now),
