@@ -248,7 +248,9 @@ export function MentionPicker(props: MentionPickerProps): ReactNode {
   const [open, setOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [people, setPeople] = useState<PersonWire[]>([])
-  const [state, setState] = useState<'idle' | 'looking' | 'empty'>('idle')
+  /** 三值：搜到了 / 一个也没有 / 读不了。看不了不等于没有。 */
+  const [state, setState] = useState<'idle' | 'looking' | 'empty' | 'broken'>('idle')
+  const [why, setWhy] = useState('')
   const boxRef = useRef<HTMLDivElement | null>(null)
   /** 只有最新那一次搜索可以画——慢回包会把新结果盖回旧的。 */
   const ticket = useRef(0)
@@ -277,8 +279,9 @@ export function MentionPicker(props: MentionPickerProps): ReactNode {
       const mine = ticket.current
       void inject.people(word).then((found) => {
         if (mine !== ticket.current) return
-        setPeople(found)
-        setState(found.length === 0 ? 'empty' : 'idle')
+        setPeople(found.people)
+        if (found.error !== undefined) { setWhy(found.error); setState('broken'); return }
+        setState(found.people.length === 0 ? 'empty' : 'idle')
       })
     }, 220)
     return () => { clearTimeout(timer) }
@@ -306,6 +309,8 @@ export function MentionPicker(props: MentionPickerProps): ReactNode {
           />
           {state === 'looking' && <div className={css.mentionNote}>在通讯录里找…</div>}
           {state === 'empty' && <div className={css.mentionNote}>通讯录里没有叫这个名字的人。</div>}
+          {/* 读不了 ≠ 没有：把一次故障说成「查无此人」，人会照着这个假答案往下做。 */}
+          {state === 'broken' && <div className={css.mentionNote}>通讯录读不了（{why}）——这不等于没有这个人。</div>}
           {people.map(person => (
             <button
               type="button"

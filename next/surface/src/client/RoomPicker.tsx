@@ -359,6 +359,8 @@ function ExecutorSearch(props: {
   const { inject, pick } = props
   const [keyword, setKeyword] = useState('')
   const [found, setFound] = useState<PersonWire[]>([])
+  /** 通讯录读不了时宿主的原话；空串 = 读得动。 */
+  const [broken, setBroken] = useState('')
   const ticket = useRef(0)
 
   useEffect(() => {
@@ -367,8 +369,11 @@ function ExecutorSearch(props: {
     const mine = ticket.current + 1
     ticket.current = mine
     const timer = setTimeout(() => {
-      void inject.people(query).then((people) => {
-        if (ticket.current === mine) setFound(people)
+      void inject.people(query).then((result) => {
+        if (ticket.current !== mine) return
+        setFound(result.people)
+        // 读不了 ≠ 没有：把一次故障说成「没搜到这个名字」，人会照着假答案往下做。
+        setBroken(result.error ?? '')
       })
     }, 220)
     return () => { clearTimeout(timer) }
@@ -397,8 +402,11 @@ function ExecutorSearch(props: {
           ))}
         </div>
       )}
-      {keyword.trim() !== '' && found.length === 0 && (
+      {keyword.trim() !== '' && found.length === 0 && broken === '' && (
         <div className={css.goalEmpty}>通讯录里没搜到这个名字。</div>
+      )}
+      {broken !== '' && (
+        <div className={css.goalEmpty}>通讯录读不了（{broken}）——这不等于没有这个人。</div>
       )}
     </>
   )
@@ -437,6 +445,8 @@ function NewPlace(props: {
   const [name, setName] = useState(portal.subject === 'goal' ? portal.goalName : '')
   const [keyword, setKeyword] = useState('')
   const [found, setFound] = useState<PersonWire[]>([])
+  /** 通讯录读不了时宿主的原话；空串 = 读得动。 */
+  const [broken, setBroken] = useState('')
   const [picked, setPicked] = useState<PersonWire[]>([])
   const [serve, setServe] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -455,8 +465,11 @@ function NewPlace(props: {
     const mine = ticket.current + 1
     ticket.current = mine
     const timer = setTimeout(() => {
-      void inject.people(query).then((people) => {
-        if (ticket.current === mine) setFound(people)
+      void inject.people(query).then((result) => {
+        if (ticket.current !== mine) return
+        setFound(result.people)
+        // 读不了 ≠ 没有：把一次故障说成「没搜到这个名字」，人会照着假答案往下做。
+        setBroken(result.error ?? '')
       })
     }, 220)
     return () => { clearTimeout(timer) }
@@ -538,6 +551,10 @@ function NewPlace(props: {
             </button>
           ))}
         </div>
+      )}
+      {/* 读不了 ≠ 没有。建群这一步尤其不能糊弄：名单错了，听众集合就错了。 */}
+      {broken !== '' && (
+        <div className={css.newPlaceError}>通讯录读不了（{broken}）——这不等于没有这个人。</div>
       )}
       {/*
         搜的是**全组织**，不是这个群——群成员列表平台没有 API（三墙之一）。

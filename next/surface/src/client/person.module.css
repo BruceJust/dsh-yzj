@@ -25,3 +25,5 @@
   font: inherit; font-size: 12.5px; color: var(--yzj-ink);
 }
 .drop { color: var(--yzj-ink-3); }
+/* 读不了 ≠ 没有：这一格说的是故障，不是答案 */
+.broken { font-size: 10.5px; line-height: 1.6; color: var(--yzj-red); }

@@ -533,7 +533,15 @@ export interface SurfaceInject {
    * 搜的是**全组织**：群成员列表平台没有 API（三墙之一），所以搜不出「这个人在不在
    * 这个群」。那一问由选场所的人自己知道；界面如实说明，不假装校验过。
    */
-  people(keyword: string): Promise<PersonWire[]>
+  /**
+   * 按名字搜通讯录。
+   *
+   * **返回的是三值，不是一个数组**：搜到了 / 一个也没有 / **读不了**。此前它是
+   * `Promise<PersonWire[]>`，而失败被 `?? []` 抹成空数组——于是通讯录读不动的时候，
+   * 界面斩钉截铁地说「通讯录里没有叫这个名字的人」。**看不了不等于没有**，而这句话
+   * 恰好会在最伤人的场合出现：CLI 挂了、token 过期时，人得到的是「查无此人」。
+   */
+  people(keyword: string): Promise<{ people: PersonWire[]; error?: string }>
   /** 今天还没开完的会 —— 事件枢纽在板上的那一段。 */
   events(): Promise<BoardEventWire[]>
   /**
@@ -713,7 +721,11 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       return await call<TreeWire>('tree', {}) ?? { places: [] }
     },
     async people(keyword) {
-      return (await call<{ people: PersonWire[] }>('people', { keyword }))?.people ?? []
+      // 用 `write` 那条路不是因为它是写，是因为**只有它把宿主的原话带回来**：
+      // 「云之家通道未就绪」和「一个也没搜到」必须是两句不同的话。
+      const { value, error } = await write<{ people: PersonWire[] }>('people', { keyword })
+      if (error !== undefined) return { people: [], error }
+      return { people: value?.people ?? [] }
     },
     async events() {
       return (await call<{ events: BoardEventWire[] }>('events', {}))?.events ?? []

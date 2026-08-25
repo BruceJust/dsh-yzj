@@ -38,7 +38,15 @@ export function PersonPicker(props: PersonPickerProps): ReactNode {
   const { inject, picked, onPick, placeholder, clearTitle, emptyTail } = props
   const [keyword, setKeyword] = useState('')
   const [hits, setHits] = useState<readonly PersonWire[]>([])
-  const [look, setLook] = useState<'idle' | 'looking' | 'empty'>('idle')
+  /**
+   * 三值，不是两值：搜到了 / 一个也没有 / **读不了**。
+   *
+   * 「读不了」此前被抹成「没有」——通讯录读不动时界面斩钉截铁地说「没有叫这个名字的
+   * 人」，而这句话恰好在最伤人的场合出现（CLI 挂了、token 过期），紧接着的默认还是
+   * 「没选中人 = 算我的」。看不了不等于没有。
+   */
+  const [look, setLook] = useState<'idle' | 'looking' | 'empty' | 'broken'>('idle')
+  const [why, setWhy] = useState('')
   /** 只有最新那一次搜索可以画——慢回包会把新结果盖回旧的。 */
   const ticket = useRef(0)
 
@@ -56,8 +64,9 @@ export function PersonPicker(props: PersonPickerProps): ReactNode {
       const mine = ticket.current
       void inject.people(word).then((found) => {
         if (mine !== ticket.current) return
-        setHits(found)
-        setLook(found.length === 0 ? 'empty' : 'idle')
+        setHits(found.people)
+        if (found.error !== undefined) { setWhy(found.error); setLook('broken'); return }
+        setLook(found.people.length === 0 ? 'empty' : 'idle')
       })
     }, 220)
     return () => { clearTimeout(timer) }
@@ -95,6 +104,10 @@ export function PersonPicker(props: PersonPickerProps): ReactNode {
         <span className={css.note}>
           通讯录里没有叫这个名字的人。{emptyTail ?? ''}
         </span>
+      )}
+      {/* 读不了就说读不了，并且**不带那句默认**——那句话此刻会把一次故障说成一次选择。 */}
+      {look === 'broken' && (
+        <span className={css.broken}>通讯录读不了（{why}）——这不等于没有这个人。先别把它当答案。</span>
       )}
       {hits.length > 0 && (
         <div className={css.hits}>
