@@ -199,6 +199,20 @@ export function YzjBoard(props: BoardProps): ReactNode {
    * 一次只可能有一颗：按第二颗等于放弃第一颗，而放弃就是这道门存在的意义。
    */
   const [armed, setArmed] = useState('')
+  /*
+    **举起来的手会放下** (决策 #57 的一处补完).
+
+    第一段亮出后果，第二段才动手——但如果那颗按钮一直举着，一小时后回到这一屏的人
+    看到的是一个直接生效的「确认作废？」，而当初解释它的那句话早就散了。门的两半必须
+    同生同灭：说明消失，扳机就该松开。
+
+    比 toast 的 5 秒长一点：读完级联那句话再决定是正常节奏，而不是一场抢跑。
+  */
+  useEffect(() => {
+    if (armed === '') return undefined
+    const timer = setTimeout(() => { setArmed('') }, 8_000)
+    return () => { clearTimeout(timer) }
+  }, [armed])
   const [field, setField] = useState('')
   const [field2, setField2] = useState('')
   const setLens = useCallback((next: Lens): void => {

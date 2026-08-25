@@ -84,7 +84,12 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
   const [busy, setBusy] = useState('')
   const [toast, setToast] = useState('')
   const [repair, setRepair] = useState<Repair | undefined>(undefined)
-  /** 已经亮出后果、正等第二下的那颗作废 (决策 #57)。一次只可能有一颗。 */
+  /**
+   * 已经亮出后果、正等第二下的那颗作废 (决策 #57)。一次只可能有一颗。
+   *
+   * 举起来的手会放下：一直举着的话，一小时后回来的人看到的是一个直接生效的
+   * 「确认作废？」，而解释它的那句话早散了。门的两半同生同灭。
+   */
   const [armed, setArmed] = useState('')
   /** 传送门：等着人选一间屋子的那件差事。 */
   const [portal, setPortal] = useState<Portal | undefined>(undefined)
@@ -110,6 +115,12 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
       clearInterval(timer)
     }
   }, [refresh])
+
+  useEffect(() => {
+    if (armed === '') return undefined
+    const timer = setTimeout(() => { setArmed('') }, 8_000)
+    return () => { clearTimeout(timer) }
+  }, [armed])
 
   useEffect(() => {
     if (toast === '') return undefined
