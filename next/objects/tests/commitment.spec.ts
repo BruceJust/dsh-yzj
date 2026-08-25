@@ -580,6 +580,65 @@ describe('作废/顺延/移交：话语兜底', () => {
  * 了），`ownsCommitment` 那条「老数据放行」的分支就不再触发——于是**过去靠一个空字段
  * 撑着的每一条权限都要重新回答一遍**。回答错的方向有两个，这一组把它们分开钉住。
  */
+/**
+ * 「我欠我自己的活做完了」—— **两条路必须是同一件事** (v4.21 第一档⑥的另一半)。
+ *
+ * 卡上按「完成」时，主张的人若就是要验收的那个人，它直接收口（同一个主权时刻不收两次
+ * 费）。而同一句话说在会话里走的是回执工具那条路，它一直只会落成「等验收」——于是同一
+ * 个行为、两条路、两个状态，板上因此躺着一条永远等着自己验收自己的行。
+ *
+ * 判定刻意从严：只认「说话的人 = 执行者 = 委派者」这一种，且**不吃老数据放行分支**。
+ */
+describe('回执路上的主张即验收', () => {
+  const register = async (executorOpenId?: string): Promise<string> => {
+    const result = await tools.get('commitment_register')?.execute(
+      executorOpenId === undefined
+        ? { what: '我自己的活' }
+        : { what: '我自己的活', executorOpenId, executorName: '某人' },
+      EXEC,
+    )
+    return String(result?.commitmentId)
+  }
+  const done = async (id: string): Promise<void> => {
+    await tools.get('commitment_receipt')?.execute(
+      { commitmentId: id, text: '做完了', completed: true }, EXEC,
+    )
+  }
+
+  it('说话的人 = 执行者 = 委派者：直接收口', async () => {
+    // BINDING.decider = 'op-1'，登记时委派者也落成 op-1。
+    const id = await register('op-1')
+    await done(id)
+    expect(stateOf(id)?.status).toBe('closed')
+  })
+
+  it('执行者是别人：仍然等验收 —— 他说做完了和我认了是两次判断', async () => {
+    const id = await register('u-other')
+    await done(id)
+    expect(stateOf(id)?.status).toBe('open')
+    expect(stateOf(id)?.delivery).toBeDefined()
+  })
+
+  /*
+    **不吃老数据放行分支。** 没有委派者时 `ownsCommitment` 对所有人放行；借它自动收口，
+    等于执行者在群里说一句「做完了」就把一条没记委派者的老承诺自己关掉，而委派的人从来
+    没被问过。宁可多按一次。
+  */
+  it('没记委派者的老承诺：不自动收口', async () => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c-old', what: '老数据', sourceAnchor: 'yzj:old',
+        executor: { kind: 'human', openId: 'op-1', name: '我' },
+      },
+      // actor 没有 openId —— reduce 盖不上委派者，正是老会话路径的样子。
+      actor: { kind: 'agent' },
+    })
+    await done('c-old')
+    expect(stateOf('c-old')?.status).toBe('open')
+  })
+})
+
 describe('卡上的主权边界', () => {
   const card = (): { actions: readonly { id: string; allowedActors?: (actor: { openId?: string }, state: CommitmentState) => boolean }[] } =>
     createCommitmentCard(ctx) as never

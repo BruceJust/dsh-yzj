@@ -406,7 +406,7 @@ export function applyCommitmentTools(ctx: Context): () => void {
     output,
     timeoutMs: 15_000,
     isConcurrencySafe: () => false,
-    async execute(args) {
+    async execute(args, exec) {
       const object = ctx.yzjGraph.rawObject('commitment', args.commitmentId)
       if (object === undefined) {
         return { content: `找不到承诺 ${args.commitmentId}，请先用 graph_query 查一下。` }
@@ -444,7 +444,35 @@ export function applyCommitmentTools(ctx: Context): () => void {
         交付锚：这条回执引用了工件就锚工件，纯话语回执锚回执本身——被验收的是**交付
         主张**，拒收 = 不认可这个主张。
       */
-      if (args.completed === true) {
+      /*
+        **主张即验收，两条路上得是同一件事** (v4.21 第一档⑥的另一半).
+
+        卡上按「完成」时，如果主张的人就是要验收的那个人，它直接落终态——再请他按一次
+        「验收」，是同一个主权时刻收两次费。而**同一句话说在会话里**走的是这条路，这里
+        一直只会落成「等验收」：于是「我欠我自己的活做完了」在群里说是一步、在卡上按是
+        一步，得到的却是两个状态。同一个行为两条路两种结果，正是这套系统最不能出的那种
+        不一致（板上因此躺着一条永远等着自己验收自己的行）。
+
+        **判定刻意从严**，只认「委派者确凿是本人」这一种：
+        - 说话的人（`decider`，群里就是 @ 它的那个人）＝ 执行者 ＝ 委派者，三者同一；
+        - **不吃 `ownsCommitment` 的老数据放行分支**。那条分支在没有委派者时对所有人放行，
+          借它自动收口，等于张锐在群里说一句「做完了」就把一条没记委派者的老承诺自己关掉，
+          而委派的人从来没被问过。宁可多按一次。
+      */
+      const claimant = operatorOf(ctx, exec.agent)
+      const executorOf = asRecord(asRecord(object.state)?.executor)
+      const selfOwned = args.completed === true
+        && claimant !== undefined
+        && asString(executorOf?.kind) === 'human'
+        && asString(executorOf?.openId) === claimant
+        && asString(asRecord(object.state)?.delegatedBy) === claimant
+      if (selfOwned) {
+        await ctx.yzjGraph.append({
+          type: 'commitment/closed',
+          data: { commitmentId: args.commitmentId, cause: 'done' },
+          actor: { kind: 'agent' },
+        })
+      } else if (args.completed === true) {
         // 轮次的家在承诺上（打回会删掉 delivery），所以从那里读。
         const round = asRecord(object.state)?.round
         await ctx.yzjGraph.append({
@@ -472,7 +500,9 @@ export function applyCommitmentTools(ctx: Context): () => void {
         })
       }
       return {
-        content: args.completed === true
+        content: selfOwned
+          ? `「${state.what}」已收口——这条是你自己委派给自己的，主张即验收，不必再按一次。`
+          : args.completed === true
           ? `已记录交付主张「${state.what}」，现在**等验收**——委派的人会在原来那个场所看到`
             + `一张双动词的卡（验收／打回）。请在回复里公示这一条（说错了可以直接纠正）。`
           : `已记录回执${args.newDue === undefined ? '' : `，期限更新为 ${args.newDue}`}。请在回复里公示（说错了可以直接纠正）。`,
