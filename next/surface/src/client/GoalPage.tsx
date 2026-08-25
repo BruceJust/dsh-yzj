@@ -484,11 +484,23 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 底下还有 <b>{stillOpen.length} 条</b>在跟。
                 <b>它们没有被自动作废</b>——继续跑完、改挂到别的目标、还是一起停掉，是你的判断。
               </span>
+              {/*
+                **这是这套界面里爆炸半径最大的一次作废**，所以它最不该是一下点掉的
+                （决策 #57：任何入口皆两段式）。这里此前一按就把 N 条一起立了墓碑。
+
+                第二段把数字写进按钮：确认的是「这 N 条」，不是一个泛指的「全部」。
+              */}
               <button
                 type="button"
-                className={css.act}
+                className={`${css.act} ${armed === 'cascade' ? css.actDanger : ''}`}
                 disabled={busy === 'cascade'}
                 onClick={() => {
+                  if (armed !== 'cascade') {
+                    setArmed('cascade')
+                    setToast(`作废是不可逆的人签发终态。这一下会给 ${String(stillOpen.length)} 条各立一块墓碑，之后任何动词都唤不醒它们。再点一次确认。`)
+                    return
+                  }
+                  setArmed('')
                   run(
                     'cascade',
                     Promise.all(stillOpen.map(child => inject.voidCommitment(child.id, '父目标已结束')))
@@ -497,7 +509,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                   )
                 }}
               >
-                全部作废
+                {armed === 'cascade' ? `确认作废这 ${String(stillOpen.length)} 条？` : '全部作废…'}
               </button>
               <button
                 type="button"
