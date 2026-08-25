@@ -997,7 +997,7 @@ const AV = {
 };
 const AGENT_ALIAS = /@agent|@智能体|@云小助/i;
 
-const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null, boardLens: 'all' };
+const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null, boardLens: 'all', delegExec: null, delegCtx: null };
 
 /* v4：承诺板数据——图的第三类居民（执行者可为人/agent/流程） */
 /* v4.21 字段语义：due=话语原文（真身）；dueT=解析投影（可空可纠：'today'/'soon'/null——无戳沉底不消失）；
@@ -1777,13 +1777,27 @@ function commitRow(c) {
 /* v4.12 共享动作卡（委派传送门/拆解提案/差距简报）——承诺板与目标枢纽同一套（数据同一查询，割裂不存在） */
 function goalActionCards(gid) {
   let h = '';
-  if (state.delegGoal === gid) h += `
+  /* v4.21+ 委派选择条 = 两维真选择（执行者 × 场所），选完传送门跳会话——话语可编辑，发送才算数 */
+  if (state.delegGoal === gid) {
+    const ex = state.delegExec;
+    const placeRow = !ex ? '' : ex === 'agent' ? `
+      <span style="font-size:11px;color:var(--ink-2);flex-basis:100%">② 场所（听众是社交决策，人选不推导）：</span>
+      <button class="btn" data-dgo="agent:prodgroup" style="font-size:11px">产品讨论群 · 公开委派</button>
+      <button class="btn" data-dgo="newgroup" style="font-size:11px" title="v4.18 场所出生三句：创设人签发 · 合同默认最严 · 出生血缘携带语境">＋ 新建专项群</button>` : `
+      <span style="font-size:11px;color:var(--ink-2);flex-basis:100%">② 场所（公开委派施压透明 · 私下登记留余地）：</span>
+      <button class="btn" data-dgo="${ex}:prodgroup" style="font-size:11px">产品讨论群 · 公开登记</button>
+      <button class="btn" data-dgo="${ex}:dm" style="font-size:11px">与${ex}的 DM · 私下登记</button>
+      <button class="btn" data-dgo="newgroup" style="font-size:11px" title="v4.18 场所出生三句：创设人签发 · 合同默认最严 · 出生血缘携带语境">＋ 新建专项群</button>`;
+    h += `
     <div class="cm-row" style="background:#FDFEFF;border-color:var(--pub-line);flex-wrap:wrap;gap:6px">
-      <span style="font-size:11px;color:var(--ink-2)">带着目标语境去说话——选执行者与<b>场所</b>（听众是社交决策，人选不推导）：</span>
-      <button class="btn" data-dgo="pub" style="font-size:11px">@云小助 · 产品讨论群（公开委派）</button>
-      <button class="btn" data-dgo="dm" style="font-size:11px">张三 · DM（私下登记）</button>
-      <button class="btn" data-dgo="x" style="font-size:11px">取消</button>
+      <span style="font-size:11px;color:var(--ink-2);flex-basis:100%">① 执行者：</span>
+      <button class="btn${ex === 'agent' ? ' primary' : ''}" data-dexec="agent" style="font-size:11px">🤖 云小助（agent 执行）</button>
+      <button class="btn${ex === '张三' ? ' primary' : ''}" data-dexec="张三" style="font-size:11px">张三</button>
+      <button class="btn${ex === '李婷' ? ' primary' : ''}" data-dexec="李婷" style="font-size:11px">李婷</button>
+      <button class="btn" data-dgo="x" style="font-size:11px;margin-left:auto">取消</button>
+      ${placeRow}
     </div>`;
+  }
   if (state.decompGoal === gid && state.decompPhase === 'working') h += `
     <div class="cm-row" style="background:var(--paper);border-color:var(--paper-line);align-items:flex-start">
       <span class="ex-tag agent">agent</span>
@@ -2295,6 +2309,17 @@ function appendItems(sessKey, items, delayBase = 0) {
   });
 }
 
+/* v4.21+ 委派/登记的出生落库：话语解析（"登记承诺：X，谁负责，何时" / "X由谁负责"）——发送即入图 */
+function parseRegister(text) {
+  const t = text.replace(AGENT_ALIAS, '').replace(/^[\s,，]+/, '').trim();
+  const m = t.match(/^登记(?:个)?承诺[：:，,\s]*(.+?)(?:由|[，,]\s*)([^\s，,]+?)负责[，,]?\s*(.*?)[。.\s]*$/);
+  if (!m) return null;
+  return { name: m[1].trim().replace(/[，,]$/, ''), who: m[2].trim(), due: (m[3] || '').trim() || '未定' };
+}
+function registerCommit(row) {
+  COMMITS.push(row);
+  renderSidebar(); renderHead();
+}
 function handleSend() {
   const input = $('input');
   const text = input.value.trim();
@@ -2339,7 +2364,7 @@ function handleSend() {
 
     if (sess.kind === 'groupview') {
       if (quote) { chainReply(quote, safe + chipNote, toAgent); renderQuoteBar(); return; }
-      if (hasAt) { renderQuoteBar(); mainFloorDelegate(text, safe); return; }
+      if (hasAt) { renderQuoteBar(); mainFloorDelegate(text, safe, chipNote, chips); return; }
       appendItems(sessKey, [{ type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, text: safe + chipNote }]);
       if (hasPerson) toast('已提及成员——对方将收到云之家通知（第七动词：作为同事说话）');
       renderQuoteBar();
@@ -2355,6 +2380,22 @@ function handleSend() {
     if (hasPerson && !toAgent) toast('已提及成员——对方将收到云之家通知（第七动词：作为同事说话）');
     if (sess.kind === 'cold' && toAgent) { renderQuoteBar(); warmUp(sessKey); return; }
     if (toAgent) {
+      /* v4.21+ 登记话语 → 登记 ack（公示可纠）+ 承诺上板——委派/登记一个动词，入口只是语境来源 */
+      const reg = parseRegister(text);
+      if (reg) {
+        const ctx = state.delegCtx; state.delegCtx = null;
+        const goalKept = ctx && ctx.goal && chips.some(ch => ch.startsWith('目标：'));
+        registerCommit({ name: reg.name, exec: 'human', who: reg.who, due: reg.due, dueT: 'soon',
+          state: '已登记', goal: goalKept ? ctx.goal : undefined,
+          linked: goalKept ? '语境继承 · 委派传送门' : undefined,
+          aud: isDM(sess) ? 'dm' : 'all', reg: sessKey });
+        appendItems(sessKey, [{ type: 'agent-pub', time: nowStr(), kind: 'ack',
+          text: `已登记承诺：<b>${reg.name}</b> · 执行者 <b>${reg.who}</b> · ${reg.due}${goalKept
+            ? ` · 已挂目标<b>「${ctx.goalTitle}」</b>（语境继承——不对请说）`
+            : ' · 未挂目标（chip 已移除——未挂是合法状态，/link 可补挂）'}。登记消息即听众集合${isDM(sess) ? `（本 DM：你与${reg.who}）` : '（本群全员）'}——承诺已上板，我会盯进度：观察与提醒，不代做。` }], 900);
+        renderQuoteBar();
+        return;
+      }
       appendItems(sessKey, [{ type: 'agent-pub', time: nowStr(), kind: 'ack',
         text: hasAt
           ? '已接收（并入当前话题队列，串行执行）。同话题多次 @ 同属本会话；要干净上下文用 /new。'
@@ -2432,9 +2473,27 @@ function chainReply(quote, bodyHtml, toAgent) {
 
 /* 主楼裸 @ → 原地长出新话题（A0 第③级规则可视化） */
 let dynTopicCount = 0;
-function mainFloorDelegate(rawText, safe) {
+function mainFloorDelegate(rawText, safe, chipNote, chips) {
   const floorKey = state.current;
   const floor = sessions[floorKey];
+  const ctx = state.delegCtx; state.delegCtx = null;
+  const goalKept = ctx && ctx.goal && (chips || []).some(ch => ch.startsWith('目标：'));
+  /* v4.21+ 登记话语走登记路，不开话题——登记的是他人的承诺，不是给 agent 的任务 */
+  const reg = parseRegister(rawText);
+  if (reg) {
+    registerCommit({ name: reg.name, exec: 'human', who: reg.who, due: reg.due, dueT: 'soon',
+      state: '已登记', goal: goalKept ? ctx.goal : undefined,
+      linked: goalKept ? '语境继承 · 委派传送门' : undefined, aud: 'all', reg: floorKey });
+    appendItems(floorKey, [
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, delegate: true, text: safe + (chipNote || '') },
+      { type: 'agent-pub', time: nowStr(), kind: 'ack',
+        text: `已登记承诺：<b>${reg.name}</b> · 执行者 <b>${reg.who}</b> · ${reg.due}${goalKept
+          ? ` · 已挂目标<b>「${ctx.goalTitle}」</b>（语境继承——不对请说）`
+          : ' · 未挂目标（未带语境——未挂是合法状态，/link 可补挂）'}。登记消息即听众集合（本群全员）——承诺已上板，我会盯进度：观察与提醒，不代做。` },
+    ]);
+    toast('登记必有呼吸（幽灵承诺禁令）：登记消息确立听众集合，承诺行已上承诺板');
+    return;
+  }
   dynTopicCount++;
   const key = 'dyntopic' + dynTopicCount;
   const label = rawText.replace(/@agent|@智能体|@云小助/gi, '').trim().slice(0, 12) || '新话题';
@@ -2450,10 +2509,15 @@ function mainFloorDelegate(rawText, safe) {
     objects: { artifacts: [], refs: [], events: [] },
     timeline: [
       { type: 'divider', text: '今天' },
-      { type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, delegate: true, text: safe },
-      { type: 'agent-pub', time: nowStr(), kind: 'ack', text: '已接收，<b>回复本条消息</b>可在此任务上继续。' },
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, delegate: true, text: safe + (chipNote || '') },
+      { type: 'agent-pub', time: nowStr(), kind: 'ack', text: `已接收，<b>回复本条消息</b>可在此任务上继续。${goalKept ? `已挂到目标<b>「${ctx.goalTitle}」</b>（语境继承——chip 带入，不对请说）。` : ''}` },
     ],
   };
+  /* v4.21+ 委派即承诺出生：agent 执行行落板（sess = 新话题，一跳可达） */
+  const due = (rawText.match(/(本周[内五]?|下周[一二三四五六日]?前?|今天[^，。@]*前|明[天早][^，。@]*前|周[一二三四五六日]前?)/) || [])[1];
+  registerCommit({ name: label, exec: 'agent', who: '云小助', due: due || '未定', dueT: due ? 'soon' : null,
+    sess: key, goal: goalKept ? ctx.goal : undefined,
+    linked: goalKept ? '语境继承 · 委派传送门' : undefined, aud: 'all' });
   const pg = GROUPS.find(x => x.head === floorKey);
   if (pg) pg.keys.push(key);
   setTimeout(() => {
@@ -2462,7 +2526,7 @@ function mainFloorDelegate(rawText, safe) {
       { type: 'topiccard', target: key, meta: 'Bruce 发起 · 2 条 · 刚刚' },
     ]);
     renderSidebar(); renderHead();
-    toast('裸 @ = 开新话题：话题卡原地长出，边界行为肉眼可见');
+    toast(goalKept ? '委派 = 承诺出生：话题卡原地长出，承诺行已挂进目标组（语境继承）——去承诺板看' : '裸 @ = 开新话题：话题卡原地长出，边界行为肉眼可见');
   }, 800);
 }
 
@@ -3316,25 +3380,46 @@ document.addEventListener('click', (e) => {
     renderTimeline();
     return;
   }
+  const dexec = e.target.closest('[data-dexec]');
+  if (dexec) {
+    state.delegExec = state.delegExec === dexec.dataset.dexec ? null : dexec.dataset.dexec;
+    renderTimeline();
+    return;
+  }
   const dgo = e.target.closest('[data-dgo]');
   if (dgo) {
     const mode = dgo.dataset.dgo;
-    state.delegGoal = null;
-    if (mode === 'x') { renderTimeline(); return; }
+    const gid = state.delegGoal;
+    if (mode === 'x') { state.delegGoal = null; state.delegExec = null; renderTimeline(); return; }
+    if (mode === 'newgroup') {
+      toast('新建专项群 = 创设 + 代发一体，全程人签发（v4.18 场所出生三句）：签发卡含群名/初始成员/「接入 agent」显式勾选——本 demo 押样机，选既有场所可体验完整链');
+      return;
+    }
+    state.delegGoal = null; state.delegExec = null;
+    const [ex, place] = mode.split(':');
+    const goalTitle = (GOALS[gid] || {}).title || 'Q3 产品竞争力提升';
+    /* 传送门：跳会话预填可编辑话语 + 目标 chip（语境继承）——发送才算数；删 chip = 放弃挂接（可纠） */
+    state.delegCtx = { goal: gid, goalTitle, executor: ex, place };
     const input = $('input');
-    if (mode === 'pub') {
-      openSession('prodgroup');
+    if (ex === 'agent') {
+      openSession(place);
       setVoice('pub', { silent: true });
       input.value = '@云小助 整理移动端竞品定价页对比，本周内。';
-      state.chips = ['目标：Q3 产品竞争力提升 · 语境继承'];
-      toast('传送门：话语在会话里说——落点你选的（公开委派），挂接 = 语境继承（chip 已带上），发送即入图');
-    } else {
-      openSession('zhangsan');
+      toast('传送门：话语在会话里说（可编辑，发送才算数）——公开委派，挂接 = 语境继承（chip 已带上，删 chip = 不挂）');
+    } else if (place === 'dm') {
+      const dmKey = ex === '张三' ? 'zhangsan' : 'litingdm';
+      state.delegCtx.place = dmKey;
+      openSession(dmKey);
       setVoice('pub', { silent: true });
-      input.value = '@云小助 登记承诺：重点客户移动端诉求访谈 3 场，张三负责，下周五前。';
-      state.chips = ['目标：Q3 产品竞争力提升 · 语境继承'];
-      toast('私下登记：听众 = 你与张三——承诺继承登记话语的听众集合（§1.6，场所人选不推导）');
+      input.value = `@云小助 登记承诺：重点客户移动端诉求访谈 3 场，${ex}负责，下周五前。`;
+      toast(`私下登记：听众 = 你与${ex}——承诺继承登记话语的听众集合（§1.6），发送即登记（幽灵承诺禁令：登记必有呼吸）`);
+    } else {
+      openSession(place);
+      setVoice('pub', { silent: true });
+      input.value = `@云小助 登记承诺：重点客户移动端诉求访谈 3 场，${ex}负责，下周五前。`;
+      toast(`公开登记：听众 = 全群（施压与透明）——话语可编辑，发送即登记并上板`);
     }
+    state.chips = [`目标：${goalTitle} · 语境继承`];
     renderChips(); updateVoiceHint(); input.focus();
     input.dispatchEvent(new Event('input'));
     return;
