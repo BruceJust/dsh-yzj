@@ -582,6 +582,16 @@ export class YzjPoller {
    * ever seen. Igniting in an on-duty place must not depend on that place
    * happening to sit in today's first sixty rows.
    */
+  /**
+   * 这个群叫什么 —— 给审计读的，不是给逻辑用的 (v3.15 裁决⑤).
+   *
+   * `placeKey` 是个 id，回头查「谁把 agent 接进了哪个群」时人认不出它是哪一间屋子。
+   * 名录里没有就返回 undefined——**不猜**，宁可那一笔只有 id。
+   */
+  groupNameOf(groupId: string): string | undefined {
+    return this.state.conversation(groupId)?.name
+  }
+
   private groupFromRoster(groupId: string): YzjGroup | undefined {
     const record = this.state.conversation(groupId)
     if (record === undefined) return undefined

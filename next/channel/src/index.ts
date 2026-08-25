@@ -26,6 +26,7 @@ import { YzjOrchestrator } from './orchestrator.ts'
 import { YzjPoller } from './poller.ts'
 import { ChannelState } from './state.ts'
 import { accountKeyFor, type YzjIdentity } from './protocol.ts'
+import { applyServe } from './serve.ts'
 
 export { triage, parseCommand, type TriageOutcome, type TriageInput } from './triage.ts'
 export {
@@ -219,12 +220,33 @@ export function apply(ctx: Context, config: Config): void {
         allowedGroupIds,
         aliases,
         async (groupId: string, on: boolean) => {
-          // Live set first, durable record second, and both before the caller
-          // is told it happened — a receipt for a decision that did not
-          // survive the next restart is the worst of the three orderings.
-          if (on) { allowedGroupIds.add(groupId); deniedGroupIds.delete(groupId) } else { deniedGroupIds.add(groupId); allowedGroupIds.delete(groupId) }
-          state.setServed(groupId, on)
-          await state.save()
+          /*
+            **动作先落图，再物化到运行态** (v3.15 裁决⑤)。顺序与失败语义见 `applyServe`。
+          */
+          await applyServe({
+            groupId,
+            on,
+            allowedGroupIds,
+            deniedGroupIds,
+            nameOf: (id) => poller.groupNameOf(id),
+            record: async (record) => {
+              try {
+                await ctx.yzjGraph.append({
+                  type: 'contract/served',
+                  data: { ...record },
+                  actor: ctx.yzjCards.desktopActor(),
+                })
+              } catch (error) {
+                // 记不下这一笔就不改触达：一次没有出处的接单，正是这条裁决要消灭的东西。
+                onError(error)
+                throw error
+              }
+            },
+            persist: async (id, served) => {
+              state.setServed(id, served)
+              await state.save()
+            },
+          })
         },
         cwd,
       )))
