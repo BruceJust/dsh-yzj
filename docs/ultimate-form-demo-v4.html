@@ -2999,6 +2999,7 @@ function openSession(key) {
   state.groupFilter = 'all';
   state.preview = null;
   state.quote = null; /* 锚不跨会话残留：落点真身随所在框重算 */
+  state.chips = []; state.delegCtx = null; renderChips(); /* 语境 chip 同律：不跨会话残留——否则传送门语境会越境粘上别处话语（§1.6） */
   state.filePreview = null; renderFilePv(); /* 预览随语境走：切会话即收 */
   renderSidebar(); renderHead(); renderTimeline(); refreshVoiceAvail(); renderRight();
 }
@@ -3398,27 +3399,28 @@ document.addEventListener('click', (e) => {
     state.delegGoal = null; state.delegExec = null;
     const [ex, place] = mode.split(':');
     const goalTitle = (GOALS[gid] || {}).title || 'Q3 产品竞争力提升';
-    /* 传送门：跳会话预填可编辑话语 + 目标 chip（语境继承）——发送才算数；删 chip = 放弃挂接（可纠） */
-    state.delegCtx = { goal: gid, goalTitle, executor: ex, place };
+    /* 传送门：跳会话预填可编辑话语 + 目标 chip（语境继承）——发送才算数；删 chip = 放弃挂接（可纠）。
+       ctx/chips 必须在 openSession 之后设置（openSession 清语境残留） */
+    let placeKey = place;
     const input = $('input');
     if (ex === 'agent') {
-      openSession(place);
+      openSession(placeKey);
       setVoice('pub', { silent: true });
       input.value = '@云小助 整理移动端竞品定价页对比，本周内。';
       toast('传送门：话语在会话里说（可编辑，发送才算数）——公开委派，挂接 = 语境继承（chip 已带上，删 chip = 不挂）');
     } else if (place === 'dm') {
-      const dmKey = ex === '张三' ? 'zhangsan' : 'litingdm';
-      state.delegCtx.place = dmKey;
-      openSession(dmKey);
+      placeKey = ex === '张三' ? 'zhangsan' : 'litingdm';
+      openSession(placeKey);
       setVoice('pub', { silent: true });
       input.value = `@云小助 登记承诺：重点客户移动端诉求访谈 3 场，${ex}负责，下周五前。`;
       toast(`私下登记：听众 = 你与${ex}——承诺继承登记话语的听众集合（§1.6），发送即登记（幽灵承诺禁令：登记必有呼吸）`);
     } else {
-      openSession(place);
+      openSession(placeKey);
       setVoice('pub', { silent: true });
       input.value = `@云小助 登记承诺：重点客户移动端诉求访谈 3 场，${ex}负责，下周五前。`;
       toast(`公开登记：听众 = 全群（施压与透明）——话语可编辑，发送即登记并上板`);
     }
+    state.delegCtx = { goal: gid, goalTitle, executor: ex, place: placeKey };
     state.chips = [`目标：${goalTitle} · 语境继承`];
     renderChips(); updateVoiceHint(); input.focus();
     input.dispatchEvent(new Event('input'));
