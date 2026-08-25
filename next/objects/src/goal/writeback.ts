@@ -66,7 +66,7 @@ async function waterline(ctx: Context): Promise<number> {
 
 /** 一次回写的身份。生与死各记各的——同一条承诺会被写两次，那是对的。 */
 export function writebackIdFor(
-  goalRef: string, commitmentId: string, moment: 'born' | 'settled',
+  goalRef: string, commitmentId: string, moment: 'born' | 'overdue' | 'settled',
 ): string {
   return `${goalRef}#${commitmentId}#${moment}`
 }
@@ -79,6 +79,19 @@ function whoOf(state: Record<string, unknown> | undefined): string {
 }
 
 /** 终态的人话。 */
+/**
+ * 有真日期，而且已经过了 —— **含糊的期限永远不算逾期**。
+ *
+ * 「下周初」不解析（时间透镜两层：话语原文是真身，时间戳是可空的投影）。往一份全组
+ * 在读的文档里写一句「已逾期」，判据必须是硬的：拿一个猜出来的日子给同事的活盖一个
+ * 逾期章，比不写坏得多。
+ */
+function overdueNow(due: string | undefined, now: number): boolean {
+  if (due === undefined || due.trim() === '') return false
+  const parsed = Date.parse(due)
+  return Number.isFinite(parsed) && parsed < now
+}
+
 function endOf(status: string, cause: string | undefined): string {
   if (status === 'voided') return `已作废${cause === undefined ? '' : `（${cause}）`}`
   if (status === 'merged') return '已合并到另一条'
@@ -92,12 +105,22 @@ function endOf(status: string, cause: string | undefined): string {
  * 起来像是同一个人接着写的，而不是一段机器吐出来的结构。
  */
 export function lineFor(
-  moment: 'born' | 'settled', state: Record<string, unknown> | undefined,
+  moment: 'born' | 'overdue' | 'settled', state: Record<string, unknown> | undefined,
 ): string {
   const what = asString(state?.what as never) ?? '(未命名)'
   const due = asString(state?.due as never)
   if (moment === 'born') {
     return `· ${what} — ${whoOf(state)}${due === undefined ? '' : ` · ${due}`}`
+  }
+  /*
+    逾期**标注一次**，不写「逾期 N 天」(v3.14r③)。
+
+    每日更新会把这份文档变成一台回写泵，而且更坏的是**借逾期复活**：一条早就该被作废
+    的活，会因为「逾期天数」每天变一次而天天刷新自己在文档里的存在感。写一次是事实，
+    写 N 次是催促——而催促有它自己的动词，不在这份文档里。
+  */
+  if (moment === 'overdue') {
+    return `· ${what} — ${whoOf(state)}${due === undefined ? '' : ` · ${due}`} · 已逾期`
   }
   const status = asString(state?.status as never) ?? 'closed'
   return `· ${what} — ${whoOf(state)} · ${endOf(status, asString(state?.cause as never))}`
@@ -286,7 +309,7 @@ export function applyGoalWriteback(ctx: Context): () => void {
     await mine
   }
   const write = async (
-    goalRef: string, commitmentId: string, moment: 'born' | 'settled',
+    goalRef: string, commitmentId: string, moment: 'born' | 'overdue' | 'settled',
   ): Promise<void> => {
     if (disposed) return
     const writebackId = writebackIdFor(goalRef, commitmentId, moment)
@@ -371,10 +394,18 @@ export function applyGoalWriteback(ctx: Context): () => void {
    * 目标自己那条承诺**不回写**：它就是那份文档，往自己身上贴一行「我出生了」没有
    * 意义。只有挂在它下面的子承诺才有生与死可报。
    */
-  const momentOf = (state: Record<string, unknown> | undefined): 'born' | 'settled' | undefined => {
+  const momentOf = (
+    state: Record<string, unknown> | undefined,
+  ): 'born' | 'overdue' | 'settled' | undefined => {
     const status = asString(state?.status as never) ?? 'open'
     if (asString(state?.goalRef as never) !== undefined) return undefined
-    return status === 'open' ? 'born' : 'settled'
+    if (status !== 'open') return 'settled'
+    /*
+      **逾期不是终态**（勿写脏状态机）：它是这条边活着的时候多出来的一句标注，而它
+      仍然 `open`。所以它排在 `settled` 后面判——一条又逾期又已经结束的活，该写的是
+      结束，不是逾期。
+    */
+    return overdueNow(asString(state?.due as never), Date.now()) ? 'overdue' : 'born'
   }
 
   /*
@@ -419,7 +450,26 @@ export function applyGoalWriteback(ctx: Context): () => void {
       `settled` 的话，文档里会冒出一行「已完成」而组里从没见过它被登记。两笔都补，
       顺序也对——`born` 先写。
     */
-    if (moment === 'settled') await write(goalRef, commitmentId, 'born')
+    /*
+      死了就补生 —— 逾期同理。
+
+      一条在我们上线之前就已经结束（或早就过期）的承诺，`born` 那一笔永远不会有事件来
+      触发；只写后一笔的话，文档里会冒出一行「已完成」而组里从没见过它被登记。
+
+      **`overdue` 天然只写一次**：幂等键是 (目标, 承诺, 时刻)，写过就不再写。这正是
+      「逾期回写一次标注」要的形状——**没有**「逾期 N 天」每日更新，那会把这份文档变成
+      一台回写泵，还会让一条早该作废的活天天刷新自己的存在感。
+
+      诚实的缺口：这套系统里**没有调度器**，所以「进入逾期的那一刻」没有事件。这一笔
+      写在**它逾期之后第一次有动静**的时候——一条逾期后再无任何动静的承诺，文档里就
+      不会有这一行。宁可晚写，不可为它造一个定时器把这份文档变成日志流。
+    */
+    if (moment !== 'born') await write(goalRef, commitmentId, 'born')
+    /*
+      「终态覆盖」是**追加**，不是回头改：那份文档里的行是按时间长出来的，一条
+      「已逾期」后面跟一条「已验收」，读的人看得懂发生过什么。回头去改前一行，等于
+      把一段真实的历史抹掉——而这份文档最值钱的正是它是人读的、连贯的。
+    */
     await write(goalRef, commitmentId, moment)
   }
 

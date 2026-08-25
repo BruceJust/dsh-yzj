@@ -533,8 +533,14 @@ describe('作废/顺延/移交：话语兜底', () => {
   ])('%s 别人登记的那条：agent 拒绝，图上一个字不写', async (_verb, tool, args) => {
     await open('c9', { kind: 'operator', openId: 'u-someone-else' })
     const result = await tools.get(tool)?.execute(args, EXEC) as { content: string }
-    expect(result.content).toContain('不是操作者登记的')
-    expect(result.content).toContain('直接跟他说')
+    /*
+      **不执行，也不静默** (v3.14r②)：静默忽略是这套设计里最大的罪，公开驳斥是社交
+      羞辱，**指路 + 可选转达拟稿**是唯一正解。所以这句话里必须同时有「归谁」和
+      「那条走得通的路」——而拟稿不是代发，那一下仍然是人按的。
+    */
+    expect(result.content).toContain('登记这条承诺的人')
+    expect(result.content).toContain('直接问他')
+    expect(result.content).toContain('你亲自发')
     expect(stateOf('c9').status).toBe('open')
     expect(stateOf('c9').due).toBeUndefined()
   })

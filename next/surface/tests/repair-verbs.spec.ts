@@ -393,10 +393,10 @@ describe('动词主权 = 节点主权的派生', () => {
     const result = await call(endpoint, payload)
     expect(result.ok).toBe(false)
     expect((result as { error?: { message?: string } }).error?.message)
-      .toContain('不是你登记的')
-    // 拒绝不禁言：那条仍然走得通的路要说出来。
+      .toContain('登记这条承诺的人')
+    // 拒绝不禁言：那条仍然走得通的路要说出来（指路 + 可选转达拟稿，v3.14r②）。
     expect((result as { error?: { message?: string } }).error?.message)
-      .toContain('直接说')
+      .toContain('直接问他')
   })
 
   it('拒绝之后图上一个字没写', async () => {

@@ -780,3 +780,71 @@ describe('私下登记的边不进全组可读的真身', () => {
     expect(inserts).toHaveLength(0)
   })
 })
+
+/**
+ * 逾期**标注一次**，不是每日更新 (v3.14r③).
+ *
+ * 「逾期 N 天」那种写法会把这份文档变成一台回写泵，而且更坏的是**借逾期复活**：一条
+ * 早该被作废的活，会因为天数每天变一次而天天刷新自己在文档里的存在感。写一次是事实，
+ * 写 N 次是催促——而催促有它自己的动词，不在这份文档里。
+ *
+ * **逾期不是终态**（勿写脏状态机）：它是这条边活着的时候多出来的一句标注。
+ */
+describe('逾期回写：一次标注', () => {
+  const PAST = '2020-01-01'
+
+  it('逾期之后有动静时补一行，且承诺仍然在跟', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await child('c1', { audience: ['yzj-group-g1'], due: PAST })
+    await settle(landed(writebackIdFor(GOAL, 'c1', 'overdue')))
+    const lines = JSON.stringify(inserts)
+    expect(lines).toContain('已逾期')
+    // 逾期不是终态：图上它还开着。
+    expect(asString(asRecord(graph.rawObject('commitment', 'c1')?.state)?.status) ?? 'open')
+      .toBe('open')
+  })
+
+  it('再有动静也不再写第二次 —— 幂等键就是「那一刻」', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await child('c1', { audience: ['yzj-group-g1'], due: PAST })
+    await settle(landed(writebackIdFor(GOAL, 'c1', 'overdue')))
+    const before = inserts.length
+    for (const text of ['在做了', '还在等对方']) {
+      await graph.append({
+        type: 'commitment/updated',
+        data: { commitmentId: 'c1', lastReceipt: text },
+        actor: OPERATOR,
+      })
+    }
+    await settle()
+    expect(inserts).toHaveLength(before)
+  })
+
+  /*
+    **含糊的期限永远不算逾期。** 「下周初」不解析——往一份全组在读的文档里给同事的活
+    盖一个逾期章，判据必须是硬的（时间透镜两层：话语是真身，时间戳是可空的投影）。
+  */
+  it('说不清的期限不盖逾期章', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await child('c1', { audience: ['yzj-group-g1'], due: '下周初' })
+    await settle()
+    expect(JSON.stringify(inserts)).not.toContain('已逾期')
+  })
+
+  it('终态覆盖是追加，不是回头改 —— 两行都在，顺序说得出发生过什么', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await child('c1', { audience: ['yzj-group-g1'], due: PAST })
+    await settle(landed(writebackIdFor(GOAL, 'c1', 'overdue')))
+    await graph.append({
+      type: 'commitment/closed', data: { commitmentId: 'c1', cause: 'accepted' }, actor: OPERATOR,
+    })
+    await settle(landed(writebackIdFor(GOAL, 'c1', 'settled')))
+    const lines = JSON.stringify(inserts)
+    expect(lines).toContain('已逾期')
+    expect(lines).toContain('已验收')
+  })
+})

@@ -266,11 +266,19 @@ const writebackFamily: GraphFamily = {
   events: {
     'goal/written-back': {
       schema: z.object({
-        /** `${goalRef}#${commitmentId}#${moment}` —— 生与死各记各的。 */
+        /** `${goalRef}#${commitmentId}#${moment}` —— 每个时刻各记各的。 */
         writebackId: z.string().min(1),
         goalRef: z.string().min(1),
         commitmentId: z.string().min(1),
-        moment: z.enum(['born', 'settled']),
+        /**
+         * 生 / 逾期 / 死。
+         *
+         * `overdue` 是 v3.14r③ 加的**一次标注**——逾期不是终态（勿写脏状态机），它是
+         * 这条边活着的时候多出来的一句话。它必须在这个枚举里，否则那条 `written-back`
+         * 落不了库，而**幂等就是靠这条记录成立的**：写过的不再写。实测撞到过——同一行
+         * 「已逾期」往一份全组在读的文档里贴了两遍。
+         */
+        moment: z.enum(['born', 'overdue', 'settled']),
         /** 写进去的那句话，原样留底：文档会被人改，我们写过什么不该跟着变。 */
         line: z.string(),
         /**

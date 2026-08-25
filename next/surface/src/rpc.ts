@@ -152,10 +152,14 @@ function refuseUnlessSteward(
   // 不知道我是谁 ≠ 不是我的（三值纪律）——身份未知的部署里不该把人锁在自己的账本外。
   if (me === undefined) return undefined
   if (ownsCommitment(me, delegatedBy === undefined ? {} : { delegatedBy })) return undefined
-  const owner = asString(asRecord(state?.executor)?.name)
+  const executor = asString(asRecord(state?.executor)?.name)
+  /*
+    **不执行，也不静默** (v3.14r②)：静默是最大的罪，公开驳斥是社交羞辱，指路是唯一
+    正解。端点这一侧和 agent 那一侧说的是同一句话——同一个判断不该有两种说法。
+  */
   return failure(
-    `这条承诺不是你登记的，${verb}归登记它的人${owner === undefined ? '' : `（执行者是 ${owner}）`}——`
-    + '你仍然可以在那个会话里直接说一句。',
+    `${verb}归**登记这条承诺的人**${executor === undefined ? '' : `（执行者是 ${executor}）`}——`
+    + '直接问他一句；或者让 agent 把话拟好，你亲自发过去。',
   )
 }
 
