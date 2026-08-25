@@ -153,3 +153,9 @@
   border: 1px solid var(--yzj-pub-line); background: var(--yzj-surface); color: var(--yzj-pub-deep);
 }
 .hubCta:hover { background: var(--yzj-pub); color: #fff; }
+
+/* 记忆分节：这里成立的 / 到哪儿都成立的——标题不替内容说话 */
+.memSection {
+  margin: 10px 2px 4px; font-size: 10.5px; line-height: 1.6;
+  color: var(--yzj-ink-3); letter-spacing: .02em;
+}

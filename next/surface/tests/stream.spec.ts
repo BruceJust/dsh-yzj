@@ -16,7 +16,7 @@ import { YzjGraph } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import {
   approvalCard, approvalFamily, assessmentCard, createCommitmentCard, commitmentFamily,
-  conflictCard, taskCard, taskFamily, waitingCard,
+  conflictCard, memoriesFor, taskCard, taskFamily, waitingCard,
 } from '@yzj-next/objects'
 import type { TopicDescriptor, TopicMessage, YzjTopics } from '@yzj-next/channel'
 import { buildStream, clockOf, type TrajectoryNode, isPlaceholderOnly, withoutImageMarks } from '../src/client/stream.ts'
@@ -869,6 +869,42 @@ describe('the object face', () => {
 
   it('reads memory as empty until distillation exists, rather than inventing it', () => {
     expect(objectFace(ctx, TOPIC).memory).toEqual([])
+  })
+
+  /*
+    **面板显示的，必须正好是 agent 在这里会读到的。**
+
+    这一栏是「注入了什么」的窗口，不是一份另编的清单。两边各写各的筛选，症状就是实测
+    报上来的那一条：切到另一个群，同一条「关于某人」的惯例又跟过来了——它确实会被注入
+    （实体/组织轴的坐标是账号，每个会话都读），错的是**面板把它顶在「在这个群里成立」
+    那句话下面**。
+
+    所以修的是标题与分节，不是把它藏起来：**藏起来就成了幽灵注入**——一条你看不见、
+    却真的在每一轮里对模型生效的惯例。这条用例钉住「不许藏」：面板的三节合起来，必须
+    等于三条轴各自读出来的那些。
+  */
+  it('面板 = 注入的那一份：三轴一条不多、一条不少', async () => {
+    mountTree()
+    await learned('place', TOPIC.placeKey, '这个群的规矩')
+    await learned('place', FAR.placeKey, '别的群的规矩')
+    await learned('entity', 'op-1', '操作者本人的习惯')
+    await learned('org', 'org-1', '全公司的规矩')
+
+    const face = objectFace(ctx, TOPIC)
+    const injected = [
+      ...memoriesFor(ctx, 'place', TOPIC.placeKey),
+      ...memoriesFor(ctx, 'entity', 'op-1'),
+      ...memoriesFor(ctx, 'org', 'org-1'),
+    ].map(row => row.summary).sort()
+    expect(face.memory.map(row => row.summary).sort()).toEqual(injected)
+
+    // 分节的判据就是轴：只有场所轴那一节才配说「在这个群里成立」。
+    expect(face.memory.filter(row => row.axis === 'place').map(row => row.summary))
+      .toEqual(['这个群的规矩'])
+    expect(face.memory.filter(row => row.axis !== 'place').map(row => row.summary).sort())
+      .toEqual(['全公司的规矩', '操作者本人的习惯'])
+    // 别的群那条不在这里，而且它被数进了「另有 N 条记在别的场所」。
+    expect(face.memoryElsewhere).toBe(1)
   })
 })
 

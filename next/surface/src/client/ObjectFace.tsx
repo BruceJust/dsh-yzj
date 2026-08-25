@@ -141,11 +141,49 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
   const where = face.scope?.kind === 'place'
     ? face.scope.placeName ?? '本群'
     : '本机'
+  /*
+    **记忆这一格是两种东西，标题此前只说了一种。**
+
+    「在「X」里成立的惯例」对场所轴是真的，对本人/全组织轴是假的——后两轴的坐标是账号
+    本身，它们**在每一个会话里都成立**，也因此在每一个会话里都出现。于是切到另一个群，
+    同一条「关于某人」的惯例又跟过来了，头上还顶着「在这个群里成立」——报告过来的
+    「切群时对象面对不上」，看到的就是这个。
+
+    修法不是把它们藏起来（它们确实在这里生效，藏了就成了幽灵注入），是**分节**：这里
+    成立的一节、到哪儿都成立的一节，各自说各自的话。
+  */
+  const hereMemories = face.memory.filter(item => item.axis === 'place')
+  const anywhereMemories = face.memory.filter(item => item.axis !== 'place')
   const RADIUS: Record<Tab, string> = {
     current: face.scope?.kind === 'place' ? '这个话题产出的' : '这个会话产出的',
-    memory: face.scope?.kind === 'place' ? `在「${where}」里成立的惯例` : '不限场所的惯例（本机会话没有场所）',
+    memory: face.scope?.kind === 'place'
+      ? `在「${where}」里成立的 ${String(hereMemories.length)} 条${anywhereMemories.length === 0 ? '' : ` · 另有 ${String(anywhereMemories.length)} 条到哪儿都成立`}`
+      : '不限场所的惯例（本机会话没有场所）',
     resources: face.scope?.kind === 'place' ? `「${where}」里所有话题产出的` : '本机会话产出的（不属于任何群）',
   }
+
+  /** 一条惯例的卡片。两节共用一张脸——分节分的是「在哪儿成立」，不是它长什么样。 */
+  const memoryCard = (item: ObjectFaceWire['memory'][number]): ReactNode => (
+    <div className={css.memCard} key={item.id}>
+      <button
+        type="button"
+        className={css.memDel}
+        title="忘掉这条"
+        onClick={() => { void inject.forgetMemory(item.id).then(() => refresh()) }}
+      >
+        ×
+      </button>
+      <span
+        className={`${css.memAxis} ${item.axis === 'org' ? css.memOrg : item.axis === 'entity' ? css.memEntity : css.memPlace}`}
+      >
+        {AXIS_LABEL[item.axis] ?? item.axis}
+      </span>
+      <div className={css.memText}>{item.summary}</div>
+      <div className={css.memMeta}>
+        出处：{item.sourceAnchors.join('、') || '未记录'}
+      </div>
+    </div>
+  )
 
   return (
     <div className={`${tokens.tokens} ${css.panel}`} ref={setHost}>
@@ -192,27 +230,20 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
                 )}
               </div>
             )
-            : face.memory.map(item => (
-              <div className={css.memCard} key={item.id}>
-                <button
-                  type="button"
-                  className={css.memDel}
-                  title="忘掉这条"
-                  onClick={() => { void inject.forgetMemory(item.id).then(() => refresh()) }}
-                >
-                  ×
-                </button>
-                <span
-                  className={`${css.memAxis} ${item.axis === 'org' ? css.memOrg : item.axis === 'entity' ? css.memEntity : css.memPlace}`}
-                >
-                  {AXIS_LABEL[item.axis] ?? item.axis}
-                </span>
-                <div className={css.memText}>{item.summary}</div>
-                <div className={css.memMeta}>
-                  出处：{item.sourceAnchors.join('、') || '未记录'}
-                </div>
-              </div>
-            ))
+            : [
+              ...(hereMemories.length === 0 || anywhereMemories.length === 0
+                ? []
+                : [<div className={css.memSection} key="sec-here">在「{where}」里学到的</div>]),
+              ...hereMemories.map(item => memoryCard(item)),
+              ...(anywhereMemories.length === 0
+                ? []
+                : [
+                  <div className={css.memSection} key="sec-any">
+                    到哪儿都成立的（本人 / 全组织）——不属于这个群，切到别的会话同样会出现
+                  </div>,
+                ]),
+              ...anywhereMemories.map(item => memoryCard(item)),
+            ]
         )}
 
         {tab !== 'memory' && rows.length === 0 && (
