@@ -131,6 +131,16 @@ export interface Errand {
    * 降级成一句普通的话，这是它和「偷偷加上」的全部区别。
    */
   readonly call?: boolean
+  /**
+   * 登记路径的**结构化先验** —— 委派五步④ (v3.15 裁决④).
+   *
+   * 传送门第②步里操作者选的那个人。选择本身就是分类：**选了人 = 登记路径**（这句话是
+   * 在登记别人的承诺），选了 agent = 委派路径（这句话是在给它派活）。
+   *
+   * 所以「这句是登记还是委派」不需要等一次群里的 turn 才知道——它在传送门那一刻就
+   * 定了。带着它一路到发送，发送成功即落库。
+   */
+  readonly register?: { readonly openId: string; readonly name: string }
 }
 
 let errand: Errand | undefined

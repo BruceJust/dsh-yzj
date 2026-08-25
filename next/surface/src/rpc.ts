@@ -16,7 +16,7 @@ import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
 import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/channel'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
 import {
-  eventHub, failureOf, goalCommitmentIdFor, ownsCommitment, readinessLine,
+  commitmentIdFor, eventHub, failureOf, goalCommitmentIdFor, ownsCommitment, readinessLine,
 } from '@yzj-next/objects'
 import type {} from '@yzj-next/channel'
 
@@ -1945,6 +1945,41 @@ export function inboxView(ctx: Context): InboxView {
   }
 }
 
+/**
+ * 登记路径的**结构化先验** —— 委派五步④ (v3.15 裁决④).
+ *
+ * 我上一轮判过这条「要 session 才有 turn，是通道层动刀」——**那是错的**。裁决说得很
+ * 清楚：判定根本不在群 session 里跑。传送门第②步里操作者**已经选过执行者**了，那次
+ * 选择本身就是先验：选了人 → 登记路径，选了 agent → 委派路径。剩下的只是把他填进
+ * 骨架的两个空读出来，而那个骨架**是我们自己给的**。
+ *
+ * 所以这不是「用正则做语义判定」（那是被明确否掉的）：**分类**来自先验，这里只做
+ * **抽取**。句子改到认不出骨架时就**认不出**——返回 undefined，那句话照常发出去，由
+ * agent 像观察任何一句话那样去观察它。宁可退回旧路，也不拿一个猜出来的事由去登记
+ * 一条挂在别人名下的承诺。
+ */
+export function registrationFrom(
+  text: string, name: string,
+): { readonly what: string; readonly due?: string } | undefined {
+  // 受话是 composer 补上的那一截，不是句子的一部分。
+  const body = text.replace(/^\s*@\S+\s*/u, '').trim()
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+  const matched = new RegExp(
+    `^登记承诺[：:]\\s*(.+?)[，,]\\s*${escaped}\\s*负责[，,]?\\s*(.*?)[。.]?\\s*$`, 'u',
+  ).exec(body)
+  if (matched === null) return undefined
+  const what = (matched[1] ?? '').trim()
+  const due = (matched[2] ?? '').trim()
+  /*
+    空还空着就不算填过。
+
+    骨架里那两个〔…〕是**故意留白**的；原样发出去说明人还没写，而拿「〔要做什么〕」
+    去登记一条承诺，比不登记坏得多——板上会长出一行没有人看得懂的活，挂在同事名下。
+  */
+  if (what === '' || what.includes('〔')) return undefined
+  return due === '' || due.includes('〔') ? { what } : { what, due }
+}
+
 /** One line, or it stops being a preview and becomes a paragraph. */
 function clip(text: string): string {
   const flat = text.replace(/\s+/gu, ' ').trim()
@@ -2099,7 +2134,46 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             try {
               // 回复 = 挂链 (v4.7): the landing point travels with the send.
               const replyTo = stringField(payload, 'replyTo')
-              return { ok: true, value: await topics.sendToPlace(sessionId, text, replyTo) }
+              const sent = await topics.sendToPlace(sessionId, text, replyTo)
+              /*
+                **登记路径 = 编排层动作，不需要群 session** (v3.15 裁决④).
+
+                传送门第②步里操作者已经选过执行者了，那次选择就是**结构化先验**：选了人
+                走登记路径。所以这里不等一次群里的 turn——落库就在发送成功之后，而
+                「呼吸」由既有的 `commitment/opened` 监听器代发（登记必有呼吸，幽灵承诺
+                禁令的手工路径对称件）。
+
+                **发送成功才落库**：和目标 chip 装载同一条纪律。反过来的话，一次发不出去
+                的委派会在板上长出一条谁都没听说过的承诺。
+              */
+              const register = asRecord((payload as { register?: JsonValue }).register)
+              const name = asString(register?.name)
+              const openId = asString(register?.openId)
+              if (sent.msgId !== undefined && name !== undefined && openId !== undefined) {
+                const parsed = registrationFrom(text, name)
+                const topic = topics.topicOf(sessionId)
+                if (parsed !== undefined && topic !== undefined) {
+                  const goalRef = asString(register?.goalRef)
+                  await scoped.yzjGraph.append({
+                    type: 'commitment/opened',
+                    data: {
+                      commitmentId: commitmentIdFor(`yzj:${sent.msgId}`, parsed.what),
+                      what: parsed.what,
+                      executor: { kind: 'human', openId, name },
+                      sourceAnchor: `yzj:${sent.msgId}`,
+                      topicKey: topic.topicKey,
+                      // 听众集合由这条登记消息确立——它就是那句话落在的地方。
+                      audience: [topic.placeKey],
+                      ...(parsed.due === undefined ? {} : { due: parsed.due }),
+                      ...(goalRef === undefined || goalRef === ''
+                        ? {}
+                        : { parentGoalRef: goalRef, attachedVia: 'inherited' }),
+                    },
+                    actor: scoped.yzjCards.desktopActor(),
+                  })
+                }
+              }
+              return { ok: true, value: sent }
             } catch (error) {
               return failure(error instanceof Error ? error.message : String(error))
             }

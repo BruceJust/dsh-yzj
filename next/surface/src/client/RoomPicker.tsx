@@ -55,6 +55,8 @@ export interface Portal {
 export interface PortalChoice {
   readonly seed?: string
   readonly call?: boolean
+  /** 选了人 = 登记路径的结构化先验 (v3.15 裁决④)。 */
+  readonly register?: { readonly openId: string; readonly name: string }
 }
 
 /**
@@ -76,6 +78,7 @@ export function errandFor(portal: Portal, choice?: PortalChoice): Errand {
     voice: portal.voice,
     ...(seed === undefined ? {} : { seed }),
     ...(choice?.call === true ? { call: true } : {}),
+    ...(choice?.register === undefined ? {} : { register: choice.register }),
   }
 }
 
@@ -159,7 +162,12 @@ export function RoomPicker(props: {
     return executor.kind === 'agent'
       // 派给 agent：骨架就是受话本身，做什么由人说。
       ? { call: true }
-      : { call: true, seed: registerSeed(executor.person.name) }
+      : {
+        call: true,
+        seed: registerSeed(executor.person.name),
+        // 选了人，这句话就是在登记他的承诺——分类在这一刻定，不必等群里跑一次 turn。
+        register: { openId: executor.person.openId, name: executor.person.name },
+      }
   }
 
   if (needsExecutor) {

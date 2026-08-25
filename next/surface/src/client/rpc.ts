@@ -457,6 +457,13 @@ export interface SurfaceInject {
    */
   sendToPlace(
     sessionId: string, text: string, replyTo?: string,
+    /**
+     * 登记路径的**结构化先验** —— 委派五步④ (v3.15 裁决④).
+     *
+     * 有它 = 这句话是在登记那个人的承诺（传送门第②步选执行者时就定了）。发送成功之后
+     * 落库 + 由既有监听器代发 ack，**不开话题**：登记的是别人的承诺，不是给 agent 的任务。
+     */
+    register?: { openId: string; name: string; goalRef?: string },
   ): Promise<{ msgId?: string; error?: string }>
   /** One read-only turn: answers, writes nothing, opens no task. */
   lightAsk(sessionId: string, text: string): Promise<{ answer?: string; error?: string }>
@@ -621,9 +628,11 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       ) ?? { current: [], memory: [], resources: [] }
     },
     fused: sessionId => call<FusedWindowWire>('fused', { sessionId }),
-    async sendToPlace(sessionId, text, replyTo) {
+    async sendToPlace(sessionId, text, replyTo, register) {
       const result = await write<{ msgId?: string }>('send-to-place', {
-        sessionId, text, ...(replyTo === undefined ? {} : { replyTo }),
+        sessionId, text,
+        ...(replyTo === undefined ? {} : { replyTo }),
+        ...(register === undefined ? {} : { register }),
       })
       return result.error === undefined ? result.value ?? {} : { error: result.error }
     },

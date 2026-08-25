@@ -143,6 +143,16 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
    * 设计一直在拒绝的那种代做。
    */
   const [pendingCall, setPendingCall] = useState<string | undefined>(undefined)
+  /**
+   * 这句话是在**登记谁的**承诺 —— 委派五步④ 的结构化先验 (v3.15 裁决④).
+   *
+   * 传送门第②步里操作者选的那个人。分类在那一刻就定了，不必等群里跑一次 turn：
+   * 选了人 = 登记路径。和目标 chip 同一条纪律——**说出口了才算数**，所以它是 pending
+   * 状态，跟着这次发送走，发不出去就什么都没发生。
+   */
+  const [pendingRegister, setPendingRegister] = useState<
+    { openId: string; name: string } | undefined
+  >(undefined)
   /** Scroll position handed back by a pop, for the frame we return to. */
   const [restoreScroll, setRestoreScroll] = useState<number | undefined>(undefined)
   const back = backTarget()
@@ -183,6 +193,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       // of a race the declaration order would decide.
       setPendingGoal(undefined)
       setPendingEvent(undefined)
+      setPendingRegister(undefined)
       return
     }
     setVoice(errand.voice)
@@ -216,6 +227,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       记下「这句欠一个受话」，等下面那个 effect 拿到触发词再补。
     */
     setPendingCall(errand.call === true ? opening : undefined)
+    setPendingRegister(errand.register)
     /*
       **一场会不装载语境。**
 
@@ -389,7 +401,22 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     setBusy(true)
     setToast('')
     if (voice === 'place') {
-      void inject.sendToPlace(sessionId, text, replyTo?.msgId).then(async (result) => {
+      /*
+        登记路径带着**先验**一起发 (v3.15 裁决④)。
+
+        「这句是登记别人的承诺，还是给 agent 派活」不需要等一次群里的 turn——传送门第②步
+        里操作者选执行者的那一下就已经分好了类。带着它走，发送成功即落库；发不出去就
+        什么都没发生（和目标 chip 同一条纪律：说出口了才算数）。
+      */
+      void inject.sendToPlace(
+        sessionId, text, replyTo?.msgId,
+        pendingRegister === undefined
+          ? undefined
+          : {
+            ...pendingRegister,
+            ...(pendingGoal === undefined ? {} : { goalRef: pendingGoal.goalRef }),
+          },
+      ).then(async (result) => {
         if (result.error !== undefined) setToast(result.error)
         else {
           /*
@@ -403,6 +430,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           await armPending()
           setDraft('')
           setReplyTo(undefined)
+          // 说出口了，这次先验就用掉了——下一句话是新的一句话。
+          setPendingRegister(undefined)
           // Back to private after each public utterance: a remembered public
           // mode is how something meant for the agent ends up in a group.
           setVoice('private')
