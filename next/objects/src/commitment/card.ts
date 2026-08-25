@@ -8,7 +8,11 @@
  * first-class action next to `done`.
  */
 
+import type { Context } from '@deepseek-ai/cordis'
 import type { CardDefinition } from '@yzj-next/cards'
+import { asRecord, asString, type GraphViewer } from '@yzj-next/graph'
+import { goalTitleVisible } from '../goal/audience.ts'
+import { goalCommitmentIdFor } from '../goal/family.ts'
 import { isSettled, ownsCommitment, type CommitmentState } from './family.ts'
 
 /**
@@ -48,7 +52,48 @@ function statusLabel(status: CommitmentState['status']): string {
   }
 }
 
-export const commitmentCard: CardDefinition<CommitmentState> = {
+/**
+ * 承诺卡 —— 工厂，因为它要按**投到哪儿**裁剪 (v4.22 裁决① 三态投影).
+ *
+ * 此前它是一个常量，`renderText` 只看得见 state；而卡上那一行「承 …」引用的是**另一个
+ * 对象**（目标），而那个对象未必和这张卡有同一个听众集合。于是它把 goalRef 的**原始
+ * URI** 原样印进每一间收到这张卡的屋子——对一个看不见这个目标的群，那一行等于告诉
+ * 他们「这儿有个你看不到的东西」，而 URI 本身常常就带着名字。
+ *
+ * 拿到 ctx 才问得出「这间屋子看得见这个目标的标题吗」，所以它成了工厂。
+ */
+export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentState> {
+  /**
+   * 那一行「承 …」，按三态投影渲染。
+   *
+   * - 标题可见 → 印**名字**（读不出名字就退回链接：标题可见∧正文不可读那一态）；
+   * - 标题不可见 → **整行不印**。不是印个链接——零暗示才和「连计数不泄漏」自洽。
+   */
+  const goalLine = (state: CommitmentState, placeKey?: string): string[] => {
+    // Detaching writes an EMPTY string rather than deleting the key (the fold
+    // is a merge), so `undefined` is not the only absent value.
+    const ref = state.parentGoalRef
+    if (ref === undefined || ref === '') return []
+    const viewer: GraphViewer = placeKey === undefined
+      ? { kind: 'operator', openId: '' }
+      : { kind: 'place', placeKey }
+    if (!goalTitleVisible(ctx, ref, viewer)) return []
+    /*
+      名字读的是**未过滤的图**，因为上一行已经授权过了。
+
+      拿 `object(viewer, …)` 再问一遍，问的是另一个问题：那条**目标登记**本身的听众集合
+      （多半是空的——目标常常是在板上私下签发的）。于是「这个群看得见这个目标的标题」
+      和「这个群读得到那条登记」打架，结果是明明该显示名字的地方印出一串 URI。
+      标题可见域**就是**这一问的答案，不该再被它自己的原料否决一次。
+    */
+    const name = asString(
+      asRecord(ctx.yzjGraph.rawObject('commitment', goalCommitmentIdFor(ref))?.state)?.what,
+    )
+    const guess = state.attachedVia === 'inferred' ? '（推断，可回复「改挂 <目标>」纠正）' : ''
+    return [`承 ${name ?? ref}${guess}`]
+  }
+
+  return {
   type: 'commitment',
   updateStrategy: 'append-echo',
 
@@ -138,16 +183,14 @@ export const commitmentCard: CardDefinition<CommitmentState> = {
     return { layer: 'signal', mode: 'open-question', label: `进行中：${state.what}` }
   },
 
-  renderText: state => ({
+  renderText: (state, view) => ({
     body: [
       `【承诺·${statusLabel(state.status)}】${state.what}`,
       `执行者：${executorLabel(state)}${state.due === undefined ? '' : ` · 期限 ${state.due}`}`,
       // Detaching writes an EMPTY string rather than deleting the key (the
       // fold is a merge), so `undefined` is not the only absent value — and
       // this is the projection that gets posted into a real group.
-      ...(state.parentGoalRef === undefined || state.parentGoalRef === ''
-        ? []
-        : [`承 ${state.parentGoalRef}${state.attachedVia === 'inferred' ? '（推断，可回复「改挂 <目标>」纠正）' : ''}`]),
+      ...goalLine(state, view?.placeKey),
       ...(state.lastReceipt === undefined ? [] : [`最近回执：${state.lastReceipt}`]),
       // 交付主张 + 返工轮次上卡（轮次不进徽标，位置在这儿）。
       ...(state.delivery === undefined
@@ -239,4 +282,5 @@ export const commitmentCard: CardDefinition<CommitmentState> = {
       }],
     }
   },
+  }
 }

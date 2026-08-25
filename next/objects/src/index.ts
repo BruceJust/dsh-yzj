@@ -38,7 +38,7 @@ export {
   waitingCard, waitingFamily, waitingIdFor, waitingIdemKeyFor,
   type WaitingCloseCause, type WaitingState, type WaitingStatus,
 } from './task/waiting.ts'
-export { commitmentCard } from './commitment/card.ts'
+export { createCommitmentCard } from './commitment/card.ts'
 export {
   commitmentFamily, commitmentIdFor, commitmentIdemKeyFor, earnsCommitment,
   isSettled, ownsCommitment, processFamily,

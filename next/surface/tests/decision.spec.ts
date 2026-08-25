@@ -21,7 +21,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, z, type GraphFamily } from '@yzj-next/graph'
 import { YzjCards, type CardDefinition } from '@yzj-next/cards'
 import {
-  approvalCard, approvalFamily, assessmentCard, assessmentFamily, commitmentCard,
+  approvalCard, approvalFamily, assessmentCard, assessmentFamily, createCommitmentCard,
   commitmentFamily, conflictCard, createProposalCard, proposalFamily, taskCard, taskFamily,
   waitingCard, waitingFamily,
 } from '@yzj-next/objects'
@@ -58,7 +58,7 @@ beforeEach(async () => {
   cards.register(taskCard)
   cards.register(waitingCard)
   cards.register(conflictCard)
-  cards.register(commitmentCard)
+  cards.register(createCommitmentCard(ctx))
   cards.register(assessmentCard)
   cards.register(createProposalCard(ctx))
   ctx.provide('yzjTopics', {

@@ -21,7 +21,7 @@ import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import { boardShape, nudgeDraft, sinceText } from '../src/client/Board.tsx'
 import {
-  assessmentCard, assessmentFamily, commitmentCard, commitmentFamily, eventFamily,
+  assessmentCard, assessmentFamily, createCommitmentCard, commitmentFamily, eventFamily,
   goalCommitmentIdFor,
 } from '@yzj-next/objects'
 import { sendErrand, takeErrand } from '../src/client/store.ts'
@@ -59,7 +59,7 @@ beforeEach(async () => {
     能说出自己在等什么。
   */
   const cards = new YzjCards(ctx)
-  cards.register(commitmentCard)
+  cards.register(createCommitmentCard(ctx))
   cards.register(assessmentCard)
   ctx.provide('yzjTopics', {
     tree: () => [{

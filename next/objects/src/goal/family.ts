@@ -372,6 +372,14 @@ export const goalContextFamily: GraphFamily = {
         goalRef: z.string().min(1),
         goalName: z.string().optional(),
         armedBy: z.string().optional(),
+        /*
+          装载**也是一次提及** —— 标题可见域的第一级 (v4.22 裁决①).
+
+          「这个话题从此为 X 目标干活」是 owner 在那间屋子里做的一次**结构化引用**，
+          比任何自然语言提及都确定。把听众记下来，那间屋子就进了这个目标的标题可见域
+          ——**动态扩张、零新边**：系统不该对聊天记录里明摆着的名字装瞎。
+        */
+        audience: z.array(z.string()).optional(),
       }),
     },
     'goal-context/cleared': {

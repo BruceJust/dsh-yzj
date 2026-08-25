@@ -12,7 +12,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { commitmentCard } from '../src/commitment/card.ts'
+import { createCommitmentCard } from '../src/commitment/card.ts'
 import {
   commitmentFamily, commitmentIdFor, earnsCommitment, processFamily,
   type CommitmentState,
@@ -63,7 +63,7 @@ beforeEach(async () => {
   graph.defineFamily(processFamily)
   await graph.selectAccount('acct-1')
   cards = new YzjCards(ctx)
-  cards.register(commitmentCard)
+  cards.register(createCommitmentCard(ctx))
   ctx.provide('yzjTurns', { bindingFor: () => BINDING, defaultBinding: () => BINDING })
   const captured: CapturedTool[] = []
   ctx.provide('tools', {
@@ -445,16 +445,21 @@ describe('a new commitment inherits the goal its context already serves', () => 
  */
 describe('a detached commitment renders no goal line', () => {
   it('drops the 承 line when the reference was cleared, not just when absent', () => {
+    const card = createCommitmentCard(ctx)
     const base = {
       commitmentId: 'c1', status: 'open' as const, what: '返修数据分析',
       executor: { kind: 'human' as const, openId: 'p-9', name: '张锐' },
       sourceAnchor: 'yzj:m-1',
     }
-    const detached = commitmentCard.renderText({ ...base, parentGoalRef: '' })
+    const detached = card.renderText({ ...base, parentGoalRef: '' })
     expect(detached.body).not.toContain('承 ')
-    const absent = commitmentCard.renderText(base)
+    const absent = card.renderText(base)
     expect(absent.body).toBe(detached.body)
-    const attached = commitmentCard.renderText({ ...base, parentGoalRef: 'yzj://doc/g' })
+    /*
+      投给操作者本人时照旧印出来——他看的是自己那一份分区。读不出名字就退回链接，
+      那是三态里「标题可见 ∧ 正文不可读」的那一态。
+    */
+    const attached = card.renderText({ ...base, parentGoalRef: 'yzj://doc/g' })
     expect(attached.body).toContain('承 yzj://doc/g')
   })
 })

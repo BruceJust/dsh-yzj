@@ -19,7 +19,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import {
-  assessmentCard, assessmentFamily, commitmentCard, commitmentFamily, goalCommitmentIdFor,
+  assessmentCard, assessmentFamily, createCommitmentCard, commitmentFamily, goalCommitmentIdFor,
 } from '@yzj-next/objects'
 import { applySurfaceRpc, boardFrame, goalPageFrame } from '../src/rpc.ts'
 
@@ -58,7 +58,7 @@ beforeEach(async () => {
     代价是它们再也测不到「一件等着人答的事有没有出现在该出现的地方」。
   */
   const cards = new YzjCards(ctx)
-  cards.register(commitmentCard)
+  cards.register(createCommitmentCard(ctx))
   cards.register(assessmentCard)
   cards.setDesktopActor(OPERATOR)
   /*

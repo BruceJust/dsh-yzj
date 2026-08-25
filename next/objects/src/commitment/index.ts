@@ -5,7 +5,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { commitmentCard } from './card.ts'
+import { createCommitmentCard } from './card.ts'
 import { commitmentFamily, processFamily } from './family.ts'
 import { applyCommitmentTools } from './tools.ts'
 
@@ -17,7 +17,7 @@ export function apply(ctx: Context): void {
     const disposers = [
       ctx.yzjGraph.defineFamily(commitmentFamily),
       ctx.yzjGraph.defineFamily(processFamily),
-      ctx.yzjCards.register(commitmentCard),
+      ctx.yzjCards.register(createCommitmentCard(ctx)),
       applyCommitmentTools(ctx),
     ]
     return () => {

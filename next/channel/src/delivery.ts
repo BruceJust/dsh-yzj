@@ -54,7 +54,8 @@ export class YzjCardDelivery implements YzjCardChannel {
   ): Promise<CardProjection | undefined> {
     const groupId = groupIdFromPlaceKey(placeKey)
     if (groupId === undefined) return undefined
-    const rendered = this.ctx.yzjCards.renderText(cardRef)
+    // 投给一间屋子：卡里引用的别的对象要按**那间屋子**的可见域裁剪 (v4.22 裁决①)。
+    const rendered = this.ctx.yzjCards.renderText(cardRef, placeKey)
     if (rendered === undefined) return undefined
     const body = rendered.replyHints.length === 0
       ? rendered.body

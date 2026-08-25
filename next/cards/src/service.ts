@@ -152,11 +152,21 @@ export class YzjCards extends Service {
   }
 
   /** Text projection with the length contract applied. */
-  renderText(cardRef: CardRef): CardTextProjection | undefined {
+  /**
+   * 文本投影，带上**它要去哪间屋子**。
+   *
+   * `placeKey` 不是装饰：一张卡里引用的别的对象（比如它挂的那个目标）未必和这张卡有
+   * 同一个听众集合，而三态投影的第一问正是「这个查看者看得见它吗」(v4.22 裁决①)。
+   * 缺席 = 投给操作者本人。
+   */
+  renderText(cardRef: CardRef, placeKey?: string): CardTextProjection | undefined {
     const definition = this.definitions.get(cardRef.kind)
     const object = this.ctx.yzjGraph.rawObject(cardRef.kind, cardRef.id)
     if (definition === undefined || object === undefined) return undefined
-    const rendered = definition.renderText(object.state as never)
+    const rendered = definition.renderText(
+      object.state as never,
+      placeKey === undefined ? undefined : { placeKey },
+    )
     if (rendered.body.length <= CARD_TEXT_MAX_CHARS) {
       return { body: rendered.body, replyHints: rendered.replyHints, degraded: false }
     }

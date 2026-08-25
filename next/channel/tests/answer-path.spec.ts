@@ -21,7 +21,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, asRecord, asString } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import {
-  approvalCard, approvalFamily, commitmentCard, commitmentFamily,
+  approvalCard, approvalFamily, createCommitmentCard, commitmentFamily,
   conflictCard, taskCard, taskFamily, waitingCard, waitingFamily,
 } from '@yzj-next/objects'
 import type { YzjRunResult } from '@yzj-next/bridge'
@@ -88,7 +88,7 @@ beforeEach(async () => {
   }
   await graph.selectAccount('acct-1')
   cards = new YzjCards(ctx)
-  for (const card of [approvalCard, taskCard, waitingCard, commitmentCard, conflictCard]) {
+  for (const card of [approvalCard, taskCard, waitingCard, createCommitmentCard(ctx), conflictCard]) {
     cards.register(card)
   }
   delivery = new YzjCardDelivery(ctx, scriptedClient(), 'op-1')

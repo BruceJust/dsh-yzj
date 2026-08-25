@@ -170,7 +170,18 @@ export interface CardDefinition<S = JsonValue> {
    * user with no client must be able to act on it) plus reply hints. The bus
    * enforces {@link CARD_TEXT_MAX_CHARS} and degrades overflow.
    */
-  renderText(state: S): { body: string; replyHints: readonly string[] }
+  /**
+   * 这张卡投到某个面上时的文本。
+   *
+   * `view.placeKey` 是**要投进哪间屋子**——只有需要按可见域裁剪的家族才读它（目标标题
+   * 的三态投影，v4.22 裁决①）。缺席 = 投给操作者本人，他看的是自己那份分区。
+   *
+   * 大多数家族用不上它：一张卡的正文本来就只说这张卡自己的事。会用到的是那些**引用了
+   * 别的对象**的行——被引用的那个东西未必和这张卡有同一个听众集合。
+   */
+  renderText(
+    state: S, view?: { readonly placeKey?: string },
+  ): { body: string; replyHints: readonly string[] }
   /**
    * Terminal echo, posted to every text surface this card was projected onto.
    * Yunzhijia messages cannot be edited (F1), so without this the "please

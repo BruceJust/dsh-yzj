@@ -30,7 +30,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, asRecord, asString, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import {
-  applyGoalWriteback, assessmentCard, assessmentFamily, commitmentCard, commitmentFamily,
+  applyGoalWriteback, assessmentCard, assessmentFamily, createCommitmentCard, commitmentFamily,
   goalCommitmentIdFor, waitingFamily,
 } from '@yzj-next/objects'
 import { boardFrame } from '../src/rpc.ts'
@@ -61,7 +61,7 @@ beforeEach(async () => {
   graph.defineFamily(waitingFamily)
   await graph.selectAccount('acct-1')
   cards = new YzjCards(ctx)
-  cards.register(commitmentCard)
+  cards.register(createCommitmentCard(ctx))
   cards.register(assessmentCard)
   cards.setDesktopActor(OPERATOR)
   ctx.provide('yzjTopics', {

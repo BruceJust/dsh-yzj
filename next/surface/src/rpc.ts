@@ -2349,6 +2349,8 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                   data: {
                     topicKey: topic.topicKey,
                     goalRef,
+                    // 装载即提及：这间屋子从此在这个目标的标题可见域里 (v4.22 裁决①)。
+                    audience: [topic.placeKey],
                     ...(stringField(payload, 'goalName') === undefined
                       ? {}
                       : { goalName: stringField(payload, 'goalName') as string }),

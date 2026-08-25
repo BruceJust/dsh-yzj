@@ -20,7 +20,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { YzjGraph, asRecord, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { commitmentCard } from '../src/commitment/card.ts'
+import { createCommitmentCard } from '../src/commitment/card.ts'
 import { commitmentFamily, processFamily, type CommitmentState } from '../src/commitment/family.ts'
 import { applyCommitmentTools } from '../src/commitment/tools.ts'
 import { assessmentCard } from '../src/goal/assessment-card.ts'
@@ -32,6 +32,7 @@ import {
 import { applyCommitmentNotify } from '../src/goal/notify.ts'
 import { applyGoalTools } from '../src/goal/tools.ts'
 import { goalEvidence } from '../src/goal/evidence.ts'
+import { goalTitleAudience, goalTitleVisible } from '../src/goal/audience.ts'
 import type { TurnBinding } from '../src/turns.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
@@ -110,7 +111,7 @@ beforeEach(async () => {
   ]) graph.defineFamily(family)
   await graph.selectAccount('acct-1')
   cards = new YzjCards(ctx)
-  cards.register(commitmentCard)
+  cards.register(createCommitmentCard(ctx))
   proposalCard = createProposalCard(ctx)
   cards.register(proposalCard)
   cards.register(assessmentCard)
@@ -930,5 +931,110 @@ describe('没有真身链接时，卡说什么', () => {
     const text = createProposalCard(ctx).renderText(state)
     expect(text.body).toContain('确认才算你签发')
     expect(text.body).not.toContain('建一份')
+  })
+})
+
+/**
+ * 目标可见域两层化 + **三态投影** —— 地基空洞的填补 (v4.22 裁决①).
+ *
+ * 「一个目标能被谁看见」在这套设计里**从来没有定义过**。承诺有听众集合、工件有 ACL，
+ * 唯独目标——它不是图上的节点，也没有一条「谁能看见它」的边。于是每一处渲染 goalRef
+ * 的地方都各自即兴，而承诺卡那一行把**原始 URI** 原样印进了每一间收到它的屋子。
+ *
+ * 裁决：**标题可见域 = 签发话语的听众 ∪ owner 后续提及话语的听众**（动态扩张、纯派生、
+ * 零新边）。判定只做**第一级（结构化引用）**：话题装载与子承诺的 parentGoalRef。第二级
+ * （自然语言提及）没做——LLM 误关联 = 凭空扩张 = 真泄漏，宁窄勿错。
+ */
+describe('标题可见域：动态扩张，只认结构化引用', () => {
+  const OTHER_PLACE = 'yzj-group-g9'
+
+  it('签发时没说给任何场所听，那就谁都看不见', async () => {
+    await declareGoal()
+    expect([...goalTitleAudience(ctx, GOAL)]).toEqual([])
+  })
+
+  /*
+    **一次挂着它的登记，就是一次点名。** 那句话说给谁听，谁就知道这个目标存在了；
+    系统再装作它不存在，是对着一份聊天记录说谎。
+  */
+  it('在一个群里登记了挂它的承诺 —— 那个群从此看得见标题', async () => {
+    await declareGoal()
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c-pub', what: '拉三家竞品', parentGoalRef: GOAL,
+        executor: { kind: 'human', openId: 'u-1', name: '张锐' },
+        sourceAnchor: 'yzj:m-2', audience: ['yzj-group-g1'],
+      },
+      actor: OPERATOR,
+    })
+    expect([...goalTitleAudience(ctx, GOAL)]).toEqual(['yzj-group-g1'])
+    expect(goalTitleVisible(ctx, GOAL, { kind: 'place', placeKey: 'yzj-group-g1' })).toBe(true)
+    expect(goalTitleVisible(ctx, GOAL, { kind: 'place', placeKey: OTHER_PLACE })).toBe(false)
+  })
+
+  it('装载话题也是一次结构化引用', async () => {
+    await declareGoal()
+    await graph.append({
+      type: 'goal-context/armed',
+      data: { topicKey: 'yzj-topic-9', goalRef: GOAL, audience: [OTHER_PLACE] },
+      actor: OPERATOR,
+    })
+    expect(goalTitleVisible(ctx, GOAL, { kind: 'place', placeKey: OTHER_PLACE })).toBe(true)
+  })
+
+  // 操作者看的是自己那一份分区——这个谓词问的是**场所**能不能看见。
+  it('操作者视角一律可见', async () => {
+    await declareGoal()
+    expect(goalTitleVisible(ctx, GOAL, { kind: 'operator', openId: 'op-1' })).toBe(true)
+  })
+})
+
+describe('三态投影：承诺卡那一行「承 …」', () => {
+  const card = (): ReturnType<typeof createCommitmentCard> => createCommitmentCard(ctx)
+  const child = async (audience: string[]): Promise<void> => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c-p', what: '拉三家竞品', parentGoalRef: GOAL,
+        executor: { kind: 'human', openId: 'u-1', name: '张锐' },
+        sourceAnchor: 'yzj:m-3', audience,
+      },
+      actor: OPERATOR,
+    })
+  }
+  const bodyIn = (placeKey?: string): string => {
+    const state = graph.rawObject('commitment', 'c-p')?.state as never
+    return card().renderText(state, placeKey === undefined ? undefined : { placeKey }).body
+  }
+
+  it('标题可见 → 印**名字**，不是那串 URI', async () => {
+    await declareGoal()
+    await child(['yzj-group-g1'])
+    expect(bodyIn('yzj-group-g1')).toContain('承 Q3 把对账周期压到 3 天内')
+    expect(bodyIn('yzj-group-g1')).not.toContain(GOAL)
+  })
+
+  /*
+    **标题不可见 → 整行不印。**
+
+    不是「印个链接」——印一个 URI 等于告诉对方「这儿有个你看不到的东西」，而 URI 本身
+    常常就带着名字。与「连计数不泄漏」以及明拒⑤「不用『另有 N 项你看不到』做透明装饰」
+    唯一自洽的做法，就是什么都不说。
+  */
+  it('标题不可见 → 一个字都不印，零暗示', async () => {
+    await declareGoal()
+    await child(['yzj-group-g1'])
+    const body = bodyIn('yzj-group-g9')
+    expect(body).not.toContain('承 ')
+    expect(body).not.toContain(GOAL)
+    // 卡自己的事照说不误——裁掉的只是它引用的**别人**。
+    expect(body).toContain('拉三家竞品')
+  })
+
+  it('投给操作者本人时照旧全渲染', async () => {
+    await declareGoal()
+    await child(['yzj-group-g1'])
+    expect(bodyIn()).toContain('承 Q3 把对账周期压到 3 天内')
   })
 })

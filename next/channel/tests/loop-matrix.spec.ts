@@ -34,7 +34,7 @@ import { YzjGraph, asRecord, asString } from '@yzj-next/graph'
 import { YzjCards, type CardProjection } from '@yzj-next/cards'
 import {
   applyCommitmentTools, applyConflictTools, applyMemoryTools,
-  approvalCard, approvalFamily, commitmentCard, commitmentFamily,
+  approvalCard, approvalFamily, createCommitmentCard, commitmentFamily,
   conflictCard, processFamily, taskCard, taskFamily, waitingCard, waitingFamily,
   type TurnBinding,
 } from '@yzj-next/objects'
@@ -87,7 +87,7 @@ beforeEach(async () => {
   }
   await graph.selectAccount('acct-1')
   cards = new YzjCards(ctx)
-  for (const card of [approvalCard, taskCard, waitingCard, commitmentCard, conflictCard]) {
+  for (const card of [approvalCard, taskCard, waitingCard, createCommitmentCard(ctx), conflictCard]) {
     cards.register(card)
   }
   cards.setDesktopActor(OPERATOR)

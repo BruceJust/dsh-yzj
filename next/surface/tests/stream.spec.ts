@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import {
-  approvalCard, approvalFamily, assessmentCard, commitmentCard, commitmentFamily,
+  approvalCard, approvalFamily, assessmentCard, createCommitmentCard, commitmentFamily,
   conflictCard, taskCard, taskFamily, waitingCard,
 } from '@yzj-next/objects'
 import type { TopicDescriptor, TopicMessage, YzjTopics } from '@yzj-next/channel'
@@ -53,7 +53,7 @@ function mountCards(context: Context): YzjCards {
   cards.register(taskCard)
   cards.register(waitingCard)
   cards.register(conflictCard)
-  cards.register(commitmentCard)
+  cards.register(createCommitmentCard(context))
   cards.register(assessmentCard)
   return cards
 }
