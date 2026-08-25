@@ -364,6 +364,49 @@ describe('durability and lenient decoding', () => {
     expect(reopened.query(OPERATOR, { kind: 'note' })).toHaveLength(1)
   })
 
+  /*
+    **快照是缓存，缓存必须知道自己是哪一版代码算出来的**（`GRAPH_FOLD_VERSION`）。
+
+    快照此前只记 `upToSeq`，加载时被原样信任——于是任何一次 reduce 的改动都只对新对象
+    生效，旧对象带着旧形状永远留在缓存里，而日志里明明写着足以算出新形状的一切。
+
+    这一条不是假想：实测一份真实数据，带快照加载与全量重放**有 16 个对象对不上**，差的
+    正是后加的那条 reduce 盖上的字段。它不报错、不自愈，而它动摇的是事件溯源的根本承诺
+    ——**日志是唯一的真相，物化必须是日志的纯函数**。
+  */
+  it('折叠版本对不上的快照当作不存在，整份重折', async () => {
+    const graph = await openGraph()
+    await graph.append({ type: 'note/opened', data: { noteId: 'n1', text: 'a' }, actor: ACTOR })
+    await graph.flush()
+    // 上一版代码写下的快照：内容自洽，只是折叠逻辑早就变了。
+    const stale = JSON.parse(await readFile(join(root, 'acct-1', 'snapshot.json'), 'utf8')) as {
+      fv?: number; objects: Record<string, { state: Record<string, unknown> }>
+    }
+    stale.fv = 0
+    stale.objects['note:n1'].state = { noteId: 'n1', text: '这是上一版折出来的，和日志对不上' }
+    await writeFile(join(root, 'acct-1', 'snapshot.json'), JSON.stringify(stale), 'utf8')
+
+    const reopened = await openGraph()
+    const note = reopened.query(OPERATOR, { kind: 'note' })[0]
+    // 重折之后，状态回到日志算得出来的那一个。
+    expect((note?.state as { text?: string }).text).toBe('a')
+  })
+
+  it('没有折叠版本的老快照同样作废 —— 谁也说不清它是哪一版折出来的', async () => {
+    const graph = await openGraph()
+    await graph.append({ type: 'note/opened', data: { noteId: 'n1', text: 'a' }, actor: ACTOR })
+    await graph.flush()
+    const stale = JSON.parse(await readFile(join(root, 'acct-1', 'snapshot.json'), 'utf8')) as {
+      fv?: number; objects: Record<string, { state: Record<string, unknown> }>
+    }
+    delete stale.fv
+    stale.objects['note:n1'].state = { noteId: 'n1', text: '老缓存' }
+    await writeFile(join(root, 'acct-1', 'snapshot.json'), JSON.stringify(stale), 'utf8')
+
+    const reopened = await openGraph()
+    expect((reopened.query(OPERATOR, { kind: 'note' })[0]?.state as { text?: string }).text).toBe('a')
+  })
+
   it('refuses to switch accounts once a partition is open', async () => {
     const graph = await openGraph('acct-1')
     await expect(graph.selectAccount('acct-2')).rejects.toThrow(/account changed/)

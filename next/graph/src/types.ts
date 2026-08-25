@@ -9,6 +9,24 @@
 /** Envelope version of one graph log line. Bumped only for envelope changes. */
 export const GRAPH_ENVELOPE_VERSION = 1
 
+/**
+ * **折叠版本** —— 快照是缓存，而缓存必须知道自己是哪一版代码算出来的。
+ *
+ * 快照此前只记 `upToSeq`：加载时它被原样信任，只有它之后的事件才重新折叠。于是
+ * **任何一次 reduce 的改动，都只对新对象生效**——旧对象带着旧形状永远留在缓存里，
+ * 而日志里明明写着足以算出新形状的一切。
+ *
+ * 这不是理论风险：实测一份真实数据，带快照加载与全量重放**有 16 个对象对不上**，
+ * 差的正是 `delegatedBy`（委派者从出生事件 actor 盖上，是后加的那条 reduce）。这类
+ * 分歧不会报错、不会自愈，而它动摇的恰恰是事件溯源的根本承诺：**日志是唯一的真相，
+ * 物化必须是日志的纯函数**。
+ *
+ * 所以这个数字改的时候只有一条规矩：**任何影响折叠结果的改动都要 +1**（reduce、
+ * 幂等归并、可见域字段的读法……）。对不上就整份重折——重折是 O(日志)，而一份说谎的
+ * 缓存的代价没有上限。
+ */
+export const GRAPH_FOLD_VERSION = 2
+
 /** Lossless JSON, the only shape a graph event may carry. */
 export type JsonValue =
   | string | number | boolean | null

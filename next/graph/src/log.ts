@@ -7,7 +7,7 @@
 
 import { mkdir, readFile, rename, writeFile, appendFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { GRAPH_ENVELOPE_VERSION, type GraphEvent, type GraphObject } from './types.ts'
+import { GRAPH_ENVELOPE_VERSION, GRAPH_FOLD_VERSION, type GraphEvent, type GraphObject } from './types.ts'
 
 /** What one partition holds on disk after a load. */
 export interface LoadedLog {
@@ -20,6 +20,8 @@ export interface LoadedLog {
 
 interface SnapshotFile {
   v: number
+  /** 算出这份缓存的那一版折叠逻辑。对不上就当它不存在。 */
+  fv?: number
   upToSeq: number
   objects: Record<string, GraphObject>
 }
@@ -102,6 +104,14 @@ export class GraphLog {
     if (!isRecord(parsed)) return undefined
     const file = parsed as Partial<SnapshotFile>
     if (file.v !== 1 || typeof file.upToSeq !== 'number' || !isRecord(file.objects)) return undefined
+    /*
+      **折叠版本对不上就当没有快照**（`GRAPH_FOLD_VERSION`）。
+
+      没有 `fv` 的那些是这条规矩之前写下的，同样作废——它们正是问题最大的一批：谁也
+      说不清它们是哪一版 reduce 折出来的。丢掉一份缓存的代价是一次全量重放；留着一份
+      说谎的缓存，代价是账本从此和它自己的日志不一致，而且不报错。
+    */
+    if (file.fv !== GRAPH_FOLD_VERSION) return undefined
     return { upToSeq: file.upToSeq, objects: file.objects as Record<string, GraphObject> }
   }
 
@@ -114,7 +124,7 @@ export class GraphLog {
   /** Replace the snapshot atomically (temp file + rename). */
   async writeSnapshot(upToSeq: number, objects: Record<string, GraphObject>): Promise<void> {
     await mkdir(this.dir, { recursive: true })
-    const body: SnapshotFile = { v: 1, upToSeq, objects }
+    const body: SnapshotFile = { v: 1, fv: GRAPH_FOLD_VERSION, upToSeq, objects }
     const temporary = `${this.snapshotPath}.${String(process.pid)}.tmp`
     await writeFile(temporary, `${JSON.stringify(body)}\n`, 'utf8')
     await rename(temporary, this.snapshotPath)

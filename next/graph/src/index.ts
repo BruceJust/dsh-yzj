@@ -26,7 +26,7 @@ export { decodeEvent } from './log.ts'
 export { asNumber, asObjectRef, asRecord, asString, asStringArray } from './json.ts'
 export { GraphStore } from './store.ts'
 export {
-  GRAPH_ENVELOPE_VERSION, ORG_DEFAULT_CONTRACT, refKey,
+  GRAPH_ENVELOPE_VERSION, GRAPH_FOLD_VERSION, ORG_DEFAULT_CONTRACT, refKey,
   type GraphActor, type GraphAppendInput, type GraphEvent, type GraphEventQuery,
   type GraphEventSpec, type GraphFamily, type GraphObject, type GraphQuery,
   type GraphReadHook, type GraphViewer, type JsonValue, type ObjectRef,
