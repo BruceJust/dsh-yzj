@@ -13,7 +13,7 @@
       "runtimeExecutable": "/bin/sh",
       "runtimeArgs": [
         "-c",
-        "DSH_HOME=$HOME/.dsh-next exec node $HOME/.npm-global/bin/dsh web --port 3090 --no-open"
+        "pnpm build && DSH_HOME=$HOME/.dsh-next exec node $HOME/.npm-global/bin/dsh web --port 3090 --no-open"
       ],
       "port": 3090
     },
