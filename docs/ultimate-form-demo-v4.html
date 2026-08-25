@@ -1887,7 +1887,7 @@ function hubCommitRow(c) {
     <span class="ex-tag ${c.exec}">${c.exec === 'agent' ? 'agent' : c.exec === 'human' ? '人' : '流程'}</span>
     <span style="flex:1;min-width:0">
       <span style="font-size:12.8px;font-weight:650">${c.name}</span>${mineTag}
-      <span style="display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px">来源：${c.linked || '—'} · ${c.who} · ${c.due} · ${signal}</span>
+      <span style="display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px">来源：${c.linked || '—'} · ${c.who}${c.owner && c.owner !== viewerName ? ` · <span style="color:#8A6D3B">验收：${c.owner}</span>` : ''} · ${c.due} · ${signal}</span>
       <span style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;align-items:center">${sessLink} ${prod}
         ${iOwn ? `<button class="btn" data-hmenu="${c.name}" style="font-size:10px;padding:1px 8px" title="修理动词主权 = 该承诺的验收人（无主权不渲染——非灰化不禁言）">⋯ 修理</button>` : ''}</span>
     </span>${stateH}</div>`;
@@ -2868,16 +2868,19 @@ function renderRight() {
   if (state.preview) { body.innerHTML = renderPreviewHtml(state.preview); return; }
   if (sessions[state.current].kind === 'goalhub') {
     const g = GOALS[state.hubGoal || 'g1'];
+    /* v4.22 可见域法则枚举含"背景"——右栏对象面同样 N 个查看者 N 种渲染 */
+    const isOwnerView = state.viewAs === 'me';
+    const publicVisible = state.viewAs !== 'zhenghui'; /* 公域工件的血缘承诺登记在产品讨论群——郑慧不在群 */
     body.innerHTML = `
-      <div class="res-sec">产出归集 · 目标→承诺→工件（两跳派生查询）</div>
-      <div class="pv-card" style="margin-bottom:6px"><button class="btn" data-fpv="md1" style="font-size:11px;padding:3px 10px">📄 竞品对比分析.md</button>
+      <div class="res-sec">产出归集 · 目标→承诺→工件（两跳派生查询 · 按你的可见域）</div>
+      ${publicVisible ? `<div class="pv-card" style="margin-bottom:6px"><button class="btn" data-fpv="md1" style="font-size:11px;padding:3px 10px">📄 竞品对比分析.md</button>
         <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:4px">血缘：竞品对比表（agent 交付）· 点开即三态预览</span></div>
       <div class="pv-card" style="margin-bottom:6px"><button class="btn" data-fpv="html1" style="font-size:11px;padding:3px 10px">🌐 Q3路线图评审.html</button>
-        <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:4px">血缘：Q3 路线图整理（agent 交付）</span></div>
-      <div class="res-sec">背景</div>
+        <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:4px">血缘：Q3 路线图整理（agent 交付）</span></div>` : `<div class="pv-card" style="margin-bottom:6px;font-size:10.5px;color:var(--ink-3)">你可见域内暂无归集产出——两跳查询只走你看得见的承诺（连计数也不泄漏）</div>`}
+      ${isOwnerView ? `<div class="res-sec">背景</div>
       <div class="pv-card" style="margin-bottom:6px;font-size:10.5px;color:var(--ink-2)">${g.born}
-        <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:4px">磨稿会话血缘：<b>owner-only</b>（机密目标一跳即泄密——可见域法则特例）</span></div>
-      <div class="pv-card" style="font-size:10.5px;color:var(--ink-3)">简报归档：暂无——评估签发后附真身归集，历次简报即非操作者的目标时间线</div>`;
+        <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:4px">磨稿会话血缘：<b>owner-only</b>（机密目标一跳即泄密——可见域法则特例）</span></div>` : ''}
+      <div class="pv-card" style="font-size:10.5px;color:var(--ink-3)">简报归档：暂无——评估签发后附真身归集，历次简报即非操作者的目标时间线${state.viewAs === 'zhenghui' ? '（按真身 ACL 可读性投影）' : ''}</div>`;
     return;
   }
 
@@ -3342,7 +3345,7 @@ document.addEventListener('click', (e) => {
   const va = e.target.closest('[data-viewas]');
   if (va) {
     state.viewAs = va.dataset.viewas;
-    renderTimeline();
+    renderTimeline(); renderRight();
     toast({
       zhangrui: '张锐（执行者）：我的切片置顶（我执行的∪我委派的）、我欠的从数据推导、owner 动词不渲染、可拆自己的活（递归闭包）',
       zhenghui: '郑慧（跨域执行者）：只见自己一行——标题经委派话语提及可见、正文按真身 ACL 只显链接（两层化）、公域行不可见连计数不泄漏',
