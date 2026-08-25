@@ -590,3 +590,54 @@ describe('逐级兑付：没有不可兑付的信号', () => {
     }
   })
 })
+
+/**
+ * 本地会话是**一等可应答语境** (v3.15 裁决③a).
+ *
+ * 现场：在一个不是云之家话题的会话里让 agent 干活，它请你确认——卡投给了操作者的私聊，
+ * 而你正看着的这一列**一个字都不显示**。审批的 `audience` 是空的（P1 里确认卡从不投进
+ * 群），投影落在 `yzj-dm-*`，流里按话题取卡，于是这一屏永远是空的：**在应用内答不了**，
+ * 只能去云之家翻那条私聊。逐级兑付在这里断掉。
+ *
+ * 卡的归属因此有两条路：话题，和**会话本身**（`sessionAnchor` 是开卡时记下的 session
+ * id）。两条都认，本地会话就不再是个死角。
+ */
+describe('本地会话里的卡也答得了', () => {
+  const local = async (id = 'ap-local', sessionAnchor = 'session-local-1'): Promise<void> => {
+    await graph.append({
+      type: 'approval/opened',
+      data: {
+        approvalId: id, toolName: 'yzj_doc_create', reason: '在本地会话里建文档',
+        level: 'standard', args: {}, argsDigest: 'd', decider: 'op-1',
+        deadline: Date.now() + 60_000, sessionAnchor,
+        // P1 里确认卡从不投进群——听众是操作者一个人，记下来而不是靠默认。
+        audience: [],
+      },
+      actor: { kind: 'agent' },
+    })
+  }
+
+  it('升在这个会话里的卡，出现在这个会话的流里', async () => {
+    await local()
+    expect(cardsFor(ctx, undefined, 'session-local-1').map(card => card.id)).toEqual(['ap-local'])
+  })
+
+  it('别的会话升的卡不串门', async () => {
+    await local()
+    expect(cardsFor(ctx, undefined, 'session-local-2')).toEqual([])
+  })
+
+  /*
+    **挂着话题键的卡不因为同一次会话就跑过来。** 群里那张卡的家在它自己的话题里；
+    把它也塞进本地会话，等于同一件事在两个地方各等一次。
+  */
+  it('挂在话题上的卡仍然只属于那个话题', async () => {
+    await approval('ap-topic')
+    expect(cardsFor(ctx, undefined, 'session-local-1')).toEqual([])
+    expect(cardsFor(ctx, TOPIC).map(card => card.id)).toContain('ap-topic')
+  })
+
+  it('两样都没有就还是空的——不猜', () => {
+    expect(cardsFor(ctx, undefined)).toEqual([])
+  })
+})

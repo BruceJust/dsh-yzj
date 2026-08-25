@@ -1896,9 +1896,23 @@ function clip(text: string): string {
  * confirmation is part of the conversation that produced it, and moving it
  * elsewhere is how "please confirm" ends up orphaned from its own context.
  */
-export function cardsFor(ctx: Context, topic: TopicDescriptor | undefined): StreamCard[] {
-  if (topic === undefined) return []
-  const viewer: GraphViewer = { kind: 'operator', openId: topic.groupId }
+export function cardsFor(
+  ctx: Context, topic: TopicDescriptor | undefined, sessionId?: string,
+): StreamCard[] {
+  /*
+    **本地会话是一等可应答语境** (v3.15 裁决③a).
+
+    这一行此前是 `if (topic === undefined) return []`——于是一个不是云之家话题的会话
+    **永远没有卡**。而写确认恰恰常常升在那里：本地会话里让 agent 干活，它请你确认，
+    卡投给了操作者的私聊，而你正看着的这一列一个字都不显示。**在应用内答不了**，只能
+    去云之家找那条私聊——逐级兑付在这里断掉。
+
+    卡的归属因此有两条路：话题（群里那种），和**会话本身**（`sessionAnchor` 是审批
+    在开卡时记下的 `agent.session.id`）。两条都认，本地会话就不再是个死角。
+  */
+  if (topic === undefined && sessionId === undefined) return []
+  // 操作者看自己那一份分区（`audienceAllows` 对 operator viewer 一律放行）。
+  const viewer: GraphViewer = { kind: 'operator', openId: topic?.groupId ?? '' }
   const out: StreamCard[] = []
   /*
     遍历**已注册的卡类型**，而不是一份手写的名单 (v4.15 家族即接口)。
@@ -1911,7 +1925,16 @@ export function cardsFor(ctx: Context, topic: TopicDescriptor | undefined): Stre
       const state = asRecord(object.state)
       const owner = asString(state?.topicKey)
         ?? asString(asRecord(state?.executor)?.topicKey)
-      if (owner !== topic.topicKey) continue
+      /*
+        属于这一屏的两种可能：它挂在这个话题上，或者它就是**在这个会话里升起来的**。
+
+        第二条只在没有话题键时才当数——一张挂在别的话题上的卡不该因为碰巧是同一次
+        会话开的就跑到这儿来。
+      */
+      const mine = owner === undefined
+        ? sessionId !== undefined && asString(state?.sessionAnchor) === sessionId
+        : owner === topic?.topicKey
+      if (!mine) continue
       const definition = ctx.yzjCards.definitionOf(kind)
       if (definition === undefined) continue
       const demand = ctx.yzjCards.demandOf(object)
@@ -1947,7 +1970,7 @@ export async function fusedWindow(
   const topics = ctx.get('yzjTopics')
   const topic = topics?.topicOf(sessionId)
   const chips = chipsFor(ctx, topic)
-  const cards = cardsFor(ctx, topic)
+  const cards = cardsFor(ctx, topic, sessionId)
   const artifacts = artifactsFor(ctx, topic)
   const aliases = topics?.aliases() ?? []
   if (topics === undefined || topic === undefined) {
