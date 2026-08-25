@@ -17,6 +17,7 @@
 import { type ReactNode } from 'react'
 import type { BoardRowWire, SurfaceInject } from './rpc.ts'
 import css from './goal.module.css'
+import { PersonPicker } from './PersonPicker.tsx'
 
 /** 正在对哪一条、做哪一种修理。 */
 export type Repair =
@@ -73,17 +74,21 @@ if (repair.kind === 'handoff') {
         换人，不换承诺——出生边、听众、已有的回执都还在这一条上。
         <b>新执行者还不知道</b>：改完图之后，得有人在场所里说出口（幽灵承诺禁令对移交同样成立）。
       </span>
-      <input
-        className={css.repairInput}
-        value={field}
-        placeholder="新执行者的 openId"
-        onChange={event => { setField(event.target.value) }}
-      />
-      <input
-        className={css.repairInput}
-        value={field2}
-        placeholder="显示名（可空）"
-        onChange={event => { setField2(event.target.value) }}
+      {/*
+        **没有人背得下同事的 openId。**
+
+        这两个框此前是「新执行者的 openId」+「显示名（可空）」——一个要人手打身份，
+        一个由人随便写。手打的那个不会报错：一个错的 openId 只是把这条承诺交给一个
+        不存在的人，然后安静地待在板上。身份只能来自通讯录（`PersonPicker`，立目标
+        的 owner 用的是同一个）。
+      */}
+      <PersonPicker
+        inject={inject}
+        picked={field.trim() === '' ? undefined : { openId: field.trim(), name: field2.trim() === '' ? field.trim() : field2.trim() }}
+        onPick={(person) => { setField(person?.openId ?? ''); setField2(person?.name ?? '') }}
+        placeholder="搜通讯录：新执行者是谁"
+        clearTitle="换一个人"
+        emptyTail="没选中人就移交不出去——这条承诺得有个真人接着。"
       />
       <button
         type="button"
