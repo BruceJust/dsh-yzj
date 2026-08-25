@@ -135,6 +135,14 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   >(undefined)
   /** 带着一场会跳进来时的那句提示。**不是语境**——它什么都不装载，说完就没了。 */
   const [pendingEvent, setPendingEvent] = useState<string | undefined>(undefined)
+  /**
+   * 这一句欠一个**受话**，而触发词还没到 (委派五步③).
+   *
+   * 存的是**我们刚放进框里的那串字**，不是一个布尔：补的时候要先确认框里还是它。
+   * 人如果已经动手改过了，那句话就是他的了——在别人正在写的句子前面插字，是这套
+   * 设计一直在拒绝的那种代做。
+   */
+  const [pendingCall, setPendingCall] = useState<string | undefined>(undefined)
   /** Scroll position handed back by a pop, for the frame we return to. */
   const [restoreScroll, setRestoreScroll] = useState<number | undefined>(undefined)
   const back = backTarget()
@@ -186,19 +194,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       overwrite it with no undo. A draft is the operator's, and a convenience
       string is not worth losing one. Verified live: 「半写的一段话」 vanished.
     */
-    /*
-      受话补在**输入框里**，不补在别处 (委派五步③).
-
-      一句没有触发词的委派，agent 根本不会听见：它落进群里像一句同事之间的话，
-      没有人登记、板上不长行——幽灵承诺的另一种成因。所以传送门说了「这句是对
-      agent 说的」，这里就把这个部署的触发词摆进去（只有这一头知道它叫什么）。
-
-      **摆进去，不是偷偷加上**：它在框里，看得见、删得掉；删掉就降级成一句普通的
-      话。这和「发送时替人改写句子」是两件事——后者是越权，前者是把一个默认交到
-      人手上。
-    */
-    const alias = errand.call === true ? window_.aliases?.[0] : undefined
-    const opening = `${alias === undefined ? '' : `${alias} `}${errand.seed ?? ''}`
+    const opening = errand.seed ?? ''
     if (opening !== '') {
       setDraft(current => (current.trim() === '' ? opening : current))
       setToast(value => (
@@ -207,6 +203,19 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           : value
       ))
     }
+    /*
+      受话**等触发词到齐了再补** (委派五步③).
+
+      一句没有触发词的委派 agent 根本不会听见：它落进群里像一句同事之间的话，没有人
+      登记、板上不长行——幽灵承诺的另一种成因。所以传送门说了「这句是对 agent 说的」，
+      这一头就得把这个部署的触发词摆进去。
+
+      **不能在这儿直接摆**：这一拍读到的 `window_` 还是**上一个会话**的（刚跳过来，
+      新会话那次 fused 还没回来），而从板上跳进来时上一个会话常常压根没有——于是
+      `aliases` 是空的，受话被静静地丢掉。实测就是这么丢的：句子进了框，@ 没有。
+      记下「这句欠一个受话」，等下面那个 effect 拿到触发词再补。
+    */
+    setPendingCall(errand.call === true ? opening : undefined)
     /*
       **一场会不装载语境。**
 
@@ -254,6 +263,22 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     setVoice('private')
     setToast('这个会话不是云之家话题，轻问在这里用不了——已经切回「对 agent 说 · 私」，问答一样落在会话日志里。')
   }, [voice, window_])
+
+  /*
+    触发词到了，把受话补进框里 —— **摆进去，不是偷偷加上**。
+
+    它在框里，看得见、删得掉；删掉就降级成一句普通的话。这和「发送时替人改写句子」是
+    两件事：后者是越权，前者是把一个默认交到人手上（hover 的 ⚡@agent 早就是这个做法）。
+
+    只在框里还是我们放的那串字时补。人改过了就不补，那句话已经是他的了——`goalChip`
+    上那行提醒仍然会说「句子里带上 @next，这次委派才会被登记成可跟踪的承诺」。
+  */
+  useEffect(() => {
+    const alias = window_.aliases?.[0]
+    if (pendingCall === undefined || alias === undefined) return
+    setDraft(current => (current === pendingCall ? `${alias} ${current}`.trimEnd() : current))
+    setPendingCall(undefined)
+  }, [pendingCall, window_.aliases])
 
   // A toast is a receipt, not a log: it says its piece and leaves.
   useEffect(() => {
