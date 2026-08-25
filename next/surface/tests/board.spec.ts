@@ -26,6 +26,7 @@ import {
 } from '@yzj-next/objects'
 import { sendErrand, takeErrand } from '../src/client/store.ts'
 import { errandFor } from '../src/client/RoomPicker.tsx'
+import { materialsOf } from '../src/client/EventHub.tsx'
 import { boardFrame, bySignal, directionOf, eventsToday, inboxView } from '../src/rpc.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
@@ -829,5 +830,43 @@ describe('交付已主张的行', () => {
     expect(rows.find(row => row.id === 'c-plain')?.awaitingAcceptance).toBeUndefined()
     // 待决压过一切：它是「你现在就能做完的一个动作」。
     expect(rows.filter(row => row.id.startsWith('c-')).map(row => row.id)[0]).toBe('c-await')
+  })
+})
+
+/**
+ * 事件枢纽的清单 —— **归属层可以重复，清单层不许**。
+ *
+ * 一份产在共用会话里的材料会挂在共用它的每一件活下面：丢掉是丢真数据，独占是说假话，
+ * 所以归属层故意重复。可清单是给人看的——同一个链接印两遍，人会以为有两份东西。
+ * `materialsFor`（写进日程描述的那一份）的注释里早就写着「清单那一层按 URI 去重」；
+ * 这一条锁的就是右栏那一份也照做。
+ */
+describe('会上要用的东西，按 URI 去重', () => {
+  const event = {
+    eventId: 'ev-1',
+    title: '对齐会',
+    startAt: 0,
+    readiness: 'partial' as const,
+    readinessLine: '',
+    known: true,
+    prepares: [
+      {
+        commitmentId: 'c1', what: '拉数据', who: '李婷', status: 'closed',
+        artifacts: [{ uri: 'https://s/1', title: '对比表' }],
+      },
+      {
+        commitmentId: 'c2', what: '写结论', who: '张锐', status: 'open',
+        // 同一个会话产出的，归属层挂在两件活下面——这是对的。
+        artifacts: [{ uri: 'https://s/1', title: '对比表' }, { uri: 'https://s/2', title: '结论页' }],
+      },
+    ],
+  }
+
+  it('同一份材料只出现一次', () => {
+    expect(materialsOf(event).map(one => one.uri)).toEqual(['https://s/1', 'https://s/2'])
+  })
+
+  it('一件活都没挂时是空清单，不是崩', () => {
+    expect(materialsOf({ ...event, prepares: [] })).toEqual([])
   })
 })

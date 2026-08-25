@@ -1037,10 +1037,13 @@ export function YzjBoard(props: BoardProps): ReactNode {
                 抽屉开不出来时**说一声**。实测过：当前会话为空时宿主的右栏打不开，
                 而从板上点一场会恰恰常常处在这个状态——那时人看到的是「什么都没
                 发生」，所有 bug 里最难被报告的一种。
+
+                这句话由 `revealAside` **等它一拍之后**才喊：抽屉是带过渡动画开的，
+                当场量必然量到 0，那样每一次正常的打开都会附赠一句假错误。
               */
-              if (!revealAside()) {
+              revealAside(() => {
                 setToast('右栏没能打开（当前没有会话）——先从左边打开一个会话，再点这场会。')
-              }
+              })
             }}
           >
             {event.title}

@@ -50,6 +50,30 @@ const STATUS_LABEL: Record<string, string> = {
   open: '在跟', closed: '已完成', voided: '已作废', merged: '已合并',
 }
 
+/**
+ * 会上要用的东西，**按 URI 去重**。
+ *
+ * 归属那一层是故意重复的：一份产在共用会话里的材料会挂在共用它的每一件活下面——
+ * 「丢掉是丢真数据，独占是说假话」。可**清单是给人看的**，同一个链接印两遍只会让人
+ * 以为有两份东西；`materialsFor`（写进日程描述的那一份）早就是这么做的，它的注释里
+ * 写着「清单那一层按 URI 去重」——那句话说的正是这里，而这里第一版没做。
+ *
+ * 两个后果，一个看得见一个看不见：屏幕上多出一行不存在的材料；React 拿到两个一样的
+ * key。
+ */
+export function materialsOf(event: BoardEventWire): { uri: string; title: string }[] {
+  const seen = new Set<string>()
+  const out: { uri: string; title: string }[] = []
+  for (const prep of event.prepares) {
+    for (const artifact of prep.artifacts) {
+      if (seen.has(artifact.uri)) continue
+      seen.add(artifact.uri)
+      out.push(artifact)
+    }
+  }
+  return out
+}
+
 export function YzjEventHub(props: EventHubProps): ReactNode {
   const { eventId, title, inject, openSession, close } = props
   const [event, setEvent] = useState<BoardEventWire | undefined>(undefined)
@@ -67,8 +91,17 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
   useEffect(() => {
     let alive = true
     void refresh()
-    // 就绪度要**随着交付自动翻绿**，所以这一屏是活的，不是一张快照。
-    const timer = setInterval(() => { if (alive) void refresh() }, 6_000)
+    /*
+      就绪度要**随着交付自动翻绿**，所以这一屏是活的，不是一张快照——但节拍要配得上
+      它的代价。`events()` 那一头是**一次 CLI 子进程 + 一次网络往返**（`calendar
+      event list`，20 秒超时）；这一屏第一版照抄了别处的 6 秒轮询，于是打开着的每
+      六秒就烧一个子进程，慢一点的一次回来之前下一次已经出发了。
+
+      30 秒是按**这一屏在回答什么**定的：会前那一眼是分钟量级的事，一件活交付之后
+      半分钟内翻绿绰绰有余。真要更快，该做的是给它一个只读图、不碰 CLI 的端点——
+      日程那半截（标题、时间、地点）本来就一整天不会变，跟着一起重取纯属陪跑。
+    */
+    const timer = setInterval(() => { if (alive) void refresh() }, 30_000)
     return () => {
       alive = false
       clearInterval(timer)
@@ -99,7 +132,7 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
   }
 
   const open = event.prepares.filter(prep => prep.status === 'open')
-  const materials = event.prepares.flatMap(prep => prep.artifacts)
+  const materials = materialsOf(event)
 
   return (
     <div className={css.hub}>

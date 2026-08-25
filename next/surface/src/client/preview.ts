@@ -145,17 +145,24 @@ export function setAsidePreviewHost(node: AsideHost | null): void {
 }
 
 /**
- * 把右栏叫开，并**如实回答它开没开得出来**。
+ * 把右栏叫开，**开不出来时喊一声**。
  *
- * 事件枢纽和工件预览是同一件事的两个实例：中栏点一下，右栏接管。所以它们共用这只
- * 手（`opener` 是装配处注册的宿主动词）与同一条实测教训——**抽屉在当前会话为空时
- * 打不开**，而从承诺板点一场会恰恰常常处在这个状态。工件那条路的兜底是降级到沉浸，
- * 枢纽没有沉浸态，所以它需要的是一个**能被说出口的失败**：返回 false，调用方去说
- * 「右栏没打开」，而不是让人对着一片没有反应的界面猜自己点没点中。
+ * 事件枢纽和工件预览是同一件事的两个实例：中栏点一下，右栏接管。所以它们共用这只手
+ * （`opener` 是装配处注册的宿主动词）与同一条实测教训——**抽屉在当前会话为空时打不
+ * 开**，而从承诺板点一场会恰恰常常处在这个状态。工件那条路的兜底是降级到沉浸，枢纽
+ * 没有沉浸态，所以它要的是一个**能被说出口的失败**。
+ *
+ * 但**不能当场下结论**（这一版的第一稿就错在这儿）：`opener()` 触发的是宿主的一次
+ * 状态更新，而那是异步的——紧接着量，属性还没翻、宽度还是 0，于是一次**正常的打开**
+ * 会被报成「右栏没能打开」。一句看着可信的假错误，比没有提示更坏。
+ *
+ * 所以和 `openPreview` 同一个节拍：先量一次，不行就等它一拍再量。500ms 的理由写在
+ * 那边——宿主的慢过渡实测 0.3s，而宽度越过 120 就算数。
  */
-export function revealAside(): boolean {
+export function revealAside(unavailable: () => void): void {
   opener?.()
-  return asideAvailable()
+  if (asideAvailable()) return
+  setTimeout(() => { if (!asideAvailable()) unavailable() }, 500)
 }
 
 let settling: ReturnType<typeof setTimeout> | undefined

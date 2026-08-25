@@ -471,7 +471,17 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       // 一颗点下去没有下文的按钮比没有按钮更坏；说出是哪一堵墙。
       return '这里还没有会话可说话——从左边打开或新建一个，再回来按这颗按钮。'
     }
+    /*
+      **这个缝不许抛。**
+
+      它的契约是「返回一句话 = 没送出去，为什么」，而调用方（板与目标页）拿它来
+      开关按钮：`setBusy(key)` → `.then` 里 `setBusy('')`。宿主的 `prompt` 是可以
+      reject 的（`await face.prompt(...)` 没有兜底），而一次 reject 会让 `.then`
+      永远不跑——那颗按钮就**永久灰在那里**，页面不刷新永远回不来，而且一个字都不说。
+      这正是这套设计点名过的那种失败，只是这次由我自己的代码制造。
+    */
     const error = await prompt(sessionId, text, running ? 'steer' : 'queue')
+      .catch((cause: unknown) => (cause instanceof Error ? cause.message : '通道无响应'))
     if (error !== undefined) return error
     setFrame({ kind: 'session' })
     openSession(sessionId)
