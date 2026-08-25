@@ -1037,6 +1037,24 @@ const DECOMP = [
   { desc: '重点客户移动端诉求访谈 3 场', exec: 'human', who: '张三', due: '下周五前', channel: '与张三的 DM（私下登记）', decision: null },
   { desc: '移动端轻协作 PRD 草稿', exec: 'human', who: '李婷', due: '下周一前', channel: '产品讨论群（公开登记）', decision: null },
 ];
+/* v4.23 提案演进：重提话语触发的第二轮细拆——剩余域映射（已落库/挂起项不在此列） */
+const DECOMP_FINE = {
+  '重点客户移动端诉求访谈 3 场': [
+    { desc: '访谈名单与提纲（5 家重点客户）', exec: 'human', who: '张三', due: '本周五前', channel: '与张三的 DM（私下登记）' },
+    { desc: '访谈执行与逐家纪要', exec: 'human', who: '张三', due: '下周五前', channel: '与张三的 DM（私下登记）' },
+  ],
+  '移动端轻协作 PRD 草稿': [
+    { desc: 'PRD 骨架与场景清单', exec: 'human', who: '李婷', due: '本周四前', channel: '产品讨论群（公开登记）' },
+    { desc: 'PRD 正文与交互说明', exec: 'human', who: '李婷', due: '下周一前', channel: '产品讨论群（公开登记）' },
+  ],
+  '移动端竞品截图与定价页归档': [
+    { desc: 'competitor A/B 移动端截图归档', exec: 'agent', who: '云小助', due: '周二前', channel: '产品讨论群（公开委派）' },
+    { desc: '三家定价页对比表（含港台版）', exec: 'agent', who: '云小助', due: '周三前', channel: '产品讨论群（公开委派）' },
+  ],
+};
+let DECOMP_R2 = null;
+let DECOMP_R1_SNAP = null;
+function activeDecomp() { return state.decompRound === 2 && DECOMP_R2 ? DECOMP_R2 : DECOMP; }
 /* v4.10 完成度评估：差距简报 = 真身成功标准 × 子承诺终态 × 工件归集（真身证据，非自报数） */
 const EVAL = [
   { mark: 'ok', desc: '竞品对比（含移动端定价）——已达成', ev: '证据：竞品对比表 v2（工件）· 承诺终态：已验收' },
@@ -1804,20 +1822,32 @@ function goalActionCards(gid) {
       <span class="ex-tag agent">agent</span>
       <span style="flex:1;font-size:11.5px;line-height:1.9"><b>云小助 · 拆解备料中…</b><span style="font-size:10px;color:var(--ink-3)">（备料过程仅你可见 · 私）</span>
         <span style="display:block;font-size:10.5px;color:var(--ink-3);margin-top:3px">✓ 读目标真身正文与成功标准（<b>8/19 版 · 环境快照记录依据</b>）<br>✓ 盘点现有子承诺 4 项 · 工件 2 件（<b>幂等锚预查</b>——防重复拆解）<br>◐ 生成子承诺方案（做什么 / 谁 / 何时 / 登记通道）…</span></span></div>`;
-  if (state.decompGoal === gid && state.decompPhase !== 'working') h += `
+  if (state.decompGoal === gid && state.decompPhase !== 'working') {
+    const list = activeDecomp();
+    const r2 = state.decompRound === 2;
+    /* v4.23 提案演进：第 1 轮被替代后收敛为摘要行（superseded 吸收态 · 留档带血缘） */
+    const supersededNote = r2 && DECOMP_R1_SNAP ? `
+    <div class="cm-row" style="background:#F3F4F6;border-style:dashed;font-size:10.5px;color:var(--ink-3)">
+      <span style="flex:1">第 1 轮提案（3 条）已被替代 · <b>superseded 吸收态</b> · 留档带血缘 —— ${DECOMP_R1_SNAP.ok} 落库保留（承诺不受替代影响）· ${DECOMP_R1_SNAP.held} 挂起跨轮存续 · ${DECOMP_R1_SNAP.rest} 条细拆重递；答到旧卡投影 = 指针跳到本轮</span></div>` : '';
+    h += supersededNote + `
     <div class="verdict-card" style="max-width:none;margin:2px 0 10px">
-      <div class="vd-head"><b style="font-size:12px">拆解提案 · 云小助</b>
-        <span style="font-size:10.5px;color:var(--ink-3)">依据：真身 8/19 版正文（环境快照）· 挂起态即图数据（重启可恢复）· DM 兜底已推送同一对象 · agent 只有提议权——确认即代发登记话语</span></div>
-      ${DECOMP.map((d, i) => {
-        const acts = d.decision === null
-          ? `<span class="vd-acts"><button class="vd-btn" data-dc="${i}:ok">确认落库</button><button class="vd-btn" data-dc="${i}:no">驳回</button></span>`
+      <div class="vd-head"><b style="font-size:12px">拆解提案${r2 ? ' · 第 2 轮' : ''} · 云小助</b>
+        <span style="font-size:10.5px;color:var(--ink-3)">${r2 ? '替代第 1 轮（steering：「再拆细一点」——重提话语 = 第四应答类）· 血缘与落败项留档（应答序律）· ' : ''}依据：真身 8/19 版正文（环境快照）· 挂起态即图数据（重启可恢复）· DM 兜底已推送同一对象 · agent 只有提议权——确认即代发登记话语</span></div>
+      ${list.map((d, i) => {
+        const held = d.decision === 'hold';
+        const acts = d.decision === null || held
+          ? `<span class="vd-acts">${held ? `<span class="vd-mark hold" style="margin-right:6px">⏸ 挂起${d.carried ? '（第 1 轮 · 跨轮存续）' : ''}</span>` : ''}<button class="vd-btn" data-dc="${i}:ok">确认落库</button><button class="vd-btn" data-dc="${i}:no">驳回</button>${held ? '' : `<button class="vd-btn" data-dc="${i}:hold">挂起</button>`}</span>`
           : `<span class="vd-mark ${d.decision}">${d.decision === 'ok' ? '✓ 已落库 · 已代发' : '✗ 已驳回'}</span>`;
         return `<div class="vd-row"><span class="desc">${d.desc}<span class="ev">${d.exec === 'agent' ? 'agent' : '人'} · ${d.who} · ${d.due} · 登记话语将发到：${d.channel}</span></span>${acts}</div>`;
       }).join('')}
-      <div style="padding:8px 14px;font-size:10px;color:var(--ink-3)">${DECOMP.every(d => d.decision !== null)
-        ? `✔ <b>全部裁决完毕 · ${DECOMP.filter(d => d.decision === 'ok').length} 落库已代发 · ${DECOMP.filter(d => d.decision === 'no').length} 驳回</b>——卡片收敛为摘要（答完即溶家族），提案对象留档（应答序律）`
-        : '落库即代发登记话语——听众集合由代发消息确立，<b>没有静默登记（幽灵承诺禁令）</b>；幂等锚 = 目标+事项'}</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:10px;color:var(--ink-3)">
+        <span style="flex:1">${list.every(d => d.decision !== null && d.decision !== 'hold')
+          ? `✔ <b>全部裁决完毕 · ${list.filter(d => d.decision === 'ok').length} 落库已代发 · ${list.filter(d => d.decision === 'no').length} 驳回</b>——卡片收敛为摘要（答完即溶家族），提案对象留档（应答序律）`
+          : '落库即代发登记话语——听众集合由代发消息确立，<b>没有静默登记（幽灵承诺禁令）</b>；幂等锚 = 同锚归一（挡重复数据，不挡重提话语）'}</span>
+        ${!r2 && list.some(d => d.decision === null || d.decision === 'hold') ? `<button class="vd-btn" data-redecomp="1" title="第四应答类：对卡说话即 steering——新一轮替代旧卡，已落库项不动、挂起项跨轮存续（v4.23）">↻ 再拆细一点（对卡说话 = 重提）</button>` : ''}
+      </div>
     </div>`;
+  }
   if (state.evalGoal === gid && state.evalPhase === 'working') h += `
     <div class="cm-row" style="background:var(--paper);border-color:var(--paper-line);align-items:flex-start">
       <span class="ex-tag agent">agent</span>
@@ -3414,6 +3444,22 @@ document.addEventListener('click', (e) => {
     toast('修理动词族（目标的中年）：催 / 顺延期限 / 顺延提醒 / 作废 / 合并（两人做重）/ 移交（/handoff，含离职断链）/ 收养（/link 把无归属拉进来）/ 摘除（/unlink——与收养对称的减法，v4.22）——全部走传送门，话语在会话里说；主权 = 该承诺的验收人');
     return;
   }
+  /* v4.23 提案演进：重提话语 = 第四应答类——新一轮替代旧卡（superseded 吸收态），剩余域细拆、挂起跨轮存续 */
+  const rdc = e.target.closest('[data-redecomp]');
+  if (rdc) {
+    const okN = DECOMP.filter(d => d.decision === 'ok').length;
+    const held = DECOMP.filter(d => d.decision === 'hold');
+    const rest = DECOMP.filter(d => d.decision === null);
+    DECOMP_R1_SNAP = { ok: okN, held: held.length, rest: rest.length };
+    DECOMP_R2 = [
+      ...held.map(d => ({ ...d, carried: true })),
+      ...rest.flatMap(d => (DECOMP_FINE[d.desc] || [d]).map(x => ({ ...x, decision: null }))),
+    ];
+    state.decompRound = 2;
+    renderTimeline();
+    toast('重提话语 = 第四应答类：新一轮已替代旧卡（superseded 留档带血缘）——已落库项是承诺不受影响，挂起项跨轮存续，剩余域细拆重递（DM 兜底已重推新对象）');
+    return;
+  }
   /* v4.9 入口A①：目标行「＋ 委派」= 传送门（选执行者与场所 → 跳会话带目标 chip） */
   const gd = e.target.closest('[data-goaldeleg]');
   if (gd) {
@@ -3488,9 +3534,14 @@ document.addEventListener('click', (e) => {
   const dc = e.target.closest('[data-dc]');
   if (dc) {
     const [i, act] = dc.dataset.dc.split(':');
-    const d = DECOMP[+i];
-    if (!d || d.decision) return;
+    const d = activeDecomp()[+i];
+    if (!d || (d.decision && d.decision !== 'hold')) return;
     d.decision = act;
+    if (act === 'hold') {
+      renderTimeline();
+      toast('已挂起——挂起不阻塞但绝不静默丢失：挂在父承诺处亮相，重提时跨轮存续');
+      return;
+    }
     if (act === 'ok') {
       COMMITS.push({ name: d.desc, exec: d.exec, who: d.who, due: d.due, goal: state.decompGoal || 'g1', linked: '拆解提案 · 人签发', state: '已登记' });
       /* 落库即代发：登记话语落到执行者在场的通道——出生本身就是一次呼吸 */
