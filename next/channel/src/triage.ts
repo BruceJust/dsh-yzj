@@ -148,3 +148,46 @@ export function triage(input: TriageInput): TriageOutcome {
   // ⑤ Noise.
   return { kind: 'noise', reason: 'the agent is not among the addressees' }
 }
+
+/**
+ * 出站分诊 —— **桌面发出去的这句话，是不是在答一张卡** (v3.15 裁决③).
+ *
+ * 入站分诊③ 早就有这条规则：回复锚命中一张已投影的卡、文本命中它的动词 → 那是一次
+ * **应答**，不是一次触发。桌面这一侧此前完全没有它，而两条桌面发送路径各自坏在不同
+ * 的地方：
+ *
+ * - **群视图那条**（`sendFromDesktop`）绕过整个分诊直接 `runTrigger`——于是对着一张卡
+ *   回一句「确认」，落成的是 `task/opened`：开了一个没人要的任务，而那张卡还在等人答；
+ * - **会话列那条**（`sendToPlace`）只发消息，等轮询把它读回来再分诊——可它自己发的
+ *   消息会被规则① 的**回声抑制**掉（每一次 `client.send` 都登记出站指纹，agent 与桌面
+ *   一视同仁）。于是那句「确认」**一声不响地消失**，卡永远等下去。
+ *
+ * 所以出站必须**在发送这一侧**判定：回程那条路是故意不认自己的话的。
+ *
+ * 判据与入站共用同两个函数（`cardForAnchor` / `resolveKeyword`），也共用同一条收尾
+ * 规则——**不是关键词就当普通话语**：一张卡也是 agent 说的话，对着它说一句别的，本来
+ * 就该是一次触发。两份判断迟早会在「哪些词算确认」上分道扬镳。
+ */
+export function triageOutbound(input: {
+  readonly text: string
+  /** 落点：回复的是哪一条。没有落点就不可能是在答某一张卡。 */
+  readonly replyTo?: string
+  readonly aliases: readonly string[]
+  cardForAnchor(anchor: string): CardProjection | undefined
+  resolveKeyword(
+    cardRef: CardRef, text: string,
+  ): { readonly actionId: string; readonly input?: string } | undefined
+}): { readonly projection: CardProjection; readonly actionId: string; readonly input?: string }
+  | undefined {
+  if (input.replyTo === undefined) return undefined
+  const projection = input.cardForAnchor(input.replyTo)
+  if (projection === undefined) return undefined
+  const text = stripTriggerAliases(input.text, input.aliases) || input.text.trim()
+  const matched = input.resolveKeyword(projection.cardRef, text)
+  if (matched === undefined) return undefined
+  return {
+    projection,
+    actionId: matched.actionId,
+    ...(matched.input === undefined ? {} : { input: matched.input }),
+  }
+}

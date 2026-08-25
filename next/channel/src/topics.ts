@@ -24,6 +24,7 @@ import {
 } from './protocol.ts'
 import type { YzjChannelClient } from './client.ts'
 import { READ_EMPTY, type ChannelState } from './state.ts'
+import { triageOutbound } from './triage.ts'
 
 /** One conversation the desktop can open as a window. */
 export interface TopicDescriptor {
@@ -650,7 +651,36 @@ export class YzjTopicReader implements YzjTopics {
     // lands in the SAME topic they are looking at — otherwise the fused window
     // would produce messages it cannot then show.
     const anchor = replyTo ?? (topic.topicRootId === 'direct' ? undefined : topic.topicRootId)
+    /*
+      **出站分诊，与入站③ 对称** (v3.15 裁决③).
+
+      这一句要是在答一张卡（回复锚命中已投影的卡 + 文本命中它的动词），它就是一次
+      **应答**，不是一次普通发言——而且必须在**这一侧**判定：回程那条路会把它当成回声
+      抑制掉（每次 `client.send` 都登记出站指纹，agent 与桌面一视同仁），于是那句
+      「确认」发出去之后一声不响地消失，卡永远等下去。
+
+      判定用的是 `replyTo`，不是 `anchor`：话题根不是一张卡，把它当锚会让**这个话题里
+      的任何一句话**都去撞一遍卡的关键词。
+    */
+    const answer = triageOutbound({
+      text: body,
+      ...(replyTo === undefined ? {} : { replyTo }),
+      aliases: this.triggerAliases,
+      cardForAnchor: candidate => this.ctx.yzjCards.cardForAnchor(candidate),
+      resolveKeyword: (cardRef, value) => this.ctx.yzjCards.resolveKeyword(cardRef, value),
+    })
     const sent = await this.client.send({ groupId: topic.groupId }, body, anchor)
+    if (answer !== undefined) {
+      const result = await this.ctx.yzjCards.act(
+        answer.projection.cardRef,
+        answer.actionId,
+        { kind: 'operator', openId: this.operatorOpenId },
+        'yzj-text',
+        answer.input,
+      )
+      // 回执贴回那句话下面——和入站一路一字不差：群里看得见「确认」，也得看得见它生效了。
+      await this.client.send({ groupId: topic.groupId }, result.receipt, sent.msgId ?? anchor)
+    }
     if (sent.msgId !== undefined) {
       // The topic index follows the CHAIN, not the anchor we happened to use:
       // a reply to a message inside this topic still belongs to this topic.

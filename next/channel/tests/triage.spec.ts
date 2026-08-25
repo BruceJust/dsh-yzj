@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { CardProjection } from '@yzj-next/cards'
-import { parseCommand, triage, type TriageInput } from '../src/triage.ts'
+import { parseCommand, triage, triageOutbound, type TriageInput } from '../src/triage.ts'
 import type { YzjGroup, YzjMessage } from '../src/protocol.ts'
 
 const GROUP: YzjGroup = {
@@ -274,5 +274,58 @@ describe('受话判定：回复 agent 的消息即向它受话', () => {
       isSelfChat: true,
       group: DM,
     }).kind).toBe('noise')
+  })
+})
+
+/**
+ * 出站分诊 —— **桌面这一侧也要认得出「这是在答一张卡」** (v3.15 裁决③).
+ *
+ * 入站③ 早就有这条规则。桌面两条发送路径此前各坏各的：群视图那条绕过分诊直接开 turn
+ * （对着卡回「确认」落成 `task/opened`——开了个没人要的任务，而卡还在等人答）；会话列
+ * 那条只发消息、等轮询读回来再分诊，可它自己发的消息会被规则① 的**回声抑制**掉——
+ * 那句「确认」发出去之后一声不响地消失。
+ *
+ * 所以判定必须在**发送这一侧**：回程那条路是故意不认自己的话的。
+ */
+describe('出站分诊：这句话是不是在答一张卡', () => {
+  const projection = {
+    cardRef: { kind: 'commitment', id: 'c-1' },
+    surface: 'yzj-text',
+    msgAnchors: ['m-card'],
+    placeKey: 'yzj-group-g1',
+  } as never
+  const deps = {
+    aliases: ['@next'],
+    cardForAnchor: (anchor: string) => (anchor === 'm-card' ? projection : undefined),
+    resolveKeyword: (_ref: never, text: string) => (
+      text === '确认' ? { actionId: 'confirmed' } : undefined
+    ),
+  }
+
+  it('回复那张卡、说的又是它的动词 —— 按应答走', () => {
+    const answer = triageOutbound({ ...deps, text: '确认', replyTo: 'm-card' } as never)
+    expect(answer?.actionId).toBe('confirmed')
+  })
+
+  it('没有落点就不可能在答某一张卡', () => {
+    expect(triageOutbound({ ...deps, text: '确认' } as never)).toBeUndefined()
+  })
+
+  it('回复的是别的消息 —— 不去撞卡的关键词', () => {
+    expect(triageOutbound({ ...deps, text: '确认', replyTo: 'm-other' } as never)).toBeUndefined()
+  })
+
+  /*
+    **不是关键词就当普通话语**——和入站③ 同一条收尾规则：一张卡也是 agent 说的话，
+    对着它说一句别的，本来就该是一次触发。
+  */
+  it('对着卡说一句别的 —— 那是一次触发，不是应答', () => {
+    expect(triageOutbound({ ...deps, text: '这个再等等', replyTo: 'm-card' } as never))
+      .toBeUndefined()
+  })
+
+  it('触发词不该挡住动词的识别', () => {
+    const answer = triageOutbound({ ...deps, text: '@next 确认', replyTo: 'm-card' } as never)
+    expect(answer?.actionId).toBe('confirmed')
   })
 })

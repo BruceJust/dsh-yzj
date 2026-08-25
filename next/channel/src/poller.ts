@@ -27,7 +27,7 @@ import {
   placeKeyFor, resolveTopicRootId, topicRouteFor,
   type YzjGroup, type YzjIdentity, type YzjMessage, type YzjTopicRoute,
 } from './protocol.ts'
-import { triage, type TriageOutcome } from './triage.ts'
+import { triage, triageOutbound, type TriageOutcome } from './triage.ts'
 import { parseSendTime } from './topics.ts'
 import { executeHandoff, openHandoffCard, prepareHandoff, type HandoffPlan } from './handoff.ts'
 import type { YzjChannelClient } from './client.ts'
@@ -550,6 +550,20 @@ export class YzjPoller {
       param: replyTo === undefined ? {} : { replyMsgId: replyTo },
     }
     try {
+      /*
+        **桌面出站分诊，与入站③对称** (v3.15 裁决③).
+
+        入站有一条规则：回复锚命中一张已投影的卡、文本命中它的动词 → 那是一次**应答**，
+        不是一次触发。桌面这条路绕过了整个分诊直接 `runTrigger`——于是在私聊面对着一张
+        卡回一句「确认」，落成的是 `task/opened`：**开了一个没人要的任务，而那张卡还在
+        等人答**。同一个手势在两个入口一个算应答一个算下单，正是「同一投影任一处应答
+        全局生效」这条定律最不能出的错。
+
+        判据与入站是**同两个函数**（`cardForAnchor` / `resolveKeyword`），不另写一份：
+        两份判断迟早在「哪些词算确认」上分道扬镳。
+      */
+      const answered = await this.answerCardFromDesk(groupId, message, identity)
+      if (answered) return { msgId: sent.msgId, ignited: false }
       const batch = await this.client.messages(groupId, 20)
       await this.runTrigger(group, message, [...batch, message], identity)
     } catch (error) {
@@ -578,6 +592,43 @@ export class YzjPoller {
       lastMsgId: record.lastMsgId,
       lastMsgSendTime: '',
     }
+  }
+
+  /**
+   * 桌面发出去的这句话，是不是在**答一张卡** (v3.15 裁决③ 出站分诊对称).
+   *
+   * 回 true 表示它已经按应答处理过了，调用方不要再开 turn。
+   *
+   * 与入站分诊③ 共用同两个函数，连「不是关键词就当普通话语」这一步也一样：一张卡
+   * 也是 agent 说的话，对着它说一句别的，本来就该是一次触发。
+   */
+  private async answerCardFromDesk(
+    groupId: string, message: YzjMessage, identity: YzjIdentity,
+  ): Promise<boolean> {
+    const answer = triageOutbound({
+      text: message.content,
+      ...(message.param.replyMsgId === undefined ? {} : { replyTo: message.param.replyMsgId }),
+      aliases: this.config.aliases,
+      cardForAnchor: anchor => this.ctx.yzjCards.cardForAnchor(anchor),
+      resolveKeyword: (cardRef, text) => this.ctx.yzjCards.resolveKeyword(cardRef, text),
+    })
+    if (answer === undefined) return false
+    const result = await this.ctx.yzjCards.act(
+      answer.projection.cardRef,
+      answer.actionId,
+      { kind: 'operator', openId: identity.openId },
+      // 与入站③ 同一个投影面：文本面是四通道之一，动作在哪一面按下都全局生效。
+      'yzj-text',
+      answer.input,
+    )
+    /*
+      回执也要发出去 —— 和入站那一路一字不差。
+
+      群里看得见的是那句「确认」，看不见的是它到底生效了没有。入站路径一直把回执贴
+      回去；桌面这一路不贴，同一个动作在两个入口就有两种可见后果。
+    */
+    await this.client.send({ groupId }, result.receipt, message.msgId)
+    return true
   }
 
   private async runTrigger(
