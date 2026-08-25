@@ -47,7 +47,7 @@ export {
   YzjOrchestrator, DeliveryOutcomeUnknownError, clipMessage, priorTurnFor, summarizeTurn,
   CHANNEL_PROMPT,
 } from './orchestrator.ts'
-export { YzjPoller, deskSendPlan, onDutyIn } from './poller.ts'
+export { YzjPoller, deskSendPlan, onDutyIn, unlinkPlan } from './poller.ts'
 
 export const name = 'yzj-next-channel'
 export const inject = [

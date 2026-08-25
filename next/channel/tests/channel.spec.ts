@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ChannelState } from '../src/state.ts'
 import { isPictureAttachment } from '../src/topics.ts'
-import { onDutyIn } from '../src/poller.ts'
+import { onDutyIn, unlinkPlan } from '../src/poller.ts'
 import {
   accountKeyFor, groupIdFromPlaceKey, isSelfChat, isTriageableConversation,
   outboundFingerprint, parseGroup, parseMessage, placeKeyFor, resolveTopicRootId,
@@ -323,5 +323,33 @@ describe('在不在岗：说过的「不」压得过任何默认', () => {
     const allowed = new Set(['g1'])
     const denied = new Set<string>()
     expect(onDutyIn({ groupId: 'g1', allowedGroupIds: allowed, deniedGroupIds: denied })).toBe(true)
+  })
+})
+
+/**
+ * `/unlink` 摘除 —— **与收养对称的减法动词** (v4.22 裁决②).
+ *
+ * 作废杀掉承诺、移交换掉执行者，而这里只是「这件事不再算在那个目标名下」——那件事还
+ * 在做。用前两个去表达它，都是拿一个语义过重的动作凑一个轻的意思，图上留下的是假账。
+ */
+describe('摘除的裁定', () => {
+  it('这个话题里没有挂着目标的承诺时，说没有可摘的——不是说你没权限', () => {
+    expect(unlinkPlan({ fromOpenId: 'u-1' })).toBe('nothing')
+  })
+
+  it('自己登记的那条：摘', () => {
+    expect(unlinkPlan({ attached: { delegatedBy: 'u-1' }, fromOpenId: 'u-1' })).toBe('unlink')
+  })
+
+  it('别人登记的那条：不归你摘', () => {
+    expect(unlinkPlan({ attached: { delegatedBy: 'u-2' }, fromOpenId: 'u-1' })).toBe('not-mine')
+  })
+
+  /*
+    老数据里没有 owner 时**放行**——一条谁都摘不掉的边，比放宽一点更坏。
+    与验收席位、板上的渲染过滤共用同一个谓词与同一条纪律（宁可宽，不可锁死）。
+  */
+  it('老数据没记 owner 时放行，不把人锁在自己的账本外面', () => {
+    expect(unlinkPlan({ attached: {}, fromOpenId: 'u-1' })).toBe('unlink')
   })
 })

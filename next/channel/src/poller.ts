@@ -20,7 +20,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString, type GraphActor } from '@yzj-next/graph'
-import { describeObject, processSummary } from '@yzj-next/objects'
+import { describeObject, ownsCommitment, processSummary } from '@yzj-next/objects'
 import {
   accountKeyFor, conversationKindForGroup, groupIdFromPlaceKey, hasLeadingAlias,
   isAgentTrigger, isSelfChat, isTriageableConversation, NO_MESSAGE_TIME, outboundFingerprint,
@@ -112,6 +112,30 @@ export function onDutyIn(input: {
   return input.allowedGroupIds.size === 0 || input.allowedGroupIds.has(input.groupId)
 }
 
+/**
+ * 摘除的裁定 —— **与收养对称的减法动词** (`/unlink`, v4.22 裁决②).
+ *
+ * 抽成纯函数和 `onDutyIn` `deskSendPlan` 同一个理由：这三件事都是**判断**，而判断是
+ * 会被改错的那一部分；埋在一个要 client/state/orchestrator 才跑得起来的方法里，它就
+ * 只能靠手测。
+ *
+ * 三个出口各说各的，不合并：
+ *
+ * - `nothing` —— 这个话题里没有挂着目标的承诺。**没有可摘的**和「不许你摘」是两件事，
+ *   合成一句话会让人以为自己没权限；
+ * - `not-mine` —— 有，但它不是你登记的。摘除归**该承诺的 owner**（v4.22 还给了目标
+ *   owner 一条路，那一半要先读它挂在哪、再读那个目标是谁签的——先严后宽）；
+ * - `unlink` —— 摘。
+ */
+export function unlinkPlan(input: {
+  /** 这个话题里那条挂着目标的承诺，没有就是 undefined。 */
+  readonly attached?: { readonly delegatedBy?: string }
+  readonly fromOpenId: string
+}): 'unlink' | 'not-mine' | 'nothing' {
+  if (input.attached === undefined) return 'nothing'
+  return ownsCommitment(input.fromOpenId, input.attached) ? 'unlink' : 'not-mine'
+}
+
 export interface PollerConfig {
   readonly aliases: readonly string[]
   readonly acceptAccountMentions: boolean
@@ -126,7 +150,7 @@ export interface PollerConfig {
 
 /** The full command set (§6.4). */
 const LIVE_COMMANDS = new Set([
-  'new', 'reset', 'cancel', 'done', 'reject', 'link', 'handoff', 'fork', 'status',
+  'new', 'reset', 'cancel', 'done', 'reject', 'link', 'unlink', 'handoff', 'fork', 'status',
 ])
 
 interface Continuation {
@@ -588,7 +612,7 @@ export class YzjPoller {
       await this.client.send({ groupId: group.groupId }, text, message.msgId)
     }
     if (!LIVE_COMMANDS.has(name)) {
-      await reply(`未知命令 /${name}。现有命令：/new /reset /cancel /done /reject /link /handoff /fork /status。`)
+      await reply(`未知命令 /${name}。现有命令：/new /reset /cancel /done /reject /link /unlink /handoff /fork /status。`)
       return
     }
     const anchored = message.param.replyMsgId ?? message.param.replyRootMsgId
@@ -618,6 +642,10 @@ export class YzjPoller {
     }
     if (name === 'link') {
       await reply(await this.linkGoal(route, argument))
+      return
+    }
+    if (name === 'unlink') {
+      await reply(await this.unlinkGoal(route, message.fromOpenId))
       return
     }
     if (name === 'handoff') {
@@ -715,6 +743,55 @@ export class YzjPoller {
       actor: { kind: 'operator', openId: route.accountOpenId },
     })
     return `已挂接到目标：${argument}`
+  }
+
+  /**
+   * `/unlink` —— **摘除**：与收养（`/link`）对称的减法动词 (v4.22 裁决②).
+   *
+   * 为什么它值得一个自己的动词：作废**杀掉承诺**、移交**换掉执行者**，而这里要做的
+   * 只是「这件事不再算在那个目标名下」——那件事还在做，只是它不服务于那个目标了。
+   * 用前两个去表达它，都是拿一个语义过重的动作去凑一个轻的意思，而图上留下的是假账。
+   *
+   * 数据语义与桌面那颗「移出」**同一条**：`commitment/updated` 追加去除 parentGoalRef
+   * （更正即追加，`attachedVia: 'detached'` 让出处留痕），行落回无归属组——未挂是合法
+   * 状态，所以这是一次搬家，不是一次撤销。
+   *
+   * 主权：v4.22 写的是「该承诺所挂目标的 owner **或** 承诺 owner」。这里查后者——
+   * 目标那一半要先读出它挂在哪、再读那个目标是谁签发的；**先严后宽**，多说一句拒绝
+   * 可以改，误摘一条边的账改不回来。
+   */
+  private async unlinkGoal(route: YzjTopicRoute, fromOpenId: string): Promise<string> {
+    const viewer = { kind: 'operator' as const, openId: route.accountOpenId }
+    const commitment = this.ctx.yzjGraph.query(viewer, { kind: 'commitment', status: ['open'] })
+      .find(object => {
+        const state = asRecord(object.state)
+        const executor = asRecord(state?.executor)
+        return (asString(executor?.topicKey) === route.topicKey
+          || asString(state?.topicKey) === route.topicKey)
+          && asString(state?.parentGoalRef) !== undefined
+          && asString(state?.parentGoalRef) !== ''
+      })
+    const state = asRecord(commitment?.state)
+    const delegatedBy = asString(state?.delegatedBy)
+    const plan = unlinkPlan({
+      fromOpenId,
+      ...(commitment === undefined
+        ? {}
+        : { attached: delegatedBy === undefined ? {} : { delegatedBy } }),
+    })
+    // 「没有可摘的」和「不许你摘」是两件事，合成一句会让人以为自己没权限。
+    if (plan === 'nothing') return '这个话题里没有挂着目标的承诺——没有可摘的。'
+    // 不禁言：说清归谁，并把那条走得通的路指出来。
+    if (plan === 'not-mine') return '这条承诺不是你登记的，摘除归登记它的人——你可以直接跟他说一声。'
+    // `plan === 'unlink'` 已经蕴含它在场（`nothing` 是它不在场的唯一出口）。
+    if (commitment === undefined) return '这个话题里没有挂着目标的承诺——没有可摘的。'
+    const was = asString(state?.parentGoalRef)
+    await this.ctx.yzjGraph.append({
+      type: 'commitment/updated',
+      data: { commitmentId: commitment.id, parentGoalRef: '', attachedVia: 'detached' },
+      actor: { kind: 'operator', openId: fromOpenId },
+    })
+    return `已从目标摘除：${was ?? ''}。这件事还在做，只是不再算在那个目标名下（未挂是合法状态，/link 可以再挂回去）。`
   }
 
   /** `/handoff` — prepare the package, then let the confirmation card decide. */
