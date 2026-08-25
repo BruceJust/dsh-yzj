@@ -848,3 +848,71 @@ describe('逾期回写：一次标注', () => {
     expect(lines).toContain('已验收')
   })
 })
+
+/**
+ * 边级选择、态级自动 —— **投影是 owner 的隐私主权，但只在出生那一刻** (v4.22 裁决③).
+ *
+ * 默认从登记场所的公私派生（零新决策成本），反转入口摆在登记 ack 上（默认生效可纠，
+ * **不加第二张确认卡**）。而**已经投影出去的边，状态余生自动回写、不可选择性略过**——
+ * 否则 owner 就有了对坏消息的策展权：一条眼看要逾期的活反手关掉开关，文档里就永远停在
+ * 「已登记」。**一道反 theater 的确认门反向制造 theater，比没有它更坏。**
+ */
+describe('边级选择：默认可反转，投影后不可策展', () => {
+  it('私下登记的边，owner 说「公示」就写进去', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await child('c1', { audience: ['yzj-dm-u9'] })
+    await settle()
+    expect(inserts).toHaveLength(0)
+
+    await graph.append({
+      type: 'commitment/updated',
+      data: { commitmentId: 'c1', projected: true },
+      actor: OPERATOR,
+    })
+    await settle(landed(writebackIdFor(GOAL, 'c1', 'born')))
+    expect(JSON.stringify(inserts)).toContain('拉三家竞品')
+  })
+
+  it('公域登记的边，owner 说「不公示」就不写', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c2', what: '只给我们俩看的活', parentGoalRef: GOAL,
+        executor: { kind: 'human', openId: 'p-9', name: '张锐' },
+        sourceAnchor: 'yzj:m-8', audience: ['yzj-group-g1'], projected: false,
+      },
+      actor: OPERATOR,
+    })
+    await settle()
+    expect(inserts).toHaveLength(0)
+  })
+
+  /*
+    **反 theater 的门不得反向制造 theater。**
+
+    投影出去之后再关掉，文档里那一行并不会消失——消失的是它后面的状态。组里看到的会是
+    一条永远停在「已登记」的活，而它其实早就逾期了。所以这一问只看事实：投影过没有。
+  */
+  it('已经投影出去的边，事后关掉开关也拦不住终态回写', async () => {
+    await goal()
+    applyGoalWriteback(ctx)
+    await child('c3', { audience: ['yzj-group-g1'] })
+    await settle(landed(writebackIdFor(GOAL, 'c3', 'born')))
+    const afterBorn = inserts.length
+
+    await graph.append({
+      type: 'commitment/updated',
+      data: { commitmentId: 'c3', projected: false },
+      actor: OPERATOR,
+    })
+    await graph.append({
+      type: 'commitment/closed', data: { commitmentId: 'c3', cause: 'accepted' }, actor: OPERATOR,
+    })
+    await settle(landed(writebackIdFor(GOAL, 'c3', 'settled')))
+    expect(inserts.length).toBeGreaterThan(afterBorn)
+    expect(JSON.stringify(inserts)).toContain('已验收')
+  })
+})

@@ -93,6 +93,23 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
     return [`承 ${name ?? ref}${guess}`]
   }
 
+  /** ack 上那一行：这条边会不会被写进目标文档，以及怎么改。 */
+  const projectionLine = (state: CommitmentState, placeKey?: string): string[] => {
+    const ref = state.parentGoalRef
+    if (ref === undefined || ref === '' || state.status !== 'open') return []
+    // 看不见这个目标的人，不该被告知一件关于它的事——三态投影对这一行同样适用。
+    const viewer: GraphViewer = placeKey === undefined
+      ? { kind: 'operator', openId: '' }
+      : { kind: 'place', placeKey }
+    if (!goalTitleVisible(ctx, ref, viewer)) return []
+    const projected = typeof state.projected === 'boolean'
+      ? state.projected
+      : (state.audience ?? []).some(place => place.startsWith('yzj-group-'))
+    return [projected
+      ? '这条会写进目标文档（全组可读）——回复「不公示」可以改'
+      : '这条**不会**写进目标文档（私下登记）——回复「公示」写进去']
+  }
+
   return {
   type: 'commitment',
   updateStrategy: 'append-echo',
@@ -138,6 +155,45 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
       needsInput: true,
       allowedActors: (actor, state) => mayAccept(actor.openId, state),
       available: state => state.status === 'open' && state.delivery !== undefined,
+    },
+    {
+      /*
+        **反转投影** —— 边级选择的入口，就在这张 ack 上 (v4.22 裁决③).
+
+        默认从登记场所的公私派生（公域→投影、私下→不投影明细），**当场生效**；这颗
+        动词是它的「可纠」那一半。**不加第二张确认卡**——一次主权时刻一次确认，而这
+        本来就不是一次主权时刻：默认已经生效了，这里只是改主意。
+
+        主权归 owner：把不把自己委派的这件事说给全组听，是他的隐私主权。
+      */
+      id: 'publish',
+      label: '写进目标文档',
+      style: 'neutral',
+      keywords: ['公示', '写进目标'],
+      allowedActors: (actor, state) => mayAccept(actor.openId, state),
+      available: state => (
+        state.status === 'open'
+        && state.parentGoalRef !== undefined && state.parentGoalRef !== ''
+        && state.projected !== true
+      ),
+    },
+    {
+      id: 'unpublish',
+      label: '不写进目标文档',
+      style: 'neutral',
+      keywords: ['不公示', '别写进目标'],
+      allowedActors: (actor, state) => mayAccept(actor.openId, state),
+      /*
+        只在**还没投影出去**的时候可选。
+
+        投影出去之后关掉它并不会让文档里那一行消失，却会让它的状态余生停止更新——
+        组里看到的会是一条永远停在「已登记」的活。那不是隐私，那是策展。
+      */
+      available: state => (
+        state.status === 'open'
+        && state.parentGoalRef !== undefined && state.parentGoalRef !== ''
+        && state.projected !== false
+      ),
     },
     {
       id: 'void',
@@ -191,6 +247,16 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
       // fold is a merge), so `undefined` is not the only absent value — and
       // this is the projection that gets posted into a real group.
       ...goalLine(state, view?.placeKey),
+      /*
+        **亮出那个默认，并给出反转入口** (v4.22 裁决③).
+
+        「投影即公开这次委派」这件事必须**明示在 ack 上**——一条私下登记的活被写进
+        一份全组打开就能读的文档，而当事人以为那句话只有两个人听见，是这条裁决要防的
+        全部内容。所以这一行不是提示，是**告知**：它已经生效了，你可以改。
+
+        只在挂着目标、而且还在跟的时候说：终态之后再说这句话没有意义。
+      */
+      ...projectionLine(state, view?.placeKey),
       ...(state.lastReceipt === undefined ? [] : [`最近回执：${state.lastReceipt}`]),
       // 交付主张 + 返工轮次上卡（轮次不进徽标，位置在这儿）。
       ...(state.delivery === undefined
@@ -221,6 +287,15 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
             commitmentId: state.commitmentId,
             cause: input === undefined || input.trim() === '' ? '未说明' : input.trim(),
           },
+          actor,
+        }],
+      }
+    }
+    if (action.id === 'publish' || action.id === 'unpublish') {
+      return {
+        events: [{
+          type: 'commitment/updated',
+          data: { commitmentId: state.commitmentId, projected: action.id === 'publish' },
           actor,
         }],
       }

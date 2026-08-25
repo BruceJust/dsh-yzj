@@ -428,6 +428,34 @@ export function applyGoalWriteback(ctx: Context): () => void {
     audience?.some(place => place.startsWith('yzj-group-')) === true
   )
 
+  /**
+   * 这条边投不投进真身 —— **边级选择，默认从场所派生** (v4.22 裁决③).
+   *
+   * 两层：owner 在登记 ack 上反转过就听他的（`projected`），没反转过就按登记场所的公私
+   * 派生。「零新决策成本」的那一半在后者：绝大多数时候人不需要想这件事。
+   */
+  const projects = (
+    state: Record<string, unknown> | undefined, audience: readonly string[] | undefined,
+  ): boolean => {
+    const chosen = state?.projected
+    return typeof chosen === 'boolean' ? chosen : inGroup(audience)
+  }
+
+  /**
+   * 这条边**已经投影出去过**了吗。
+   *
+   * 出生那一笔写成功过，组里就已经看见它了。此后它的状态余生**自动回写、不可选择性
+   * 略过**——否则 owner 就有了对坏消息的策展权：一条眼看要逾期的活，反手把开关关掉，
+   * 文档里就永远停在「已登记」。**一道反 theater 的确认门反向制造 theater，比没有它
+   * 更坏**，所以这一问只看事实，不看意愿。
+   */
+  const alreadyProjected = (goalRef: string, commitmentId: string): boolean => {
+    const born = ctx.yzjGraph.rawObject(
+      'goal-writeback', writebackIdFor(goalRef, commitmentId, 'born'),
+    )
+    return asString(asRecord(born?.state)?.status) === 'written'
+  }
+
   const consider = async (commitmentId: string): Promise<void> => {
     const object = ctx.yzjGraph.rawObject('commitment', commitmentId)
     const state = asRecord(object?.state)
@@ -440,9 +468,21 @@ export function applyGoalWriteback(ctx: Context): () => void {
       终态跟着出生走，是因为下面那句「死了就补生」：没投影过的边不该突然冒出一行
       「已完成」——组里看到的会是一件他们从没见过被登记的事完成了。
     */
-    if (!inGroup(object?.audience)) return
     const moment = momentOf(state)
     if (moment === undefined) return
+    /*
+      **选择只在出生那一刻说了算；之后由事实说了算** (v4.22 裁决③).
+
+      两个或起来，顺序不能倒：
+
+      - **已经投影过** → 一路写到底。owner 事后把开关关掉也拦不住——那正是「不可选择性
+        略过」要防的对坏消息的策展权（一条眼看要逾期的活反手关掉开关，文档里就永远停在
+        「已登记」）。
+      - 没投影过 → 按这条边**自己的选择**（反转过就听他的，没反转就按登记场所的公私派生）。
+
+      先问事实、后问意愿，才防得住策展；反过来写，一次反转就能让已经公开的边从此沉默。
+    */
+    if (!alreadyProjected(goalRef, commitmentId) && !projects(state, object?.audience)) return
     /*
       死了就补生。
 

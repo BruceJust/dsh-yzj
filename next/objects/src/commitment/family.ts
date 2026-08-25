@@ -67,6 +67,20 @@ export interface CommitmentState {
    * 一处就静默失权；而内核本来就给每条事件记着 actor——**事实一直在，读它就行**。
    */
   readonly delegatedBy?: string
+  /**
+   * 这条边要不要投影进**全组可读的真身** —— 边级选择 (v4.22 裁决③).
+   *
+   * 缺席 = **按登记场所的公私派生**（公域登记→投影、私下登记→不投影明细）。这是
+   * 「零新决策成本」的那一半：绝大多数时候人不需要想这件事。
+   *
+   * 有值 = owner 在登记 ack 上**反转过**这个默认。它属于「默认生效可纠」家族——默认
+   * 当场生效，反转入口摆在 ack 上，**不加第二张确认卡**（一次主权时刻一次确认）。
+   *
+   * **它只在出生那一刻说了算。** 一条已经投影出去的边，它的状态余生自动回写、不可
+   * 选择性略过——否则 owner 就有了对坏消息的策展权，而一道反 theater 的确认门反向
+   * 制造 theater，比没有它更坏。
+   */
+  readonly projected?: boolean
 
   /**
    * 已经被打回过几次 —— **轮次的家在承诺上**。
@@ -169,6 +183,11 @@ export const commitmentFamily: GraphFamily = {
         status: z.literal('open').default('open'),
         due: z.string().optional(),
         parentGoalRef: z.string().optional(),
+        /*
+          出生时就说清也合法——默认从登记场所派生，但**派生只是默认**：一条明知要私下
+          处理的活，登记它的时候就可以说「这条不写进目标文档」，不必等 ack 再反转一次。
+        */
+        projected: z.boolean().optional(),
         goalRef: z.string().optional(),
         parentCommitmentId: z.string().optional(),
         processTemplateRef: z.string().optional(),
@@ -210,6 +229,8 @@ export const commitmentFamily: GraphFamily = {
         lastReceipt: z.string().optional(),
         criteria: z.string().optional(),
         notified: z.enum(['sent', 'failed']).optional(),
+        /** 边级投影选择的反转 —— 默认生效可纠，见 `CommitmentState.projected`。 */
+        projected: z.boolean().optional(),
         audience: z.array(z.string()).optional(),
         /**
          * 上一次看到的真身长什么样 (§1.9-4 真身之变).
