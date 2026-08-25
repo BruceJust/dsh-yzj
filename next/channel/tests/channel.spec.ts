@@ -284,8 +284,33 @@ describe('触发词的边界：中文不留空格（实测缺陷）', () => {
 describe('在不在岗：说过的「不」压得过任何默认', () => {
   const none = new Set<string>()
 
-  it('名单空着 = 这个部署没有名单，到处都在岗', () => {
-    expect(onDutyIn({ groupId: 'g1', allowedGroupIds: none, deniedGroupIds: none })).toBe(true)
+  /*
+    **空集 = 全关**（v3.15 裁决①）。
+
+    这一条此前断言的是反面（「空集 = 到处都在岗」），而那正是悬崖的来源：一个集合同时
+    兼职表达部署配置与逐群决定。裁决把语义从数据结构里分了出来——「到处都在岗」仍然
+    合法，但要显式写下来。
+  */
+  it('名单空着 = 全关，不是「到处都在岗」', () => {
+    expect(onDutyIn({ groupId: 'g1', allowedGroupIds: none, deniedGroupIds: none })).toBe(false)
+  })
+
+  it('全量上岗要显式写下来，写下来就真的全量', () => {
+    expect(onDutyIn({
+      groupId: 'g-any', allowedGroupIds: none, deniedGroupIds: none, serveAll: true,
+    })).toBe(true)
+  })
+
+  /*
+    **说过的「不」压得过 `serveAll`。**
+
+    显式声明的是「默认到处在岗」，不是「不许我再关掉任何一个群」——一个盖得过人明确
+    决定的配置位，就是把主权从人手里收走。
+  */
+  it('全量上岗也压不过明确关掉的那一个', () => {
+    expect(onDutyIn({
+      groupId: 'g1', allowedGroupIds: none, deniedGroupIds: new Set(['g1']), serveAll: true,
+    })).toBe(false)
   })
 
   it('名单非空 = 只在名单里在岗', () => {
@@ -305,19 +330,21 @@ describe('在不在岗：说过的「不」压得过任何默认', () => {
   })
 
   /*
-    **悬崖还有一半没修，这里不假装修好了。**
+    **悬崖那一半修好了** —— 裁决①（v3.15）。
 
-    关掉最后一个群 → `allowed` 变空 → 空集仍然「全部放行」→ 其余 45 个群集体上岗。
-    denied 只护得住被点名关掉的那一个。
+    此前这里写着「另半条等裁决：两个方向都会改变 agent 在 46 个真实工作群里的触达，
+    那是账号主人的决定」。裁决收窄了语义：空集 = 全关，全量上岗改由 `serveAll` 显式
+    声明。所以最贵的那个方向没了——**关掉最后一个群，只是关掉最后一个群**。
 
-    真正的根还在「空集」身兼两职：它既是配置语句（这个部署没有名单），又是运行态的
-    累加结果。分开的修法要么把「空 = 全开」改成「空 = 全关」（收窄，合 v4.18
-    「合同默认最严」），要么让「空 = 全开」只由**配置**说了算（加宽）——**两个方向都会
-    改变 agent 在 46 个真实工作群里的触达**，那是账号主人的决定，不是实现能自己定的。
-
-    所以这里只锁住不含糊的那半条，另半条如实记在偏离清单上等裁决。写一条断言去钉住
-    当前这个行为，等于把 bug 写成规格。
+    下面这一条锁的就是它：名单只剩一个、把它关掉之后，别的群不会因此集体上岗。
   */
+  it('关掉最后一个群，别的群不会因此集体上岗 —— 悬崖的护栏', () => {
+    // 名单空了（最后一个群被关掉，落库里它在 denied 那一册）。
+    expect(onDutyIn({
+      groupId: 'g-other', allowedGroupIds: new Set(), deniedGroupIds: new Set(['g1']),
+    })).toBe(false)
+  })
+
 
   it('先关后开，开得回来 —— 两个集合各自成立，不许互相残留', () => {
     const allowed = new Set(['g1'])

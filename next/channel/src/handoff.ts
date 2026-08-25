@@ -27,6 +27,7 @@ import type { CardRef } from '@yzj-next/cards'
 import { YZJ_TEXT_SURFACE } from '@yzj-next/objects'
 import { placeKeyFor, type YzjGroup, type YzjTopicRoute } from './protocol.ts'
 import type { YzjChannelClient } from './client.ts'
+import { onDutyIn } from './poller.ts'
 
 /** What the operator is being asked to release, and to whom. */
 export interface HandoffPlan {
@@ -63,6 +64,8 @@ export interface HandoffDeps {
   readonly allowedGroupIds: ReadonlySet<string>
   /** 被明确移出服务的群。移交过去等于往一个 agent 不在岗的地方递活。 */
   readonly deniedGroupIds: ReadonlySet<string>
+  /** 部署层显式写下的「全量上岗」——和 `onDutyIn` 同一个谓词读它。 */
+  readonly serveAll?: boolean
   readonly groupPages: number
 }
 
@@ -112,9 +115,19 @@ export async function prepareHandoff(
   if (chosen === undefined) {
     return { kind: 'refused', reason: `找不到会话「${target}」`, draft: body }
   }
-  // 明确关掉的群先挡：它和「名单里没有」是两回事，但对移交来说后果一样——那边没人接。
-  if (deps.deniedGroupIds.has(chosen.groupId)
-    || (deps.allowedGroupIds.size > 0 && !deps.allowedGroupIds.has(chosen.groupId))) {
+  /*
+    在不在岗**共用那一个谓词** (v3.15 裁决①).
+
+    这里此前自己抄了一遍规则（`size > 0 && !has`）——于是「空集」在这条路上的含义
+    与 `onDutyIn` 里的各是各的。收窄语义那天，两处只会改到一处，而没改的那一处
+    正好是把话说进另一个群的那条路：移交到一个 agent 不在岗的群，那边没人接。
+  */
+  if (!onDutyIn({
+    groupId: chosen.groupId,
+    allowedGroupIds: deps.allowedGroupIds,
+    deniedGroupIds: deps.deniedGroupIds,
+    ...(deps.serveAll === undefined ? {} : { serveAll: deps.serveAll }),
+  })) {
     return {
       kind: 'refused',
       reason: `「${chosen.groupName}」不在本实例的允许列表内（试运行期只对测试群开放）`,

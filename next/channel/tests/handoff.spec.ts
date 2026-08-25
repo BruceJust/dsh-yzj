@@ -96,7 +96,14 @@ describe('target resolution', () => {
   })
 
   it('accepts an exact group id even when the name is ambiguous', async () => {
-    const prepared = await prepareHandoff(depsWith([]), ROUTE, 'g-2', '')
+    /*
+      名单里要有它 —— **空集 = 全关**（v3.15 裁决①）。
+
+      这一条此前给的是空名单，靠的是「空集 = 到处都在岗」那条旧语义；它要锁的其实是
+      「精确 group id 压过歧义名字」，和在不在岗无关。收窄之后夹具得把话说全，否则
+      它测的会变成另一件事（而且会以「通过」的样子测错）。
+    */
+    const prepared = await prepareHandoff(depsWith(['g-2']), ROUTE, 'g-2', '')
     expect(prepared.kind).toBe('ready')
   })
 

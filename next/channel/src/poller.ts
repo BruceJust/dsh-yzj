@@ -107,9 +107,24 @@ export function onDutyIn(input: {
   readonly groupId: string
   readonly allowedGroupIds: ReadonlySet<string>
   readonly deniedGroupIds: ReadonlySet<string>
+  /** 部署层显式声明的「全量上岗」。**语义与数据结构分离** (v3.15 裁决①)。 */
+  readonly serveAll?: boolean
 }): boolean {
+  // 人明确说过的「不」，任何默认都不该盖过它——所以它排在最前面。
   if (input.deniedGroupIds.has(input.groupId)) return false
-  return input.allowedGroupIds.size === 0 || input.allowedGroupIds.has(input.groupId)
+  /*
+    **空集 = 全关**（v3.15 裁决①，「合同默认最严」的构造性兑现）。
+
+    此前空集是「到处都在岗」，于是这一个集合同时兼职表达两件事：部署配置与逐群决定。
+    两个含义挤在一个数据结构里，结果是一道**双向的悬崖**——而其中一个方向是这套系统
+    最贵的一种事故：名单只剩一个群时把它关掉，集合变空，**agent 在 46 个真实工作群里
+    同时上岗**。
+
+    「到处都在岗」仍然是一个合法的部署选择，只是它现在要被**写下来**（`serveAll`）：
+    语义从数据结构里分出来之后，关掉最后一个群就只是关掉最后一个群。
+  */
+  if (input.serveAll === true) return true
+  return input.allowedGroupIds.has(input.groupId)
 }
 
 /**
@@ -146,6 +161,8 @@ export interface PollerConfig {
   readonly allowedGroupIds: ReadonlySet<string>
   /** 被**明确**移出服务的群。见 `allowed()`：人说过的「不」，任何默认都不该盖过。 */
   readonly deniedGroupIds: ReadonlySet<string>
+  /** 部署层显式写下的「全量上岗」。空名单不再等于它 (v3.15 裁决①)。 */
+  readonly serveAll?: boolean
 }
 
 /** The full command set (§6.4). */
@@ -241,6 +258,7 @@ export class YzjPoller {
       groupId,
       allowedGroupIds: this.config.allowedGroupIds,
       deniedGroupIds: this.config.deniedGroupIds,
+      ...(this.config.serveAll === undefined ? {} : { serveAll: this.config.serveAll }),
     })
   }
 
@@ -809,6 +827,7 @@ export class YzjPoller {
       client: this.client,
       allowedGroupIds: this.config.allowedGroupIds,
       deniedGroupIds: this.config.deniedGroupIds,
+      ...(this.config.serveAll === undefined ? {} : { serveAll: this.config.serveAll }),
       groupPages: this.config.groupPages,
     }
     const prepared = await prepareHandoff(deps, route, target, rest.join(' '))
@@ -846,6 +865,7 @@ export class YzjPoller {
       client: this.client,
       allowedGroupIds: this.config.allowedGroupIds,
       deniedGroupIds: this.config.deniedGroupIds,
+      ...(this.config.serveAll === undefined ? {} : { serveAll: this.config.serveAll }),
       groupPages: this.config.groupPages,
     }
     const { delivered } = await executeHandoff(deps, plan, by)

@@ -72,8 +72,22 @@ export interface Config {
   agentIdleMs?: number
   aliases?: string[]
   acceptAccountMentions?: boolean
-  /** Conversations this instance acts in. Empty means every conversation. */
+  /**
+   * Conversations this instance acts in. **Empty means NONE** (v3.15 裁决①).
+   *
+   * 收窄之前，空集是「到处都在岗」——于是这个集合同时兼职表达两件事（配置与逐群
+   * 决定），而那正是一道**双向悬崖**：名单只剩一个群时把它关掉，集合变空，agent
+   * 在 46 个真实工作群里同时上岗。合同默认最严的构造性兑现是空集 = 全关。
+   */
   allowedGroupIds?: string[]
+  /**
+   * 全量上岗 —— **显式写下来的那一种** (v3.15 裁决①).
+   *
+   * 「到处都在岗」是一个合法的部署选择（旧系统平价切换那天可能就要它），错的是让它
+   * 由**一个集合恰好为空**来表达：语义与数据结构分离之后，那道悬崖就没有了——关掉
+   * 最后一个群只是关掉最后一个群。
+   */
+  serveAll?: boolean
   preset?: string
   cwd?: string
   stateFile?: string
@@ -94,6 +108,7 @@ export const Config: z<Config> = z.object({
   aliases: z.array(z.string()).default(['@agent', '@智能体']),
   acceptAccountMentions: z.boolean().default(false),
   allowedGroupIds: z.array(z.string()).default([]),
+  serveAll: z.boolean().default(false),
   preset: z.string().default('standard'),
   cwd: z.string().default(join(defaultHome, 'yzj-next', 'workspace')),
   stateFile: z.string().default(join(defaultHome, 'yzj-next', 'channel-state.json')),
@@ -274,6 +289,7 @@ export function apply(ctx: Context, config: Config): void {
       pollIntervalMs,
       allowedGroupIds,
       deniedGroupIds,
+      serveAll: config.serveAll ?? false,
     }, onError, onIdentity)
 
     void Promise.all([
