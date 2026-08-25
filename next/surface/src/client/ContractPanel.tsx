@@ -152,6 +152,28 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                           {view.onDuty === false ? '接入这个会话' : '移出服务'}
                         </button>
                       )}
+                    {/*
+                      **谁按的这个开关** (v3.15 裁决⑤).
+
+                      接单 = 让 agent 听见这里的每一句话，是一次听众敏感的主权动作，
+                      所以它在图上有事件史。而记下来没人读得到等于没记——审计要靠 grep
+                      一个 jsonl 的东西不叫可审计。这一问发生的地方就是这里：人正看着
+                      这个开关，想的是「这是谁开的、什么时候」。
+
+                      **只报动作，不报状态**：当前开着没有，上面那一行已经说了；这一格
+                      多说一次，两处就有机会打架。
+                    */}
+                    {(view.servedChanges ?? []).length > 0 && (
+                      <ul className={css.list}>
+                        {(view.servedChanges ?? []).map(item => (
+                          <li key={`${String(item.time)}-${String(item.served)}`}>
+                            {new Date(item.time).toLocaleString('zh-CN', { hour12: false })}
+                            {' · '}{item.served ? '接入' : '移出'}
+                            {item.by === undefined ? '' : ` · ${item.by}`}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     {note !== '' && <div className={css.noteBad}>{note}</div>}
                   </span>
                 </div>

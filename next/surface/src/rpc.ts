@@ -256,6 +256,17 @@ export interface ContractView {
   readonly bannedTools: readonly string[]
   /** Authorities withdrawn in this deployment, newest first. */
   readonly revocations: readonly { readonly messageId: string; readonly reason: string; readonly time: number }[]
+  /**
+   * 这个开关最近几次是谁按的 —— **可审计的兑付** (v3.15 裁决⑤).
+   *
+   * 记下来而没人读得到，等于没记：审计要靠 grep 一个 jsonl 的东西，不叫可审计。这一问
+   * 发生的地方就是这块面板——人正看着那个开关，想的是「这是谁开的、什么时候」。
+   *
+   * 只给这个场所的。别处的接单史与这块面板无关，全铺出来只会把这一格淹掉。
+   */
+  readonly servedChanges: readonly {
+    readonly served: boolean; readonly by?: string; readonly time: number
+  }[]
   /** False while no lease can be granted — stated, not implied by an empty list. */
   readonly leasesAvailable: boolean
 }
@@ -280,6 +291,26 @@ export function contractView(ctx: Context, placeKey: string): ContractView {
     if (spec.level === 'strong') strongTools.push({ name, reason: spec.reason })
     else standardCount += 1
   }
+  /*
+    接单史 —— 只读这个场所的，最近五次。
+
+    图上记的是**动作**（`contract/served`），运行态真相仍在通道的名单里：这里读的是
+    「谁按的」，不是「现在开着没有」。后者就在上面那一行 `onDuty`，两者永远不该在这
+    块面板上打架——所以这一格一个字都不用来推断当前状态。
+  */
+  const servedChanges = ctx.yzjGraph.rawEvents(['contract/served'])
+    .filter(event => asString(asRecord(event.data)?.placeKey) === placeKey)
+    .map(event => ({
+      served: asRecord(event.data)?.served === true,
+      // 谁按的。actor 上没有名字（那会在每条事件里存一份永不更新的名录），所以这里
+      // 只有 openId——认不出来也不猜。
+      ...(asString((event.actor as { openId?: string }).openId) === undefined
+        ? {}
+        : { by: asString((event.actor as { openId?: string }).openId) as string }),
+      time: event.time,
+    }))
+    .reverse()
+    .slice(0, 5)
   const revocations = ctx.yzjGraph.rawEvents(['authority/revoked'])
     .map(event => ({
       messageId: asString(asRecord(event.data)?.messageId) ?? '',
@@ -297,6 +328,7 @@ export function contractView(ctx: Context, placeKey: string): ContractView {
     processSummary: contract.processSummary,
     oaRequiredCategories: contract.oaRequiredCategories,
     strongTools,
+    servedChanges,
     standardCount,
     bannedTools: [...GATEWAY_ESCAPE_TOOLS],
     revocations,

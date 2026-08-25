@@ -141,6 +141,8 @@ export interface ContractViewWire {
   standardCount: number
   bannedTools: string[]
   revocations: { messageId: string; reason: string; time: number }[]
+  /** 这个开关最近几次是谁按的（v3.15 裁决⑤：记下来而没人读得到，等于没记）。 */
+  servedChanges?: { served: boolean; by?: string; time: number }[]
   leasesAvailable: boolean
 }
 

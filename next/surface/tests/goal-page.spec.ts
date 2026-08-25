@@ -381,3 +381,34 @@ describe('四席位：一页 N 个查看者 N 种渲染', () => {
     expect(counts).toEqual([2, 2, 2, 2])
   })
 })
+
+/**
+ * 组里那份文档多久没对账了 —— **界面读的是这一页，而这个数算在板上** (v4.22 裁决③ 配套).
+ *
+ * 目标页只是板的第二缩放级别（同一个查询），所以这个信号本该顺着流过来。钉住它，是因为
+ * 那条界面分支读的是 `view.goal.truthSilentDays`：哪天有人在这里另起一个查询——正是这一
+ * 页最容易长歪的那件事——板上还在，页上就悄悄没了，而没有信号看起来和「一切正常」一模
+ * 一样。
+ */
+describe('真身沉默了多久：目标页读的是同一份', () => {
+  it('板上算出来的天数，页上读得到', async () => {
+    await goal()
+    await graph.append({
+      type: 'goal/written-back',
+      data: {
+        writebackId: `${GOAL}#c1#born`, goalRef: GOAL, commitmentId: 'c1',
+        moment: 'born', line: '· 拉数据 — 张锐', status: 'written',
+      },
+      actor: { kind: 'agent' },
+    })
+    // 事件的时间由内核盖，测试改不了它——所以读「今天」这一档：写过了，就有这个数。
+    expect(goalPageFrame(ctx, GOAL)?.goal.truthSilentDays).toBe(0)
+  })
+
+  it('一次都没写进去过的目标，页上也不该有这个数', async () => {
+    // 从没对过账 ≠ 很久没对账。私下登记是合法状态，不是欠账。
+    await goal()
+    expect(goalPageFrame(ctx, GOAL)?.goal.truthSilentDays).toBeUndefined()
+  })
+})
+

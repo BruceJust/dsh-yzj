@@ -997,7 +997,7 @@ const AV = {
 };
 const AGENT_ALIAS = /@agent|@智能体|@云小助/i;
 
-const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null, boardLens: 'all', delegExec: null, delegCtx: null };
+const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null, boardLens: 'all', delegExec: null, delegCtx: null, repairFor: null, voidConfirm: null, gvoidArm: false };
 
 /* v4：承诺板数据——图的第三类居民（执行者可为人/agent/流程） */
 /* v4.21 字段语义：due=话语原文（真身）；dueT=解析投影（可空可纠：'today'/'soon'/null——无戳沉底不消失）；
@@ -1754,6 +1754,24 @@ function commitState(c) {
   }
   if (c.overdue) return c.reminded ? '已提醒' : '逾期';
   return c.state;
+}
+/* v4.23+ 修理动词条（决策 #57）：⋯ 展开为可执行的就地动词——既可见又可动；作废过确认门（不可逆终态的摩擦片） */
+function repairStrip(c) {
+  if (state.repairFor !== c.name) return '';
+  if (state.voidConfirm === c.name) return `
+    <div class="cm-row" style="background:#FFF6F5;border-color:#F2C9C4;font-size:11px;gap:8px">
+      <span style="flex:1;color:var(--red)">确认作废「${c.name}」？人签发终态 · 不可逆 · 级联等待对象${c.goal ? ' · 回写真身' : '（无归属行直接终态）'}——确认门是写操作的摩擦片</span>
+      <button class="btn" data-rvoidok="${c.name}" style="font-size:10.5px;color:var(--red)">确认作废</button>
+      <button class="btn" data-rback="1" style="font-size:10.5px">取消</button></div>`;
+  return `
+    <div class="cm-row" style="background:#FDFEFF;border-color:var(--pub-line);font-size:11px;gap:6px;flex-wrap:wrap">
+      <span style="font-size:10px;color:var(--ink-3)">修理（主权 = 验收人 · 全部走话语门，按钮是话语的按钮形态）：</span>
+      <button class="btn" data-rdelay="${c.name}" style="font-size:10.5px">顺延期限</button>
+      <button class="btn" data-rvoid="${c.name}" style="font-size:10.5px">作废…</button>
+      <button class="btn" data-rmove="${c.name}" style="font-size:10.5px" title="/handoff：跨场所移交+脱密背景包，私语不迁移">移交</button>
+      ${c.goal ? `<button class="btn" data-runlink="${c.name}" style="font-size:10.5px" title="/unlink：与收养对称的减法——承诺不死，回无归属组（v4.22）">摘除</button>`
+               : `<button class="btn" data-radopt="${c.name}" style="font-size:10.5px" title="/link：无归属承诺挂进目标（事后挂接第三时刻）">收养</button>`}
+      <button class="btn" data-rback="1" style="font-size:10.5px;margin-left:auto">收起</button></div>`;
 }
 /* v4.21 三值信号（有证据 / 无信号+最后时间 / 信号过时）——板与 hub 共享同一推导（数据同一查询） */
 function signalOf(c) {
