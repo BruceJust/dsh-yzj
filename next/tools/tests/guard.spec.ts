@@ -190,6 +190,28 @@ describe('write gating', () => {
   })
 
   /*
+    **记「不限场所」要问，记「本场所」不问**（Bruce 裁决，2026-08-25）。
+
+    三轴里只有场所轴关在这一间屋子里；本人/全组织两轴的坐标是账号本身，那样一条惯例
+    从此在每一个会话的每一轮里对模型生效——改的不是某一件事，是「它在多少个房间里说话」。
+
+    两条断言缺一不可：**该问的问**（否则裁决落空），**不该问的不问**（否则人学会闭着
+    眼睛点确认，而那比没有门更糟）。这里锁的是行为，不是表里那一格。
+  */
+  it('记「不限场所」的惯例要过门，记「本场所」的不打断', async () => {
+    expect(await decide(execution('memory_note', { summary: '这个群的数字要注明口径', axis: 'place' })))
+      .toMatchObject({ kind: 'allow' })
+    expect(asks).toHaveLength(0)
+
+    const decision = await decide(execution('memory_note', { summary: '我一律只看结论', axis: 'entity' }))
+    expect(decision).toMatchObject({ kind: 'ask' })
+    expect(asks[0]?.ask).toMatchObject({ toolName: 'memory_note', level: 'strong' })
+
+    expect(await decide(execution('memory_note', { summary: '全公司周五交周报', axis: 'org' })))
+      .toMatchObject({ kind: 'ask' })
+  })
+
+  /*
     不在表里的工具照旧直通：门不是一道「凡是没见过的都拦下」的墙，那会把每一次读都
     变成一次打断。
   */

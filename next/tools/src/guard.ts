@@ -105,6 +105,26 @@ export const WRITE_SPECS: Record<string, WriteSpec> = {
     可纠可再改，standard。
   */
   commitment_void: { reason: '作废一条承诺 —— 墓碑律：作废之后它不会再被任何动词唤醒', level: 'strong' },
+  /*
+    **把一条惯例记成「不限场所」= 一次改变触达面的动作**（Bruce 裁决，2026-08-25）。
+
+    三轴里只有场所轴关在这一间屋子里；本人（实体）与全组织两轴的坐标是账号本身，于是
+    这样一条惯例**从此在每一个会话的每一轮里对模型生效**——和接单、建群同一族：改的不是
+    某一件事，是「它在多少个房间里说话」。
+
+    为什么必须是 `strong` 而不是 `standard`：standard 在「接纳这一回合的那条消息」之内
+    是免确认的，而记忆恰恰几乎总是在那种回合里写下的——那道门会一次都不开。这里不是在
+    说它不可逆（`memory_forget` 能忘掉它），是说**它每次都得问**：一条你没点头就跟去每个
+    群的惯例，和一条悄悄改了触达面的开关，是同一种东西。
+
+    `when` 让场所轴照旧零摩擦：绝大多数惯例本来就只关这一间屋子的事，给它们加一道门
+    只会让人学会闭着眼睛点确认——摩擦要花在爆炸半径大的那一侧。
+  */
+  memory_note: {
+    reason: '把一条惯例记成「不限场所」—— 它会跟着你进入每一个会话，此后每一轮都对模型生效',
+    level: 'strong',
+    when: args => asString(args.axis) !== 'place',
+  },
   commitment_postpone: { reason: '顺延承诺期限 —— 改的是当初对着人说出口的那个日子', level: 'standard' },
   commitment_handoff: { reason: '把承诺移交给另一个执行者 —— 换人不换承诺', level: 'standard' },
   // --- standard: side effects but reversible or additive ---

@@ -184,9 +184,16 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                   硬合同<span className={`${css.tag} ${css.tagHard}`}>guard 强制 · 对话改不动</span>
                 </div>
                 <div className={css.row}>
-                  <span className={css.key}>不可撤销操作</span>
+                  {/*
+                    这一格此前叫「不可撤销操作」。而它真正的判据是**每次都问**，理由有
+                    两种：一种是做了收不回（删文档、作废），另一种是**改变触达面**
+                    （建群、把一条惯例记成「不限场所」——它从此在每个会话里对模型说话）。
+                    后者是可撤销的，顶着「不可撤销」这个标题就成了这一格自己在说谎。
+                  */}
+                  <span className={css.key}>每次都问的操作</span>
                   <span className={css.value}>
-                    {view.strongTools.length} 个，<b>每次都问</b>，租约永远盖不住
+                    {view.strongTools.length} 个：<b>做了收不回</b>，或者<b>改变触达面</b>。
+                    每次都问，租约永远盖不住
                     <ul className={css.list}>
                       {view.strongTools.map(tool => (
                         <li key={tool.name}>
