@@ -15,7 +15,9 @@ import { asNumber, asRecord, asString, type GraphViewer, type JsonValue } from '
 import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
 import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/channel'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
-import { eventHub, failureOf, goalCommitmentIdFor, readinessLine } from '@yzj-next/objects'
+import {
+  eventHub, failureOf, goalCommitmentIdFor, ownsCommitment, readinessLine,
+} from '@yzj-next/objects'
 import type {} from '@yzj-next/channel'
 
 /** The head chip: what this topic is in service of. */
@@ -130,6 +132,32 @@ const failure = (message: string): RpcResult => ({
   ok: false,
   error: { code: 'internal', message, details: {} },
 })
+
+/**
+ * 主权在执行层的那一半 —— **不渲染只是不造按钮，不是把门关上** (v4.22 裁决②).
+ *
+ * 设计把这条写成了工程要求：「渲染过滤与执行校验**共用同一主权谓词、单一事实源**——
+ * 防 UI 不渲染而文本通道绕过执行」。只在界面上不画、端点照收，等于把主权做成一层
+ * 皮肤：绕过它只需要一次直接调用，而这条通道本来就对模型开着。
+ *
+ * 拒绝的话要说清**是谁的**，并且指出那条仍然走得通的路：不禁言——你可以在会话里
+ * 直接跟他说。
+ */
+function refuseUnlessSteward(
+  ctx: Context, commitmentId: string, verb: string,
+): RpcResult | undefined {
+  const state = asRecord(ctx.yzjGraph.rawObject('commitment', commitmentId)?.state)
+  const delegatedBy = asString(state?.delegatedBy)
+  const me = asString((ctx.yzjCards.desktopActor() as { openId?: string }).openId)
+  // 不知道我是谁 ≠ 不是我的（三值纪律）——身份未知的部署里不该把人锁在自己的账本外。
+  if (me === undefined) return undefined
+  if (ownsCommitment(me, delegatedBy === undefined ? {} : { delegatedBy })) return undefined
+  const owner = asString(asRecord(state?.executor)?.name)
+  return failure(
+    `这条承诺不是你登记的，${verb}归登记它的人${owner === undefined ? '' : `（执行者是 ${owner}）`}——`
+    + '你仍然可以在那个会话里直接说一句。',
+  )
+}
 
 function stringField(payload: unknown, key: string): string | undefined {
   if (typeof payload !== 'object' || payload === null) return undefined
@@ -768,6 +796,17 @@ export interface BoardRow {
    * **等于查看者本人时不发**——本人省略，那一格留给真正需要说清的情形。
    */
   readonly acceptor?: string
+  /**
+   * 这条归谁管 —— **动词主权 = 节点主权的派生** (v4.22 裁决②).
+   *
+   * 有值 = 它的 owner 不是查看者，于是修理动词族与催**不渲染**（非灰化：灰按钮是
+   * 「你不配」的展示；不渲染不禁言——人人可以在会话里直接说，系统只是不替无主权者
+   * 造按钮）。**等于本人时不发**，和责任锚第二槽同一条纪律。
+   *
+   * 与 `acceptor` 是同一个人（承诺的 owner 既验收也修理），但它们回答的是两个问题，
+   * 各有各的省略规则：`acceptor` 是「最后谁点头」，这一格是「现在谁动得了它」。
+   */
+  readonly stewardedBy?: string
   readonly signal: 'evidence' | 'silent' | 'stale'
   /** 最后一次有动静是什么时候——「无信号」必须说出它从什么时候起没信号。 */
   readonly lastSignalAt: number
@@ -1159,6 +1198,21 @@ export function boardFrame(ctx: Context): BoardView {
       维护的字段;`updatedAt` 则回答「最后一次有动静是什么时候」,两句话合起来
       才说得清一条人欠的事此刻的处境。
     */
+    /*
+      动词主权 —— **这条归谁管** (v4.22 裁决②).
+
+      只在**不归查看者本人**时下发，和责任锚第二槽同一条纪律：绝大多数行都归你自己，
+      全都印一遍只会把真正要说清的那几行淹掉。
+
+      `me === undefined` 是「不知道我是谁」，不是「不是你的」——身份未知的部署里全盘
+      不渲染动词，等于把板变成一块只能看的牌子。三值纪律：看不了 ≠ 没有。
+    */
+    const delegatedBy = asString(state?.delegatedBy)
+    const steward = me === undefined
+      || ownsCommitment(me, delegatedBy === undefined ? {} : { delegatedBy })
+      ? undefined
+      // 名字取自登记时抄下的那份名录；查不到就用 openId——不猜，宁可难看。
+      : nameOf.get(delegatedBy ?? '') ?? delegatedBy
     const silent = object.updatedSeq === object.createdSeq
     const lastSignalAt = silent ? object.createdAt : object.updatedAt
     const signal = silent
@@ -1180,6 +1234,7 @@ export function boardFrame(ctx: Context): BoardView {
       status,
       ...(due === undefined || due.trim() === '' ? {} : { due: dueOf(due) }),
       ...directionOf(me, asString(executor?.openId), openedBy.get(object.id), nameOf),
+      ...(steward === undefined ? {} : { stewardedBy: steward }),
       ...(asRecord(state?.delivery) === undefined ? {} : { awaitingAcceptance: true }),
       overdue: status === 'open' && isOverdue(due, now),
       remindable: status === 'open' && (object.audience?.length ?? 0) > 0,
@@ -2160,6 +2215,18 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (ids.length === 0) return failure('移出需要至少一条承诺')
             const unknown = ids.filter(id => scoped.yzjGraph.rawObject('commitment', id) === undefined)
             if (unknown.length > 0) return failure(`找不到承诺：${unknown.join('、')}`)
+            /*
+              摘除的主权 = **该承诺所挂目标的 owner 或承诺 owner** (v4.22)。
+
+              这里只查后者：目标那一半要先读出承诺挂在哪、再读那个目标是谁签发的，
+              而目标 owner 恰恰是我们已经在板上算过的东西——真要放宽，该在这个函数
+              里显式加那一支，而不是让它默默地宽着。**先严后宽**：多说一句拒绝的话
+              可以改，误删一条边的账改不回来。
+            */
+            for (const id of ids) {
+              const refused = refuseUnlessSteward(scoped, id, '摘除')
+              if (refused !== undefined) return refused
+            }
             try {
               for (const commitmentId of ids) {
                 await scoped.yzjGraph.append({
@@ -2192,6 +2259,8 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             // settled commitment turned 已完成 into 已作废 with one press.
             const current = asString(asRecord(target.state)?.status) ?? 'open'
             if (current !== 'open') return failure(`这条承诺已经${current === 'closed' ? '完成' : '结束'}了，不能再作废。`)
+            const refused = refuseUnlessSteward(scoped, id, '作废')
+            if (refused !== undefined) return refused
             try {
               await scoped.yzjGraph.append({
                 type: 'commitment/voided',
@@ -2222,6 +2291,8 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (target === undefined) return failure(`找不到承诺：${id}`)
             const status = asString(asRecord(target.state)?.status) ?? 'open'
             if (status !== 'open') return failure('这条承诺已经结束了，改期限没有意义。')
+            const refused = refuseUnlessSteward(scoped, id, '顺延')
+            if (refused !== undefined) return refused
             try {
               await scoped.yzjGraph.append({
                 type: 'commitment/updated',
@@ -2252,6 +2323,8 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (keeper === undefined) return failure(`找不到要合并进去的那一条：${into}`)
             const status = asString(asRecord(target.state)?.status) ?? 'open'
             if (status !== 'open') return failure('这条承诺已经结束了，不用再合并。')
+            const refused = refuseUnlessSteward(scoped, id, '合并')
+            if (refused !== undefined) return refused
             try {
               await scoped.yzjGraph.append({
                 type: 'commitment/merged',
@@ -2282,6 +2355,8 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (target === undefined) return failure(`找不到承诺：${id}`)
             const status = asString(asRecord(target.state)?.status) ?? 'open'
             if (status !== 'open') return failure('这条承诺已经结束了，不能移交。')
+            const refused = refuseUnlessSteward(scoped, id, '移交')
+            if (refused !== undefined) return refused
             try {
               await scoped.yzjGraph.append({
                 type: 'commitment/updated',

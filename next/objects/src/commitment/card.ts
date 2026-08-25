@@ -9,19 +9,17 @@
  */
 
 import type { CardDefinition } from '@yzj-next/cards'
-import { isSettled, type CommitmentState } from './family.ts'
+import { isSettled, ownsCommitment, type CommitmentState } from './family.ts'
 
 /**
  * 谁能验收这份交付 —— **委派者 ∪ 操作者**（§5.2）。
  *
- * 验收自己委派的活是主权本义。委派者由 reduce 从出生事件的 actor 盖上；老数据里
- * 没有这一格时**放行**——一条谁都验收不了的活，是比放宽一点更坏的结果（板上那条
- * 又变回断头路）。宁可宽，不可锁死。
+ * 验收自己委派的活是主权本义，所以它问的就是「这条归谁管」——和修理动词族、三个 CTA
+ * 是**同一个谓词**（v4.22 裁决②：渲染过滤与执行校验共用单一事实源）。这里曾经自己抄
+ * 了一份一模一样的实现；两份一样的判断迟早在某一次「要不要放宽老数据」上分道扬镳，
+ * 而分开之后界面与端点就会各说各话——那正是主权法则最不能出的那种错。
  */
-function mayAccept(openId: string | undefined, state: CommitmentState): boolean {
-  if (openId === undefined) return false
-  return state.delegatedBy === undefined || state.delegatedBy === openId
-}
+const mayAccept = ownsCommitment
 
 /**
  * 主张交付的这个人，同时也是要验收的那个人吗。

@@ -267,6 +267,13 @@ export interface BoardRowWire {
   direction: 'mine' | 'owed-to-me' | 'observed'
   /** 谁验收，恒为人；等于本人时不下发（本人省略）。 */
   acceptor?: string
+  /**
+   * 这条归谁管 —— **动词主权 = 节点主权的派生** (v4.22 裁决②).
+   *
+   * 有值 = owner 不是查看者，修理动词族与催**不渲染**（非灰化——灰按钮是「你不配」
+   * 的展示；不渲染不禁言，人人可以在会话里直接说）。等于本人时服务端不下发。
+   */
+  stewardedBy?: string
   overdue: boolean
   status: string
   goalRef?: string

@@ -318,3 +318,93 @@ describe('目标页端点', () => {
     expect(await call('goal-page', {})).toMatchObject({ ok: false })
   })
 })
+
+/**
+ * 动词主权 —— **无主权的动词不渲染，端点也不收** (v4.22 裁决②).
+ *
+ * 设计把 v4.21 的板行「修理按钮全行渲染」点名成了这条裁决的**第一违规者**：主权法则
+ * 缺位时，实现者必然用「全给」填空。而只在界面上不画、端点照收，等于把主权做成一层
+ * 皮肤——绕过它只需要一次直接调用，而这条通道本来就对模型开着。所以两条一起锁。
+ *
+ * 席位夹具按**四席位**造（v3.14 工程条款：凡按可见域/主权渲染的视图，fixture 必含
+ * owner／执行者／跨域执行者／旁观者）——这里够得着的是前两个：登记它的人（owner，
+ * 也就是桌面操作者）与执行它的人（李婷）。
+ */
+describe('动词主权 = 节点主权的派生', () => {
+  /** 别人登记的一条活：owner 是李婷，桌面操作者只是看得见它。 */
+  async function theirs(id = 'c9'): Promise<void> {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id,
+        what: '别人登记的活',
+        executor: { kind: 'human', openId: 'u-zhang', name: '张锐' },
+        sourceAnchor: `yzj:${id}`,
+        topicKey: 'tk-1',
+        parentGoalRef: GOAL,
+      },
+      // 出生事件的 actor 就是 owner —— reduce 会把它盖成 delegatedBy。
+      actor: { kind: 'operator', openId: 'u-li' },
+    })
+  }
+
+  it('自己登记的那条，动词照旧归自己——板上不下发「归谁管」', async () => {
+    await goal()
+    await child('c1', '统一模板')
+    const row = boardFrame(ctx).goals[0]?.children.find(one => one.id === 'c1')
+    // 等于本人时省略：绝大多数行都归你自己，全印一遍会把要说清的那几行淹掉。
+    expect(row?.stewardedBy).toBeUndefined()
+  })
+
+  it('别人登记的那条，板上说得出它归谁管', async () => {
+    await goal()
+    // 名字取自登记时抄下的那份名录——李婷得先在某处以执行者身份出现过。
+    await child('c1', '统一模板')
+    await theirs()
+    const row = boardFrame(ctx).goals[0]?.children.find(one => one.id === 'c9')
+    expect(row?.stewardedBy).toBe('李婷')
+  })
+
+  /*
+    **不猜，宁可难看。**
+
+    名录里查不到那个 openId 时印 openId 本身，而不是编一个称呼、也不是把这一格
+    悄悄省掉——省掉的后果是那一行看起来「归我管」，而它的动词恰恰不会渲染。
+  */
+  it('名录里没有那个人时印 openId，不省略也不编', async () => {
+    await goal()
+    await theirs()
+    const row = boardFrame(ctx).goals[0]?.children.find(one => one.id === 'c9')
+    expect(row?.stewardedBy).toBe('u-li')
+  })
+
+  /*
+    端点是另一半。UI 不渲染只是不造按钮——真正挡住的是这里，否则「不渲染」只是一层
+    皮肤：文本通道、模型、任何一次直接调用都能绕过去。
+  */
+  it.each([
+    ['顺延', 'postpone-commitment', { id: 'c9', due: '2026-09-05' }],
+    ['作废', 'void-commitment', { id: 'c9' }],
+    ['移交', 'handoff-commitment', { id: 'c9', openId: 'u-x', name: '某人' }],
+    ['摘除', 'unlink-commitments', { ids: ['c9'] }],
+  ])('%s 别人登记的那条，端点拒绝并说清归谁', async (_verb, endpoint, payload) => {
+    await goal()
+    await theirs()
+    const result = await call(endpoint, payload)
+    expect(result.ok).toBe(false)
+    expect((result as { error?: { message?: string } }).error?.message)
+      .toContain('不是你登记的')
+    // 拒绝不禁言：那条仍然走得通的路要说出来。
+    expect((result as { error?: { message?: string } }).error?.message)
+      .toContain('直接说')
+  })
+
+  it('拒绝之后图上一个字没写', async () => {
+    await goal()
+    await theirs()
+    const before = stateOf('c9').status
+    await call('void-commitment', { id: 'c9' })
+    expect(stateOf('c9').status).toBe(before)
+    expect(stateOf('c9').due).toBeUndefined()
+  })
+})

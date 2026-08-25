@@ -403,7 +403,16 @@ export function YzjBoard(props: BoardProps): ReactNode {
         // 指路要有落点：数字是门，门后面得有一扇门牌。
         data-row={row.id}
         // 披露一级：hover 看得到出生故事；二级在「修理」面板里，不靠 hover。
-        title={via === '' ? undefined : `挂接来源：${via}`}
+        /*
+          不渲染要**有出处**。一行上少了三颗按钮而不说为什么，人第一反应是界面坏了。
+          出生故事那一级（hover）本来就在这儿，把「归谁管」并进去不花常显预算。
+        */
+        title={[
+          via === '' ? '' : `挂接来源：${via}`,
+          row.stewardedBy === undefined
+            ? ''
+            : `这条归 ${row.stewardedBy} 管——修理动词只对登记它的人渲染；你仍然可以在会话里直接说`,
+        ].filter(line => line !== '').join('　·　') || undefined}
       >
         {pickable && (
           <input
@@ -532,7 +541,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
             未通知 · 请亲发
           </span>
         )}
-        {row.remindable && (
+        {row.remindable && row.stewardedBy === undefined && (
           <button
             type="button"
             className={css.remind}
@@ -550,7 +559,17 @@ export function YzjBoard(props: BoardProps): ReactNode {
           于是它在整个产品里都修不了。收起来是因为行的常显只有四要素 + 三值信号；
           灰阶是因为颜色预算只留给状态与异常。
         */}
-        {row.status === 'open' && (
+        {/*
+          **无主权的动词不渲染** (v4.22 裁决②)。
+
+          修理动词族的主权 = 这条承诺的 owner——当初把它说出口、登记下来的那个人。
+          v4.21 把这几颗按钮做成了**全行渲染**，而设计把那次实现点名成了裁决②的第一
+          违规者：主权法则缺位时，实现者必然用「全给」填空。
+
+          不渲染，不是灰化：灰按钮是「你不配」的展示。**不渲染也不禁言**——人人可以在
+          会话里直接说一句，系统只是不替无主权者造一个按钮。
+        */}
+        {row.status === 'open' && row.stewardedBy === undefined && (
           <button
             type="button"
             className={css.repairOpen}
@@ -564,7 +583,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
             修理
           </button>
         )}
-        {inGoal && row.status === 'open' && (
+        {inGoal && row.status === 'open' && row.stewardedBy === undefined && (
           <button
             type="button"
             className={css.unlink}
@@ -831,7 +850,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
           management tool AND rebuild the split entrance this product exists to
           close.
         */}
-        {goal.row !== undefined && goal.row.status === 'open' && (
+        {goal.row !== undefined && goal.row.status === 'open' && goal.row.stewardedBy === undefined && (
           <button
             type="button"
             className={css.delegate}
@@ -863,7 +882,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
           规则**：简报只在私语域生成，因为它汇集的证据跨场所，投进群里会被可见域
           悄悄削掉一半。对一个只有一个合法答案的问题弹一屏，收的是纯损耗的摩擦。
         */}
-        {goal.row !== undefined && goal.row.status === 'open' && (
+        {goal.row !== undefined && goal.row.status === 'open' && goal.row.stewardedBy === undefined && (
           <button
             type="button"
             className={css.assess}
@@ -890,7 +909,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
         {/* A goal declared here has no card in any place's stream, so this is
             the only route that can retire it. A door that only opens one way
             is not a door. */}
-        {goal.row !== undefined && goal.row.status === 'open' && (
+        {goal.row !== undefined && goal.row.status === 'open' && goal.row.stewardedBy === undefined && (
           <button
             type="button"
             className={css.voidGoal}

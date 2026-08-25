@@ -67,6 +67,7 @@ export interface CommitmentState {
    * 一处就静默失权；而内核本来就给每条事件记着 actor——**事实一直在，读它就行**。
    */
   readonly delegatedBy?: string
+
   /**
    * 已经被打回过几次 —— **轮次的家在承诺上**。
    *
@@ -418,4 +419,32 @@ export function earnsCommitment(input: {
 /** Terminal statuses: the work is no longer owed. */
 export function isSettled(status: CommitmentStatus): boolean {
   return status !== 'open'
+}
+
+/**
+ * 这条承诺归谁管 —— **动词主权 = 节点主权的派生** (v4.22 裁决②).
+ *
+ * 修理动词族（催／顺延／作废／合并／移交／收养／摘除）与三个 CTA 的主权，是**该节点
+ * owner** 的属性，不是「谁看得见这一行」的属性。承诺的 owner 就是当初把它说出口、
+ * 登记下来的那个人；执行者对自己那条承诺是**再委派的 owner**（他的动词是登记族与
+ * 回执族），而不是修理它的人。
+ *
+ * 三条推论，都是设计明写的：
+ *
+ * - **越级不便利**：上级目标的 owner 对孙辈承诺不渲染催——不禁社交追问，只是不造
+ *   按钮；
+ * - **无主权的动词不渲染，不灰化**：灰按钮是「你不配」的展示；不渲染不禁言——人人
+ *   可以在会话里用话说任何事，系统只是不替无主权者造一个按钮；
+ * - **渲染过滤与执行校验共用这一个谓词**：只在界面上不画，而端点照收，等于把主权
+ *   做成了一层皮肤——绕过它只需要一次直接调用。
+ *
+ * 老数据里没有 `delegatedBy` 时**放行**：一条谁都动不了的承诺，比放宽一点更坏
+ * （板上那一行会变回断头路）。宁可宽，不可锁死——和验收席位同一条纪律，也共用同一个
+ * 事实源（`delegatedBy` 由 reduce 从出生事件的 actor 盖上）。
+ */
+export function ownsCommitment(
+  openId: string | undefined, state: Pick<CommitmentState, 'delegatedBy'>,
+): boolean {
+  if (openId === undefined) return false
+  return state.delegatedBy === undefined || state.delegatedBy === openId
 }

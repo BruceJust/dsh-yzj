@@ -288,7 +288,12 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 会话 ›
               </button>
             )}
-          {row.status === 'open' && (
+          {/*
+            **无主权的动词不渲染** (v4.22 裁决②)——和板上同一个谓词、同一份判断。
+            这一族的主权是该承诺 owner 的；上级目标的 owner 对孙辈承诺也不渲染催
+            （越级不便利：不禁社交追问，只是不造按钮）。
+          */}
+          {row.status === 'open' && row.stewardedBy === undefined && (
             <>
               {/*
                 催 = 拟稿 + 传送门 + 你亲发。
@@ -462,7 +467,21 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             </div>
           )}
 
+          {/*
+            **三个 CTA 与修理动词同按主权过滤** (v4.22 裁决②)。
+
+            目标级动词归目标 owner——旁观者打开这一页看得见全部事实（可见域允许他看），
+            但不该看见一排替别人的目标做主的按钮。「🔍 问这个目标」不在此列：**问不是
+            动作**，轻问是只读投影，而不禁言正是这条法则的另一半。
+          */}
           <div className={css.ctas}>
+            {goal.row?.stewardedBy !== undefined && (
+              <span className={css.ctaNote}>
+                这个目标归 <b>{goal.row.stewardedBy}</b> 管——委派／拆解／评估是他的动词。
+                你仍然可以问它，或者在会话里直接说。
+              </span>
+            )}
+            {goal.row?.stewardedBy === undefined && <>
             <button
               type="button"
               className={css.cta}
@@ -504,6 +523,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             >
               ✓ 评估
             </button>
+            </>}
             {/*
               轻问 = 落进会话日志的一次**只读投影**，不是页内输入框，也不是一次
               完整的 agent turn。这颗按钮此前带的是私语语态——名字写着「问一下」，
@@ -527,7 +547,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             >
               🔍 问这个目标
             </button>
-            {!retired && goal.row !== undefined && (
+            {!retired && goal.row !== undefined && goal.row.stewardedBy === undefined && (
               <button
                 type="button"
                 className={css.cta}

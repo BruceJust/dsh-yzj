@@ -41,7 +41,7 @@ export {
 export { commitmentCard } from './commitment/card.ts'
 export {
   commitmentFamily, commitmentIdFor, commitmentIdemKeyFor, earnsCommitment,
-  isSettled, processFamily,
+  isSettled, ownsCommitment, processFamily,
   type CommitmentExecutor, type CommitmentState, type CommitmentStatus,
 } from './commitment/family.ts'
 export { applyCommitmentTools } from './commitment/tools.ts'
