@@ -132,6 +132,35 @@ export function sinceText(at: number, now: number = Date.now()): string {
  * 分支里漏掉一个，症状就是那次抓到的「欠我的显示的都是目标名称列表」——透镜换了问题，
  * 组织轴没换。
  */
+/**
+ * 「N 逾期 ›」按下去之后要做什么 —— **每个数字都是门**（逐级兑付定律）。
+ *
+ * 这个计数读的是**整块板**，而此刻屏幕上可能只铺着一个透镜下的一部分行，或者那条逾期的
+ * 活正躺在一个折叠起来的目标组里。于是会出现这套系统最不该有的东西：**一个报出异常、
+ * 却带不到现场的数字**——按下去什么都不发生，而「报出 3 项逾期却不可点」就是幽灵信号的
+ * 定义。
+ *
+ * 两条路可选，这里选后者：把计数改成跟着透镜变（那样「逾期几条」这个事实就取决于我此刻
+ * 从哪个角度看，而它明明是账本的事实），或者**让门真的开**——需要的话先把视野调回来。
+ * 所以这个函数回答的是「要先做什么，才走得到那一行」。
+ */
+export function jumpPlan(input: {
+  readonly rows: readonly { readonly id: string; readonly overdue: boolean; readonly goalRef?: string; readonly direction: string }[]
+  readonly axis: 'all' | 'owed-to-me' | 'mine'
+  /** 此刻折叠着的目标组。 */
+  readonly shut: readonly string[]
+}): { readonly rowId: string; readonly clearAxis: boolean; readonly expand?: string } | undefined {
+  const first = input.rows.find(row => row.overdue)
+  if (first === undefined) return undefined
+  // 透镜挡住了它 → 先摘掉透镜。摘掉是因为**行在那儿**，只是此刻不在这个角度里。
+  const clearAxis = input.axis !== 'all' && first.direction !== input.axis
+  // 它在一个折叠的组里 → 先展开那个组。折叠收起的是身体，不是账。
+  const expand = first.goalRef !== undefined && input.shut.includes(first.goalRef)
+    ? first.goalRef
+    : undefined
+  return { rowId: first.id, clearAxis, ...(expand === undefined ? {} : { expand }) }
+}
+
 export function boardShape(
   axis: 'all' | 'owed-to-me' | 'mine', lens: 'all' | 'goals',
 ): 'flat' | 'grouped' {
@@ -1264,10 +1293,21 @@ export function YzjBoard(props: BoardProps): ReactNode {
               className={css.overdueCount}
               title="跳到第一条逾期的承诺"
               onClick={() => {
-                const first = view.rows.find(row => row.overdue)
-                if (first === undefined) return
-                const node = bodyRef.current?.querySelector(`[data-row="${first.id}"]`)
-                node?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+                const plan = jumpPlan({ rows: view.rows, axis, shut })
+                if (plan === undefined) return
+                // 先把视野调到那一行在的地方，再跳——否则这颗按钮报出一个异常却带不到现场。
+                if (plan.clearAxis) setAxis('all')
+                if (plan.expand !== undefined) setShut(open => open.filter(ref => ref !== plan.expand))
+                /*
+                  下一帧再滚：这一帧里那一行可能还没被画出来（透镜刚摘、组刚展开）。
+                  同一次点击里直接 query，拿到的是 null，而那正是这颗按钮此前的样子。
+                */
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    bodyRef.current?.querySelector(`[data-row="${plan.rowId}"]`)
+                      ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+                  })
+                })
               }}
             >
               · {String(overdue)} 逾期 ›

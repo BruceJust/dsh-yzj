@@ -19,7 +19,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { boardShape, nudgeDraft, sinceText } from '../src/client/Board.tsx'
+import { boardShape, jumpPlan, nudgeDraft, sinceText } from '../src/client/Board.tsx'
 import { cascadeLine, voidGate } from '../src/client/RepairVerbs.tsx'
 import {
   assessmentCard, assessmentFamily, createCommitmentCard, commitmentFamily, eventFamily,
@@ -1096,3 +1096,43 @@ describe('作废这道门', () => {
   })
 })
 
+
+
+/**
+ * 「N 逾期 ›」这颗数字是门吗 —— **逐级兑付定律**在板上的自我适用。
+ *
+ * 这个计数读的是整块板，而屏幕上此刻可能只铺着一个透镜下的一部分行，或者那条逾期的活
+ * 正躺在折叠起来的组里。于是会出现这套系统最不该有的东西：**一个报出异常、却带不到现场
+ * 的数字**——「报出 3 项逾期却不可点」就是幽灵信号的定义。
+ *
+ * 另一条路是把计数改成跟着透镜变，但那样「逾期几条」就取决于我此刻从哪个角度看，而它
+ * 明明是账本的事实。所以选的是：**让门真的开**，需要的话先把视野调回来。
+ */
+describe('逾期计数这道门', () => {
+  const rows = [
+    { id: 'r1', overdue: false, direction: 'mine' },
+    { id: 'r2', overdue: true, direction: 'mine', goalRef: 'g1' },
+  ]
+
+  it('那一行就在眼前时，什么都不用先做', () => {
+    expect(jumpPlan({ rows, axis: 'all', shut: [] })).toEqual({ rowId: 'r2', clearAxis: false })
+  })
+
+  it('透镜把它挡住了 —— 先摘透镜，行本来就在那儿', () => {
+    expect(jumpPlan({ rows, axis: 'owed-to-me', shut: [] }))
+      .toEqual({ rowId: 'r2', clearAxis: true })
+  })
+
+  it('它在一个折叠的组里 —— 先展开那个组', () => {
+    expect(jumpPlan({ rows, axis: 'all', shut: ['g1'] }))
+      .toEqual({ rowId: 'r2', clearAxis: false, expand: 'g1' })
+  })
+
+  it('同一个透镜里的逾期行，不必摘透镜', () => {
+    expect(jumpPlan({ rows, axis: 'mine', shut: [] })).toEqual({ rowId: 'r2', clearAxis: false })
+  })
+
+  it('一条逾期都没有就没有门 —— 不给一个跳不到任何地方的动作', () => {
+    expect(jumpPlan({ rows: [rows[0]], axis: 'all', shut: [] })).toBeUndefined()
+  })
+})
