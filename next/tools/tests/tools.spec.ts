@@ -154,9 +154,20 @@ describe('the tool family', () => {
     expect(missing).toEqual([])
   })
 
+  /*
+    这道断言只管**本包注册的那一批**（`yzj_*`）。
+
+    确认表是**守卫的**表，不是某一个包的清单：守卫按名字在调用时拦，谁注册的都拦得住。
+    v3.15 裁决② 之后表里多了三个 `commitment_*`——它们由对象层注册（修理动词族的话语
+    兜底：提案归 agent、签发归人），在这个夹具里本来就不该出现。
+
+    真正危险的方向是**反过来那一条**（写工具没进表 = 不经确认直接落库），它在下面
+    单独锁。
+  */
   it('gates every write tool the guard knows about, and no read tool', () => {
     const { tools } = mountFake(() => okResult([]))
     for (const name of Object.keys(WRITE_SPECS)) {
+      if (!name.startsWith('yzj_')) continue
       expect(tools.has(name), `${name} is gated but not registered`).toBe(true)
     }
   })
@@ -412,5 +423,33 @@ describe('lineage recording', () => {
   it('produces nothing when the CLI returned no id, rather than inventing one', () => {
     expect(LINEAGE_SPECS.yzj_doc_create?.extract({ workspace: '6a84f0' }, {})).toEqual([])
     expect(LINEAGE_SPECS.yzj_im_message_send?.extract({}, { msgId: 'm-9' })).toEqual([])
+  })
+})
+
+/**
+ * 修理动词族的**话语兜底**过同一道确认门 (v3.15 裁决②).
+ *
+ * §7.6 的兜底明标写着「作废/顺延/移交 = 对 agent 说」。此前它们在 agent 手上根本不
+ * 存在——而一个**只能在承诺板上按**的动词是一种违规能力（凡只能在一个面上获得的能力
+ * 就是违规能力）。正确形态是「对象寻址 + agent 提案 + 确认卡」，而第三段不必新造：
+ * 写工具本来就过这道门。
+ *
+ * 这几条锁的就是「它们真的在门里」——一个漏进表外的写工具，会**不经确认直接落库**。
+ */
+describe('修理动词族在确认表里', () => {
+  it('三个动词都在写确认表里，一个都不许漏', () => {
+    for (const name of ['commitment_void', 'commitment_postpone', 'commitment_handoff']) {
+      expect(WRITE_SPECS[name]).toBeDefined()
+    }
+  })
+
+  /*
+    **作废是 strong**：墓碑律——作废之后这条不会再被任何动词唤醒，而 strong 从不被
+    授权租约放行。另两个改的是说出口过的事实（日子、执行者），可纠可再改。
+  */
+  it('作废是强确认，顺延与移交是标准确认', () => {
+    expect(WRITE_SPECS.commitment_void?.level).toBe('strong')
+    expect(WRITE_SPECS.commitment_postpone?.level).toBe('standard')
+    expect(WRITE_SPECS.commitment_handoff?.level).toBe('standard')
   })
 })

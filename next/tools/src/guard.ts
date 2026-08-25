@@ -92,6 +92,21 @@ export const WRITE_SPECS: Record<string, WriteSpec> = {
     设计的动向因此是把新能力放进确认门，不是拥抱这份便利。
   */
   yzj_im_group_create: { reason: '新建群组 —— 这会创造一个新的听众集合，从此他们听得见这里的每一句话', level: 'strong' },
+  /*
+    修理动词族的**话语兜底**过同一道门 (v3.15 裁决②).
+
+    §7.6 的兜底明标写着「作废/顺延/移交 = 对 agent 说」，而一个只能在承诺板上按的动词
+    是一种**违规能力**（凡只能在一个面上获得的能力就是违规能力）。正确形态是
+    「对象寻址 + agent 提案 + 确认卡」——第三段不必新造：**写工具本来就过这道门**，
+    有主权者的话语 + 确认与按钮同权（文本面是四通道之一）。
+
+    `commitment_void` 是 `strong`：墓碑律——作废之后这条不会再被任何动词唤醒，而
+    strong 从不被授权租约放行。另两个改的是**说出口过的事实**（日子、执行者），
+    可纠可再改，standard。
+  */
+  commitment_void: { reason: '作废一条承诺 —— 墓碑律：作废之后它不会再被任何动词唤醒', level: 'strong' },
+  commitment_postpone: { reason: '顺延承诺期限 —— 改的是当初对着人说出口的那个日子', level: 'standard' },
+  commitment_handoff: { reason: '把承诺移交给另一个执行者 —— 换人不换承诺', level: 'standard' },
   // --- standard: side effects but reversible or additive ---
   yzj_im_message_send: { reason: '发送 IM 消息到云之家会话，发出后不可撤回', level: 'standard' },
   yzj_file_upload: { reason: '上传文件到云之家，即刻落服务端', level: 'standard' },

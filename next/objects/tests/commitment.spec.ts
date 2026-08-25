@@ -458,3 +458,91 @@ describe('a detached commitment renders no goal line', () => {
     expect(attached.body).toContain('承 yzj://doc/g')
   })
 })
+
+/**
+ * 修理动词族的**话语兜底** —— 提案归 agent，签发归人 (v3.15 裁决②).
+ *
+ * 这三个动词此前在 agent 手上根本不存在，而一个**只能在承诺板上按**的动词是一种违规
+ * 能力（凡只能在一个面上获得的能力就是违规能力）。裁决把「没有的动词就说没有、指回
+ * 按钮」定性为**诚实的过渡态，非终态**——正确形态是对象寻址 + agent 提案 + 确认卡。
+ *
+ * 确认那一段不必新造：它们是普通写工具，走守卫本来那道门（`WRITE_SPECS` 里锁着）。
+ * 这里锁的是另外两件：**图上写对了**，以及**主权谓词在工具这一侧也拦得住**——只在
+ * 界面上不画而工具照收，等于给模型开一条绕过主权的路，而这条路本来就是为模型开的。
+ */
+describe('作废/顺延/移交：话语兜底', () => {
+  const open = async (id: string, actor = OPERATOR): Promise<void> => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id,
+        what: '探针一条',
+        executor: { kind: 'human', openId: 'u-li', name: '李婷' },
+        sourceAnchor: `yzj:${id}`,
+      },
+      actor,
+    })
+  }
+  const stateOf = (id: string): Record<string, unknown> =>
+    (graph.rawObject('commitment', id)?.state ?? {}) as Record<string, unknown>
+
+  it('作废写的是墓碑，不是一条回执', async () => {
+    await open('c1')
+    const result = await tools.get('commitment_void')?.execute(
+      { commitmentId: 'c1', reason: '测试探针，清理' }, EXEC,
+    ) as { content: string }
+    expect(stateOf('c1').status).toBe('voided')
+    expect(result.content).toContain('墓碑')
+  })
+
+  /*
+    **期限用他说的那句话**，不是解析出来的日期：把人说过的话改写成时间戳，是拿我们的
+    解析冒充他的承诺（时间透镜两层规则）。
+  */
+  it('顺延改的是当初说出口的那个日子，原话原样存', async () => {
+    await open('c2')
+    await tools.get('commitment_postpone')?.execute({ commitmentId: 'c2', due: '下周五' }, EXEC)
+    expect(stateOf('c2').due).toBe('下周五')
+    expect(stateOf('c2').status).toBe('open')
+  })
+
+  it('移交换人不换承诺——出生边与回执都还在这一条上', async () => {
+    await open('c3')
+    await tools.get('commitment_handoff')?.execute(
+      { commitmentId: 'c3', openId: 'u-zhang', name: '张锐' }, EXEC,
+    )
+    expect((stateOf('c3').executor as { openId?: string }).openId).toBe('u-zhang')
+    expect(stateOf('c3').sourceAnchor).toBe('yzj:c3')
+  })
+
+  /*
+    **主权谓词在工具这一侧也拦得住。**
+
+    渲染不画、端点会拒，可模型手上这条路是另开的一扇门——它要是照收，主权就只是一层
+    皮肤。拒绝要说清归谁，并指出仍走得通的那条：不禁言。
+  */
+  it.each([
+    ['作废', 'commitment_void', { commitmentId: 'c9' }],
+    ['顺延', 'commitment_postpone', { commitmentId: 'c9', due: '下周五' }],
+    ['移交', 'commitment_handoff', { commitmentId: 'c9', openId: 'u-x' }],
+  ])('%s 别人登记的那条：agent 拒绝，图上一个字不写', async (_verb, tool, args) => {
+    await open('c9', { kind: 'operator', openId: 'u-someone-else' })
+    const result = await tools.get(tool)?.execute(args, EXEC) as { content: string }
+    expect(result.content).toContain('不是操作者登记的')
+    expect(result.content).toContain('直接跟他说')
+    expect(stateOf('c9').status).toBe('open')
+    expect(stateOf('c9').due).toBeUndefined()
+  })
+
+  it('已经结束的那条，说清楚为什么不做，而不是照写一笔', async () => {
+    await open('c4')
+    await graph.append({
+      type: 'commitment/closed', data: { commitmentId: 'c4', cause: 'done' }, actor: OPERATOR,
+    })
+    const result = await tools.get('commitment_postpone')?.execute(
+      { commitmentId: 'c4', due: '下周五' }, EXEC,
+    ) as { content: string }
+    expect(result.content).toContain('已经完成')
+    expect(stateOf('c4').due).toBeUndefined()
+  })
+})

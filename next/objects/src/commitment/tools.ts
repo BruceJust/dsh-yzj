@@ -16,7 +16,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { asRecord, asString } from '@yzj-next/graph'
-import { commitmentIdFor, commitmentIdemKeyFor, type CommitmentState } from './family.ts'
+import {
+  commitmentIdFor, commitmentIdemKeyFor, ownsCommitment, type CommitmentState,
+} from './family.ts'
 import { armedGoalOf } from '../goal/family.ts'
 import type { TurnBinding } from '../turns.ts'
 
@@ -35,6 +37,18 @@ const output = {
 }
 
 /** The turn's binding, or undefined outside a bound turn. */
+/**
+ * 这一回合的主权人是谁 —— 修理动词的主权谓词要拿它去问 (v4.22 裁决②).
+ *
+ * `decider` 是绑定里「谁有权答这一回合开出来的卡」那一格；在桌面就是操作者本人，在
+ * 群里是被admit那条消息的发话人。用它而不是「谁在说话」：主权是节点的属性，不是
+ * 音量的属性。
+ */
+function operatorOf(ctx: Context, agent: Agent | undefined): string | undefined {
+  const decider = bindingOf(ctx, agent)?.decider
+  return decider === undefined || decider === '' ? undefined : decider
+}
+
 function bindingOf(ctx: Context, agent: Agent | undefined): TurnBinding | undefined {
   if (agent === undefined) return undefined
   const turns = ctx.get('yzjTurns')
@@ -209,20 +223,149 @@ export function applyCommitmentTools(ctx: Context): () => void {
     },
   }))
 
+  /*
+    修理动词族的**话语兜底** —— 提案 + 确认卡 (v3.15 裁决②).
+
+    此前这三个动词在 agent 手上根本不存在，而 `commitment_receipt` 的描述里写着一句
+    「没有的动词就说没有，指回那个按钮」。那句话当时是对的**过渡态**，但它不是终态：
+    §7.6 的兜底明标写着「作废/顺延/移交 = 对 agent 说」，一个只能在承诺板上按的动词
+    是一种**违规能力**（凡只能在一个面上获得的能力就是违规能力）。
+
+    正确形态是三段：**对象寻址**（哪一条）+ **agent 提案**（它只提，不做）+ **确认卡**
+    （人签发）。第三段不必新造：写工具本来就过守卫的确认门——**有主权者的话语 + 确认，
+    与按钮同权**（卡片三定律：任一投影经授权者动作全局生效，文本面是四通道之一）。
+    所以这里是三个普通的写工具，主权谓词与板、与端点共用同一个 `ownsCommitment`。
+
+    零新机制：没有新家族、没有新事件、没有第二条确认路径。
+  */
+  const repairable = (
+    commitmentId: string, verb: string, openId: string | undefined,
+  ): { readonly state: CommitmentState } | { readonly refusal: string } => {
+    const object = ctx.yzjGraph.rawObject('commitment', commitmentId)
+    if (object === undefined) {
+      return { refusal: `找不到承诺 ${commitmentId}，请先用 graph_query 查一下。` }
+    }
+    const state = object.state as unknown as CommitmentState
+    if (state.status !== 'open') {
+      return { refusal: `这条承诺已经${state.status === 'closed' ? '完成' : '结束'}了，${verb}没有意义。` }
+    }
+    /*
+      **主权谓词与渲染、与端点是同一个** (v4.22 裁决②)。
+
+      只在界面上不画而工具照收，等于给模型开一条绕过主权的路——而这条路本来就是
+      为模型开的。拒绝要说清归谁，并指出那条仍然走得通的：不禁言。
+    */
+    if (!ownsCommitment(openId, state)) {
+      return {
+        refusal: `这条承诺不是操作者登记的，${verb}归登记它的人——`
+          + '可以在会话里直接跟他说一句，我不替他按这个动作。',
+      }
+    }
+    return { state }
+  }
+
+  register(defineTool({
+    name: 'commitment_void',
+    description: 'Propose VOIDING a commitment the operator owns — "把那条探针作废掉" / "这件事不做了". The operator confirms before anything is written: you propose, they sign. 作废 is a tombstone: the commitment can never be revived, so use it only when the work itself is being called off. If they want the deadline moved use commitment_postpone; if they want somebody else to do it use commitment_handoff. Never file a receipt instead of this — that would leave the graph saying somebody reported progress on work they wanted killed.',
+    presentCall: args => ({ card: 'generic', title: `作废承诺：${String(args.commitmentId)}`, kind: 'edit' }),
+    parameters: {
+      commitmentId: { type: 'string', required: true, description: 'The commitment to void (from graph_query).' },
+      reason: { type: 'string', description: 'Why, in their words — it goes on the tombstone.' },
+    },
+    output,
+    timeoutMs: 15_000,
+    isConcurrencySafe: () => false,
+    async execute(args, exec) {
+      const gate = repairable(args.commitmentId, '作废', operatorOf(ctx, exec.agent))
+      if ('refusal' in gate) return { content: gate.refusal }
+      await ctx.yzjGraph.append({
+        type: 'commitment/voided',
+        data: {
+          commitmentId: args.commitmentId,
+          cause: args.reason ?? '操作者说不做了',
+        },
+        actor: { kind: 'agent' },
+      })
+      return { content: `已作废：${gate.state.what}。墓碑律——这条不会再被任何动词唤醒。` }
+    },
+  }))
+
+  register(defineTool({
+    name: 'commitment_postpone',
+    description: 'Propose moving the DEADLINE of a commitment — "那条改到下周五" / "推迟到月底". The operator confirms before anything is written. Pass the new deadline in the words they used ("下周五", "月底"), not a parsed date: what was promised is a sentence, and rewriting it into a timestamp is our parse impersonating their promise. This changes the PUBLIC deadline — the one said out loud to somebody; it is not a private snooze.',
+    presentCall: args => ({ card: 'generic', title: `顺延期限：${String(args.due)}`, kind: 'edit' }),
+    parameters: {
+      commitmentId: { type: 'string', required: true, description: 'The commitment (from graph_query).' },
+      due: { type: 'string', required: true, description: 'The new deadline, in the words they used.' },
+    },
+    output,
+    timeoutMs: 15_000,
+    isConcurrencySafe: () => false,
+    async execute(args, exec) {
+      const gate = repairable(args.commitmentId, '顺延', operatorOf(ctx, exec.agent))
+      if ('refusal' in gate) return { content: gate.refusal }
+      await ctx.yzjGraph.append({
+        type: 'commitment/updated',
+        data: { commitmentId: args.commitmentId, due: args.due },
+        actor: { kind: 'agent' },
+      })
+      return {
+        content: `已顺延：${gate.state.what} → ${args.due}。`
+          + '改的是当初说出口的那个日子，所以对方那边也该知道一声。',
+      }
+    },
+  }))
+
+  register(defineTool({
+    name: 'commitment_handoff',
+    description: 'Propose HANDING a commitment to a different executor — "这条给李婷做" / "张锐休假，换人". The operator confirms before anything is written. The commitment itself does not change: its birth, its audience and every receipt so far stay on this one record — that is the whole reason to hand off rather than void-and-recreate. Telling the new executor is a separate act: say so in the reply, because a commitment nobody was told about is a ghost.',
+    presentCall: args => ({ card: 'generic', title: `移交给：${String(args.name ?? args.openId)}`, kind: 'edit' }),
+    parameters: {
+      commitmentId: { type: 'string', required: true, description: 'The commitment (from graph_query).' },
+      openId: { type: 'string', required: true, description: 'openId of the new executor (from yzj_contact_search).' },
+      name: { type: 'string', description: 'Their display name, so the board reads as a name not an id.' },
+    },
+    output,
+    timeoutMs: 15_000,
+    isConcurrencySafe: () => false,
+    async execute(args, exec) {
+      const gate = repairable(args.commitmentId, '移交', operatorOf(ctx, exec.agent))
+      if ('refusal' in gate) return { content: gate.refusal }
+      await ctx.yzjGraph.append({
+        type: 'commitment/updated',
+        data: {
+          commitmentId: args.commitmentId,
+          executor: {
+            kind: 'human',
+            openId: args.openId,
+            ...(args.name === undefined ? {} : { name: args.name }),
+          },
+        },
+        actor: { kind: 'agent' },
+      })
+      return {
+        content: `已移交：${gate.state.what} → ${args.name ?? args.openId}。`
+          + '出生边、听众、已有的回执都还在这一条上；**新执行者还不知道**，这句话得有人去说。',
+      }
+    },
+  }))
+
   register(defineTool({
     name: 'commitment_receipt',
     /*
       「作废」不是这个工具能干的事，而它长得太像了。
 
-      实跑里出现过一次：操作者说「把这两条探针作废掉」，agent 手上**没有作废工具**
-      （作废是主权动作，只从卡与承诺板出——那个边界是对的），于是它退而求其次记了
-      两条回执。后果不是少做一件事，是**记录变成了假话**：操作者要杀掉的那条承诺，
-      图上留下的是「有人报告了进展」，而这套系统全部的价值就押在记录诚实上。
+      实跑里出现过一次：操作者说「把这两条探针作废掉」，agent 手上没有作废工具，于是
+      它退而求其次记了两条回执。后果不是少做一件事，是**记录变成了假话**：操作者要
+      杀掉的那条承诺，图上留下的是「有人报告了进展」，而这套系统全部的价值就押在记录
+      诚实上。
 
-      少一个动词是设计，悄悄换一个动词不是。所以把这条写进工具描述里——没有的动词
-      就说没有，指回那个按钮。
+      **那三个动词现在有了**（v3.15 裁决②：`commitment_void` / `commitment_postpone` /
+      `commitment_handoff`，各自过写确认门——提案归 agent，签发归人）。所以这句话从
+      「没有的动词就说没有、指回按钮」改成「**别拿回执冒充它们**」：少一个动词是设计，
+      悄悄换一个动词从来都不是。
     */
-    description: 'Record a reply you observed about an existing commitment — "分析发了" / "明天给" / "做不了了". This is how a commitment breathes after registration; without it the operator has to relay every status by hand. Apply the change the reply actually implies, nothing more. NEVER use this as a stand-in for a verb you do not have: 作废 / 顺延 / 移交 / 合并 are the operator\'s own, and they live on the commitment board and the cards. If you are asked for one of those, say plainly that it is their button to press and where it is — filing a receipt instead leaves the graph saying somebody reported progress on work the operator wanted killed.',
+    description: 'Record a reply you observed about an existing commitment — "分析发了" / "明天给" / "做不了了". This is how a commitment breathes after registration; without it the operator has to relay every status by hand. Apply the change the reply actually implies, nothing more. NEVER substitute it for a verb of its own: 作废 is commitment_void, 顺延 is commitment_postpone, 移交 is commitment_handoff — each proposes and waits for the operator to confirm. 合并 is still theirs alone, on the board. Filing a receipt in place of any of these leaves the graph saying somebody reported progress on work the operator wanted killed.',
     parameters: {
       commitmentId: { type: 'string', required: true, description: 'The commitment this reply is about (from graph_query).' },
       text: { type: 'string', required: true, description: 'What they said, quoted.' },
