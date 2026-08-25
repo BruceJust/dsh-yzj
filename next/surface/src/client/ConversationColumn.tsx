@@ -41,7 +41,7 @@ import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
 import { closePreview } from './preview.ts'
 import {
-  backTarget, currentFrame, popFrame, setFrame, subscribeFrame, takeErrand,
+  backTarget, currentFrame, popFrame, setFrame, setSpotlight, subscribeFrame, takeErrand,
 } from './store.ts'
 import type { FusedWindowWire, SurfaceInject } from './rpc.ts'
 import tokens from './tokens.module.css'
@@ -148,7 +148,11 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     宿主换会话时本来就会把右栏关掉,但关掉的是**抽屉**,不是抽屉里那份文档:
     再打开右栏,上一个话题里的东西还在那儿看着,像是属于眼前这段对话。
   */
-  useEffect(() => { closePreview() }, [sessionId])
+  useEffect(() => {
+    closePreview()
+    // 事件枢纽同律：一场会的放大态属于打开它的那个语境,换了会话它就该退场。
+    setSpotlight(undefined)
+  }, [sessionId])
   /*
     传送门落地 (v4.9 入口 A①).
 

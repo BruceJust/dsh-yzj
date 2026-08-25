@@ -166,11 +166,17 @@ export interface BoardEventWire {
   endAt?: number
   readiness: 'ready' | 'partial' | 'none'
   readinessLine: string
+  /** 地点 / 组织者 / 日程描述——平台那条 list 本来就回，看进去的时候才用得上。 */
+  location?: string
+  organizer?: string
+  description?: string
   prepares: {
     commitmentId: string
     what: string
     who: string
     status: string
+    /** 一跳可达：会前发现还差一件，下一步永远是去看那一件到哪儿了。 */
+    sessionId?: string
     artifacts: { uri: string; title: string }[]
   }[]
   postedMaterials?: string

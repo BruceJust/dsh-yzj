@@ -445,10 +445,17 @@
   flex: none; font-family: var(--yzj-mono); font-size: 12px; font-weight: 700;
   color: var(--yzj-ink);
 }
+/*
+  它是一颗按钮，所以要**把按钮的原生长相整个关掉** —— 同一个坑栽过一次：
+  一个没有 reset 的 `<button>` 会拿到 buttonface 灰底、2px outset 边框、居中文字与
+  default 光标，于是一个 100px 的标题被撑成一整条色块。
+*/
 .eventTitle {
-  flex: 1 1 auto; min-width: 0; font-size: 12.5px; color: var(--yzj-ink);
+  flex: 1 1 auto; min-width: 0; font: inherit; font-size: 12.5px; color: var(--yzj-ink);
+  text-align: left; padding: 0; border: 0; background: none; cursor: pointer;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.eventTitle:hover { color: var(--yzj-pub-deep); text-decoration: underline; }
 /* 三档三个颜色：会前那一眼要在半秒内答完「还差不差东西」。 */
 .eventReady { flex: none; font-size: 11px; padding: 1px 8px; border-radius: 10px; }
 .ready_ready { color: var(--yzj-green); background: var(--yzj-green-bg); }

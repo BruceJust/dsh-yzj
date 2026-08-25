@@ -97,3 +97,59 @@
   padding: 1px 5px; border-radius: 4px; background: #EDF1F6;
   font-family: var(--yzj-mono); font-size: 10.5px;
 }
+
+/* 事件枢纽：一场会的放大态住在右栏——中栏是流，右栏是物，一场会是一个物 */
+.hub { display: flex; flex-direction: column; gap: 2px; padding: 2px; overflow: auto; }
+.hubHead { display: flex; align-items: baseline; gap: 8px; padding: 2px 2px 6px; }
+.hubBack {
+  flex: none; font: inherit; font-size: 11px; color: var(--yzj-ink-3);
+  border: 0; background: none; padding: 0; cursor: pointer;
+}
+.hubBack:hover { color: var(--yzj-pub-deep); }
+.hubTitle { font-size: 13px; font-weight: 700; color: var(--yzj-ink); line-height: 1.4; }
+.hubMeta { font-size: 10.5px; color: var(--yzj-ink-3); padding: 0 2px 6px; }
+.hubReady {
+  font-size: 11px; font-weight: 600; padding: 6px 10px;
+  border-radius: 8px; background: var(--yzj-paper); color: var(--yzj-ink-2);
+}
+/* 三档各有各的颜色，因为它们是人在会前会做出不同反应的三件事 */
+.ready_ready { background: var(--yzj-green-bg); color: var(--yzj-green); }
+.ready_partial { background: #FDF4E3; color: #A9722A; }
+.ready_none { background: var(--yzj-paper); color: var(--yzj-ink-3); }
+.hubSection {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  color: var(--yzj-ink-3); padding: 10px 4px 4px;
+}
+.hubPrep, .hubMaterial {
+  display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+  padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
+  margin-bottom: 4px;
+}
+.hubPrepWhat, .hubMaterialTitle {
+  flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--yzj-ink);
+  overflow-wrap: anywhere;
+}
+.hubPrepWho { flex: none; font-size: 10.5px; color: var(--yzj-ink-3); }
+.hubPrepHint { flex: none; font-size: 10px; color: var(--yzj-ink-3); }
+.hubGo {
+  flex: none; font: inherit; font-size: 10px; font-weight: 650;
+  padding: 2px 9px; border-radius: 11px; cursor: pointer; text-decoration: none;
+  border: 1px solid var(--yzj-pub-line); background: var(--yzj-surface); color: var(--yzj-pub-deep);
+}
+.hubGo:hover { background: var(--yzj-pub); color: #fff; }
+.hubDesc {
+  font-size: 11.5px; line-height: 1.7; color: var(--yzj-ink-2);
+  padding: 8px 10px; border-radius: 8px; background: var(--yzj-paper);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.hubWarn {
+  margin-top: 6px; font-size: 10.5px; line-height: 1.6; color: #A9722A;
+  padding: 6px 10px; border-radius: 8px; background: #FDF4E3;
+}
+.hubCta {
+  margin-top: 12px; font: inherit; font-size: 12px; font-weight: 650;
+  padding: 8px 12px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--yzj-pub-line); background: var(--yzj-surface); color: var(--yzj-pub-deep);
+}
+.hubCta:hover { background: var(--yzj-pub); color: #fff; }

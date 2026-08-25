@@ -101,8 +101,7 @@ export interface Errand {
    * `nudge` 是催办（v4.21 第一档①「催办统一」）：**只带一句拟好的稿**，不装载
    * 任何语境。催不是委派，它不该让那个话题从此继承什么——它只是把人送到该说话的
    * 地方，并且把话先起个头。
-   */
-  /**
+   *
    * `draft` 是**还没有对象的那一句**：磨目标的时候目标还不存在，它正是要磨出来的
    * 东西。所以它和催办一样只带一句起头，不装载任何语境——区别只在名字得说实话。
    */
@@ -177,4 +176,43 @@ export function setFrame(next: Frame): void {
 export function subscribeFrame(listener: () => void): () => void {
   listeners.add(listener)
   return () => { listeners.delete(listener) }
+}
+
+/**
+ * 右栏此刻被谁占着 —— 会前那一眼的落点 (§5.6 事件枢纽).
+ *
+ * 板上一场会一行，一行上放得下的只有三样：几点、叫什么、准备好没有。**看进去**要的
+ * 东西（挂了哪几件活、材料在不在、日程描述里写了什么）放不进那一行，也不该把板撑成
+ * 第二个日历——板是账本的对账面，它的合法增量只有对账排列、一跳指路、就近动词。
+ *
+ * 所以「看进去」落在**右栏**：中栏是流，右栏是物，而一场会是一个物。和工件预览用的
+ * 是同一条纪律与同一种形状（模块级小仓 + 订阅），因为它们是同一件事的两个实例——
+ * 中栏点一下，右栏接管。
+ *
+ * 只存**看的是谁**，不存内容：内容每次从 `events()` 重读，否则右栏会拿着一份越看越
+ * 旧的快照，而就绪度恰恰是要随着交付自动翻绿的那个东西。
+ */
+export interface Spotlight {
+  readonly kind: 'event'
+  readonly eventId: string
+  /** 读不回来时还能说出它是谁——「那场会没了」比一片空白像话。 */
+  readonly title: string
+}
+
+let spotlight: Spotlight | undefined
+const spotlightListeners = new Set<() => void>()
+
+export function currentSpotlight(): Spotlight | undefined {
+  return spotlight
+}
+
+export function setSpotlight(next: Spotlight | undefined): void {
+  if (spotlight === next) return
+  spotlight = next
+  for (const listener of spotlightListeners) listener()
+}
+
+export function subscribeSpotlight(listener: () => void): () => void {
+  spotlightListeners.add(listener)
+  return () => { spotlightListeners.delete(listener) }
 }

@@ -28,6 +28,13 @@ export interface EventPrep {
   readonly what: string
   readonly who: string
   readonly status: string
+  /**
+   * 它在哪个话题里干 —— **一跳可达，绝不搬运**。
+   *
+   * 会前那一眼看见「还差一件」，下一个动作永远是去看那一件到哪一步了。没有这个键，
+   * 枢纽只能报出一个数而指不了路，而「报得出却按不下去」正是幽灵信号。
+   */
+  readonly topicKey?: string
   /** 这件事留下的东西——会上真正要用的是它，不是「已完成」四个字。 */
   readonly artifacts: readonly { readonly uri: string; readonly title: string }[]
 }
@@ -122,11 +129,13 @@ export function eventHub(ctx: Context, viewer: GraphViewer, eventId: string): Ev
     const object = ctx.yzjGraph.object(viewer, 'commitment', id)
     if (object === undefined) continue
     const state = asRecord(object.state)
+    const topicKey = asString(state?.topicKey)
     prepares.push({
       commitmentId: id,
       what: asString(state?.what) ?? '',
       who: whoOf(state),
       status: asString(state?.status) ?? 'open',
+      ...(topicKey === undefined ? {} : { topicKey }),
       artifacts: artifactsOf.get(id) ?? [],
     })
   }

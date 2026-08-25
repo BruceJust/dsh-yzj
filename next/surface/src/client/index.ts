@@ -238,6 +238,8 @@ export function apply(ctx: ClientContext): void {
     props => YzjObjectFace({
       ...(props.sessionId === undefined ? {} : { sessionId: props.sessionId }),
       inject: props.inject,
+      // 右栏也要能指路：事件枢纽通向挂在会上的那件活正在干的话题。
+      openSession: (id: string) => { sessions?.open?.(id) },
     }),
   ))
 

@@ -144,6 +144,20 @@ export function setAsidePreviewHost(node: AsideHost | null): void {
   asideHost = node
 }
 
+/**
+ * 把右栏叫开，并**如实回答它开没开得出来**。
+ *
+ * 事件枢纽和工件预览是同一件事的两个实例：中栏点一下，右栏接管。所以它们共用这只
+ * 手（`opener` 是装配处注册的宿主动词）与同一条实测教训——**抽屉在当前会话为空时
+ * 打不开**，而从承诺板点一场会恰恰常常处在这个状态。工件那条路的兜底是降级到沉浸，
+ * 枢纽没有沉浸态，所以它需要的是一个**能被说出口的失败**：返回 false，调用方去说
+ * 「右栏没打开」，而不是让人对着一片没有反应的界面猜自己点没点中。
+ */
+export function revealAside(): boolean {
+  opener?.()
+  return asideAvailable()
+}
+
 let settling: ReturnType<typeof setTimeout> | undefined
 
 export function openPreview(target: PreviewTarget): void {

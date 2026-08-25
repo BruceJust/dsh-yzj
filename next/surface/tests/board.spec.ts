@@ -504,6 +504,60 @@ describe('板上的今天', () => {
     expect((await eventsToday(ctx, NOW))[0]?.readiness).toBe('ready')
   })
 
+  /*
+    **看进去**要的东西，平台那条 list 本来就回。
+
+    地点、组织者、日程描述在板上那一行放不下（一行只有三样：几点、叫什么、准备好没有），
+    但枢纽要它们。为它们再打一次 `event get` 是拿一次网络往返换三个已经在手里的字符串。
+  */
+  it('把地点、组织者、日程描述一并带出来——不为它们多打一次请求', async () => {
+    calendar([{
+      id: 'ev-2', title: '产品评审', startDate: NOW + 3600_000, endDate: NOW + 7200_000,
+      meetingPlace: '荟云轩（B803）', personName: '农佳捷', content: '带上竞品对比表',
+    }])
+    const [event] = await eventsToday(ctx, NOW)
+    expect(event?.location).toBe('荟云轩（B803）')
+    expect(event?.organizer).toBe('农佳捷')
+    expect(event?.description).toBe('带上竞品对比表')
+  })
+
+  /*
+    **空串不是内容。**
+
+    平台用空串表示「没填」（实测：`content: ""`、`meetingPlace: ""` 是常态），照原样
+    带出去，枢纽就会画出一个「日程描述」小标题下面跟着一片空白——那看起来像读失败了。
+  */
+  it('平台的空串按没填算，不渲染成一段空内容', async () => {
+    calendar([{
+      id: 'ev-3', title: '没填的会', startDate: NOW + 3600_000, endDate: NOW + 7200_000,
+      meetingPlace: '', personName: '', content: '   ',
+    }])
+    const [event] = await eventsToday(ctx, NOW)
+    expect(event?.location).toBeUndefined()
+    expect(event?.organizer).toBeUndefined()
+    expect(event?.description).toBeUndefined()
+  })
+
+  /*
+    一跳指路：会前看见「还差一件」，下一个动作永远是去看那一件到哪儿了。
+
+    图上记的是 topicKey，能导航的是 sessionId——中间那张表只有通道知道，所以映射发生
+    在这里而不是在界面上（和差距简报那一处同一个做法）。
+  */
+  it('挂着的活带着它自己那个会话，枢纽才指得了路', async () => {
+    graph.defineFamily(eventFamily)
+    await graph.append({
+      type: 'event/observed', data: { eventId: 'ev-4', title: '会前那一眼' }, actor: OPERATOR,
+    })
+    await child({ id: 'c9', what: '拉数据', topicKey: 'tk-1' })
+    await graph.append({
+      type: 'event/linked', data: { eventId: 'ev-4', commitmentId: 'c9' }, actor: OPERATOR,
+    })
+    calendar([{ id: 'ev-4', title: '会前那一眼', startDate: NOW + 3600_000, endDate: NOW + 7200_000 }])
+    const [event] = await eventsToday(ctx, NOW)
+    expect(event?.prepares[0]?.sessionId).toBe('sess-1')
+  })
+
   it('通道不在就是空段，不把整块板拖住', async () => {
     expect(await eventsToday(ctx, NOW)).toEqual([])
   })

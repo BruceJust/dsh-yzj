@@ -30,7 +30,10 @@ import type {
   BoardEventWire,
   BoardAssessmentWire, BoardGoalWire, BoardRowWire, BoardViewWire, SurfaceInject,
 } from './rpc.ts'
-import { currentBoardLens, pushFrame, sendErrand, setBoardLens } from './store.ts'
+import {
+  currentBoardLens, pushFrame, sendErrand, setBoardLens, setSpotlight,
+} from './store.ts'
+import { revealAside } from './preview.ts'
 import { RoomPicker, type Portal } from './RoomPicker.tsx'
 import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
@@ -1011,7 +1014,35 @@ export function YzjBoard(props: BoardProps): ReactNode {
       <div className={css.eventRow} key={event.eventId}>
         <div className={css.eventHead}>
           <span className={css.eventAt}>{at}</span>
-          <span className={css.eventTitle}>{event.title}</span>
+          {/*
+            **每一行是门** (§5.6「日程锚是门」/ 信号即门).
+
+            一行上装得下的只有三样：几点、叫什么、准备好没有。而看见「还差一些」之后，
+            人下一个动作永远是「差什么」——那一屏放不进这一行，也不该把板撑成第二个
+            日历（板的合法增量只有对账排列、一跳指路、就近动词）。所以这一下是**指路**：
+            右栏接管，那里摊开挂了哪几件活、材料在不在、日程描述里写了什么。
+
+            只有标题是按钮，不是整行：行里还站着「为此会准备」，按钮套按钮既不合法也
+            会让人不知道自己按到了哪一个。
+          */}
+          <button
+            type="button"
+            className={css.eventTitle}
+            title="看进去：挂了哪几件活、材料在不在、日程描述写了什么（在右栏打开）"
+            onClick={() => {
+              setSpotlight({ kind: 'event', eventId: event.eventId, title: event.title })
+              /*
+                抽屉开不出来时**说一声**。实测过：当前会话为空时宿主的右栏打不开，
+                而从板上点一场会恰恰常常处在这个状态——那时人看到的是「什么都没
+                发生」，所有 bug 里最难被报告的一种。
+              */
+              if (!revealAside()) {
+                setToast('右栏没能打开（当前没有会话）——先从左边打开一个会话，再点这场会。')
+              }
+            }}
+          >
+            {event.title}
+          </button>
           <span className={`${css.eventReady} ${css[`ready_${event.readiness}`] ?? ''}`}>
             {event.readinessLine}
           </span>

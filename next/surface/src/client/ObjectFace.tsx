@@ -17,11 +17,15 @@
  * apart from a bug; that is exactly how this column read before.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import {
+  useCallback, useEffect, useState, useSyncExternalStore, type ReactNode,
+} from 'react'
 import type { ObjectFaceWire, SurfaceInject } from './rpc.ts'
 import { ArtifactPreview } from './PreviewPanel.tsx'
 import { ArtifactCard } from './ArtifactCard.tsx'
+import { YzjEventHub } from './EventHub.tsx'
 import { artifactRefOf } from './artifacts.ts'
+import { currentSpotlight, setSpotlight, subscribeSpotlight } from './store.ts'
 import { useAsidePreviewHost, usePreview } from './preview.ts'
 import tokens from './tokens.module.css'
 import css from './objects.module.css'
@@ -33,15 +37,24 @@ const AXIS_LABEL: Record<string, string> = { place: '场所', entity: '实体', 
 export interface ObjectFaceProps {
   sessionId?: string
   inject: SurfaceInject
+  /**
+   * 一跳可达 —— 事件枢纽从这里通向挂在会上的那件活。
+   *
+   * 右栏是物的那一面，而物是有出处的：一份材料出自某件活，那件活正在某个话题里干。
+   * 没有这条边，枢纽只能报出一个数而指不了路。
+   */
+  openSession?(sessionId: string): void
 }
 
 const EMPTY: ObjectFaceWire = { current: [], memory: [], resources: [], memoryElsewhere: 0 }
 
 export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
-  const { sessionId, inject } = props
+  const { sessionId, inject, openSession } = props
   const [face, setFace] = useState<ObjectFaceWire>(EMPTY)
   const [tab, setTab] = useState<Tab>('current')
   const preview = usePreview()
+  /** 中栏点了一场会：这一栏被它接管，和工件预览同一条纪律、同一种形状。 */
+  const spotlight = useSyncExternalStore(subscribeSpotlight, currentSpotlight)
   /*
     这一栏把自己的实际宽度报出去,「并排有没有地方落」由此回答。
 
@@ -76,6 +89,31 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
     沉浸时这里让位:整屏的那一份才是正在被读的,两个 iframe 同时渲染同一份
     PDF 只是白烧一遍。留一行字说明它去了哪儿,而不是悄悄换回列表。
   */
+  /*
+    工件预览排在前面：它是**刚刚按下的那一下**。
+
+    两者都是「这一栏被一个物接管」，撞在一起时该赢的是更近的那次手势。工件预览
+    自带 Esc 与关闭，收起来就露出下面的枢纽——不是二选一，是叠着。
+  */
+  if (preview.target === undefined && spotlight !== undefined) {
+    return (
+      <div className={`${tokens.tokens} ${css.panel}`} ref={setHost}>
+        <YzjEventHub
+          key={spotlight.eventId}
+          eventId={spotlight.eventId}
+          title={spotlight.title}
+          inject={inject}
+          openSession={(id) => {
+            // 跳去看那件活 = 换语境，枢纽跟着退场（切会话即收，同一条纪律）。
+            setSpotlight(undefined)
+            openSession?.(id)
+          }}
+          close={() => { setSpotlight(undefined) }}
+        />
+      </div>
+    )
+  }
+
   if (preview.target !== undefined) {
     return (
       <div className={`${tokens.tokens} ${css.panel}`} ref={setHost}>

@@ -934,12 +934,25 @@ export interface BoardEvent {
   /** 三档：齐了 / 还差一些 / 还没动。推导出来的，没有人维护它。 */
   readonly readiness: 'ready' | 'partial' | 'none'
   readonly readinessLine: string
+  /*
+    下面三样全是平台那条 `event list` **本来就回**的字段，不额外发请求。
+
+    它们只在**看进去**的时候才用得上（会前那一眼一行放不下地点和描述），但为它们
+    再打一次 `event get` 是拿一次网络往返换三个已经在手里的字符串。空串按没有算：
+    平台用空串表示「没填」，而「没填」和「读不到」在界面上是两句不同的话。
+  */
+  readonly location?: string
+  readonly organizer?: string
+  /** 日程描述——材料清单写进去的就是这里，全参会人看得见的那一版。 */
+  readonly description?: string
   /** 挂在这场会上的活。空数组 = 还没挂过东西，不是「没准备」。 */
   readonly prepares: readonly {
     readonly commitmentId: string
     readonly what: string
     readonly who: string
     readonly status: string
+    /** 一跳可达：会前发现还差一件，下一步永远是去看那一件到哪儿了。 */
+    readonly sessionId?: string
     readonly artifacts: readonly { readonly uri: string; readonly title: string }[]
   }[]
   /** 材料清单已经写进日程描述、全参会人看得到的那一版。 */
@@ -970,6 +983,21 @@ export async function eventsToday(ctx: Context, now = Date.now()): Promise<reado
   if (!result.ok || !Array.isArray(result.json)) return []
 
   const viewer: GraphViewer = { kind: 'operator', openId: '' }
+  /*
+    话题键 → 会话 id，一次建表。
+
+    挂在会上的活各住各的话题，而「一跳过去看看它到哪儿了」要的是会话 id。和差距简报
+    那一处同一个做法：图上记的是 topicKey，能导航的是 sessionId，中间这张表只有通道
+    知道。
+  */
+  const sessionOfTopic = new Map<string, string>()
+  for (const entry of ctx.get('yzjTopics')?.tree() ?? []) {
+    for (const topic of entry.topics) sessionOfTopic.set(topic.topicKey, topic.sessionId)
+  }
+  /** 平台用空串表示「没填」——空串不是内容，别把它当一行渲染出去。 */
+  const filled = (value: string | undefined): string | undefined => (
+    value === undefined || value.trim() === '' ? undefined : value
+  )
   const out: BoardEvent[] = []
   for (const row of result.json) {
     const record = asRecord(row)
@@ -979,17 +1007,28 @@ export async function eventsToday(ctx: Context, now = Date.now()): Promise<reado
     // 开完了的会没有会前可言。
     if (endAt !== undefined && endAt < now) continue
     const hub = eventHub(ctx, viewer, eventId)
+    const location = filled(asString(record?.meetingPlace))
+    const organizer = filled(asString(record?.personName))
+    const description = filled(asString(record?.content))
     out.push({
       eventId,
       title: asString(record?.title) ?? eventId,
       startAt: asNumber(record?.startDate) ?? 0,
       ...(endAt === undefined ? {} : { endAt }),
+      ...(location === undefined ? {} : { location }),
+      ...(organizer === undefined ? {} : { organizer }),
+      ...(description === undefined ? {} : { description }),
       readiness: hub?.readiness ?? 'none',
       readinessLine: hub === undefined
         // 图上没见过它 = 还没挂过东西，和「挂了但没动」是两回事。
         ? '还没挂任何要准备的事'
         : readinessLine(hub),
-      prepares: hub?.prepares ?? [],
+      prepares: (hub?.prepares ?? []).map((prep) => {
+        const sessionId = prep.topicKey === undefined
+          ? undefined
+          : sessionOfTopic.get(prep.topicKey)
+        return { ...prep, ...(sessionId === undefined ? {} : { sessionId }) }
+      }),
       ...(hub?.postedMaterials === undefined ? {} : { postedMaterials: hub.postedMaterials }),
       known: hub !== undefined,
     })
