@@ -43,6 +43,8 @@ let ctx: Context
 let graph: YzjGraph
 let cards: YzjCards
 let tools: Map<string, CapturedTool>
+/** 这一回合的绑定。用例可以换掉它——桌面那条路和群里那条路不是同一个形状。 */
+let binding: TurnBinding
 
 const EXEC = { agent: { session: { id: 'session-1' } } }
 
@@ -64,7 +66,8 @@ beforeEach(async () => {
   await graph.selectAccount('acct-1')
   cards = new YzjCards(ctx)
   cards.register(createCommitmentCard(ctx))
-  ctx.provide('yzjTurns', { bindingFor: () => BINDING, defaultBinding: () => BINDING })
+  binding = BINDING
+  ctx.provide('yzjTurns', { bindingFor: () => binding, defaultBinding: () => binding })
   const captured: CapturedTool[] = []
   ctx.provide('tools', {
     register: (definition: CapturedTool) => { captured.push(definition); return () => undefined },
@@ -589,6 +592,45 @@ describe('作废/顺延/移交：话语兜底', () => {
  *
  * 判定刻意从严：只认「说话的人 = 执行者 = 委派者」这一种，且**不吃老数据放行分支**。
  */
+/**
+ * 幽灵承诺禁令的最后一格 —— **没人告诉过他，板上就得说**。
+ *
+ * 家族 schema 早写着「born already marked」，而这条路上一直没人盖章：桌面/本地会话登记
+ * 时根本没有场所可投，于是既没发出去、也没留下记号。一条张锐从没听说过的活，在板上和
+ * 一条已经当面说好的活长得一模一样——这正是这条禁令要消灭的东西。实测就撞见了它：本地
+ * 会话里给张锐登记了一条，板上一个字都没提「他还不知道」。
+ */
+describe('没人被告知的那条，板上要说', () => {
+  /** 桌面/本地会话的绑定：没有 placeKey，也就无处公示。 */
+  const noPlace: TurnBinding = {
+    viewer: BINDING.viewer, decider: 'op-1', accountKey: 'acct-1', accountOpenId: 'op-1',
+  }
+  const registerWithoutPlace = async (args: Record<string, unknown>): Promise<string> => {
+    binding = noPlace
+    const result = await tools.get('commitment_register')?.execute(args, EXEC)
+    return String(result?.commitmentId)
+  }
+
+  it('给别人登记而无处公示：盖上「未通知」', async () => {
+    const id = await registerWithoutPlace({ what: '核对定价', executorOpenId: 'u-zhang', executorName: '张锐' })
+    expect(stateOf(id)?.notified).toBe('failed')
+  })
+
+  /*
+    只对**别人**盖章。执行者是 agent、或者就是说话的人自己时，「通知」这件事不存在——
+    盖上去只会给每一行加一句没人需要的噪音（颜色预算与行信息层级同一条纪律）。
+  */
+  it('我自己的活不盖：没有「通知我自己」这回事', async () => {
+    const id = await registerWithoutPlace({ what: '我自己的活', executorOpenId: 'op-1', executorName: '我' })
+    expect(stateOf(id)?.notified).toBeUndefined()
+  })
+
+  it('agent 执行的活不盖', async () => {
+    const id = await registerWithoutPlace({ what: 'agent 的活' })
+    expect(stateOf(id)?.notified).toBeUndefined()
+  })
+})
+
 describe('回执路上的主张即验收', () => {
   const register = async (executorOpenId?: string): Promise<string> => {
     const result = await tools.get('commitment_register')?.execute(

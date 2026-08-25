@@ -220,6 +220,29 @@ export function applyCommitmentTools(ctx: Context): () => void {
         : await ctx.get('yzjCardChannel')?.deliverToPlace(
           { kind: 'commitment', id: commitmentId }, binding.placeKey,
         )
+      /*
+        **幽灵承诺禁令的最后一格：没人告诉过他，板上就得说** (v4.9).
+
+        家族 schema 早写着「born already marked」，而这条路上一直没人盖那个章：只有目标
+        代发那条路（`notifyPlaceKey`）在失败时记 `notified: 'failed'`。桌面/本地会话登记
+        的场合**根本没有场所可投**，于是既没发出去、也没留下记号——一条张锐从没听说过的
+        活，在板上和一条已经当面说好的活长得一模一样。这正是这条禁令要消灭的东西。
+
+        只对**别人**盖章：执行者是 agent、或者就是说话的人自己时，「通知」这件事不存在，
+        盖上去只会给每一行加一句没人需要的噪音。
+      */
+      const executorOpenId = args.executorOpenId
+      if (
+        delivered === undefined
+        && executorOpenId !== undefined
+        && executorOpenId !== delegator
+      ) {
+        await ctx.yzjGraph.append({
+          type: 'commitment/updated',
+          data: { commitmentId, notified: 'failed' },
+          actor: { kind: 'agent' },
+        })
+      }
       // The ack names how the reference actually got attached — off `via`, not
       // off what the model asked for. When a guess loses to the context, the
       // ack must say 继承, because that is what happened.
@@ -232,7 +255,9 @@ export function applyCommitmentTools(ctx: Context): () => void {
             : ''
       return {
         content: delivered === undefined
-          ? `已登记承诺：${args.what}${args.due === undefined ? '' : `（期限 ${args.due}）`}${inferredNote}。请在你的回复里向大家说明这条登记，让他们能纠正。`
+          ? `已登记承诺：${args.what}${args.due === undefined ? '' : `（期限 ${args.due}）`}${inferredNote}。`
+            + `${executorOpenId !== undefined && executorOpenId !== delegator ? '**本人还不知道**（板上这一行已标出），' : ''}`
+            + '请在你的回复里向大家说明这条登记，让他们能纠正。'
           : `已登记承诺并在会话里公示：${args.what}${args.due === undefined ? '' : `（期限 ${args.due}）`}${inferredNote}。`,
         commitmentId,
       }
