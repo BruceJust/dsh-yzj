@@ -563,3 +563,21 @@
 .acceptGo:hover { filter: brightness(1.06); }
 .rejectGo { border: 1px solid var(--yzj-line); background: var(--yzj-surface); color: var(--yzj-red); }
 .rejectGo:hover { border-color: var(--yzj-red); }
+
+/* 两维真选择第一维：谁来做（委派五步②）——选完即传送，这不是一张表单 */
+.execPick {
+  display: block; width: 100%; text-align: left; font: inherit;
+  font-size: 12.5px; font-weight: 650; color: var(--yzj-ink);
+  padding: 9px 12px; margin: 4px 0; border-radius: 9px;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface); cursor: pointer;
+}
+.execPick:hover { border-color: var(--yzj-pub-line); background: #F7FAFF; }
+.execNote { display: block; font-size: 10.5px; font-weight: 400; color: var(--yzj-ink-3); margin-top: 2px; }
+.execBack {
+  font: inherit; font-size: 10px; margin-left: 6px; padding: 1px 8px;
+  border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface); color: var(--yzj-ink-3);
+}
+.execBack:hover { color: var(--yzj-pub-deep); border-color: var(--yzj-pub-line); }
+/* 这句话会让谁听见——写在场所名旁边，不让人自己推断 */
+.roomKind { font-size: 9.5px; font-weight: 400; color: var(--yzj-ink-3); margin-left: 6px; }

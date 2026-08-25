@@ -120,6 +120,17 @@ export interface Errand {
   readonly voice: 'place' | 'private' | 'ask'
   /** Text to seed the composer with. The operator edits it; nothing auto-sends. */
   readonly seed?: string
+  /**
+   * 这句话是**说给 agent 听的** —— 受话，委派五步③的骨架里的另一半。
+   *
+   * 一句没有触发词的委派，agent 根本不会听见：它落进群里像一句同事之间的话，没有人
+   * 登记、板上不长行——**幽灵承诺的另一种成因**。所以传送门要说清这一句是对谁说的。
+   *
+   * 由 composer 那一头补上具体那几个字：触发词是部署级的（`@next` / `@云小助`），
+   * 只有它知道这里的 agent 叫什么。而且补在**输入框里**，看得见、删得掉——删掉就
+   * 降级成一句普通的话，这是它和「偷偷加上」的全部区别。
+   */
+  readonly call?: boolean
 }
 
 let errand: Errand | undefined

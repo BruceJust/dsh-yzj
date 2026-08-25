@@ -186,8 +186,21 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       overwrite it with no undo. A draft is the operator's, and a convenience
       string is not worth losing one. Verified live: 「半写的一段话」 vanished.
     */
-    if (errand.seed !== undefined) {
-      setDraft(current => (current.trim() === '' ? errand.seed as string : current))
+    /*
+      受话补在**输入框里**，不补在别处 (委派五步③).
+
+      一句没有触发词的委派，agent 根本不会听见：它落进群里像一句同事之间的话，
+      没有人登记、板上不长行——幽灵承诺的另一种成因。所以传送门说了「这句是对
+      agent 说的」，这里就把这个部署的触发词摆进去（只有这一头知道它叫什么）。
+
+      **摆进去，不是偷偷加上**：它在框里，看得见、删得掉；删掉就降级成一句普通的
+      话。这和「发送时替人改写句子」是两件事——后者是越权，前者是把一个默认交到
+      人手上。
+    */
+    const alias = errand.call === true ? window_.aliases?.[0] : undefined
+    const opening = `${alias === undefined ? '' : `${alias} `}${errand.seed ?? ''}`
+    if (opening !== '') {
+      setDraft(current => (current.trim() === '' ? opening : current))
       setToast(value => (
         boxRef.current !== null && boxRef.current.value.trim() !== ''
           ? '你有一段没发完的话，没覆盖它——这次的提问请自己写。'

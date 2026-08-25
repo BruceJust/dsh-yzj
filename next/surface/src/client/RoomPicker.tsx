@@ -8,7 +8,20 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { PersonWire, SurfaceInject, TreeWire } from './rpc.ts'
+import { registerSeed } from './commission.ts'
+import type { Errand } from './store.ts'
 import css from './board.module.css'
+
+/**
+ * 谁来做 —— 两维真选择的第一维 (委派五步②).
+ *
+ * 只有两种执行者，而它们的差别不是「谁比较闲」：**agent 是可以被指派的，人是要被
+ * 交代的**。派给 agent 的活会在群里被它接下、干完、回帖；派给人的活是一句登记话语，
+ * 它确立的是一个听众集合。所以下一步问的问题也不同。
+ */
+type Executor =
+  | { readonly kind: 'agent' }
+  | { readonly kind: 'person'; readonly person: PersonWire }
 
 /** What a portal is about to carry, while the operator picks the room. */
 export interface Portal {
@@ -20,6 +33,50 @@ export interface Portal {
   readonly seed?: string
   readonly title: string
   readonly note: string
+  /**
+   * 先问**谁来做**，再问在哪儿说 —— 委派五步② 的两维真选择 (v4.21+).
+   *
+   * 只有委派要这一步，而且顺序不能倒过来：**执行者决定场所的选项集**。派给 agent
+   * 的活只在群里说得通（它不在你和同事的私聊里干活）；派给人的活有两种说法——当着
+   * 全组说是施压与透明，私下说是留余地——两种都合法，而选哪一种是社交决策。
+   *
+   * 不填这个字段的传送门（催／差距→委派／为此会准备）只问一件事：在哪儿说。它们的
+   * 「谁」早就定了。
+   */
+  readonly pick?: 'executor'
+}
+
+/**
+ * 选完之后，那句话的骨架该长什么样。
+ *
+ * 传送门把**两个只有人能定的东西**带走：谁来做、在哪儿说。骨架跟着这两个走，而内容
+ * 一个字都不带——「任务内容由人说，agent 不发明委派内容」。
+ */
+export interface PortalChoice {
+  readonly seed?: string
+  readonly call?: boolean
+}
+
+/**
+ * 传送门落地时交出去的那件差事 —— **一份实现**。
+ *
+ * 三个消费者（板、目标页、事件枢纽）此前各拼各的 errand，而它们拼的是同一件事。
+ * 这种重复不会报错，只会在某一次改动之后开始各说各话——「两级缩放各写各的句子」
+ * 那个裂缝刚补过一次，不必再长一个。
+ *
+ * 选择盖过默认：选了「交给张三」，起头就该是登记句式，而不是传送门那句泛泛的
+ * 「关于目标 X：」。
+ */
+export function errandFor(portal: Portal, choice?: PortalChoice): Errand {
+  const seed = choice?.seed ?? portal.seed
+  return {
+    subject: portal.subject,
+    goalRef: portal.goalRef,
+    goalName: portal.goalName,
+    voice: portal.voice,
+    ...(seed === undefined ? {} : { seed }),
+    ...(choice?.call === true ? { call: true } : {}),
+  }
 }
 
 /**
@@ -40,11 +97,19 @@ export function RoomPicker(props: {
   portal: Portal
   inject: SurfaceInject
   close(): void
-  go(sessionId: string): void
+  go(sessionId: string, choice?: PortalChoice): void
 }): ReactNode {
   const { portal, inject, close, go } = props
   const [tree, setTree] = useState<TreeWire | undefined>(undefined)
   const [filter, setFilter] = useState('')
+  /*
+    ① 谁来做 —— 只有委派问这一步 (委派五步②).
+
+    `undefined` 是「还没选」，不是「没人」：这一屏在选定之前不该显示任何场所，因为
+    **场所的选项集由执行者决定**，先摆出来的那一份必然是猜的。
+  */
+  const [executor, setExecutor] = useState<Executor | undefined>(undefined)
+  const needsExecutor = portal.pick === 'executor' && executor === undefined
   /*
     没有合适的场所时，可以**当场造一个** (设计 v4.18「新建专项群」格).
 
@@ -59,15 +124,81 @@ export function RoomPicker(props: {
 
   useEffect(() => { void inject.tree().then(setTree) }, [inject])
 
-  const places = (tree?.places ?? []).map(entry => ({
+  const all = (tree?.places ?? []).map(entry => ({
     placeKey: entry.place.placeKey,
     groupName: entry.place.groupName,
+    /** `yzj-dm-` 是私聊。场所的**种类**决定这句话会让谁听见，所以它不是装饰。 */
+    direct: entry.place.placeKey.startsWith('yzj-dm-'),
     topics: entry.topics.filter(topic => (
       filter.trim() === ''
       || topic.label.includes(filter.trim())
       || entry.place.groupName.includes(filter.trim())
     )),
   })).filter(entry => entry.topics.length > 0)
+
+  /*
+    场所的选项集由执行者决定 (委派五步②)。
+
+    - **派给 agent**：只有群。它不在你和某个同事的私聊里干活——那间屋子里没有它，
+      一句话发过去谁都不会应。
+    - **派给人**：两种都合法，而它们是**两句不同的话**——当着全组说是施压与透明，
+      私下说是留余地。所以私聊不是被过滤掉的次等选项，它和群并列。
+
+    与那个人的私聊按名字认：平台不给「这个私聊的对面是谁」的字段，而私聊场所的名字
+    就是对面那个人。认不出来不假装认得——下面那一段会如实说没有。
+  */
+  const groups = all.filter(entry => !entry.direct)
+  const theirDm = executor?.kind === 'person'
+    ? all.filter(entry => entry.direct && entry.groupName === executor.person.name)
+    : []
+  const places = executor?.kind === 'person' ? [...theirDm, ...groups] : groups
+
+  /** 选完之后那句话的骨架：受话 + 句式，内容一个字都不带。 */
+  const choice = (): PortalChoice | undefined => {
+    if (executor === undefined) return undefined
+    return executor.kind === 'agent'
+      // 派给 agent：骨架就是受话本身，做什么由人说。
+      ? { call: true }
+      : { call: true, seed: registerSeed(executor.person.name) }
+  }
+
+  if (needsExecutor) {
+    return (
+      <div className={css.mask} onClick={close}>
+        <div
+          className={css.sheet}
+          role="dialog"
+          aria-label={portal.title}
+          onClick={(event) => { event.stopPropagation() }}
+        >
+          <div className={css.sheetHead}>
+            <span className={css.sheetTitle}>① 谁来做？</span>
+            <button type="button" className={css.sheetClose} onClick={close} aria-label="关闭">×</button>
+          </div>
+          <div className={css.sheetNote}>
+            {portal.subject === 'event' ? '这场会' : '目标'}：<b>{portal.goalName}</b>
+            <br />
+            先定人，再定在哪儿说——<b>执行者决定场所的选项集</b>：派给 agent 的活只在群里说得通，
+            派给人的活公开说与私下说是两句不同的话。
+          </div>
+          <button
+            type="button"
+            className={css.execPick}
+            onClick={() => { setExecutor({ kind: 'agent' }) }}
+          >
+            🤖 交给 agent 做
+            <span className={css.execNote}>它在群里接单、回帖、交付；私聊里没有它</span>
+          </button>
+          <ExecutorSearch inject={inject} pick={person => { setExecutor({ kind: 'person', person }) }} />
+          <div className={css.sheetFoot}>
+            <span className={css.sheetHint}>
+              选完直接传送——这不是一张表单：要做什么、什么时候前，都在会话里用你自己的话说。
+            </span>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={css.mask} onClick={close}>
@@ -78,14 +209,34 @@ export function RoomPicker(props: {
         onClick={(event) => { event.stopPropagation() }}
       >
         <div className={css.sheetHead}>
-          <span className={css.sheetTitle}>{portal.title}</span>
+          <span className={css.sheetTitle}>
+            {executor === undefined ? portal.title : '② 在哪儿说？'}
+          </span>
           <button type="button" className={css.sheetClose} onClick={close} aria-label="关闭">×</button>
         </div>
         <div className={css.sheetNote}>
           {/* 一场会不是一个目标。标签跟着东西走，不跟着组件走。 */}
           {portal.subject === 'event' ? '这场会' : '目标'}：<b>{portal.goalName}</b>
+          {executor !== undefined && (
+            <>
+              {' · '}
+              {executor.kind === 'agent' ? '交给 agent' : `交给 ${executor.person.name}`}
+              {/* 选错了人不该只能关掉重来——两维里的第一维要回得去。 */}
+              <button
+                type="button"
+                className={css.execBack}
+                onClick={() => { setExecutor(undefined) }}
+              >
+                换个人
+              </button>
+            </>
+          )}
           <br />
-          {portal.note}
+          {executor === undefined
+            ? portal.note
+            : executor.kind === 'agent'
+              ? 'agent 在群里接单——挑一个它在岗的群，这句话说出去就是一次公开委派。'
+              : '当着全组说是施压与透明，私下说是留余地——两种都合法，这个选择不该由系统替你做。'}
         </div>
         <input
           className={css.input}
@@ -107,19 +258,46 @@ export function RoomPicker(props: {
               )
               : places.map(entry => (
                 <div className={css.roomGroup} key={entry.placeKey}>
-                  <div className={css.roomPlace}>{entry.groupName}</div>
+                  <div className={css.roomPlace}>
+                    {entry.groupName}
+                    {/*
+                      **这句话会让谁听见**，写在场所名旁边而不是等人自己推断。
+                      公开登记与私下登记是两句不同的话，而它们在列表里长得一模一样。
+                    */}
+                    {executor?.kind === 'person' && (
+                      <span className={css.roomKind}>
+                        {entry.direct ? '私下登记 · 只有你和 TA' : '公开登记 · 全群可见'}
+                      </span>
+                    )}
+                    {executor?.kind === 'agent' && (
+                      <span className={css.roomKind}>公开委派 · 全群可见</span>
+                    )}
+                  </div>
                   {entry.topics.map(topic => (
                     <button
                       type="button"
                       className={css.room}
                       key={topic.sessionId}
-                      onClick={() => { go(topic.sessionId) }}
+                      onClick={() => { go(topic.sessionId, choice()) }}
                     >
                       {topic.label}
                     </button>
                   ))}
                 </div>
               ))}
+          {/*
+            和这个人**还没有过私聊**时，如实说。
+
+            私下登记这条路此刻走不通，理由是「那间屋子还不存在」——而这是可以自己动手
+            解决的（去云之家私聊一句），所以说清楚比把这一格藏起来有用。藏起来的后果是
+            人以为这个产品只支持公开登记。
+          */}
+          {executor?.kind === 'person' && theirDm.length === 0 && (
+            <div className={css.goalEmpty}>
+              和 <b>{executor.person.name}</b> 还没有过私聊，所以「私下登记」这条路暂时没有落点——
+              先在云之家给 TA 发一句，话题长出来之后就会出现在这里。
+            </div>
+          )}
           {/*
             尾项，不是首项。
 
@@ -155,6 +333,68 @@ export function RoomPicker(props: {
   )
 }
 
+
+/**
+ * 按名字找那个人 —— 两维真选择的第一维。
+ *
+ * 搜的是**全组织通讯录**：群成员列表平台没有 API（三墙之一），所以搜不出「这个人在
+ * 不在那个群」。那一问由选场所的人自己知道，界面如实说明，不假装校验过。
+ *
+ * 和建群那一格是同一份搜索纪律（单调票号：后发先至的旧回包不许覆盖新的），但**不共用
+ * 一份实现**——那一格选的是一群人、这一格选的是一个人，合并之后第一次改动就会在
+ * 「选完之后要不要继续留在列表里」这件事上分道扬镳。
+ */
+function ExecutorSearch(props: {
+  inject: SurfaceInject
+  pick(person: PersonWire): void
+}): ReactNode {
+  const { inject, pick } = props
+  const [keyword, setKeyword] = useState('')
+  const [found, setFound] = useState<PersonWire[]>([])
+  const ticket = useRef(0)
+
+  useEffect(() => {
+    const query = keyword.trim()
+    if (query === '') { setFound([]); return undefined }
+    const mine = ticket.current + 1
+    ticket.current = mine
+    const timer = setTimeout(() => {
+      void inject.people(query).then((people) => {
+        if (ticket.current === mine) setFound(people)
+      })
+    }, 220)
+    return () => { clearTimeout(timer) }
+  }, [keyword, inject])
+
+  return (
+    <>
+      <input
+        className={css.input}
+        value={keyword}
+        placeholder="或者交给一个人——按名字找…"
+        onChange={(event) => { setKeyword(event.target.value) }}
+      />
+      {found.length > 0 && (
+        <div className={css.rooms}>
+          {found.map(person => (
+            <button
+              type="button"
+              className={css.room}
+              key={person.openId}
+              onClick={() => { pick(person) }}
+            >
+              {person.name}
+              {person.department === undefined ? '' : ` · ${person.department}`}
+            </button>
+          ))}
+        </div>
+      )}
+      {keyword.trim() !== '' && found.length === 0 && (
+        <div className={css.goalEmpty}>通讯录里没搜到这个名字。</div>
+      )}
+    </>
+  )
+}
 
 /**
  * 新建一个专项群 —— 一次主权时刻，同时裁三件事 (设计 v4.18).

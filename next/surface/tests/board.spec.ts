@@ -25,6 +25,7 @@ import {
   goalCommitmentIdFor,
 } from '@yzj-next/objects'
 import { sendErrand, takeErrand } from '../src/client/store.ts'
+import { errandFor } from '../src/client/RoomPicker.tsx'
 import { boardFrame, bySignal, directionOf, eventsToday, inboxView } from '../src/rpc.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
@@ -578,6 +579,41 @@ describe('传送门带的是什么', () => {
     expect(carried?.subject).toBe('event')
     // 取走即消费——跳进来一次就没了，不会留给下一个会话。
     expect(takeErrand()).toBeUndefined()
+  })
+
+  /*
+    委派五步②：**执行者决定场所的选项集，也决定那句话的骨架。**
+
+    选了「交给张三」之后，起头就该是登记句式，而不是传送门那句泛泛的「关于目标 X：」——
+    否则两维选择只是问了两遍，答案却没有进入下一步。
+  */
+  it('选完执行者之后，骨架盖过传送门的默认起头', () => {
+    const portal = {
+      subject: 'goal' as const,
+      goalRef: GOAL,
+      goalName: 'Q3 对账',
+      voice: 'place' as const,
+      seed: '关于目标「Q3 对账」：',
+      title: '委派：跳进哪个会话说？',
+      note: '',
+      pick: 'executor' as const,
+    }
+    expect(errandFor(portal).seed).toBe('关于目标「Q3 对账」：')
+    const chosen = errandFor(portal, { seed: '登记承诺：〔要做什么〕，张三负责，〔什么时候前〕。', call: true })
+    expect(chosen.seed).toContain('张三负责')
+    /*
+      受话跟着走。一句没有触发词的委派 agent 根本不会听见：它落进群里像一句同事之间
+      的话，没有人登记、板上不长行——幽灵承诺的另一种成因。
+    */
+    expect(chosen.call).toBe(true)
+  })
+
+  it('不带选择的传送门不声明受话——催与差距那几路本来就不是说给 agent 听的', () => {
+    const errand = errandFor({
+      subject: 'goal', goalRef: GOAL, goalName: 'Q3 对账', voice: 'place',
+      seed: '问一下…', title: '催：去哪个会话说？', note: '',
+    })
+    expect(errand.call).toBeUndefined()
   })
 
   it('目标那一路照旧', () => {

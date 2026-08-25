@@ -34,7 +34,7 @@ import {
   currentBoardLens, pushFrame, sendErrand, setBoardLens, setSpotlight,
 } from './store.ts'
 import { revealAside } from './preview.ts'
-import { RoomPicker, type Portal } from './RoomPicker.tsx'
+import { RoomPicker, errandFor, type Portal } from './RoomPicker.tsx'
 import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
 import {
@@ -842,7 +842,9 @@ export function YzjBoard(props: BoardProps): ReactNode {
                 goalRef: goal.goalRef,
                 goalName: goal.row?.what ?? goal.goalRef,
                 voice: 'place',
-                // 起头，不是稿子：派什么、派给谁、什么时候前，都是他要说的话。
+                // 两维真选择：先问谁来做，再问在哪儿说——执行者决定场所的选项集。
+                pick: 'executor',
+                // 起头，不是稿子：派什么、什么时候前，都是他要说的话。
                 seed: delegateSeed(goal.row?.what ?? goal.goalRef),
                 title: '委派：跳进哪个会话说？',
                 note: '公开委派是施压与透明，私下委派是留余地——这个选择不该由系统替你做。',
@@ -1319,14 +1321,8 @@ export function YzjBoard(props: BoardProps): ReactNode {
           portal={portal}
           inject={inject}
           close={() => { setPortal(undefined) }}
-          go={(sessionId) => {
-            sendErrand({
-              subject: portal.subject,
-              goalRef: portal.goalRef,
-              goalName: portal.goalName,
-              voice: portal.voice,
-              ...(portal.seed === undefined ? {} : { seed: portal.seed }),
-            })
+          go={(sessionId, choice) => {
+            sendErrand(errandFor(portal, choice))
             setPortal(undefined)
             openSession(sessionId)
           }}

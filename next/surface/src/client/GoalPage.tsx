@@ -28,7 +28,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { BoardRowWire, GoalPageWire, SurfaceInject } from './rpc.ts'
 import { sendErrand } from './store.ts'
-import { RoomPicker, type Portal } from './RoomPicker.tsx'
+import { RoomPicker, errandFor, type Portal } from './RoomPicker.tsx'
 import {
   assessAsk, breakdownAsk, delegateSeed, gapSeed, goalQuestionSeed, rebaseAsk,
 } from './commission.ts'
@@ -734,14 +734,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             portal={portal}
             inject={inject}
             close={() => { setPortal(undefined) }}
-            go={(sessionId) => {
-              sendErrand({
-                subject: portal.subject,
-                goalRef: portal.goalRef,
-                goalName: portal.goalName,
-                voice: portal.voice,
-                ...(portal.seed === undefined ? {} : { seed: portal.seed }),
-              })
+            go={(sessionId, choice) => {
+              sendErrand(errandFor(portal, choice))
               setPortal(undefined)
               openSession(sessionId)
             }}

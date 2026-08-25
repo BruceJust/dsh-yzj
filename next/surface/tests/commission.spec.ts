@@ -12,7 +12,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   assessAsk, breakdownAsk, delegateSeed, eventPrepSeed, gapSeed,
-  goalCraftSeed, goalQuestionSeed, rebaseAsk,
+  goalCraftSeed, goalQuestionSeed, rebaseAsk, registerSeed,
 } from '../src/client/commission.ts'
 
 const NAME = 'Q3 把对账周期压到 3 天内'
@@ -94,6 +94,26 @@ describe('起头那一类，故意不说完', () => {
     ['差距变委派', gapSeed(NAME, 'T+3 出报表')],
   ])('%s 不预埋 @ 触发词', (_label, seed) => {
     expect(seed).not.toContain('@')
+  })
+})
+
+describe('登记句式是骨架，不是稿子', () => {
+  /*
+    规格把这条单独钉出来过：「预填**话语骨架**（受话人 + 登记句式模板——**任务内容
+    由人说，agent 不发明委派内容**；demo 为演示流畅预填了示例内容，**实现勿照抄**）」。
+
+    所以这里只锁两件事：那个人的名字在，而要做什么和什么时候前**是两个空**。一句
+    像样的示例会被原样发出去，而那句话是我们编的，落库之后却挂在他名下。
+  */
+  it('带上那个人的名字，把「做什么」和「什么时候」留成空', () => {
+    const seed = registerSeed('张三')
+    expect(seed).toContain('张三负责')
+    expect(seed).toContain('〔要做什么〕')
+    expect(seed).toContain('〔什么时候前〕')
+  })
+
+  it('骨架里不预埋触发词——受话由 composer 那一头补，因为只有它知道 agent 叫什么', () => {
+    expect(registerSeed('张三')).not.toContain('@')
   })
 })
 

@@ -21,7 +21,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { BoardEventWire, SurfaceInject } from './rpc.ts'
-import { RoomPicker, type Portal } from './RoomPicker.tsx'
+import { RoomPicker, errandFor, type Portal } from './RoomPicker.tsx'
 import { sendErrand } from './store.ts'
 import { eventPrepSeed } from './commission.ts'
 import { safeHref } from './preview.ts'
@@ -222,14 +222,8 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
           portal={portal}
           inject={inject}
           close={() => { setPortal(undefined) }}
-          go={(sessionId) => {
-            sendErrand({
-              subject: portal.subject,
-              goalRef: portal.goalRef,
-              goalName: portal.goalName,
-              voice: portal.voice,
-              ...(portal.seed === undefined ? {} : { seed: portal.seed }),
-            })
+          go={(sessionId, choice) => {
+            sendErrand(errandFor(portal, choice))
             setPortal(undefined)
             openSession(sessionId)
           }}
