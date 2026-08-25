@@ -67,10 +67,17 @@ export function RepairVerbs(props: {
   setField2(value: string): void
   /** 可以收养这一条的目标。无归属行才用得上。 */
   goals?: readonly { readonly ref: string; readonly label: string }[]
+  /**
+   * 这一行如果是**目标**，它底下还有几条在跟。
+   *
+   * 同一件事有两扇门：板上目标组头那颗，和平铺列表里这一行的修理条。两扇门只有一扇
+   * 说了级联，就等于告诉走另一扇的人「这次没有波及面」。
+   */
+  cascadeOpen?: number
   close(): void
   run(id: string, work: Promise<{ error?: string }>, done: string): void
 }): ReactNode {
-  const { repair, siblings, inject, busy, field, setField, field2, setField2, goals, close, run } = props
+  const { repair, siblings, inject, busy, field, setField, field2, setField2, goals, cascadeOpen, close, run } = props
   const row = repair.row
 
 /*
@@ -91,6 +98,9 @@ if (repair.kind === 'void') {
         它和「这件事还没做好」（打回）不是一回事，也不是「先放一放」——放一放没有动词，
         因为那只动你自己的计划。
       </span>
+      {row.isGoal !== undefined && (
+        <span className={css.repairWhy}>{cascadeLine(cascadeOpen ?? 0)}</span>
+      )}
       <button
         type="button"
         className={`${css.repairGo} ${css.repairDanger}`}

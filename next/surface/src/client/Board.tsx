@@ -634,7 +634,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
           <button
             type="button"
             className={css.repairOpen}
-            title="顺延期限 / 移交他人 / 合并到另一条——改的都是当初说出口的话"
+            title="顺延期限 / 移交他人 / 合并到另一条 / 作废 / 收养或摘除——改的都是当初说出口的话"
             onClick={() => {
               setRepair(current => (current?.row.id === row.id ? undefined : { kind: 'postpone', row }))
               setField(row.due?.text ?? '')
@@ -707,6 +707,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
               repair={repair}
               siblings={siblingsOf(row)}
               goals={goalOptions}
+              cascadeOpen={view.goals.find(entry => entry.goalRef === row.isGoal)?.counts.open ?? 0}
               inject={inject}
               busy={busy !== ''}
               field={field}
