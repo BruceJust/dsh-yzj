@@ -1208,6 +1208,29 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     if (openId !== undefined && name !== undefined) nameOf.set(openId, name)
   }
   /*
+    这条承诺**最后一次真有动静**是什么时候（不含系统记账）。
+
+    白名单写死在 `bookkeepingFields` 里：一条 `commitment/updated` 如果除了 id 只带着
+    这些字段，它说的是「系统给这条记了一笔」，不是「这件事有进展」。少写一个字段的后果
+    是把记账当动静（一条没人碰过的活看起来在跑）；多写一个的后果是把动静当记账（一条
+    真的在动的活被报成无信号）——所以这张单子只放**明确与工作无关**的那几个。
+  */
+  const bookkeepingFields = new Set(['commitmentId', 'notified', 'audience'])
+  const substantiveAt = new Map<string, number>()
+  const AFTER_BIRTH = [
+    'commitment/updated', 'commitment/delivered', 'commitment/rework',
+    'commitment/closed', 'commitment/voided', 'commitment/merged', 'commitment/reopened',
+  ]
+  for (const event of ctx.yzjGraph.rawEvents(AFTER_BIRTH)) {
+    const data = asRecord(event.data)
+    const id = asString(data?.commitmentId)
+    if (id === undefined) continue
+    const keys = Object.keys(data ?? {})
+    if (event.type === 'commitment/updated' && keys.every(key => bookkeepingFields.has(key))) continue
+    const seen = substantiveAt.get(id)
+    if (seen === undefined || event.time > seen) substantiveAt.set(id, event.time)
+  }
+  /*
     **老数据的委派者：从那一回合的活里认领** (v4.21 方向轴的补丁，只对旧行生效).
 
     委派者现在写在承诺自己身上（`delegatedBy`：桌面路径由内核从 actor 盖上，会话路径
@@ -1278,8 +1301,20 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
       ? undefined
       // 名字取自登记时抄下的那份名录；查不到就用 openId——不猜，宁可难看。
       : nameOf.get(delegatedBy ?? '') ?? delegatedBy
-    const silent = object.updatedSeq === object.createdSeq
-    const lastSignalAt = silent ? object.createdAt : object.updatedAt
+    /*
+      **三值信号读的是「有没有人碰过这件事」——系统自己盖的记号不算碰。**
+
+      「无信号」此前的实现是 `updatedSeq === createdSeq`：任何一次写都会让它失效，包括
+      系统的记账。于是「没人告诉过他」那个标记（`notified: 'failed'`，登记完立刻盖）
+      顺手把这一行从「无信号」改成了「有证据」——一条**谁都没通知、谁也没碰过**的活，
+      在板上看起来像正常在跑的活。这条信号存在的全部理由，就是不让这种行混过去。
+
+      所以判据换成「最后一次**实质**动静」：只记账的那种更新（见 `bookkeepingAt`）不
+      算数。宁可把一次真动静误判成记账吗？不会——记账那一类是白名单，字段说得死。
+    */
+    const touched = substantiveAt.get(object.id)
+    const silent = touched === undefined
+    const lastSignalAt = touched ?? object.createdAt
     const signal = silent
       ? 'silent' as const
       : now - lastSignalAt > STALE_MS ? 'stale' as const : 'evidence' as const

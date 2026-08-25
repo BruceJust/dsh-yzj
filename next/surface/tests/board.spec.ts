@@ -1136,3 +1136,50 @@ describe('逾期计数这道门', () => {
     expect(jumpPlan({ rows: [rows[0]], axis: 'all', shut: [] })).toBeUndefined()
   })
 })
+
+/**
+ * 三值信号读的是「有没有人碰过这件事」 —— **盖一个记号不算碰**。
+ *
+ * 「无信号」的定义是：登记之后再没有任何东西碰过它。而它的实现是 `updatedSeq ===
+ * createdSeq`——**任何**一次写都会让它失效，包括系统自己盖的记号。
+ *
+ * 于是「没人告诉过他」那个标记（`notified: 'failed'`，登记完立刻盖）顺手把这一行从
+ * 「无信号」改成了「有证据」：一条**谁都没通知、谁也没碰过**的活，在板上看起来像正常
+ * 在跑的活。两件各自正确的事合起来又一次说了谎——而这一次是我自己昨天加的那一半。
+ */
+describe('无信号：系统自己盖的记号不算动静', () => {
+  const ghost = async (id: string): Promise<void> => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id, what: '核对发票口径',
+        executor: { kind: 'human', openId: 'u-zhang', name: '张锐' },
+        sourceAnchor: `yzj:${id}`, topicKey: 'tk-1',
+      },
+      actor: OPERATOR,
+    })
+    await graph.append({
+      type: 'commitment/updated',
+      data: { commitmentId: id, notified: 'failed' },
+      actor: { kind: 'agent' },
+    })
+  }
+  const signalOf = (id: string): string | undefined =>
+    boardFrame(ctx).rows.find(row => row.id === id)?.signal
+
+  it('盖了「未通知」的那条，仍然是无信号', async () => {
+    await ghost('c-ghost')
+    expect(signalOf('c-ghost')).toBe('silent')
+  })
+
+  it('真有人回了一句，才不再是无信号', async () => {
+    await ghost('c-ghost')
+    await graph.append({
+      type: 'commitment/updated',
+      data: { commitmentId: 'c-ghost', lastReceipt: '在做了' },
+      actor: { kind: 'agent' },
+    })
+    expect(signalOf('c-ghost')).toBe('evidence')
+  })
+})
+
