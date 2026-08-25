@@ -1786,9 +1786,12 @@ function commitRow(c) {
   /* 责任锚两槽位：验收人 = 查看者本人时省略（Bruce 视角），非本人时显示 */
   const anchor = c.owner ? ` · <span style="color:#8A6D3B">验收：${c.owner}</span>` : '';
   const dueChip = c.dueT === 'today' ? ` <span class="badge b-confirm" style="font-size:9px;padding:0 5px">今日到期</span>` : '';
+  /* v4.23+ 方向透镜下目标从骨架降为上下文：行内 chip 一跳回目标（组头已退场） */
+  const gchip = state.boardLens !== 'all' && c.goal && GOALS[c.goal]
+    ? ` <span class="chip" data-goalhub="${c.goal}" role="link" tabindex="0" style="cursor:pointer;font-size:9.5px;padding:0 7px" title="目标是上下文不是骨架——点击一跳进目标枢纽">◎ ${GOALS[c.goal].title}</span>` : '';
   return `<div class="cm-row${c.overdue ? ' overdue' : ''}"${link} id="cm-${COMMITS.indexOf(c)}" title="挂接：${c.linked || '—'}（出生故事：hover 一级 · 目标枢纽行二级）">
     <span class="ex-tag ${c.exec}">${c.exec === 'agent' ? 'agent' : c.exec === 'human' ? '人' : '流程'}</span>
-    <span style="flex:1;min-width:0"><span style="font-size:12.8px;font-weight:650">${c.name}</span>${dueChip}
+    <span style="flex:1;min-width:0"><span style="font-size:12.8px;font-weight:650">${c.name}</span>${dueChip}${gchip}
     <span style="display:block;font-size:10.5px;color:var(--ink-3)">${c.who}${anchor} · <span class="cm-due${c.overdue ? ' overdue' : ''}">${c.due}</span> · ${signalOf(c)}</span></span>
     <span style="display:flex;gap:5px;align-items:center;flex:none">${!c.owner && c.overdue && !c.receipt ? `<button class="btn" data-hurge="1" style="font-size:10px;padding:1px 8px">催</button>` : ''}${!c.owner ? `<button class="btn" data-hmenu="${c.name}" style="font-size:10px;padding:1px 8px" title="修理动词族：催/顺延/作废/合并/移交/收养/摘除——主权=该承诺的验收人（v4.22）">⋯</button>` : ''}
     ${stateH}</span></div>`;
@@ -2055,7 +2058,15 @@ function renderBoard() {
     </div>
     <div style="font-size:10.5px;color:var(--ink-3);margin:-4px 0 8px 2px">立目标 = 登记动词复用 · <b>人签发</b> —— 另两个入口：任意会话直接说「立个目标：…，我 own」（对话登记）；AI 速记纪要 → 提案裁决（主产地，见产品讨论群主楼今晨的提案卡）</div>` : '';
   const loose = COMMITS.filter(c => !c.goal && !c.void && lensPass(c)).sort((a, b) => rankOf(a) - rankOf(b));
-  const rows = goalBlocks + (loose.length ? `
+  /* v4.23+ 方向透镜 = 换组织轴：目标分组退场，信号序平铺，目标降为行内 chip（骨架 → 上下文） */
+  const lensFlat = state.boardLens !== 'all' ? (() => {
+    const flat = COMMITS.filter(c => !c.void && lensPass(c)).sort((a, b) => rankOf(a) - rankOf(b));
+    const label = state.boardLens === 'mine' ? '我欠的 · 行动清单' : '欠我的 · 应收账簿（债务人 × 信号，横切目标）';
+    return `<div style="font-size:10px;color:var(--ink-3);margin:2px 0 6px">${label} —— 换组织轴：信号序平铺（异常浮起）· 目标降为行内 chip 一跳 · 结构对账切回「全部」· 按人分组押证据门</div>`
+      + (flat.length ? flat.map(commitRow).join('')
+        : `<div class="cm-row" style="font-size:11px;color:var(--ink-3)">本透镜下无匹配承诺（透镜是本地视角，切回「全部」看全集）。</div>`);
+  })() : null;
+  const rows = lensFlat !== null ? lensFlat : goalBlocks + (loose.length ? `
     <div class="res-sec" style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">无归属 · ${loose.length} 项
       <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">未挂目标是合法状态——不是所有工作都为目标服务（强制对齐 = 垃圾对齐）；周会时对 agent 说 /link 逐条收养（行内 ⋯ 同门）</span></div>` + loose.map(commitRow).join('') : '');
   /* v4.21 空板出生样本：登记覆盖率是承诺板价值的分母——冷启动第一眼是分母的出生地 */
