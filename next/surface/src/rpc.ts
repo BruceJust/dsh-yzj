@@ -2585,12 +2585,12 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (id === undefined) return failure('作废需要承诺 id')
             const target = scoped.yzjGraph.rawObject('commitment', id)
             if (target === undefined) return failure(`找不到承诺：${id}`)
+            const refused = refuseUnlessSteward(scoped, id, '作废')
+            if (refused !== undefined) return refused
             // 作废 is for something still outstanding. Letting it run on a
             // settled commitment turned 已完成 into 已作废 with one press.
             const current = asString(asRecord(target.state)?.status) ?? 'open'
             if (current !== 'open') return failure(`这条承诺已经${current === 'closed' ? '完成' : '结束'}了，不能再作废。`)
-            const refused = refuseUnlessSteward(scoped, id, '作废')
-            if (refused !== undefined) return refused
             try {
               await scoped.yzjGraph.append({
                 type: 'commitment/voided',
@@ -2619,10 +2619,18 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (id === undefined || due === undefined) return failure('顺延需要承诺 id 与新的期限')
             const target = scoped.yzjGraph.rawObject('commitment', id)
             if (target === undefined) return failure(`找不到承诺：${id}`)
-            const status = asString(asRecord(target.state)?.status) ?? 'open'
-            if (status !== 'open') return failure('这条承诺已经结束了，改期限没有意义。')
+            /*
+              **主权先判，再判别的**（这一条是自审时统一的顺序）。
+
+              两个理由。一是说得准：对一条不归我管的活，第一句该说的是「它归谁」，而不是
+              「它已经结束了」——后者答的是另一个问题。二是不当探针：状态、以及合并那边
+              「要合进去的那条在不在」，都是**关于别人的活的事实**；先答它们，等于让一个
+              没有主权的调用者拿这个端点当查询接口用。
+            */
             const refused = refuseUnlessSteward(scoped, id, '顺延')
             if (refused !== undefined) return refused
+            const status = asString(asRecord(target.state)?.status) ?? 'open'
+            if (status !== 'open') return failure('这条承诺已经结束了，改期限没有意义。')
             try {
               await scoped.yzjGraph.append({
                 type: 'commitment/updated',
@@ -2648,13 +2656,14 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (id === undefined || into === undefined) return failure('合并需要两条承诺的 id')
             if (id === into) return failure('不能把一条承诺合并到它自己。')
             const target = scoped.yzjGraph.rawObject('commitment', id)
-            const keeper = scoped.yzjGraph.rawObject('commitment', into)
             if (target === undefined) return failure(`找不到承诺：${id}`)
+            // 主权先判：不然这个端点能被拿来问「c1 存不存在」（见 postpone 处的注释）。
+            const refused = refuseUnlessSteward(scoped, id, '合并')
+            if (refused !== undefined) return refused
+            const keeper = scoped.yzjGraph.rawObject('commitment', into)
             if (keeper === undefined) return failure(`找不到要合并进去的那一条：${into}`)
             const status = asString(asRecord(target.state)?.status) ?? 'open'
             if (status !== 'open') return failure('这条承诺已经结束了，不用再合并。')
-            const refused = refuseUnlessSteward(scoped, id, '合并')
-            if (refused !== undefined) return refused
             try {
               await scoped.yzjGraph.append({
                 type: 'commitment/merged',
@@ -2683,10 +2692,10 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (id === undefined || openId === undefined) return failure('移交需要承诺 id 与新执行者')
             const target = scoped.yzjGraph.rawObject('commitment', id)
             if (target === undefined) return failure(`找不到承诺：${id}`)
-            const status = asString(asRecord(target.state)?.status) ?? 'open'
-            if (status !== 'open') return failure('这条承诺已经结束了，不能移交。')
             const refused = refuseUnlessSteward(scoped, id, '移交')
             if (refused !== undefined) return refused
+            const status = asString(asRecord(target.state)?.status) ?? 'open'
+            if (status !== 'open') return failure('这条承诺已经结束了，不能移交。')
             try {
               await scoped.yzjGraph.append({
                 type: 'commitment/updated',
@@ -2737,6 +2746,20 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             */
             const missing = ids.filter(id => scoped.yzjGraph.rawObject('commitment', id) === undefined)
             if (missing.length > 0) return failure(`找不到承诺：${missing.join('、')}`)
+            /*
+              **收养和摘除是同一格的加减法，主权也该是同一个** (v4.22 裁决② / 决策 #57)。
+
+              摘除这一侧一直查主权，收养这一侧一直没查——而界面上它俩现在长在同一个
+              菜单里、同一条渲染条件下。**只在界面上不画、端点照收，等于把主权做成一层
+              皮肤**：绕过它只需要一次直接调用，而这条通道本来就对模型开着。
+
+              整批一起判、一条不合就整批不写：半批写完再报失败，收据就是假的（和上面
+              「每个 id 必须先解析」同一条纪律）。
+            */
+            for (const id of ids) {
+              const refused = refuseUnlessSteward(scoped, id, '收养')
+              if (refused !== undefined) return refused
+            }
             try {
               for (const commitmentId of ids) {
                 await scoped.yzjGraph.append({

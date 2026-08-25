@@ -12,6 +12,7 @@
  */
 
 import { mkdtemp } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -330,6 +331,32 @@ describe('目标页端点', () => {
  * owner／执行者／跨域执行者／旁观者）——这里够得着的是前两个：登记它的人（owner，
  * 也就是桌面操作者）与执行它的人（李婷）。
  */
+/**
+ * 主权动词的端点全集 —— **这张表的完整性本身要可测**。
+ *
+ * 收养那条端点漏了主权校验整整一版，而这一组是绿的：因为这张表当时只有四行。**一份
+ * 需要人记得去补的名册，就是下一个漏洞的位置**（家族即接口那一条同款教训）。所以下面
+ * 那个用例反过来查源码：凡是查了主权的端点，都必须在这张表里。
+ */
+const GUARDED: readonly [string, string, Record<string, unknown>][] = [
+  ['顺延', 'postpone-commitment', { id: 'c9', due: '2026-09-05' }],
+  ['作废', 'void-commitment', { id: 'c9' }],
+  ['移交', 'handoff-commitment', { id: 'c9', openId: 'u-x', name: '某人' }],
+  ['合并', 'merge-commitment', { id: 'c9', into: 'c1' }],
+  ['摘除', 'unlink-commitments', { ids: ['c9'] }],
+  ['收养', 'link-commitments', { goalRef: GOAL, ids: ['c9'] }],
+]
+
+/** 源码里真正查了主权的那些端点。 */
+function guardedInSource(): readonly string[] {
+  const source = readFileSync(new URL('../src/rpc.ts', import.meta.url), 'utf8')
+  const blocks = source.split(/\n {10}case '/).slice(1)
+  return blocks
+    .map(block => ({ name: block.slice(0, block.indexOf("'")), body: block }))
+    .filter(entry => entry.body.includes('refuseUnlessSteward('))
+    .map(entry => entry.name)
+}
+
 describe('动词主权 = 节点主权的派生', () => {
   /** 别人登记的一条活：owner 是李婷，桌面操作者只是看得见它。 */
   async function theirs(id = 'c9'): Promise<void> {
@@ -379,15 +406,22 @@ describe('动词主权 = 节点主权的派生', () => {
   })
 
   /*
+    **表的完整性**：凡是查了主权的端点，都必须在上面那张表里被真的调用一次。
+
+    收养漏查主权时，这一组照样全绿——因为表里没有它。补一条查源码的用例，是因为「记得
+    回来加一行」不是一种机制。
+  */
+  it('查了主权的端点，一个都不能漏出这张表', () => {
+    const table = new Set(GUARDED.map(([, endpoint]) => endpoint))
+    const missing = guardedInSource().filter(name => !table.has(name))
+    expect(missing).toEqual([])
+  })
+
+  /*
     端点是另一半。UI 不渲染只是不造按钮——真正挡住的是这里，否则「不渲染」只是一层
     皮肤：文本通道、模型、任何一次直接调用都能绕过去。
   */
-  it.each([
-    ['顺延', 'postpone-commitment', { id: 'c9', due: '2026-09-05' }],
-    ['作废', 'void-commitment', { id: 'c9' }],
-    ['移交', 'handoff-commitment', { id: 'c9', openId: 'u-x', name: '某人' }],
-    ['摘除', 'unlink-commitments', { ids: ['c9'] }],
-  ])('%s 别人登记的那条，端点拒绝并说清归谁', async (_verb, endpoint, payload) => {
+  it.each(GUARDED)('%s 别人登记的那条，端点拒绝并说清归谁', async (_verb, endpoint, payload) => {
     await goal()
     await theirs()
     const result = await call(endpoint, payload)
@@ -397,6 +431,29 @@ describe('动词主权 = 节点主权的派生', () => {
     // 拒绝不禁言：那条仍然走得通的路要说出来（指路 + 可选转达拟稿，v3.14r②）。
     expect((result as { error?: { message?: string } }).error?.message)
       .toContain('直接问他')
+  })
+
+  /*
+    **拒绝不该顺带回答别的问题。**
+
+    「这条已经结束了」「要合进去的那条不存在」都是**关于别人那条活的事实**。先答它们、
+    后判主权，等于让一个没有主权的调用者拿这些端点当查询接口用——而这条通道本来就对
+    模型开着。所以顺序统一成：认得出这条 → 判主权 → 再谈别的。
+  */
+  it('对不归我管的那条，第一句永远是「它归谁」', async () => {
+    await goal()
+    await theirs()
+    // 已经作废了的一条：状态检查若排在前面，回的会是「已经结束了」。
+    await graph.append({
+      type: 'commitment/voided',
+      data: { commitmentId: 'c9', cause: '测试' },
+      actor: { kind: 'operator', openId: 'u-li' },
+    })
+    for (const [, endpoint, payload] of GUARDED) {
+      const result = await call(endpoint, payload)
+      expect((result as { error?: { message?: string } }).error?.message)
+        .toContain('登记这条承诺的人')
+    }
   })
 
   it('拒绝之后图上一个字没写', async () => {
