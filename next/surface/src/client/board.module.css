@@ -239,6 +239,8 @@
 }
 .unlink:hover, .voidGoal:hover { color: var(--yzj-red); border-color: #F0CACA; }
 .unlink:disabled, .voidGoal:disabled { opacity: .5; cursor: default; }
+/* 已亮出后果、等第二下的那颗作废（决策 #57 两段式） */
+.voidArmed { color: var(--yzj-red); border-color: var(--yzj-red); }
 /* 引用不是链接时就说它不是——把群里来的任意文本渲染成 href 是一条真实攻击面 */
 .goalUnsafe {
   flex: none; font-size: 10.5px; color: var(--yzj-ink-3);

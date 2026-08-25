@@ -360,6 +360,10 @@
 }
 
 .repairGo:disabled { opacity: .45; cursor: default; }
+/* 第二段那颗：不可逆的动作不穿主色（决策 #57） */
+.repairDanger { border-color: var(--yzj-red); background: var(--yzj-red); }
+/* 已亮出后果、等第二下的那颗（决策 #57 两段式） */
+.actDanger { color: var(--yzj-red); border-color: var(--yzj-red); }
 
 .repairX {
   flex: none;

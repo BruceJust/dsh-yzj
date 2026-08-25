@@ -24,6 +24,36 @@ export type Repair =
   | { kind: 'postpone'; row: BoardRowWire }
   | { kind: 'handoff'; row: BoardRowWire }
   | { kind: 'merge'; row: BoardRowWire }
+  | { kind: 'void'; row: BoardRowWire }
+  /** 收养（无归属行）与摘除（有归属行）**互斥**：同一格的加减法 (决策 #57)。 */
+  | { kind: 'attach'; row: BoardRowWire }
+
+/**
+ * 作废那颗按钮此刻说什么 —— **两段式** (决策 #57).
+ *
+ * 作废是不可逆的人签发终态（级联等待对象 + 回写真身）。按摩擦三分法，这属于**主权
+ * 摩擦必须保留**的场景：一键作废与一键验收同罪。所以任何入口都两段——第一段亮出后果，
+ * 第二段才动手，中途永远可以走开。
+ *
+ * 抽成函数是为了让「哪一段说什么」可测，也为了板、目标页、留意层三处**说同一句话**：
+ * 三处各写各的文案，迟早有一处的门看起来像个建议。
+ */
+export function voidGate(armed: boolean): { readonly label: string; readonly danger: boolean } {
+  return armed ? { label: '确认作废？', danger: true } : { label: '作废…', danger: false }
+}
+
+/**
+ * 作废一个目标时，底下那些活会怎么样 —— **级联显形，而不是级联执行**。
+ *
+ * 既有裁决保持：目标死了不等于底下每件事都该停，那是人的判断（摩擦保留）。但**必须
+ * 当场说出有多少条**——不说的话，人按下的是一个不知道波及面的不可逆动作，而「半途而废
+ * 的目标底下留着一片没人管的活」正是这条门要挡的东西。
+ */
+export function cascadeLine(openChildren: number): string {
+  return openChildren === 0
+    ? '底下没有还在跟的承诺。'
+    : `底下 ${String(openChildren)} 条还在跟的承诺**不会自动作废**——它们仍是真实的活，各自的裁决保持，可逐条处理。`
+}
 
 export function RepairVerbs(props: {
   repair: Repair
@@ -35,11 +65,110 @@ export function RepairVerbs(props: {
   setField(value: string): void
   field2: string
   setField2(value: string): void
+  /** 可以收养这一条的目标。无归属行才用得上。 */
+  goals?: readonly { readonly ref: string; readonly label: string }[]
   close(): void
   run(id: string, work: Promise<{ error?: string }>, done: string): void
 }): ReactNode {
-  const { repair, siblings, inject, busy, field, setField, field2, setField2, close, run } = props
+  const { repair, siblings, inject, busy, field, setField, field2, setField2, goals, close, run } = props
   const row = repair.row
+
+/*
+  **作废：既可见又可动，且必须过门** (决策 #57).
+
+  这颗动词此前只长在目标组头上——于是一条没挂目标的承诺，作废在整个产品里都不可达
+  （它没有目标页可进，而板行的修理条里没有它）。「修了可见性没修可动性」正是这一条
+  裁决点名的半环割裂债。
+
+  而它一进来就得带着门：**一键作废与一键验收同罪**。第一段（打开这一条）亮出后果，
+  第二段（按下「确认作废」）才动手——中途永远可以走开。
+*/
+if (repair.kind === 'void') {
+  return (
+    <div className={css.repair}>
+      <span className={css.repairWhy}>
+        作废 = <b>人签发的终态</b>，不可逆：等待它的对象级联收口、真身上回写一笔「已作废」。
+        它和「这件事还没做好」（打回）不是一回事，也不是「先放一放」——放一放没有动词，
+        因为那只动你自己的计划。
+      </span>
+      <button
+        type="button"
+        className={`${css.repairGo} ${css.repairDanger}`}
+        disabled={busy}
+        onClick={() => {
+          run(row.id, inject.voidCommitment(row.id, '操作者在承诺板作废'), `已作废：${row.what}`)
+        }}
+      >
+        确认作废
+      </button>
+      <button type="button" className={css.repairX} onClick={() => { close() }}>取消</button>
+    </div>
+  )
+}
+
+/*
+  收养与摘除 —— **同一格的加减法**，按归属互斥渲染 (v4.22 裁决② / 决策 #57)。
+
+  未挂是合法状态，所以这两个动词都不是「撤销」：收养是事后挂接（挂接三时刻之三），
+  摘除是把它送回无归属组。谁也不该同时出现——一条行要么有归属要么没有。
+*/
+if (repair.kind === 'attach') {
+  const attached = row.goalRef !== undefined
+  if (attached) {
+    return (
+      <div className={css.repair}>
+        <span className={css.repairWhy}>
+          摘除 = 把它送回「无归属」。<b>承诺不死</b>，死的只是那条挂接——不是所有工作都
+          为某个目标服务，未挂是合法状态。
+        </span>
+        <button
+          type="button"
+          className={css.repairGo}
+          disabled={busy}
+          onClick={() => {
+            run(row.id, inject.unlinkCommitments([row.id]), '已摘除，回到「无归属」。')
+          }}
+        >
+          摘除
+        </button>
+        <button type="button" className={css.repairX} onClick={() => { close() }}>取消</button>
+      </div>
+    )
+  }
+  return (
+    <div className={css.repair}>
+      <span className={css.repairWhy}>
+        收养 = 事后把它挂进一个目标（挂接三时刻之三）。<b>挂错了可以再摘</b>——所以这一步
+        不设门；宁空勿错的那一半在于：不挂也完全正当。
+      </span>
+      {(goals ?? []).length === 0
+        ? <span className={css.repairWhy}>还没有目标可挂——先立一个。</span>
+        : (
+          <select
+            className={css.repairInput}
+            value={field}
+            onChange={event => { setField(event.target.value) }}
+          >
+            <option value="">挂进哪个目标…</option>
+            {(goals ?? []).map(goal => (
+              <option key={goal.ref} value={goal.ref}>{goal.label}</option>
+            ))}
+          </select>
+        )}
+      <button
+        type="button"
+        className={css.repairGo}
+        disabled={field === '' || busy}
+        onClick={() => {
+          run(row.id, inject.linkCommitments(field, [row.id]), '已收养：这条现在为那个目标服务。')
+        }}
+      >
+        收养
+      </button>
+      <button type="button" className={css.repairX} onClick={() => { close() }}>取消</button>
+    </div>
+  )
+}
 if (repair.kind === 'postpone') {
   return (
     <div className={css.repair}>

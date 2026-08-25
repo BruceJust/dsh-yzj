@@ -32,7 +32,7 @@ import { RoomPicker, errandFor, type Portal } from './RoomPicker.tsx'
 import {
   assessAsk, breakdownAsk, delegateSeed, gapSeed, goalQuestionSeed, rebaseAsk,
 } from './commission.ts'
-import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
+import { RepairVerbs, cascadeLine, voidGate, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
 import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
@@ -84,6 +84,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
   const [busy, setBusy] = useState('')
   const [toast, setToast] = useState('')
   const [repair, setRepair] = useState<Repair | undefined>(undefined)
+  /** 已经亮出后果、正等第二下的那颗作废 (决策 #57)。一次只可能有一颗。 */
+  const [armed, setArmed] = useState('')
   /** 传送门：等着人选一间屋子的那件差事。 */
   const [portal, setPortal] = useState<Portal | undefined>(undefined)
   const [field, setField] = useState('')
@@ -322,21 +324,34 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'postpone', row }); setField(row.due?.text ?? '') }}>顺延期限</button>
               <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'handoff', row }); setField(''); setField2('') }}>移交</button>
               <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'merge', row }); setField('') }}>合并</button>
+              {/*
+                **作废两段式** (决策 #57)：一键作废与一键验收同罪。这里此前是一下点掉的
+                ——而作废是不可逆的人签发终态（级联等待对象 + 回写真身）。文案与板上
+                共用 `voidGate`：三处各写各的，迟早有一处的门看起来像个建议。
+              */}
               <button
                 type="button"
-                className={css.act}
+                className={`${css.act} ${armed === row.id ? css.actDanger : ''}`}
                 disabled={busy === row.id}
-                onClick={() => { run(row.id, inject.voidCommitment(row.id, '在目标页作废'), `已作废：${row.what}`) }}
+                onClick={() => {
+                  if (armed !== row.id) {
+                    setArmed(row.id)
+                    setToast('作废是不可逆的人签发终态：等待它的对象级联收口、真身回写一笔。再点一次确认。')
+                    return
+                  }
+                  setArmed('')
+                  run(row.id, inject.voidCommitment(row.id, '在目标页作废'), `已作废：${row.what}`)
+                }}
               >
-                作废
+                {voidGate(armed === row.id).label}
               </button>
               <button
                 type="button"
                 className={css.act}
                 disabled={busy === row.id}
-                onClick={() => { run(row.id, inject.unlinkCommitments([row.id]).then(r => r), '已移出这个目标，回到「无归属」。') }}
+                onClick={() => { run(row.id, inject.unlinkCommitments([row.id]).then(r => r), '已摘除，回到「无归属」。') }}
               >
-                移出
+                摘除
               </button>
             </>
           )}
@@ -481,11 +496,11 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                   run(
                     'cascade',
                     inject.unlinkCommitments(stillOpen.map(child => child.id)).then(r => r),
-                    `已把这 ${String(stillOpen.length)} 条移出，回到「无归属」等着改挂。`,
+                    `已把这 ${String(stillOpen.length)} 条摘除，回到「无归属」等着改挂。`,
                   )
                 }}
               >
-                全部移出改挂
+                全部摘除改挂
               </button>
             </div>
           )}
@@ -575,16 +590,27 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             >
               🔍 问这个目标
             </button>
+            {/*
+              目标级作废的两段式 (决策 #57)：第一段把**级联**说清——底下有几条还在跟，
+              以及它们**不会自动作废**（既有裁决保持：目标死了不等于底下每件事都该停，
+              那是人的判断）。此前这里一下就点掉了，而它的波及面比任何一行都大。
+            */}
             {!retired && goal.row !== undefined && goal.row.stewardedBy === undefined && (
               <button
                 type="button"
-                className={css.cta}
+                className={`${css.cta} ${armed === 'goal' ? css.actDanger : ''}`}
                 disabled={busy === 'goal'}
                 onClick={() => {
+                  if (armed !== 'goal') {
+                    setArmed('goal')
+                    setToast(`作废目标是不可逆的人签发终态。${cascadeLine(goal.counts.open)}再点一次确认。`)
+                    return
+                  }
+                  setArmed('')
                   run('goal', inject.voidCommitment(goal.row?.id ?? '', '操作者在目标页作废'), '目标已作废——底下的承诺请逐条处理。')
                 }}
               >
-                作废这个目标
+                {armed === 'goal' ? '确认作废这个目标？' : '作废这个目标…'}
               </button>
             )}
           </div>
@@ -811,7 +837,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
 
         <div className={css.selfCheck}>
           闭环自检：拆解/委派 · 执行一跳 + 三值状态 · 产出归集 · 回执与验收 ·
-          修理动词族（催/顺延/移交/合并/作废/移出）· 评估 · 真身之变显形
+          修理动词族（催/顺延/移交/合并/作废/收养/摘除）· 评估 · 真身之变显形
           —— 每一环都既看得见又动得了。
           这一页的合法增量只有决断落座、一跳导航、就近动词；每个动词在 IM 里都有兜底说法。
         </div>

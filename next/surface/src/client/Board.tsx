@@ -35,7 +35,7 @@ import {
 } from './store.ts'
 import { revealAside } from './preview.ts'
 import { RoomPicker, errandFor, type Portal } from './RoomPicker.tsx'
-import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
+import { RepairVerbs, cascadeLine, voidGate, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
 import {
   assessAsk, delegateSeed, eventPrepSeed, gapSeed, goalCraftSeed,
@@ -182,13 +182,23 @@ export function YzjBoard(props: BoardProps): ReactNode {
     期中修理动词族**就近** (v4.21 第一档③)。
 
     顺延/移交/合并此前只长在目标页上，于是**一条没挂目标的承诺，它的修理动词在整个
-    产品里都不可达**——它没有目标页可进，而板行上只有「移出」。你在板上看得见它，
+    产品里都不可达**——它没有目标页可进，而板行上只有摘除。你在板上看得见它，
     却对它什么都做不了。
+
+    v4.23+（决策 #57）把这一条推到底：作废与收养/摘除也进了这个菜单。**无归属行没有
+    hub 可去，板就是它唯一的修理入口**——只把入口做出来而里头是说明文字，等于全域不可达
+    换了个样子（修了可见性没修可动性）。
 
     默认收起：行的常显只有四要素 + 三值信号（行信息层级），修理是**要的时候才亮出来**
     的东西。颜色预算同理——它是灰阶的一颗小按钮，不跟异常抢注意力。
   */
   const [repair, setRepair] = useState<Repair | undefined>(undefined)
+  /**
+   * 已经亮出后果、正等第二下的那颗作废 (决策 #57)。
+   *
+   * 一次只可能有一颗：按第二颗等于放弃第一颗，而放弃就是这道门存在的意义。
+   */
+  const [armed, setArmed] = useState('')
   const [field, setField] = useState('')
   const [field2, setField2] = useState('')
   const setLens = useCallback((next: Lens): void => {
@@ -382,15 +392,6 @@ export function YzjBoard(props: BoardProps): ReactNode {
     [view.goals],
   )
 
-  /** 移出目标: the exit from a link. 未挂是合法状态, so this is a move, not an undo. */
-  const unlink = useCallback((id: string): void => {
-    setBusy(id)
-    void inject.unlinkCommitments([id]).then((result) => {
-      setToast(result.error ?? '已移出目标，回到「无归属」。')
-      setBusy('')
-      void refresh()
-    })
-  }, [inject, refresh])
 
   const voidRow = useCallback((row: BoardRowWire): void => {
     setBusy(row.id)
@@ -629,17 +630,6 @@ export function YzjBoard(props: BoardProps): ReactNode {
             修理
           </button>
         )}
-        {inGoal && row.status === 'open' && row.stewardedBy === undefined && (
-          <button
-            type="button"
-            className={css.unlink}
-            disabled={busy === row.id}
-            title="把它移回「无归属」——不是所有工作都为某个目标服务"
-            onClick={() => { unlink(row.id) }}
-          >
-            移出
-          </button>
-        )}
         {/*
           过程 = 一跳可达，绝不搬运 (v4.9).
           One line of summary so the reader can decide whether to make the hop;
@@ -677,7 +667,17 @@ export function YzjBoard(props: BoardProps): ReactNode {
               {row.notified === 'failed' ? ' · 本人未被通知' : ''}
             </div>
             <div className={css.repairPick}>
-              {([['postpone', '顺延期限'], ['handoff', '移交'], ['merge', '合并']] as const)
+              {/*
+                **修理条 = 可执行的动词条，不是说明文字** (决策 #57).
+
+                作废与收养/摘除此前不在这里：作废只长在目标组头上，摘除是行上一颗单独的
+                按钮，而**无归属行没有目标页可去，板就是它唯一的修理入口**——占位即全域
+                不可达。收养（无归属）与摘除（有归属）**互斥**：同一格的加减法。
+              */}
+              {([
+                ['postpone', '顺延期限'], ['handoff', '移交'], ['merge', '合并'],
+                ['void', '作废…'], ['attach', row.goalRef === undefined ? '收养' : '摘除'],
+              ] as const)
                 .map(([kind, label]) => (
                   <button
                     type="button"
@@ -692,6 +692,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
             <RepairVerbs
               repair={repair}
               siblings={siblingsOf(row)}
+              goals={goalOptions}
               inject={inject}
               busy={busy !== ''}
               field={field}
@@ -958,17 +959,29 @@ export function YzjBoard(props: BoardProps): ReactNode {
         {goal.row !== undefined && goal.row.status === 'open' && goal.row.stewardedBy === undefined && (
           <button
             type="button"
-            className={css.voidGoal}
+            className={`${css.voidGoal} ${armed === goal.row.id ? css.voidArmed : ''}`}
             disabled={busy === goal.row.id}
             /*
               作废只作废这一条。子承诺的 parentGoalRef 没人改，也不该由一次
               作废去改——它们仍是真实的活。板子刻意让退休目标继续持有还有活的
               那一组，所以「会回到无归属」是句假话。
+
+              **两段式** (决策 #57)：第一段把级联说清（底下有几条、它们不会自动作废），
+              第二段才动手。目标级作废的波及面比一行大得多，而它此前是一下点掉的。
             */
-            title="作废这个目标。它下面的工作不会自动移走——仍在原处，可以逐条「移出」"
-            onClick={() => { voidRow(goal.row as BoardRowWire) }}
+            title="作废这个目标。它下面的工作不会自动移走——仍在原处，可以逐条「摘除」"
+            onClick={() => {
+              const id = goal.row?.id ?? ''
+              if (armed !== id) {
+                setArmed(id)
+                setToast(`作废目标是不可逆的人签发终态。${cascadeLine(goal.counts.open)}再点一次确认。`)
+                return
+              }
+              setArmed('')
+              voidRow(goal.row as BoardRowWire)
+            }}
           >
-            作废
+            {voidGate(armed === goal.row.id).label}
           </button>
         )}
       </div>

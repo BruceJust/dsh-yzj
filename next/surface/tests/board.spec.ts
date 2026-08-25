@@ -20,6 +20,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import { boardShape, nudgeDraft, sinceText } from '../src/client/Board.tsx'
+import { cascadeLine, voidGate } from '../src/client/RepairVerbs.tsx'
 import {
   assessmentCard, assessmentFamily, createCommitmentCard, commitmentFamily, eventFamily,
   goalCommitmentIdFor, taskFamily,
@@ -1064,3 +1065,32 @@ describe('欠我的：委派者从哪一格来', () => {
     expect(directionOfRow('cmt-li-3')).toBe('observed')
   })
 })
+
+/**
+ * 作废确认门 (决策 #57)。
+ *
+ * 作废是**不可逆的人签发终态**：等待它的对象级联收口、真身上回写一笔。按摩擦三分法，
+ * 这属于主权摩擦必须保留的场景——**一键作废与一键验收同罪**。
+ *
+ * 钉在这里而不是各页面里，是因为门有三个入口（板行 / 板上目标组头 / 目标页两处）。三处
+ * 各写各的文案，迟早有一处的门看起来像个建议，而那一处就是事故发生的地方。
+ */
+describe('作废这道门', () => {
+  it('第一段亮出后果，第二段才动手', () => {
+    expect(voidGate(false)).toEqual({ label: '作废…', danger: false })
+    // 省略号不是排版：它说的是「还没完」。第二段换词也换色——这一下是不可逆的。
+    expect(voidGate(true)).toEqual({ label: '确认作废？', danger: true })
+  })
+
+  /*
+    **级联显形，不是级联执行。** 目标死了不等于底下每件事都该停，那是人的判断（摩擦
+    保留）；但不说有几条，人按下的就是一个不知道波及面的不可逆动作。
+  */
+  it('目标级作废要当场说出底下有几条，并说明它们不会被一起作废', () => {
+    expect(cascadeLine(3)).toContain('3 条')
+    expect(cascadeLine(3)).toContain('不会自动作废')
+    // 一条都没有的时候不说「0 条不会自动作废」——那是一句正确但没人需要的话。
+    expect(cascadeLine(0)).toBe('底下没有还在跟的承诺。')
+  })
+})
+
