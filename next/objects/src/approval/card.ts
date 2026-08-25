@@ -111,7 +111,8 @@ export const approvalCard: CardDefinition<ApprovalState> = {
     const head = `【云之家确认】${state.reason}`
     const body = [
       head,
-      `工具：${state.toolName}${state.level === 'strong' ? '（强风险，不可撤销）' : ''}`,
+      // 「每次都问」是判据；「不可撤销」只是其中一种理由（另一种是改变触达面）。
+      `工具：${state.toolName}${state.level === 'strong' ? '（强风险，每次都问）' : ''}`,
       ...(argLines(state.args).length === 0 ? [] : ['参数：', ...argLines(state.args)]),
     ]
     if (state.status === 'interrupted') {

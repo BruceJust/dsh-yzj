@@ -172,7 +172,14 @@ export function CardRow(props: CardRowProps): ReactNode {
             云之家 · {STATUS[status] ?? status}
           </span>
           <span className={css.title}>{text(state.reason) || '需要确认'}</span>
-          {strong && <span className={css.risk}>强风险 · 不可撤销</span>}
+          {/*
+            徽标说的是**这道门为什么在这儿**，不是一句关于后果的断言。
+
+            强风险这一族有两种理由：做了收不回（删文档、作废），或者改变触达面（建群、
+            把一条惯例记成「不限场所」）。后者是撤销得掉的，而卡上顶着「不可撤销」，
+            这张卡自己就成了那句谎——和场所合同面板那一格同一处病。
+          */}
+          {strong && <span className={css.risk}>强风险 · 每次都问</span>}
         </div>
         <div className={css.fields}>
           <span className={css.fieldKey}>工具</span>
