@@ -1088,7 +1088,9 @@ describe('作废这道门', () => {
   */
   it('目标级作废要当场说出底下有几条，并说明它们不会被一起作废', () => {
     expect(cascadeLine(3)).toContain('3 条')
-    expect(cascadeLine(3)).toContain('不会自动作废')
+    expect(cascadeLine(3)).toContain('不会被一起作废')
+    // 这句话同时进 toast 和面板 span，两处都不过 markdown——星号只会被原样显示出来。
+    expect(cascadeLine(3)).not.toContain('**')
     // 一条都没有的时候不说「0 条不会自动作废」——那是一句正确但没人需要的话。
     expect(cascadeLine(0)).toBe('底下没有还在跟的承诺。')
   })

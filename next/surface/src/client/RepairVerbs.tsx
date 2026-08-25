@@ -2,7 +2,7 @@
  * 期中修理动词族 —— **就近，而不是只在某一个页面里**。
  *
  * 顺延 / 移交 / 合并这三个动词此前只长在目标页上。后果是：**一条没挂目标的承诺，
- * 它的修理动词在整个产品里都不可达**——它没有目标页可进，而板行上只有「移出」。
+ * 它的修理动词在整个产品里都不可达**——它没有目标页可进，而板行上只有摘除。
  * 一件事登记错了期限、换了人、和另一条其实是同一件，你在板上看得见它，却对它
  * 什么都做不了（v4.21 第一档③）。
  *
@@ -52,7 +52,9 @@ export function voidGate(armed: boolean): { readonly label: string; readonly dan
 export function cascadeLine(openChildren: number): string {
   return openChildren === 0
     ? '底下没有还在跟的承诺。'
-    : `底下 ${String(openChildren)} 条还在跟的承诺**不会自动作废**——它们仍是真实的活，各自的裁决保持，可逐条处理。`
+    // 纯文本：它同时进 toast 和面板里的一个 span，两处都不过 markdown——写了星号就
+    // 只是把星号显示出来。语气靠词本身，不靠标记。
+    : `底下 ${String(openChildren)} 条还在跟的承诺不会被一起作废——它们仍是真实的活，各自的裁决保持，可逐条处理。`
 }
 
 export function RepairVerbs(props: {
