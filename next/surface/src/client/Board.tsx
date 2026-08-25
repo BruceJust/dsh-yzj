@@ -123,6 +123,22 @@ export function sinceText(at: number, now: number = Date.now()): string {
  * - **不替人定调**：不写「请尽快」「麻烦了」。语气是社交决策，是发话的人自己的事——
  *   拟稿只把事实摆上，剩下的留给他改。
  */
+/**
+ * 这一屏此刻**按什么组织** —— 透镜 = 换组织轴，不是过滤器 (决策 #56).
+ *
+ * 抽成一个函数而不是散在 JSX 的条件里，是因为它是一条**判断**：方向透镜一开，目标分组
+ * 就整个退场（组头/组 CTA/出生线/无归属分节全收起），行按信号序平铺。散着写的话，四个
+ * 分支里漏掉一个，症状就是那次抓到的「欠我的显示的都是目标名称列表」——透镜换了问题，
+ * 组织轴没换。
+ */
+export function boardShape(
+  axis: 'all' | 'owed-to-me' | 'mine', lens: 'all' | 'goals',
+): 'flat' | 'grouped' {
+  // 方向透镜盖过档位：它此刻问的不是「这条服务于哪个目标」。
+  if (axis !== 'all') return 'flat'
+  return lens === 'goals' ? 'grouped' : 'flat'
+}
+
 export function nudgeDraft(
   row: { what: string; due?: { text: string }; overdue: boolean },
 ): string {
@@ -488,6 +504,35 @@ export function YzjBoard(props: BoardProps): ReactNode {
           起来和「在跑」一模一样，而它其实在等你。它排在三值信号前面：等你答的事，
           比「多久没动」更该先被看见。
         */}
+        {/*
+          **目标降为行内 chip** —— 从骨架降为上下文 (决策 #56)。
+
+          透镜一开，目标组整个退场：那一屏问的是「张锐那边怎么样」，不是「目标第三条
+          怎么样」。但**一跳指路不能丢**——所以目标以一枚 chip 留在行上，点它就回到那个
+          目标的枢纽。
+
+          只在行**不在目标组里**时出现：组里那一行头上就顶着组名，再挂一枚 chip 是把
+          同一句话说两遍。
+        */}
+        {!inGoal && row.goalRef !== undefined && goalNameOf.get(row.goalRef) !== undefined && (
+          <button
+            type="button"
+            className={css.goalChip}
+            title="回到这个目标：决断、执行清单、产出、评估都在里面"
+            onClick={() => {
+              pushFrame(
+                {
+                  kind: 'goal',
+                  goalRef: row.goalRef as string,
+                  goalName: goalNameOf.get(row.goalRef as string) as string,
+                },
+                scrollTop(),
+              )
+            }}
+          >
+            ◎ {goalNameOf.get(row.goalRef)}
+          </button>
+        )}
         {row.status === 'open' && row.awaitingAcceptance === true && (
           <span className={css.awaiting} title="对方主张已经交付，等你验收或打回">
             待验收
@@ -938,23 +983,16 @@ export function YzjBoard(props: BoardProps): ReactNode {
       )}
       {!closed && <div className={css.goalChildren}>
         {/*
-          **空状态要分清「真的没有」和「被筛掉了」。**
+          这里只剩**一种**空了。
 
-          方向轴只取舍不改事实，可这句「还没有工作挂在这个目标下」是一句关于**事实**的话。
-          切到「欠我的」之后，一个挂满了别人的活的目标会显示这句话——那是筛选造成的假话，
-          而它长得和真的空目标一模一样。出生故事律的对偶：每一类空状态都得说清自己是**哪
-          一种**空。
+          此前这一格分两种：真的空，和「被方向轴筛掉了」——因为方向轴当时是个过滤器，
+          会在一个挂满了别人的活的目标下印出「还没有工作挂在这个目标下」这句假话。
+          决策 #56 之后透镜激活时整个目标分组退场，这一支根本到不了；留着一个到不了
+          的分支，就是留着一句没人能验证的话。
         */}
         {goal.children.length === 0
           ? <div className={css.goalEmpty}>还没有工作挂在这个目标下。</div>
-          : goal.children.filter(inAxis).length === 0
-            ? (
-              <div className={css.goalEmpty}>
-                这个目标下有 {goal.children.length} 条，
-                但<b>没有一条落在当前这个方向</b>上——切回「全部」看得到。
-              </div>
-            )
-            : goal.children.filter(inAxis).map(child => rowNode(child, false, true))}
+          : goal.children.map(child => rowNode(child, false, true))}
       </div>}
       {/*
         产出 = 两跳派生归集（目标→承诺→工件）.
@@ -1148,6 +1186,25 @@ export function YzjBoard(props: BoardProps): ReactNode {
   const inAxis = (row: BoardRowWire): boolean => axis === 'all' || row.direction === axis
 
   /*
+    **透镜 = 换组织轴，不是过滤器** (决策 #56)。
+
+    症状是「欠我的显示的都是目标名称列表」。病根不在筛选，在**组织轴没换**：「欠我的」
+    的原生问题是**债务人 × 账龄/信号**，横切目标——催张锐的时候人想的是「张锐那边怎么
+    样」，不是「目标第三条怎么样」（会计的应收报表按债务人×账龄组织，从不按项目）。
+
+    目标分组是「全部」视图的**正确骨架**，而透镜一开它就成了噪音：一屏的组头、组 CTA、
+    出生线，全都在回答一个此刻没人在问的问题。所以透镜激活时它整个退场，行按信号序
+    平铺，目标**降为行内一枚 chip**——从骨架降为上下文，一跳指路一点没丢。
+
+    两册同规则：「我欠的」是行动清单，同样不顶目标组头。
+  */
+  const axisOn = boardShape(axis, lens) === 'flat' && axis !== 'all'
+  /** 行内那枚 chip 要显示的名字。查不到就不显示——不拿 URI 冒充名字。 */
+  const goalNameOf = new Map(
+    view.goals.map(entry => [entry.goalRef, entry.row?.what] as const),
+  )
+
+  /*
     可以合并进去的同伴。
 
     **同组之内**：挂同一个目标的，或者同为「无归属」的。跨目标合并不在这里给——
@@ -1261,15 +1318,33 @@ export function YzjBoard(props: BoardProps): ReactNode {
           全部视图里也要分清两种空：板上真的没有承诺（那是空板的出生故事，上面那段
           `view.rows.length === 0` 管），和**这个方向上没有**（切回去就看得到）。
         */}
-        {lens === 'all' && view.rows.length > 0 && view.rows.filter(inAxis).length === 0 && (
-          <div className={css.calm}>
-            可见域里有 {String(view.rows.length)} 条承诺，
-            但<b>没有一条是「{axis === 'mine' ? '我欠的' : '欠我的'}」</b>——切回「全部」看得到。
-          </div>
-        )}
-        {lens === 'all' && view.rows.filter(inAxis).map(row => rowNode(row))}
+        {/*
+          透镜激活：目标分组退场，一屏按信号序平铺（决策 #56）。
 
-        {lens === 'goals' && (
+          这一段**盖过档位**（全部/按目标）——不是忽略它，是它此刻问的不是同一个问题。
+          说出来，比让一颗按下去没反应的档位按钮杵在那儿好。
+        */}
+        {axisOn && (
+          <>
+            <div className={css.axisNote}>
+              {axis === 'mine'
+                ? <><b>我欠的</b> · 行动清单——按急迫序平铺，目标退成行内一枚 chip</>
+                : <><b>欠我的</b> · 应收账簿——按债务人的账龄与信号平铺；这一问横切目标，所以目标组退场</>}
+            </div>
+            {view.rows.filter(inAxis).length === 0
+              ? (
+                <div className={css.calm}>
+                  可见域里有 {String(view.rows.length)} 条承诺，
+                  但<b>没有一条是「{axis === 'mine' ? '我欠的' : '欠我的'}」</b>——切回「全部」看得到。
+                </div>
+              )
+              : view.rows.filter(inAxis).map(row => rowNode(row))}
+          </>
+        )}
+
+        {!axisOn && lens === 'all' && view.rows.map(row => rowNode(row))}
+
+        {!axisOn && lens === 'goals' && (
           <>
             <div className={css.goalsHead}>
               <span className={css.goalsCount}>{view.goals.length} 个目标</span>
@@ -1292,17 +1367,10 @@ export function YzjBoard(props: BoardProps): ReactNode {
                   <b>这是合法状态</b>，不是错误；勾上几条可以一次补挂。
                 </span>
               </div>
-              {/* 同一条纪律：分清「真的都挂上了」和「被方向轴筛掉了」。 */}
+              {/* 同上：透镜激活时这一整节都退场，所以「被筛掉了」那一支到不了。 */}
               {view.unattached.length === 0
                 ? <div className={css.goalEmpty}>看得见的工作都挂上了。</div>
-                : view.unattached.filter(inAxis).length === 0
-                  ? (
-                    <div className={css.goalEmpty}>
-                      有 {view.unattached.length} 条没挂目标，
-                      但<b>没有一条落在当前这个方向</b>上——切回「全部」看得到。
-                    </div>
-                  )
-                  : view.unattached.filter(inAxis).map(row => rowNode(row, true))}
+                : view.unattached.map(row => rowNode(row, true))}
               {picked.length > 0 && (
                 <div className={css.batch}>
                   <span className={css.batchCount}>已选 {picked.length} 条 → 挂到</span>

@@ -581,3 +581,18 @@
 .execBack:hover { color: var(--yzj-pub-deep); border-color: var(--yzj-pub-line); }
 /* 这句话会让谁听见——写在场所名旁边，不让人自己推断 */
 .roomKind { font-size: 9.5px; font-weight: 400; color: var(--yzj-ink-3); margin-left: 6px; }
+
+/* 目标降为行内 chip（决策 #56）：透镜一开目标组退场，一跳指路留在行上 */
+.goalChip {
+  flex: none; max-width: 180px; font: inherit; font-size: 10px;
+  padding: 1.5px 8px; border-radius: 12px; cursor: pointer;
+  border: 1px dashed #B9C4D6; background: #F7F9FC; color: #3D4C66;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.goalChip:hover { border-style: solid; color: var(--yzj-pub-deep); }
+/* 透镜说明：这一屏此刻按什么组织 —— 一行，不抢行的注意力 */
+.axisNote {
+  margin: 2px 0 10px; padding: 7px 12px; border-radius: 9px;
+  background: var(--yzj-paper); color: var(--yzj-ink-2);
+  font-size: 11px; line-height: 1.6;
+}

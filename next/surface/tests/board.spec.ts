@@ -19,7 +19,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { nudgeDraft, sinceText } from '../src/client/Board.tsx'
+import { boardShape, nudgeDraft, sinceText } from '../src/client/Board.tsx'
 import {
   assessmentCard, assessmentFamily, commitmentCard, commitmentFamily, eventFamily,
   goalCommitmentIdFor,
@@ -868,5 +868,28 @@ describe('会上要用的东西，按 URI 去重', () => {
 
   it('一件活都没挂时是空清单，不是崩', () => {
     expect(materialsOf({ ...event, prepares: [] })).toEqual([])
+  })
+})
+
+/**
+ * 透镜 = **换组织轴，不是过滤器** (决策 #56).
+ *
+ * 症状是「欠我的显示的都是目标名称列表」。病根不在筛选，在**组织轴没换**：「欠我的」的
+ * 原生问题是债务人 × 账龄/信号，横切目标——催张锐的时候人想的是「张锐那边怎么样」，
+ * 不是「目标第三条怎么样」。目标分组是「全部」视图的正确骨架，透镜一开它就成了噪音。
+ */
+describe('方向透镜一开，目标分组退场', () => {
+  it('「全部」下档位说了算', () => {
+    expect(boardShape('all', 'goals')).toBe('grouped')
+    expect(boardShape('all', 'all')).toBe('flat')
+  })
+
+  /*
+    **盖过档位**，不是忽略它：透镜此刻问的不是「这条服务于哪个目标」，所以那个骨架
+    回答的是一个没人在问的问题。两册同规则——「我欠的」是行动清单，同样不顶目标组头。
+  */
+  it.each(['owed-to-me', 'mine'] as const)('「%s」下即使档位是按目标，也平铺', (axis) => {
+    expect(boardShape(axis, 'goals')).toBe('flat')
+    expect(boardShape(axis, 'all')).toBe('flat')
   })
 })
