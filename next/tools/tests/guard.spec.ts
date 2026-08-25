@@ -164,6 +164,39 @@ describe('write gating', () => {
       .toMatchObject({ kind: 'ask' })
   })
 
+  /*
+    **门看的是确认表，不是名字前缀** (v3.15 裁决② 的实测教训).
+
+    这两条判据此前压在同一行里（`if (!name.startsWith('yzj_')) return next()`）。于是
+    三个 `commitment_*` 写进确认表之后，**表里有、门不看**——对着 agent 说一句「把那条
+    作废掉」，墓碑当场就立了，一次确认都没弹，而那条裁决的全部要点正是「人签发」。
+
+    上一版我为它写的单测只断言了**表里那一格**（`WRITE_SPECS.commitment_void.level`），
+    没断言门真的会开口——一条锁住数据、锁不住行为的断言，正是它自己要防的那种。这里锁
+    的是行为。
+  */
+  it('对象层的写工具也要过门 —— 作废是强确认，一次都不许漏', async () => {
+    const decision = await decide(execution('commitment_void', { commitmentId: 'c-1' }))
+    expect(decision).toMatchObject({ kind: 'ask' })
+    expect(asks[0]?.ask).toMatchObject({ toolName: 'commitment_void', level: 'strong' })
+  })
+
+  it('顺延与移交在桌面回合里同样要问', async () => {
+    binding = DESKTOP_BINDING
+    expect(await decide(execution('commitment_postpone', { commitmentId: 'c-1', due: '下周五' })))
+      .toMatchObject({ kind: 'ask' })
+    expect(await decide(execution('commitment_handoff', { commitmentId: 'c-1', openId: 'u-2' })))
+      .toMatchObject({ kind: 'ask' })
+  })
+
+  /*
+    不在表里的工具照旧直通：门不是一道「凡是没见过的都拦下」的墙，那会把每一次读都
+    变成一次打断。
+  */
+  it('表外的工具不受影响', async () => {
+    expect(await decide(execution('graph_query', {}))).toMatchObject({ kind: 'allow' })
+  })
+
   it('honours a conditional gate (download only asks when it would overwrite)', async () => {
     binding = DESKTOP_BINDING
     expect(await decide(execution('yzj_file_download', { id: 'f1' }))).toMatchObject({ kind: 'allow' })

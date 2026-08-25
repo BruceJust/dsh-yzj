@@ -156,12 +156,16 @@ export function denialFor(ctx: Context, exec: Pick<ToolExecution, 'name' | 'agen
       ? '轻问是只读投影，不能使用 shell 或委派执行类工具'
       : '云之家触发的回合不能使用 shell 或委派执行类工具'
   }
-  if (!exec.name.startsWith('yzj_')) return undefined
-  // A projection that can write is not a projection. Denied in the monotonic
-  // guard so no earlier listener's `allow` can hand the authority back.
+  /*
+    只读投影的判据同样跟着**确认表**走，不跟着前缀走 (v3.15 裁决② 同一处教训)。
+
+    轻问是「问一个数得一个数，不做任何写入」——一个能作废承诺的工具当然算写入，哪怕
+    它的名字不以 `yzj_` 打头。
+  */
   if (readOnly && WRITE_SPECS[exec.name] !== undefined) {
     return '轻问是只读投影：问一个数得一个数，不做任何写入。需要写就用普通提问开一个任务。'
   }
+  if (!exec.name.startsWith('yzj_')) return undefined
   if (binding?.messageId !== undefined && ctx.yzjGraph.isRevoked(binding.messageId)) {
     return '云之家任务授权已被撤销（超时或人工取消）'
   }
@@ -245,12 +249,30 @@ export function applyApprovalGuard(ctx: Context): () => void {
     // call never prompts anybody. The guard remains the backstop.
     const denial = denialFor(ctx, exec)
     if (denial !== undefined) return { kind: 'deny', reason: denial }
-    if (!exec.name.startsWith('yzj_')) return next()
+    /*
+      **确认表是「要不要问」的判据，`yzj_` 前缀是「是不是一次平台调用」的判据。**
 
+      这两件事此前压在同一行里：`if (!exec.name.startsWith('yzj_')) return next()`。
+      于是 v3.15 裁决② 把三个 `commitment_*` 写进确认表之后，**表里有、门不看**——
+      作废一条承诺**一次确认都不弹**就落库了，而那条裁决的全部要点正是「人签发」。
+      实测抓到的（对着 agent 说一句「把那条作废掉」，墓碑当场就立了）；而我为它写的
+      单测只断言了**表里那一格**，没断言门真的会开口——一条锁住数据、锁不住行为的
+      断言，正是它自己要防的那种。
+
+      身份重钉与 env 快照仍然只对平台调用做：那两件事问的是「这次调用要不要用云之家
+      的账号」，与要不要人点头无关。
+      */
     const agent = exec.agent
     const binding = bindingFor(ctx, agent)
-    if (binding !== undefined && binding.messageId !== undefined) await assertIdentity(binding)
-    if (agent !== undefined) await recordEnvSnapshot(agent, binding)
+    /*
+      身份重钉与 env 快照跟着**平台调用**走，读也要做：前者问的是「这次调用要不要用
+      云之家的账号」，后者是「这一回合碰过云之家没有」。它们和「要不要人点头」是两个
+      问题——压在同一个前缀判断里，正是下面那条 bug 的成因。
+    */
+    if (exec.name.startsWith('yzj_')) {
+      if (binding !== undefined && binding.messageId !== undefined) await assertIdentity(binding)
+      if (agent !== undefined) await recordEnvSnapshot(agent, binding)
+    }
 
     const spec = WRITE_SPECS[exec.name]
     if (spec === undefined) return next()
