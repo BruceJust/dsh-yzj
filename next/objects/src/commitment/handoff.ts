@@ -63,6 +63,23 @@ export function reissuable(
 }
 
 /**
+ * 这条边**登记在哪个场所** —— 一份答案，三个提问者。
+ *
+ * 提问的有三处：预选当前值那一屏（现场所要标出来）、「都不改 = 无事发生」那道守卫、
+ * 解除告知往哪儿落。它们必须得到同一个答案，否则会长出一种最难查的谎：界面标着「现在
+ * 就在这儿」，守卫却认为场所变了，于是一次真正的空操作被放行。
+ *
+ * **两条来路，因为哪一条都可能缺**：`audience` 是登记那句话确立的听众（正常路径都有），
+ * 而更早的一些生产者只记了 `topicKey`。少写这条回退，那些行会同时失去守卫和告知。
+ */
+export function placeOfEdge(ctx: Context, state: CommitmentState): string | undefined {
+  const listed = (state.audience ?? [])[0]
+  if (listed !== undefined) return listed
+  if (state.topicKey === undefined) return undefined
+  return ctx.yzjGraph.topicHandle(state.topicKey)?.placeKey
+}
+
+/**
  * 两维都没变 = **无事发生**（决策 #59 的守卫）。
  *
  * 不是省一次写：一次「什么都没改的移交」会在图上留下一条 transferred 的旧边和一条内容
@@ -70,13 +87,13 @@ export function reissuable(
  * 留在了那条没人再看的旧边上——**代价全付了，什么都没换到**。
  */
 export function nothingChanges(
+  ctx: Context,
   state: CommitmentState,
   plan: { readonly executor: { readonly openId: string }; readonly placeKey: string },
 ): boolean {
   const now = state.executor
   const samePerson = now.kind === 'human' && now.openId === plan.executor.openId
-  const samePlace = (state.audience ?? []).includes(plan.placeKey)
-  return samePerson && samePlace
+  return samePerson && placeOfEdge(ctx, state) === plan.placeKey
 }
 
 /**
@@ -148,15 +165,8 @@ export async function reissueEdge(
     },
     actor: ctx.yzjCards.desktopActor(),
   })
-  /*
-    旧边的登记场所 —— 解除告知要往那儿落。
-
-    **两条来路，因为哪一条都可能缺**：`audience` 是登记那句话确立的听众（正常路径都
-    有），而更早的一些生产者只记了 `topicKey`。少写这条回退的后果不响不闹：那些行移交
-    出去之后，旧执行者**永远收不到解除告知**，而回执里还写着「已移交」。
-  */
-  const fromPlaceKey = (old.audience ?? [])[0]
-    ?? (old.topicKey === undefined ? undefined : ctx.yzjGraph.topicHandle(old.topicKey)?.placeKey)
+  // 解除告知要往那儿落。和守卫、和预选那一屏读同一个答案（见 `placeOfEdge`）。
+  const fromPlaceKey = placeOfEdge(ctx, old)
   return {
     toCommitmentId,
     ...(fromPlaceKey === undefined ? {} : { fromPlaceKey }),

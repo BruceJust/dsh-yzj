@@ -266,6 +266,31 @@ describe('近处候选', () => {
     expect(await candidates()).toEqual([])
   })
 
+  /*
+    **转手过的那一条：人还是候选，出处得说对**（决策 #59）。
+
+    移交是一次真的、发生过的委派，所以它和已完成的那些同一档——不进撤回名单。可这条边
+    已经转走了，再说「这个目标里已经有他的活」就是假话，而出处正是这一层候选存在的全部
+    理由：一个说不出自己为什么在这里的候选，等于「系统觉得你想找谁」。
+  */
+  it('移交走的那条：还算「最近委派过」，但不再算「这个目标里有他的活」', async () => {
+    await person('c4', 'u-zhang', '张锐', { parentGoalRef: GOAL })
+    await graph.append({
+      type: 'commitment/transferred',
+      data: {
+        commitmentId: 'c4',
+        transferredTo: {
+          commitmentId: 'c5',
+          executor: { kind: 'human', openId: 'u-other', name: '王五' },
+          at: Date.now(),
+        },
+      },
+      actor: ME,
+    })
+    const rows = await candidates()
+    expect(rows.find(one => one.openId === 'u-zhang')?.why).toBe('你最近委派过他')
+  })
+
   it('一个候选都没有就是空的 —— 第一次用这个产品的人本来就没有近处', async () => {
     expect(await candidates()).toEqual([])
   })

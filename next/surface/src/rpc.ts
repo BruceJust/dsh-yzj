@@ -17,7 +17,8 @@ import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
 import {
   commitmentIdFor, createGoalBody, eventHub, executorName, failureOf, goalCommitmentIdFor,
-  nothingChanges, ownsCommitment, readinessLine, reissuable, reissueEdge, releaseNotice,
+  nothingChanges, ownsCommitment, placeOfEdge, readinessLine, reissuable, reissueEdge,
+  releaseNotice,
   transferredToName, type CommitmentState,
 } from '@yzj-next/objects'
 import type {} from '@yzj-next/channel'
@@ -2432,7 +2433,7 @@ async function handoffFromPrior(
   }
   const gate = reissuable(state)
   if ('refusal' in gate) return { note: gate.refusal }
-  if (nothingChanges(gate.state, { executor: { openId }, placeKey: input.placeKey })) {
+  if (nothingChanges(ctx, gate.state, { executor: { openId }, placeKey: input.placeKey })) {
     return { note: '人没换、场所也没换——这句话发出去了，但没有构成一次移交。' }
   }
   const done = await reissueEdge(ctx, {
@@ -2936,9 +2937,10 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                   // agent 执行的那条没有可预选的人：移交给人是一次真的换手，
                   // 而 agent 那一头的「换人」是重新委派，不是这个动词。
                   : undefined,
-                ...((state.audience ?? [])[0] === undefined
+                // 和守卫、和解除告知读同一个答案——三处各读各的，就会有一次空操作被放行。
+                ...(placeOfEdge(scoped, state) === undefined
                   ? {}
-                  : { placeKey: (state.audience ?? [])[0] }),
+                  : { placeKey: placeOfEdge(scoped, state) as string }),
               },
             }
           }
@@ -3315,7 +3317,16 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               */
               const status = asString(state?.status) ?? 'open'
               if (status === 'voided' || status === 'merged') continue
-              const here = goalRef !== undefined && asString(state?.parentGoalRef) === goalRef
+              /*
+                **移交出去的那条不再是「他在这个目标里的活」**（决策 #59）。
+
+                转手是一次真的、发生过的委派，所以它照样算「你最近委派过他」——和已完成
+                的那些同一档，不进上面那条撤回名单。可**出处必须说对**：这条边已经转走了，
+                再说「这个目标里已经有他的活」就是一句假话，而出处正是这一层候选存在的
+                全部理由（一个说不出自己为什么在这里的候选，等于「系统觉得你想找谁」）。
+              */
+              const here = status === 'open'
+                && goalRef !== undefined && asString(state?.parentGoalRef) === goalRef
               // 我委派过的才算「最近委派过」——别人委派的活不是我的事实。
               const mine = asString(state?.delegatedBy) === me
               if (!here && !mine) continue

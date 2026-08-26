@@ -46,7 +46,7 @@ export {
 } from './commitment/family.ts'
 export { applyCommitmentTools } from './commitment/tools.ts'
 export {
-  executorName, handoffDraft, nothingChanges, reissuable, reissueEdge, releaseNotice,
+  executorName, handoffDraft, nothingChanges, placeOfEdge, reissuable, reissueEdge, releaseNotice,
   transferredToName,
   type Reissued, type ReissuePlan,
 } from './commitment/handoff.ts'
