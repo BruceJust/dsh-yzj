@@ -58,6 +58,7 @@ export {
   type GoalArtifact, type GoalChild, type GoalEvidence,
 } from './goal/evidence.ts'
 export { applyGoalTools } from './goal/tools.ts'
+export { createGoalBody, goalBodyLink, type GoalBodyMade } from './goal/body.ts'
 export { eventFamily, type EventState } from './event/family.ts'
 export {
   eventHub, materialsFor, readinessLine,

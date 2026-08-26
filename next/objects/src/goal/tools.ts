@@ -25,6 +25,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import { asRecord, asString, type GraphViewer } from '@yzj-next/graph'
 import type { TurnBinding } from '../turns.ts'
 import { goalEvidence, visibleGoals } from './evidence.ts'
+import { createGoalBody } from './body.ts'
 import {
   assessmentIdFor, goalCommitmentIdFor, proposalIdFor, proposalSettled, type ProposalState,
 } from './family.ts'
@@ -135,12 +136,13 @@ export function applyGoalTools(ctx: Context): () => void {
 
   register(defineTool({
     name: 'goal_propose',
-    description: 'Propose a GOAL for a person to sign off, after you have helped them think one through. You cannot create a goal — only propose one. Use this at the end of a goal-drafting conversation ("帮我想想这个季度的目标"), never on your own initiative. Always include successCriteria: a goal nobody can say "done" about cannot be accepted later. The goal\'s real body is a Yunzhijia document. If you were not given a link, MAKE ONE before proposing: yzj_doc_create for the document, then yzj_doc_block_insert to write the success criteria into its body — the assessment later reads the criteria back out of that body, so criteria that live only in the proposal are criteria nobody can assess against. Both calls go through the operator\'s normal write confirmation; pass the resulting link as goalRef.',
+    description: 'Propose a GOAL for a person to sign off, after you have helped them think one through. You cannot create a goal — only propose one. Use this at the end of a goal-drafting conversation ("帮我想想这个季度的目标"), never on your own initiative. Always include successCriteria: a goal nobody can say "done" about cannot be accepted later. The goal\'s real body is a Yunzhijia document, and this tool creates it for you: pass `workspace` (the knowledge base id from yzj_doc_workspace_list) and it makes the doc and writes the criteria into its body. WHICH knowledge base is the operator\'s decision, not yours — ASK them ("这个目标的真身建在哪个知识库？") and never pick one silently, because who can open that document is who can see this goal. Pass `goalRef` instead when they already have a document. Never ask them to go make the document themselves.',
     presentCall: args => ({ card: 'generic', title: `提案立目标：${String(args.what)}`, kind: 'edit' }),
     parameters: {
       what: { type: 'string', required: true, description: 'The goal, in the owner\'s own words.' },
       successCriteria: { type: 'string', required: true, description: 'How anyone would know it is done — the thing you ground the conversation toward.' },
-      goalRef: { type: 'string', description: 'Link of the Yunzhijia goal document/table, when you were given one.' },
+      goalRef: { type: 'string', description: 'Link of an EXISTING Yunzhijia goal document/table, when they already have one.' },
+      workspace: { type: 'string', description: 'Knowledge base id to create the goal body in (from yzj_doc_workspace_list). Required when there is no goalRef. Ask the operator which one — never choose it yourself.' },
       ownerOpenId: { type: 'string', description: 'openId of the person who owns it; omit for the operator.' },
       ownerName: { type: 'string', description: 'Display name of the owner.' },
       due: { type: 'string', description: 'When it is to be accepted ("季度末"), when stated.' },
@@ -154,17 +156,48 @@ export function applyGoalTools(ctx: Context): () => void {
       const first = freshProposalId(ctx, anchor, args.what)
       if (first.busy) return { content: `这条目标提案已经递过了，还等着裁决。`, proposalId: first.id }
       const proposalId = first.id
-      if (args.goalRef !== undefined) {
+      /*
+        **真身由系统建，落点由人选** —— 三入口同规则（v4.8；看板那一侧已经这么做了）。
+
+        此前这里的出口是一句「请对方在云之家建好目标文档，把链接跟确认一起发过来」：把人
+        推去另一个系统建文档、复制链接、再回来粘上，而这套东西声称要消灭的就是这种损耗。
+        它站在一句已经被推翻的前提上（「agent 建不了云之家文档」）。
+
+        没有真身也没有 workspace 时**拒绝而不是照提**：一条没有真身的目标提案，人裁决完
+        也落不了库（`mint` 要 goalRef），那张卡只会挂在那儿等一个链接。拒绝里带着那句该问
+        的话——**哪个知识库是人的决定**，谁打得开这个文档就是谁看得见这个目标。
+      */
+      let goalRef = args.goalRef
+      let bodyNote = ''
+      if (goalRef === undefined) {
+        if (args.workspace === undefined) {
+          return {
+            content: '这个目标还没有真身。先问一句「真身建在哪个知识库？」——'
+              + '哪个知识库是他的决定（谁打得开那份文档，就是谁看得见这个目标）；'
+              + '用 yzj_doc_workspace_list 把候选列给他，拿到 id 再带 workspace 调一次。'
+              + '**不要请他自己去建文档**，那一步归我们。',
+          }
+        }
+        const made = await createGoalBody(ctx, {
+          workspace: args.workspace,
+          title: args.what,
+          criteria: args.successCriteria,
+        })
+        if ('error' in made) return { content: `真身没建成：${made.error}。目标提案没有递上去。` }
+        goalRef = made.url
+        bodyNote = made.note ?? ''
+      }
+      if (goalRef !== undefined) {
         /*
           Existence is checked RAW on purpose — a goal this turn cannot see
           still owns that URI, and proposing a second one would be a proposal
           that can never be confirmed. But the NAME comes from the scoped read:
           「已经立过了」 is a fact the caller needs; what it is called is not.
         */
-        const owned = ctx.yzjGraph.rawObject('commitment', goalCommitmentIdFor(args.goalRef))
+        const owned = ctx.yzjGraph.rawObject('commitment', goalCommitmentIdFor(goalRef))
         if (owned !== undefined) {
           const visible = ctx.yzjGraph.object(
-            viewerOf(binding), 'commitment', goalCommitmentIdFor(args.goalRef),
+            viewerOf(binding), 'commitment', goalCommitmentIdFor(goalRef),
           )
           const named = asString(asRecord(visible?.state)?.what)
           return {
@@ -188,7 +221,7 @@ export function applyGoalTools(ctx: Context): () => void {
             ...(args.due === undefined ? {} : { due: args.due }),
           }],
           sourceAnchor: anchor,
-          ...(args.goalRef === undefined ? {} : { goalRef: args.goalRef }),
+          ...(goalRef === undefined ? {} : { goalRef }),
           ...(binding?.topicKey === undefined ? {} : { topicKey: binding.topicKey }),
           ...(binding?.placeKey === undefined ? {} : { placeKey: binding.placeKey }),
           ...(binding?.audience === undefined ? {} : { audience: [...binding.audience] }),
@@ -201,9 +234,8 @@ export function applyGoalTools(ctx: Context): () => void {
       return {
         content: [
           `已把目标提案递上去：「${args.what}」。`,
-          args.goalRef === undefined
-            ? '还没有真身链接——请对方在云之家建好目标文档，把链接跟「确认」一起发过来。'
-            : '',
+          args.goalRef === undefined ? `真身已经建好并写进了「怎么算完成」：${goalRef}` : '',
+          bodyNote,
           shown ? '' : '（卡没能投出去，请在回复里把提案内容原样说一遍，让对方能裁决。）',
           '这只是提案。没有人按下确认之前，图上不会有这个目标。',
         ].filter(line => line !== '').join('\n'),

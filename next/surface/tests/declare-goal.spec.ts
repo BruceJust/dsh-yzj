@@ -137,14 +137,37 @@ describe('真身建在云之家', () => {
     ])
   })
 
-  it('建真身：回的是能打开的那条链接', async () => {
+  it('建真身：回的是能打开的那条链接，标准一并写进正文', async () => {
+    const seen: string[][] = []
     bridge = (command) => {
-      expect(command).toEqual(['doc', 'create', '--workspace', 'kb-2', '--title', 'Q3 对账'])
-      return { ok: true, json: { id: 'doc-9', title: 'Q3 对账' } }
+      seen.push([...command])
+      return command[1] === 'create' ? { ok: true, json: { id: 'doc-9' } } : { ok: true, json: {} }
     }
-    const result = await call('create-goal-body', { workspace: 'kb-2', title: 'Q3 对账' })
+    const result = await call('create-goal-body', {
+      workspace: 'kb-2', title: 'Q3 对账', criteria: 'T+3 出报表',
+    })
     expect((result as { value: { url: string } }).value.url)
       .toBe('https://www.yunzhijia.com/knowledge/lingee/#/store/doc/doc-9')
+    expect(seen[0]).toEqual(['doc', 'create', '--workspace', 'kb-2', '--title', 'Q3 对账'])
+    // 标准写进真身：评估是回真身里读它的，只活在图里的标准没人能拿去对账。
+    expect(seen[1]?.slice(0, 4)).toEqual(['doc', 'block', 'insert', '--id'])
+    expect(seen[1]?.[6]).toContain('T+3 出报表')
+  })
+
+  /*
+    **半成功要说成半成功。** 文档建出来了、正文没写进去——把它报成失败，人会再建一份，
+    于是同一个目标有了两个真身；报成成功，日后评估读不到标准而没人知道为什么。
+  */
+  it('正文没写进去：链接照给，但把这件事说出来', async () => {
+    bridge = (command) => (command[1] === 'create'
+      ? { ok: true, json: { id: 'doc-9' } }
+      : { ok: false, stderr: '正文接口拒绝' })
+    const result = await call('create-goal-body', {
+      workspace: 'kb-2', title: 'Q3 对账', criteria: 'T+3 出报表',
+    })
+    const value = (result as { value: { url: string; note?: string } }).value
+    expect(value.url).toContain('doc-9')
+    expect(value.note).toContain('没能写进正文')
   })
 
   /*

@@ -60,6 +60,8 @@ let ctx: Context
 let graph: YzjGraph
 let cards: YzjCards
 let tools: Map<string, CapturedTool>
+/** 这一趟 CLI 怎么回话。 */
+let bridge: (command: readonly string[]) => { ok: boolean; json?: unknown; stderr?: string }
 let delivered: { kind: string; id: string; placeKey: string }[]
 /**
  * How the card channel behaves this test.
@@ -118,6 +120,9 @@ beforeEach(async () => {
   cards.setDesktopActor(OPERATOR)
   binding = BINDING
   ctx.provide('yzjTurns', { bindingFor: () => binding, defaultBinding: () => binding })
+  // 建真身要走 CLI。默认让它建成，个别用例换掉它——真身这一段的风险全在这里。
+  bridge = (command) => (command[1] === 'create' ? { ok: true, json: { id: 'doc-new' } } : { ok: true, json: {} })
+  ctx.provide('yzjBridge', { run: async (...args: unknown[]) => bridge(args[0] as string[]) })
   delivered = []
   channel = 'ok'
   /*
@@ -262,12 +267,79 @@ describe('幽灵承诺禁令', () => {
 })
 
 describe('立目标提案：人签发', () => {
-  it('refuses to mint without a body, and mints once the link is pasted', async () => {
+  /*
+    **真身由系统建，落点由人选**（v4.8 三入口同规则）。
+
+    此前这条路的出口是一句「请对方在云之家建好目标文档，把链接跟确认一起发过来」——把人
+    推去另一个系统建文档、复制链接、回来粘上。看板那一侧已经改成「人选知识库、系统建
+    文档」，这一侧跟上。
+  */
+  it('没有真身也没说建在哪儿：拒绝，并带着该问的那句话', async () => {
     const result = await tools.get('goal_propose')?.execute({
       what: '把月结压到三天',
       successCriteria: 'T+3 出报表；差异条目 < 5',
     }, EXEC) as { content: string; proposalId?: string }
-    const proposalId = result.proposalId as string
+    // 不递一张注定裁决不了的卡：没有真身，人按了确认也落不了库。
+    expect(result.proposalId).toBeUndefined()
+    expect(result.content).toContain('哪个知识库')
+    // **不许把活推回给人**——这一句是这次修复的全部要点。
+    expect(result.content).toContain('不要请他自己去建文档')
+  })
+
+  it('给了知识库：真身建出来、标准写进正文、链接挂在提案上', async () => {
+    const seen: string[][] = []
+    bridge = (command) => {
+      seen.push([...command])
+      if (command[1] === 'create') return { ok: true, json: { id: 'doc-new' } }
+      return { ok: true, json: {} }
+    }
+    const result = await tools.get('goal_propose')?.execute({
+      what: '把月结压到三天',
+      successCriteria: 'T+3 出报表；差异条目 < 5',
+      workspace: 'kb-2',
+    }, EXEC) as { content: string; proposalId?: string }
+
+    expect(seen[0]).toEqual(['doc', 'create', '--workspace', 'kb-2', '--title', '把月结压到三天'])
+    // 标准写进真身，因为**评估是回真身里读它的**：只活在图里的标准没人能拿去对账。
+    expect(seen[1]?.slice(0, 4)).toEqual(['doc', 'block', 'insert', '--id'])
+    expect(seen[1]?.[6]).toContain('T+3 出报表')
+    expect(result.content).toContain('真身已经建好')
+
+    await cards.act(
+      { kind: 'proposal', id: result.proposalId as string }, 'confirmed', OPERATOR, 'desktop', undefined,
+    )
+    const minted = commitment(goalCommitmentIdFor(
+      'https://www.yunzhijia.com/knowledge/lingee/#/store/doc/doc-new',
+    ))
+    // 人按下确认，目标才落库——而它一出生就有真身。
+    expect(minted?.criteria).toBe('T+3 出报表；差异条目 < 5')
+  })
+
+  it('真身建不出来就不递提案 —— 不留一张裁决不了的卡', async () => {
+    bridge = () => ({ ok: false, stderr: 'token 过期' })
+    const result = await tools.get('goal_propose')?.execute({
+      what: '把月结压到三天', successCriteria: '随便', workspace: 'kb-2',
+    }, EXEC) as { content: string; proposalId?: string }
+    expect(result.proposalId).toBeUndefined()
+    expect(result.content).toContain('token 过期')
+  })
+
+  /*
+    卡上那个输入框留着：老提案（这条修复之前落的库）没有真身，而**一张裁决不了的卡不该
+    因为我们改了上游就变成死卡**。粘一个链接仍然能把它救活。
+  */
+  it('老提案没有真身时，粘一个链接仍然能裁决', async () => {
+    const proposalId = 'prp-old'
+    await graph.append({
+      type: 'proposal/opened',
+      data: {
+        proposalId, kind: 'goal', title: '把月结压到三天',
+        criteria: 'T+3 出报表；差异条目 < 5',
+        items: [{ what: '把月结压到三天' }],
+        sourceAnchor: 'yzj:m-old', decider: 'op-1',
+      },
+      actor: { kind: 'agent' },
+    })
 
     await cards.act({ kind: 'proposal', id: proposalId }, 'confirmed', OPERATOR, 'desktop', undefined)
     // 目标行背后什么都没有，就是这个设计拒绝画出来的那份「我们没有的副本」。
@@ -613,6 +685,7 @@ describe('签发的边界', () => {
     const result = await tools.get('goal_propose')?.execute({
       what: '再来一次月结目标',
       successCriteria: '新的标准',
+      workspace: 'kb-2',
     }, EXEC) as { proposalId?: string }
 
     // 贴了一个已经有目标的链接（贴错文档是最常见的手滑）。
@@ -843,7 +916,9 @@ describe('签发的输入（对抗审查 #1）', () => {
     const result = await tools.get('goal_propose')?.execute({
       what: '把月结压到三天',
       successCriteria: 'T+3 出报表',
-      ...(withRef === undefined ? {} : { goalRef: withRef }),
+      // 没给现成链接时也得说清建在哪儿——这一组测的是**粘链接改真身**那一半，
+      // 所以让它先正常建一个，再看粘上去的那个能不能覆盖它。
+      ...(withRef === undefined ? { workspace: 'kb-2' } : { goalRef: withRef }),
     }, EXEC) as { proposalId?: string }
     return result.proposalId as string
   }

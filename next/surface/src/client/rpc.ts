@@ -559,7 +559,12 @@ export interface SurfaceInject {
    */
   workspaces(): Promise<{ workspaces: WorkspaceWire[]; error?: string }>
   /** 在云之家建一条目标真身，回链接。人选知识库、系统建文档。 */
-  createGoalBody(input: { workspace: string; title: string }): Promise<{ url?: string; error?: string }>
+  createGoalBody(input: { workspace: string; title: string; criteria?: string }): Promise<{
+    url?: string
+    /** 建出来了但正文没写进去时的实话。 */
+    note?: string
+    error?: string
+  }>
   /** 今天还没开完的会 —— 事件枢纽在板上的那一段。 */
   events(): Promise<BoardEventWire[]>
   /**
@@ -744,10 +749,11 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       return { workspaces: value?.workspaces ?? [] }
     },
     async createGoalBody(input) {
-      const { value, error } = await write<{ url: string }>('create-goal-body', { ...input })
+      const { value, error } = await write<{ url: string; note?: string }>('create-goal-body', { ...input })
       if (error !== undefined) return { error }
       // 没拿到链接就说没拿到——一个空的成功比一次失败更难查。
-      return value?.url === undefined ? { error: '云之家没有回传真身链接' } : { url: value.url }
+      if (value?.url === undefined) return { error: '云之家没有回传真身链接' }
+      return value.note === undefined ? { url: value.url } : { url: value.url, note: value.note }
     },
     async people(keyword) {
       // 用 `write` 那条路不是因为它是写，是因为**只有它把宿主的原话带回来**：

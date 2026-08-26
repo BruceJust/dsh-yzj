@@ -16,7 +16,8 @@ import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
 import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/channel'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
 import {
-  commitmentIdFor, eventHub, failureOf, goalCommitmentIdFor, ownsCommitment, readinessLine,
+  commitmentIdFor, createGoalBody, eventHub, failureOf, goalCommitmentIdFor, ownsCommitment,
+  readinessLine,
 } from '@yzj-next/objects'
 import type {} from '@yzj-next/channel'
 
@@ -2980,23 +2981,13 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (workspace === undefined || title === undefined) {
               return failure('建真身需要知识库与标题')
             }
-            const bridge = scoped.get('yzjBridge')
-            if (bridge === undefined) return failure('云之家通道未就绪')
-            const result = await bridge.run(
-              ['doc', 'create', '--workspace', workspace, '--title', title],
-              { timeoutMs: 30_000 },
-            )
-            if (!result.ok) return failure(failureOf(result, '真身没能建出来'))
-            const id = asString(asRecord(result.json as never)?.id)
-            /*
-              **没拿到 id 就算失败。** 建了一个找不回来的文档，比没建更坏：目标会挂在一个
-              空链接上，而板上那一行看起来一切正常。
-            */
-            if (id === undefined) return failure('云之家没有回传文档 id，真身链接取不到')
-            return {
-              ok: true,
-              value: { url: `https://www.yunzhijia.com/knowledge/lingee/#/store/doc/${id}`, id },
-            }
+            // 建文档 + 写正文的那一段住在 objects：看板这条路和提案那条路必须建出同一种
+            // 东西，两边各写一份迟早在「正文要不要写进去」上分道扬镳。
+            const criteria = stringField(payload, 'criteria')
+            const made = await createGoalBody(scoped, {
+              workspace, title, ...(criteria === undefined ? {} : { criteria }),
+            })
+            return 'error' in made ? failure(made.error) : { ok: true, value: made }
           }
           case 'contract': {
             const placeKey = stringField(payload, 'placeKey')

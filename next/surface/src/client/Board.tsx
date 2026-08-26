@@ -1517,9 +1517,11 @@ export function YzjBoard(props: BoardProps): ReactNode {
 function BodyMaker(props: {
   inject: SurfaceInject
   title: string
-  onMade(url: string): void
+  /** 「怎么算完成」——建的时候一并写进正文，评估日后是回真身里读它的。 */
+  criteria: string
+  onMade(url: string, note?: string): void
 }): ReactNode {
-  const { inject, title, onMade } = props
+  const { inject, title, criteria, onMade } = props
   const [open, setOpen] = useState(false)
   const [spaces, setSpaces] = useState<readonly WorkspaceWire[]>([])
   const [picked, setPicked] = useState('')
@@ -1580,10 +1582,10 @@ function BodyMaker(props: {
           onClick={() => {
             setBusy(true)
             setNote('')
-            void inject.createGoalBody({ workspace: picked, title }).then((result) => {
+            void inject.createGoalBody({ workspace: picked, title, criteria }).then((result) => {
               setBusy(false)
               if (result.url === undefined) { setNote(result.error ?? '没建成'); return }
-              onMade(result.url)
+              onMade(result.url, result.note)
               setOpen(false)
             })
           }}
@@ -1626,6 +1628,14 @@ function DeclareGoal(props: {
    * 那种记法里是同一个人。搜与选归 `PersonPicker`（移交那边用的是同一个）。
    */
   const [owner, setOwner] = useState<PersonWire | undefined>(undefined)
+  /**
+   * 真身是我们刚建的那一份吗；`''` = 不是（粘进来的）或还没建。
+   *
+   * 分这一格是因为**两种真身的下一句话不一样**：我们建的那份，「怎么算完成」已经写进
+   * 正文了；别人已有的那份，我们一个字都不该动（真身外部原则 + 宁 append 勿 overwrite），
+   * 所以那句「也请把这几句写进正文」只对后者成立。存的是半成功时的实话。
+   */
+  const [made, setMade] = useState('')
   const [due, setDue] = useState('')
   const [criteria, setCriteria] = useState('')
   const [busy, setBusy] = useState(false)
@@ -1685,7 +1695,8 @@ function DeclareGoal(props: {
             <BodyMaker
               inject={inject}
               title={what.trim()}
-              onMade={(url) => { setGoalRef(url) }}
+              criteria={criteria.trim()}
+              onMade={(url, note) => { setGoalRef(url); setMade(note ?? '') }}
             />
           )}
         </label>
@@ -1708,10 +1719,22 @@ function DeclareGoal(props: {
             placeholder="例：月结 T+3 日内出报表；四个部门都用同一张模板；对账差异条目 < 5"
             onChange={(event) => { setCriteria(event.target.value) }}
           />
+          {/*
+            这句话此前对所有人说，而它只对一半人是真的。
+
+            真身是我们刚建的那份时，「怎么算完成」已经在建的那一刻写进正文了——再让人去
+            写一遍，是把一件已经做完的事派回给他。真身是他粘进来的那份时，我们一个字都
+            不该动（真身外部原则 + 宁 append 勿 overwrite），那句话才成立。
+          */}
           <span className={css.fieldHint}>
-            也请把这几句写进云之家目标正文——那里才是真身。这里留一份你签发时的原话，
-            日后 agent 写差距简报就是拿它逐条比对。
+            {goalRef.trim() !== '' && made === ''
+              ? <>也请把这几句写进云之家目标正文——那里才是真身。这里留一份你签发时的原话，
+                日后 agent 写差距简报就是拿它逐条比对。</>
+              : <>这几句在建真身时会一并写进正文（评估是回真身里读标准的）。这里留一份你
+                签发时的原话，日后 agent 写差距简报就是拿它逐条比对。</>}
           </span>
+          {/* 半成功要说成半成功：文档在，正文空着。 */}
+          {made !== '' && <span className={css.refusal}>{made}</span>}
         </label>
         <div className={css.fieldRow}>
           <label className={css.field}>
