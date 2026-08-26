@@ -500,6 +500,11 @@ export function applyCommitmentTools(ctx: Context): () => void {
       commitmentId: { type: 'string', required: true, description: 'The commitment this reply is about (from graph_query).' },
       text: { type: 'string', required: true, description: 'What they said, quoted.' },
       kind: { type: 'string', enum: ['human-reply', 'external'], description: 'human-reply for a colleague in this system; external for somebody reached off-platform.' },
+      acceptance: {
+        type: 'string',
+        enum: ['accepted', 'declined'],
+        description: 'Only when the reply is the executor answering the DELEGATION itself: accepted ("好，我来") / declined ("这周我接不了"). Leave it out for ordinary progress replies. NEVER ask anybody to acknowledge — 受领是证据不是义务, and a system that chases acknowledgements collects theatre. 拒领 puts the row back in the owner\'s attention layer with 作废 / 重新协商 nearby.',
+      },
       newDue: { type: 'string', description: 'New deadline, when the reply moved it.' },
       completed: { type: 'boolean', description: 'True only when the reply says the work is DONE.' },
     },
@@ -559,6 +564,24 @@ export function applyCommitmentTools(ctx: Context): () => void {
           借它自动收口，等于张锐在群里说一句「做完了」就把一条没记委派者的老承诺自己关掉，
           而委派的人从来没被问过。宁可多按一次。
       */
+      /*
+        **受领三态的落库** (v4.24 决策 #58)。
+
+        受领与拒领都是**关于这条委派本身**的回应，和「进度回执」不是一件事：前者回答
+        「这活有没有人接」，后者回答「接了的那件走到哪了」。压成一个字段的话，一条被
+        拒领的活会因为「有过动静」而从留意层消失——而它恰恰是此刻最需要 owner 再决定
+        一次的那一条。
+      */
+      if (args.acceptance !== undefined) {
+        await ctx.yzjGraph.append({
+          type: 'commitment/updated',
+          data: {
+            commitmentId: args.commitmentId,
+            acceptance: { state: args.acceptance, at: Date.now(), note: args.text },
+          },
+          actor: { kind: 'agent' },
+        })
+      }
       const claimant = operatorOf(ctx, exec.agent)
       const executorOf = asRecord(asRecord(object.state)?.executor)
       const selfOwned = args.completed === true
@@ -599,13 +622,18 @@ export function applyCommitmentTools(ctx: Context): () => void {
           actor: { kind: 'agent' },
         })
       }
+      const acceptanceLine = args.acceptance === 'accepted'
+        ? '\n对方接下了这条——**受领是证据，不是义务**，所以这一笔只是记下来，没有任何人被要求签字。'
+        : args.acceptance === 'declined'
+          ? '\n**这条没人接了**：已回到你的留意层，就近可以作废，或者重新协商（换人、改期、改内容）。'
+          : ''
       return {
         content: selfOwned
           ? `「${state.what}」已收口——这条是你自己委派给自己的，主张即验收，不必再按一次。`
           : args.completed === true
           ? `已记录交付主张「${state.what}」，现在**等验收**——委派的人会在原来那个场所看到`
             + `一张双动词的卡（验收／打回）。请在回复里公示这一条（说错了可以直接纠正）。`
-          : `已记录回执${args.newDue === undefined ? '' : `，期限更新为 ${args.newDue}`}。请在回复里公示（说错了可以直接纠正）。`,
+          : `已记录回执${args.newDue === undefined ? '' : `，期限更新为 ${args.newDue}`}。请在回复里公示（说错了可以直接纠正）。${acceptanceLine}`,
         commitmentId: args.commitmentId,
       }
     },

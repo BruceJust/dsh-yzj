@@ -295,6 +295,8 @@ export interface BoardRowWire {
   signal: 'evidence' | 'silent' | 'stale'
   /** 交付已主张、等人验收——承诺仍然 open，所以这一格要单独说。 */
   awaitingAcceptance?: boolean
+  /** 受领三态：缺席 = 已登记（正常起点）／accepted 受领证据／declined 拒领。 */
+  acceptance?: { state: 'accepted' | 'declined'; note?: string }
   /** 最后一次有动静是什么时候。 */
   lastSignalAt: number
   inferredGoal: boolean

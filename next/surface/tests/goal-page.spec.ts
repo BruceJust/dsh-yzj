@@ -412,3 +412,66 @@ describe('真身沉默了多久：目标页读的是同一份', () => {
   })
 })
 
+/**
+ * 受领三态（v4.24 决策 #58）—— **受领是证据，不是义务**。
+ *
+ * 三态是：已登记（没有回应，是观察型承诺的**正常起点**）→ 受领证据 → 拒领。
+ *
+ * 缺席那一态什么都不做，是这条设计最要紧的一半：**无回应不进留意层、不老化、不可催**。
+ * 一个会追着人问「请确认收到」的产品，收上来的只有确认剧场——而剧场里的每一个「收到」
+ * 都不承载任何真实信息。催的对象永远是交付。
+ *
+ * 拒领反过来必须浮起来：那条活**现在没有人接**，是需要 owner 再决定一次的事实。
+ */
+describe('受领三态', () => {
+  const answered = async (id: string, state: 'accepted' | 'declined', note: string): Promise<void> => {
+    await graph.append({
+      type: 'commitment/updated',
+      data: { commitmentId: id, acceptance: { state, at: Date.now(), note } },
+      actor: { kind: 'agent' },
+    })
+  }
+  const attentionIds = (): readonly string[] => {
+    const view = goalPageFrame(ctx, GOAL)
+    return (view?.goal.children ?? [])
+      .filter(row => row.status === 'open'
+        && (row.overdue || row.signal !== 'evidence' || row.acceptance?.state === 'declined'))
+      .map(row => row.id)
+  }
+
+  it('拒领的那条回到留意层，并带着他原话', async () => {
+    await goal()
+    await child('c1', '统一模板')
+    await stir('c1', '在做了')
+    // 有证据、不逾期——它本来不该在留意层里；拒领把它放回去。
+    expect(attentionIds()).not.toContain('c1')
+    await answered('c1', 'declined', '这周排不开')
+    expect(attentionIds()).toContain('c1')
+    const row = goalPageFrame(ctx, GOAL)?.goal.children.find(one => one.id === 'c1')
+    expect(row?.acceptance).toEqual({ state: 'declined', note: '这周排不开' })
+  })
+
+  /*
+    **受领本身不改变任何信号。** 它是一条证据，不是一次进展——把它当动静，会让一条
+    「接了但一直没动」的活看起来正常在跑。
+  */
+  it('受领了也只是受领：不进留意层，也不冒充进展', async () => {
+    await goal()
+    await child('c2', '对账脚本')
+    await answered('c2', 'accepted', '好，我来')
+    const row = goalPageFrame(ctx, GOAL)?.goal.children.find(one => one.id === 'c2')
+    expect(row?.acceptance?.state).toBe('accepted')
+    // 仍然是「无信号」：他接下了，但这件事一步都还没走。
+    expect(row?.signal).toBe('silent')
+  })
+
+  it('没有回应就是没有回应 —— 那一态什么都不记，也不因此进留意层', async () => {
+    await goal()
+    await child('c3', '还没人回过话')
+    await stir('c3', '在做了')
+    const row = goalPageFrame(ctx, GOAL)?.goal.children.find(one => one.id === 'c3')
+    expect(row?.acceptance).toBeUndefined()
+    expect(attentionIds()).not.toContain('c3')
+  })
+})
+

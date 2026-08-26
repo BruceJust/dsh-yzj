@@ -790,6 +790,12 @@ export interface BoardRow {
   readonly goalRef?: string
   readonly sessionId?: string
   readonly placeName?: string
+  /**
+   * 受领三态的第二、三态（v4.24）。缺席 = 已登记，那是**正常起点**，不是缺失。
+   *
+   * 拒领要浮到留意层：那条活现在没有人接，是**需要 owner 再决定一次**的事实。
+   */
+  readonly acceptance?: { readonly state: 'accepted' | 'declined'; readonly note?: string }
   /** True when the card can be re-delivered into the place that owns it. */
   readonly remindable: boolean
   /**
@@ -1220,7 +1226,15 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     是把记账当动静（一条没人碰过的活看起来在跑）；多写一个的后果是把动静当记账（一条
     真的在动的活被报成无信号）——所以这张单子只放**明确与工作无关**的那几个。
   */
-  const bookkeepingFields = new Set(['commitmentId', 'notified', 'audience'])
+  /*
+    `acceptance` 也在这张单子里：**受领不是进展**（v4.24）。
+
+    他回一句「好，我来」是一条关于**这条委派**的证据，不是关于**这件事走到哪了**的证据。
+    算成动静的话，一条三周前被接下、之后一步没走的活会显示成「正常在跑」——而「登记完
+    就没有下文」正是无信号这个信号存在的全部理由。拒领也不靠信号浮起来：它有自己的
+    那一条判据（`acceptance.state === 'declined'` 直接进留意层）。
+  */
+  const bookkeepingFields = new Set(['commitmentId', 'notified', 'audience', 'acceptance'])
   const substantiveAt = new Map<string, number>()
   const AFTER_BIRTH = [
     'commitment/updated', 'commitment/delivered', 'commitment/rework',
@@ -1347,6 +1361,13 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
       ),
       ...(steward === undefined ? {} : { stewardedBy: steward }),
       ...(asRecord(state?.delivery) === undefined ? {} : { awaitingAcceptance: true }),
+      ...(() => {
+        const acceptance = asRecord(state?.acceptance)
+        const kind = asString(acceptance?.state)
+        if (kind !== 'accepted' && kind !== 'declined') return {}
+        const note = asString(acceptance?.note)
+        return { acceptance: { state: kind, ...(note === undefined ? {} : { note }) } }
+      })(),
       overdue: status === 'open' && isOverdue(due, now),
       remindable: status === 'open' && (object.audience?.length ?? 0) > 0,
       inferredGoal: asString(state?.attachedVia) === 'inferred',

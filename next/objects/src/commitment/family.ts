@@ -68,6 +68,25 @@ export interface CommitmentState {
    */
   readonly delegatedBy?: string
   /**
+   * 受领三态的第二、三态 —— **受领是证据，不是义务** (v4.24 决策 #58).
+   *
+   * 三态是：已登记（没有这个字段——无回应是观察型承诺的**正常起点**）→ 受领证据
+   * （他回了一句「好」）→ 拒领（他说接不了）。
+   *
+   * 缺席那一态刻意什么都不记：**无回应不进留意层、不老化、不可催**。系统绝不索要受领
+   * ——一个会追着人问「请确认收到」的产品，收上来的只有确认剧场，而剧场里的每一个「收到」
+   * 都不承载任何真实信息。催的对象永远是交付。
+   *
+   * 拒领要记，因为它是**一个需要 owner 再决定一次的事实**：那条活现在没有人接，
+   * 它得回到 owner 的留意层，就近给作废与重新协商。
+   */
+  readonly acceptance?: {
+    readonly state: 'accepted' | 'declined'
+    readonly at: number
+    /** 他自己说的那句话——拒领尤其要留原话，因为下一步是重新协商。 */
+    readonly note?: string
+  }
+  /**
    * 这条边要不要投影进**全组可读的真身** —— 边级选择 (v4.22 裁决③).
    *
    * 缺席 = **按登记场所的公私派生**（公域登记→投影、私下登记→不投影明细）。这是
@@ -219,6 +238,12 @@ export const commitmentFamily: GraphFamily = {
     'commitment/updated': {
       schema: z.object({
         commitmentId: z.string().min(1),
+        /** 受领三态（v4.24）：缺席 = 已登记；有值 = 受领证据或拒领。 */
+        acceptance: z.object({
+          state: z.enum(['accepted', 'declined']),
+          at: z.number().int(),
+          note: z.string().optional(),
+        }).optional(),
         what: z.string().optional(),
         due: z.string().optional(),
         /**

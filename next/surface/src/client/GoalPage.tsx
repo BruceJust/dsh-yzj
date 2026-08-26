@@ -218,7 +218,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
     把它混进决断层,人会去找一个并不存在的按钮;把动词放在旁边,它才是可动的。
   */
   const attention = goal.children.filter(
-    child => child.status === 'open' && (child.overdue || child.signal !== 'evidence'),
+    child => child.status === 'open'
+      && (child.overdue || child.signal !== 'evidence' || child.acceptance?.state === 'declined'),
   )
   /** 目标结束后还在跟的那些——级联的对象。 */
   const stillOpen = goal.children.filter(child => child.status === 'open')
@@ -687,6 +688,13 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                   <b>{row.what}</b>
                   <span className={css.decisionSub}>
                     {row.who}
+                    {/*
+                      **拒领要说在最前面**（v4.24 受领三态）：这条活现在没有人接，而
+                      「无信号」「逾期」说的都是「接了的那件走到哪了」——两句话混在一起，
+                      owner 会以为只是慢了。
+                    */}
+                    {row.acceptance?.state === 'declined'
+                      && <b> · 拒领{row.acceptance.note === undefined ? '' : `：「${row.acceptance.note}」`}</b>}
                     {row.overdue && ` · ${row.due ?? ''} 逾期`}
                     {row.signal !== 'evidence' && ` · ${SIGNAL[row.signal].label}，最后动静 ${whenLabel(row.lastSignalAt)}`}
                   </span>
@@ -695,7 +703,9 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                   type="button"
                   className={css.act}
                   onClick={() => {
-                    const seed = `${row.who}，「${row.what}」这条现在什么情况？`
+                    const seed = row.acceptance?.state === 'declined'
+                      ? `${row.who}，「${row.what}」这条你接不了${row.acceptance.note === undefined ? '' : `（你说「${row.acceptance.note}」）`}，那我们重新定一下：换个时间、换个人，还是换个做法？`
+                      : `${row.who}，「${row.what}」这条现在什么情况？`
                     if (row.sessionId === undefined) {
                       ask({
                         subject: 'goal',
@@ -706,7 +716,11 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                     } else jump('place', seed, row.sessionId)
                   }}
                 >
-                  催（去说）
+                  {/*
+                    拒领之后「催」是错的动词：没人接的活催谁都没用。设计给的就近动词是
+                    **重新协商**——换人、改期、改内容，都得回到那句话里去说。
+                  */}
+                  {row.acceptance?.state === 'declined' ? '重新协商（去说）' : '催（去说）'}
                 </button>
                 {/*
                   **说明文字承诺了三个动词，旁边却只有一个** —— 决策 #57 点名的那种占位，
