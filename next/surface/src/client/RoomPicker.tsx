@@ -269,6 +269,13 @@ export function RoomPicker(props: {
 
   const needle = filter.trim()
   const { theirDm, withHim, others, offDuty, places } = roomSections(rooms ?? [], needle, executor)
+  /*
+    「和他还没有私聊」这一问要看**没过滤的那份名单**。
+
+    照着过滤后的 `theirDm` 判，一次「打几个字缩小范围」就会让那间明明存在的私聊消失，
+    界面接着说「还没有过私聊」并请你开一个——一句因为筛选而变成假话的话。
+  */
+  const hasDm = (rooms ?? []).some(room => room.theirDm)
 
   /** 选完之后那句话的骨架：受话 + 句式，内容一个字都不带。 */
   const choice = (): PortalChoice | undefined => {
@@ -392,7 +399,7 @@ export function RoomPicker(props: {
             根本没有「创建」这个动作：**它的出生就是第一句话**，而那句话正是此刻要说的
             这一句。第一次把活派给一个人，恰恰是最常见的一次私下登记。
           */}
-          {who !== undefined && theirDm.length === 0 && rooms !== undefined && (
+          {who !== undefined && !hasDm && rooms !== undefined && (
             <div className={css.roomGroup}>
               <div className={css.roomSection}>和他的私聊</div>
               <button
