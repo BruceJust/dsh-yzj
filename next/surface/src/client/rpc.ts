@@ -569,6 +569,13 @@ export interface SurfaceInject {
    */
   delegateCandidates(goalRef?: string): Promise<{ openId: string; name: string; why: string }[]>
   /**
+   * 这个人在哪些场所里**有过登记** —— 场所选项集的事实依据。
+   *
+   * 不是「他在哪些群」：平台没有群成员列表 API，那一问我们答不了。答得了的是图上的事实
+   * ——他在这个群里有过一条承诺。两者不是一回事，所以界面上也分开写。
+   */
+  sharedPlaces(openId: string): Promise<string[]>
+  /**
    * 我有哪些知识库 —— 真身建在哪儿，由人选。
    *
    * 和通讯录同一条纪律：三值（列到了 / 一个也没有 / 读不了）。落点是社交决策，不推导
@@ -767,6 +774,11 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       )
       // 读不到就是没有候选可摆——搜索那一层照旧在，人不会被卡住。
       return value?.candidates ?? []
+    },
+    async sharedPlaces(openId) {
+      const value = await call<{ placeKeys: string[] }>('shared-places', { openId })
+      // 读不到就当没有事实可依：那时全部群按「不确定」摆出来，而不是把人挡在外面。
+      return value?.placeKeys ?? []
     },
     async workspaces() {
       const { value, error } = await write<{ workspaces: WorkspaceWire[] }>('workspaces', {})

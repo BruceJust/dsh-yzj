@@ -266,3 +266,50 @@ describe('近处候选', () => {
   })
 })
 
+/**
+ * **共同场所** —— 场所选项集的第二维（v4.24：共同场所 + DM + 新建）。
+ *
+ * 此前给人委派时列的是**我所有的群**，不管那个人在不在——最容易的一次误操作就是把
+ * 「张锐负责 X」说进一个张锐根本不在的群：听众集合缺了他那一头（最小听众不变量），
+ * 而群里其他人以为这件事已经说好了。
+ *
+ * 平台没有群成员列表 API，所以「他在不在这个群」我们答不了。答得了的是**他在这个群里
+ * 有过登记吗**——图上的事实。两者不是一回事，界面上也分开写。
+ */
+describe('共同场所', () => {
+  const registered = async (id: string, openId: string, place: string): Promise<void> => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id, what: `活 ${id}`, sourceAnchor: `yzj:${id}`,
+        executor: { kind: 'human', openId, name: '张锐' }, audience: [place],
+      },
+      actor: ME,
+    })
+  }
+  const shared = async (openId: string): Promise<string[]> => {
+    const result = await call('shared-places', { openId })
+    return (result as { value: { placeKeys: string[] } }).value.placeKeys
+  }
+
+  it('他在哪儿有过登记，就报哪儿 —— 这是事实，不是成员名单', async () => {
+    await registered('c1', 'u-zhang', 'yzj-group-g1')
+    await registered('c2', 'u-zhang', 'yzj-group-g2')
+    await registered('c3', 'u-other', 'yzj-group-g9')
+    expect((await shared('u-zhang')).sort()).toEqual(['yzj-group-g1', 'yzj-group-g2'])
+  })
+
+  /*
+    **没有事实就是没有事实**：那时选项集收敛到私聊 + 新建，而界面要把这句话说出来
+    （收敛本身是可见的设计事实）——不是默默列出一堆群让人以为都合适。
+  */
+  it('从没在任何群里登记过：空的，而不是「所有群」', async () => {
+    await registered('c1', 'u-zhang', 'yzj-group-g1')
+    expect(await shared('u-never')).toEqual([])
+  })
+
+  it('少了 openId 就说少了什么', async () => {
+    expect(await call('shared-places', {})).toMatchObject({ ok: false })
+  })
+})
+

@@ -154,7 +154,32 @@ export function RoomPicker(props: {
   const theirDm = executor?.kind === 'person'
     ? all.filter(entry => entry.direct && entry.groupName === executor.person.name)
     : []
-  const places = executor?.kind === 'person' ? [...theirDm, ...groups] : groups
+  /*
+    **场所选项集 = 共同场所 + DM + 新建**（v4.24），而「共同场所」这一问平台答不了：
+    群成员列表没有 API（三墙之一）。
+
+    答得了的是另一问——**他在这个群里有过登记吗**，那是图上的事实。所以这里把群分成两
+    节：有过登记的（事实）与其余的（**不确定他在不在**）。不是把其余的藏起来：他很可能
+    就在一个还没登记过任何东西的群里，藏了就是拿「我们不知道」冒充「他不在」。
+
+    事实缩小选项集合法，装作知道不合法——这两句话的分界就画在这一格上。
+  */
+  const [known, setKnown] = useState<readonly string[]>([])
+  const [askedFor, setAskedFor] = useState('')
+  useEffect(() => {
+    if (executor?.kind !== 'person') return
+    const openId = executor.person.openId
+    if (askedFor === openId) return
+    setAskedFor(openId)
+    void inject.sharedPlaces(openId).then(setKnown)
+  }, [inject, executor, askedFor])
+  const withHim = executor?.kind === 'person'
+    ? groups.filter(entry => known.includes(entry.placeKey))
+    : []
+  const others = executor?.kind === 'person'
+    ? groups.filter(entry => !known.includes(entry.placeKey))
+    : groups
+  const places = executor?.kind === 'person' ? [...theirDm, ...withHim, ...others] : groups
 
   /** 选完之后那句话的骨架：受话 + 句式，内容一个字都不带。 */
   const choice = (): PortalChoice | undefined => {
@@ -280,8 +305,27 @@ export function RoomPicker(props: {
                   承诺是在<b>话题</b>里呼吸的——先在群里 @ 一句让话题长出来，再回来委派。
                 </div>
               )
-              : places.map(entry => (
+              : places.map((entry, index) => (
                 <div className={css.roomGroup} key={entry.placeKey}>
+                  {/*
+                    **分节说清依据**：哪些是「他在这儿有过登记」（事实），哪些是「不确定
+                    他在不在」（我们答不了的那一问）。收敛本身是可见的设计事实——所以第一
+                    节为空时那句话必须出现，而不是让人以为这个产品只会列一堆群。
+                  */}
+                  {executor?.kind === 'person' && entry.placeKey === withHim[0]?.placeKey && (
+                    <div className={css.roomSection}>他在这些群里有过登记</div>
+                  )}
+                  {executor?.kind === 'person' && entry.placeKey === others[0]?.placeKey && (
+                    <div className={css.roomSection}>
+                      {withHim.length === 0
+                        ? `还没见过 ${executor.person.name} 在任何群里有过登记——共同场所无从确认。`
+                          + '下面这些群里他在不在，平台不给成员名单，我们答不了：'
+                        : '其余的群（他在不在，我们答不了——平台不给成员名单）：'}
+                    </div>
+                  )}
+                  {executor?.kind === 'person' && index === 0 && entry.direct && (
+                    <div className={css.roomSection}>和他的私聊</div>
+                  )}
                   <div className={css.roomPlace}>
                     {entry.groupName}
                     {/*
@@ -460,7 +504,17 @@ function ExecutorSearch(props: {
         </div>
       )}
       {keyword.trim() !== '' && found.length === 0 && broken === '' && (
-        <div className={css.goalEmpty}>通讯录里没搜到这个名字。</div>
+        <div className={css.goalEmpty}>
+          通讯录里没搜到这个名字。
+          {/*
+            **外部人押门：明标不可选，而不是假装不存在**（v4.24 选择器边界）。
+            搜不到有两种可能，而它们的下一步完全不同：名字打错了（再搜一次），或者
+            这个人根本不在本组织（这条路还没开，得换别的方式）。
+          */}
+          <br />
+          通讯录只包含**本组织**的人——组织外的人（客户、外包）这条路还没开，
+          他们的承诺目前只能你自己盯。
+        </div>
       )}
       {broken !== '' && (
         <div className={css.goalEmpty}>通讯录读不了（{broken}）——这不等于没有这个人。</div>

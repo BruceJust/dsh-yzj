@@ -2991,6 +2991,31 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             排序按事实（本目标优先，其次最近），**不按「系统觉得你想找谁」**——那正是
             「人选不推导」禁止的东西。候选只缩小选项集，从不代选：搜索那一层始终在。
           */
+          /*
+            **共同场所** —— 场所选项集的第二维（v4.24：共同场所 + DM + 新建）。
+
+            此前给人委派时列的是**我所有的群**，不管那个人在不在——于是最容易的一次误操作
+            就是把「张锐负责 X」说进一个张锐根本不在的群：听众集合缺了他那一头（最小听众
+            不变量），而群里其他人以为这件事已经说好了。
+
+            **平台没有群成员列表 API**（三墙之一），所以「他在不在这个群」这一问我们答不
+            了。答得了的是另一问：**他在这个群里有过登记吗**——那是图上的事实。于是这里
+            给的是「有过」的那些，而不是「他在」的那些；两者不是一回事，界面上也如实分开
+            写（事实缩小选项集合法，装作知道不合法）。
+          */
+          case 'shared-places': {
+            const openId = stringField(payload, 'openId')
+            if (openId === undefined) return failure('要先知道是谁')
+            const seen = new Set<string>()
+            for (const object of scoped.yzjGraph.query(
+              { kind: 'operator', openId: '' }, { kind: 'commitment' },
+            )) {
+              const state = asRecord(object.state)
+              if (asString(asRecord(state?.executor)?.openId) !== openId) continue
+              for (const place of object.audience ?? []) seen.add(place)
+            }
+            return { ok: true, value: { placeKeys: [...seen] } }
+          }
           case 'delegate-candidates': {
             const goalRef = stringField(payload, 'goalRef')
             const me = asString((scoped.yzjCards.desktopActor() as { openId?: string }).openId)

@@ -645,3 +645,8 @@
   background: #FFF1F0; color: var(--yzj-red); border: 1px solid #F5C6C4;
 }
 .accepted { flex: none; font-size: 10.5px; color: var(--yzj-ink-3); }
+
+/* 场所分节：说清哪些是事实、哪些是我们答不了的（v4.24 场所选项集） */
+.roomSection {
+  margin: 8px 2px 3px; font-size: 10.5px; line-height: 1.6; color: var(--yzj-ink-3);
+}
