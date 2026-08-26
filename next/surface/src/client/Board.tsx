@@ -35,7 +35,7 @@ import {
   currentBoardLens, pushFrame, sendErrand, setBoardLens, setSpotlight,
 } from './store.ts'
 import { revealAside } from './preview.ts'
-import { RoomPicker, errandFor, type Portal } from './RoomPicker.tsx'
+import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
 import { RepairVerbs, cascadeLine, voidGate, type Repair } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
 import {
@@ -863,7 +863,9 @@ export function YzjBoard(props: BoardProps): ReactNode {
                         goalName: goal.row?.what ?? goal.goalRef,
                         voice: 'place',
                         seed: gapSeed(goal.row?.what ?? goal.goalRef, line.criterion),
-                        title: '把这条缺口变成委派：跳进哪个会话说？',
+                        // 缺口变委派也是委派：执行者恰恰是这里最没定的那一格。
+                        pick: 'executor',
+                        title: '把这条缺口变成委派：谁来做、在哪儿说？',
                         note: '句子还是你自己说——这里只负责把你送到该说话的地方。',
                       })
                     }}
@@ -1016,7 +1018,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
                 pick: 'executor',
                 // 起头，不是稿子：派什么、什么时候前，都是他要说的话。
                 seed: delegateSeed(goal.row?.what ?? goal.goalRef),
-                title: '委派：跳进哪个会话说？',
+                title: '委派：谁来做、在哪儿说？',
                 note: '公开委派是施压与透明，私下委派是留余地——这个选择不该由系统替你做。',
               })
             }}
@@ -1246,7 +1248,9 @@ export function YzjBoard(props: BoardProps): ReactNode {
                   摆好，要补的那一刀是什么、派给谁，仍然是他说。
                 */
                 seed: eventPrepSeed(event.title),
-                title: '为这场会准备：跳进哪个会话说？',
+                // 会前补的那一刀也要派给谁——同一个动词，同样两维。
+                pick: 'executor',
+                title: '为这场会准备：谁来做、在哪儿说？',
                 note: '会前要补的那一刀，说给谁听、在哪说，只有你知道。',
               })
             }}
@@ -1539,10 +1543,9 @@ export function YzjBoard(props: BoardProps): ReactNode {
           portal={portal}
           inject={inject}
           close={() => { setPortal(undefined) }}
-          go={(sessionId, choice) => {
-            sendErrand(errandFor(portal, choice))
+          go={(landing, choice) => {
             setPortal(undefined)
-            openSession(sessionId)
+            landPortal(portal, landing, choice, openSession)
           }}
         />
       )}

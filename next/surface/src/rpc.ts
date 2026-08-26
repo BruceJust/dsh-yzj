@@ -2297,6 +2297,89 @@ function goalContextOf(
   return { goalRef, ...(goalName === undefined ? {} : { goalName }) }
 }
 
+/**
+ * 委派第②维的一行 —— **一个场所，不是一个话题**。
+ *
+ * `onDuty` 可以是 undefined，而那不是懒：这一行有可能只从图上的话题拼出来，运行态的
+ * 接单名单里没有它的位置。报 false 会在界面上长成一句「这个群没接单」的断言，而那是
+ * 一次「查不到」被渲染成了「查到了没有」（三值纪律）。
+ */
+interface DelegateRoom {
+  readonly placeKey: string
+  readonly name: string
+  readonly kind: 'group' | 'direct'
+  readonly onDuty?: boolean
+  /** 他在这儿有过登记 —— 图上的事实，不是「他在这个群里」。 */
+  readonly known: boolean
+  /** 这就是和他的那个私聊（只能按名字认：平台不给私聊对面的 openId）。 */
+  readonly theirDm: boolean
+  readonly topics: readonly { readonly sessionId: string; readonly label: string }[]
+}
+
+/**
+ * 一句已经说出口的登记话语 → 图上的一条承诺 (v3.15 裁决④).
+ *
+ * **一份实现，三条出站路**（话题里说的、主楼里说的、开新私聊说的）。三份各写一遍是
+ * 上一次「两级缩放各写各的句子」那道裂缝的形状：它们不会一起报错，只会在某一次改动
+ * 之后开始各说各话——比如有一条忘了带 `audience`，于是那条承诺的听众集合是空的，而
+ * 板上看起来一切正常。
+ *
+ * 三条纪律都在这一个函数里：
+ * - **发送成功才落库**（`msgId` 是那句话真的出去了的唯一证据）；
+ * - **认不出骨架就不登记**——分类来自先验，抽取失败时那句话照常在群里，由 agent 像
+ *   观察任何一句话那样去观察它。宁可退回旧路，也不拿一个猜出来的事由去登记一条挂在
+ *   别人名下的承诺；
+ * - **听众集合就是这句话落在的地方**，不是别处推导来的。
+ */
+async function registerFromPrior(
+  ctx: Context,
+  input: {
+    readonly text: string
+    readonly msgId?: string
+    readonly register: unknown
+    readonly placeKey: string
+    readonly topicKey?: string
+  },
+): Promise<void> {
+  const register = asRecord(input.register as JsonValue)
+  const name = asString(register?.name)
+  const openId = asString(register?.openId)
+  if (input.msgId === undefined || name === undefined || openId === undefined) return
+  const parsed = registrationFrom(input.text, name)
+  if (parsed === undefined) return
+  const goalRef = asString(register?.goalRef)
+  await ctx.yzjGraph.append({
+    type: 'commitment/opened',
+    data: {
+      commitmentId: commitmentIdFor(`yzj:${input.msgId}`, parsed.what),
+      what: parsed.what,
+      executor: { kind: 'human', openId, name },
+      sourceAnchor: `yzj:${input.msgId}`,
+      ...(input.topicKey === undefined ? {} : { topicKey: input.topicKey }),
+      // 听众集合由这条登记消息确立——它就是那句话落在的地方。
+      audience: [input.placeKey],
+      ...(parsed.due === undefined ? {} : { due: parsed.due }),
+      ...(goalRef === undefined || goalRef === ''
+        ? {}
+        : { parentGoalRef: goalRef, attachedVia: 'inherited' }),
+    },
+    actor: ctx.yzjCards.desktopActor(),
+  })
+}
+
+/** 他在哪些场所里有过登记。审计得到的事实，和「群成员名单」不是一回事。 */
+function placesRegisteredIn(ctx: Context, openId: string): ReadonlySet<string> {
+  const seen = new Set<string>()
+  for (const object of ctx.yzjGraph.query(
+    { kind: 'operator', openId: '' }, { kind: 'commitment' },
+  )) {
+    const state = asRecord(object.state)
+    if (asString(asRecord(state?.executor)?.openId) !== openId) continue
+    for (const place of object.audience ?? []) seen.add(place)
+  }
+  return seen
+}
+
 export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = false): void {
   // `yzjCards` alongside `connection`: the scoped context is what every
   // handler runs on, and a property read without its injection throws at
@@ -2335,32 +2418,15 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                 **发送成功才落库**：和目标 chip 装载同一条纪律。反过来的话，一次发不出去
                 的委派会在板上长出一条谁都没听说过的承诺。
               */
-              const register = asRecord((payload as { register?: JsonValue }).register)
-              const name = asString(register?.name)
-              const openId = asString(register?.openId)
-              if (sent.msgId !== undefined && name !== undefined && openId !== undefined) {
-                const parsed = registrationFrom(text, name)
-                const topic = topics.topicOf(sessionId)
-                if (parsed !== undefined && topic !== undefined) {
-                  const goalRef = asString(register?.goalRef)
-                  await scoped.yzjGraph.append({
-                    type: 'commitment/opened',
-                    data: {
-                      commitmentId: commitmentIdFor(`yzj:${sent.msgId}`, parsed.what),
-                      what: parsed.what,
-                      executor: { kind: 'human', openId, name },
-                      sourceAnchor: `yzj:${sent.msgId}`,
-                      topicKey: topic.topicKey,
-                      // 听众集合由这条登记消息确立——它就是那句话落在的地方。
-                      audience: [topic.placeKey],
-                      ...(parsed.due === undefined ? {} : { due: parsed.due }),
-                      ...(goalRef === undefined || goalRef === ''
-                        ? {}
-                        : { parentGoalRef: goalRef, attachedVia: 'inherited' }),
-                    },
-                    actor: scoped.yzjCards.desktopActor(),
-                  })
-                }
+              const topic = topics.topicOf(sessionId)
+              if (topic !== undefined) {
+                await registerFromPrior(scoped, {
+                  text,
+                  ...(sent.msgId === undefined ? {} : { msgId: sent.msgId }),
+                  register: (payload as { register?: JsonValue }).register,
+                  placeKey: topic.placeKey,
+                  topicKey: topic.topicKey,
+                })
               }
               return { ok: true, value: sent }
             } catch (error) {
@@ -2928,10 +2994,59 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             const topics = scoped.get('yzjTopics')
             if (topics === undefined) return failure('云之家通道未就绪')
             try {
-              return {
-                ok: true,
-                value: await topics.sendInPlace(placeKey, text, stringField(payload, 'replyTo')),
+              const sent = await topics.sendInPlace(placeKey, text, stringField(payload, 'replyTo'))
+              /*
+                **主楼说的登记话语一样要落库**（v3.15 裁决④ 的第二条出站路）。
+
+                此前只有话题那条路带先验，于是「委派到这个群」——最常见的那一次，因为
+                话题还没长出来——发出去只是一句普通消息：话在群里，板上不长行。两件各自
+                正确的事（委派可以落在主楼 / 登记先验发送即落库）合起来撒了谎。
+
+                这里没有 `topicKey`，而那是**如实**：这句话刚说出口，话题（如果点着了）
+                是它的产物，不是它的容器。承诺的听众仍然确凿——就是这个场所。
+              */
+              await registerFromPrior(scoped, {
+                text,
+                ...(sent.msgId === undefined ? {} : { msgId: sent.msgId }),
+                register: (payload as { register?: JsonValue }).register,
+                placeKey,
+              })
+              return { ok: true, value: sent }
+            } catch (error) {
+              return failure(error instanceof Error ? error.message : String(error))
+            }
+          }
+          /*
+            **给一个还没聊过的人发第一句** —— 私聊的出生 (v4.24 场所选项集).
+
+            云之家没有「创建私聊」这个动作：`--to-open-id` 发一句，平台在回包里给出
+            groupId，那一刻这间屋子就存在了。所以这条端点不认 placeKey——它此刻还不
+            存在，正是这次发送把它造出来的。
+
+            缺了这条路的后果不是少一个便利：**第一次把活派给一个人**恰恰是最常见的一次
+            私下登记，而此前界面在那儿只有一句「先去云之家给 TA 发一句，再回来」——把人
+            赶去另一个 app 说一句废话，回来刷新，再委派。
+          */
+          case 'send-to-person': {
+            const openId = stringField(payload, 'openId')
+            const text = stringField(payload, 'text')
+            if (openId === undefined || text === undefined) {
+              return failure('给人发第一句需要知道是谁、说什么')
+            }
+            const topics = scoped.get('yzjTopics')
+            if (topics === undefined) return failure('云之家通道未就绪')
+            try {
+              const sent = await topics.sendToPerson(openId, text)
+              // 落点由平台给。给不出来就不登记：没有场所的承诺是幽灵承诺的另一种形状。
+              if (sent.placeKey !== undefined) {
+                await registerFromPrior(scoped, {
+                  text,
+                  ...(sent.msgId === undefined ? {} : { msgId: sent.msgId }),
+                  register: (payload as { register?: JsonValue }).register,
+                  placeKey: sent.placeKey,
+                })
               }
+              return { ok: true, value: sent }
             } catch (error) {
               return failure(error instanceof Error ? error.message : String(error))
             }
@@ -2992,29 +3107,74 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             「人选不推导」禁止的东西。候选只缩小选项集，从不代选：搜索那一层始终在。
           */
           /*
-            **共同场所** —— 场所选项集的第二维（v4.24：共同场所 + DM + 新建）。
+            **委派的落点是场所，不是「一个已经存在的话题」**（v4.24 场所选项集）。
 
-            此前给人委派时列的是**我所有的群**，不管那个人在不在——于是最容易的一次误操作
-            就是把「张锐负责 X」说进一个张锐根本不在的群：听众集合缺了他那一头（最小听众
-            不变量），而群里其他人以为这件事已经说好了。
+            这一屏此前列的是图上已有的**话题**，于是最常见的一次委派根本无从落地：目标
+            刚定下来、要派给张三，而那个群里还一个话题都没有——那个群压根不在列表上。
+            倒因为果了：**话题是委派的产物，不是委派的前提**。要求它先存在，等于要求人
+            先去别处说一句废话把话题生出来，再回来委派。
 
-            **平台没有群成员列表 API**（三墙之一），所以「他在不在这个群」这一问我们答不
-            了。答得了的是另一问：**他在这个群里有过登记吗**——那是图上的事实。于是这里
-            给的是「有过」的那些，而不是「他在」的那些；两者不是一回事，界面上也如实分开
-            写（事实缩小选项集合法，装作知道不合法）。
+            所以选项集换成会话本身（群 + 私聊），已有话题降为场所底下的次级落点（「挂进
+            正在跑的那一段」）。三件事在这里一次算清，因为它们是同一个问题的三个面：
+
+            - **他在这儿有过登记吗**——事实，用来缩小选项集。**平台没有群成员列表 API**
+              （三墙之一），「他在不在这个群」我们答不了；答得了的只有这一问，所以界面上
+              也照这个说法写，不拿它冒充成员名单。此前给人委派时列的是**我所有的群**，
+              最容易的一次误操作就是把「张锐负责 X」说进一个张锐根本不在的群：听众集合
+              缺了他那一头（最小听众不变量），而群里其他人以为这事已经说好了。
+            - **agent 在这儿接单吗**——运行态事实。不接单的群里 @ 不会被应答，一条发过去
+              没人听见的委派就是幽灵承诺换了个形状。
+            - **和他的私聊在不在**——只能按名字认：平台不给「这个私聊的对面是谁」。
+
+            两类会话不摆出来，都是事实排除而非口味：**助手/系统订阅号**不是对话（分诊本来
+            就拒收，在那儿委派没有人接得住），**自聊**的听众只有我自己，一条登记在那儿的
+            委派必然违反最小听众不变量（听众 ⊇ {owner, executor}）。
+
+            两个来源取并集，因为**哪一个都不完整**：会话列表只读最近若干页，图上的话题
+            却记着更早的场所；反过来，一个从没长出话题的群只在会话列表里。少一边的后果
+            都是「明明有那间屋子，选不着」。
           */
-          case 'shared-places': {
+          case 'delegate-rooms': {
             const openId = stringField(payload, 'openId')
-            if (openId === undefined) return failure('要先知道是谁')
-            const seen = new Set<string>()
-            for (const object of scoped.yzjGraph.query(
-              { kind: 'operator', openId: '' }, { kind: 'commitment' },
-            )) {
-              const state = asRecord(object.state)
-              if (asString(asRecord(state?.executor)?.openId) !== openId) continue
-              for (const place of object.audience ?? []) seen.add(place)
+            const name = stringField(payload, 'name')
+            const topics = scoped.get('yzjTopics')
+            if (topics === undefined) return failure('云之家通道未就绪')
+            const byPlace = new Map<string, { sessionId: string; label: string }[]>()
+            const nameOfPlace = new Map<string, string>()
+            for (const entry of topics.tree()) {
+              nameOfPlace.set(entry.place.placeKey, entry.place.groupName)
+              byPlace.set(entry.place.placeKey, entry.topics.map(topic => ({
+                sessionId: topic.sessionId, label: topic.label,
+              })))
             }
-            return { ok: true, value: { placeKeys: [...seen] } }
+            const known = openId === undefined
+              ? new Set<string>()
+              : placesRegisteredIn(scoped, openId)
+            const rows: DelegateRoom[] = topics.conversations()
+              .flatMap(row => (row.kind === 'assistant' || row.selfChat ? [] : [{
+                placeKey: row.placeKey,
+                name: row.name,
+                kind: row.kind === 'direct' ? 'direct' as const : 'group' as const,
+                onDuty: row.onDuty,
+                known: known.has(row.placeKey),
+                theirDm: row.kind === 'direct' && name !== undefined && row.name === name,
+                topics: byPlace.get(row.placeKey) ?? [],
+              }]))
+            const listed = new Set(rows.map(row => row.placeKey))
+            for (const [placeKey, groupName] of nameOfPlace) {
+              if (listed.has(placeKey)) continue
+              const direct = placeKey.startsWith('yzj-dm-')
+              rows.push({
+                placeKey,
+                name: groupName,
+                kind: direct ? 'direct' : 'group',
+                // onDuty 缺席：这一行只来自图上的话题，接单与否这里读不到（见类型注释）。
+                known: known.has(placeKey),
+                theirDm: direct && name !== undefined && groupName === name,
+                topics: byPlace.get(placeKey) ?? [],
+              })
+            }
+            return { ok: true, value: { rooms: rows } }
           }
           case 'delegate-candidates': {
             const goalRef = stringField(payload, 'goalRef')

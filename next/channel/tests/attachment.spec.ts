@@ -59,6 +59,7 @@ describe('取回来之后走哪一路', () => {
     return new YzjTopicReader(
       {} as never, { downloadFile: async () => { throw new Error('不该再取一遍') } } as never,
       {} as never, 'op', 'org', async () => '', async () => ({ ignited: false }),
+      async () => ({ ignited: false }),
       new Set(), [], async () => {}, dir,
     )
   }

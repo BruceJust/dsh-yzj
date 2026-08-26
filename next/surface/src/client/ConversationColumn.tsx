@@ -602,6 +602,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         openSession={openSession}
         back={() => { popFrame() }}
         {...(restoreScroll === undefined ? {} : { restoreScroll })}
+        {...(frame.newDm === undefined ? {} : { newDm: frame.newDm })}
       />
     )
   }

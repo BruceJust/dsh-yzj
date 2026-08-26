@@ -196,6 +196,24 @@ export interface TreeWire {
   }[]
 }
 
+/**
+ * 委派第②维的一行 —— 一个**场所**（群或私聊），以及它底下已经在跑的话题。
+ *
+ * `onDuty` 缺席时是「读不到」，不是「没接单」：这一行可能只从图上的话题拼出来，接单
+ * 名单里没有它的位置。界面因此有三种说法而不是两种。
+ */
+export interface DelegateRoomWire {
+  placeKey: string
+  name: string
+  kind: 'group' | 'direct'
+  onDuty?: boolean
+  /** 他在这儿有过登记（事实）。不等于「他在这个群里」——那一问平台答不了。 */
+  known: boolean
+  /** 这就是和他的那个私聊。 */
+  theirDm: boolean
+  topics: { sessionId: string; label: string }[]
+}
+
 export type TopicTone = 'confirm' | 'review' | 'running' | 'waiting' | 'idle'
 
 export interface InboxItemWire {
@@ -536,8 +554,36 @@ export interface SurfaceInject {
    */
   sendInPlace(
     placeKey: string, text: string, replyTo?: string,
+    /**
+     * 登记路径的结构化先验 —— 传送门第②步选的那个人 (v3.15 裁决④)。
+     *
+     * 会话那一侧一直带着它；主楼这一侧此前不带，于是「委派到这个群」这条路发出去的是
+     * 一句普通消息：话在群里，板上不长行。
+     */
+    register?: { openId: string; name: string; goalRef?: string },
   ): Promise<{
-    msgId?: string; ignited?: boolean; refused?: 'not-on-duty' | 'feed'; error?: string
+    msgId?: string
+    ignited?: boolean
+    refused?: 'not-on-duty' | 'feed'
+    /** 点着了的话，新长出来的那个话题——目标语境要挂到它头上。 */
+    sessionId?: string
+    error?: string
+  }>
+  /**
+   * 给一个**还没聊过**的人发第一句 —— 私聊的出生 (v4.24 场所选项集)。
+   *
+   * 云之家没有「创建私聊」这个动作，落点要等平台在回包里给，所以这一条不认 placeKey
+   * 只认 openId。回包里的 `placeKey` 就是那间刚出生的屋子。
+   */
+  sendToPerson(
+    openId: string, text: string,
+    register?: { openId: string; name: string; goalRef?: string },
+  ): Promise<{
+    msgId?: string
+    placeKey?: string
+    ignited?: boolean
+    sessionId?: string
+    error?: string
   }>
   /** 附件真身：字节走宿主取（没有公开地址），按 fileId 缓存。 */
   attachment(fileId: string, name?: string): Promise<AttachmentBodyWire | undefined>
@@ -569,12 +615,12 @@ export interface SurfaceInject {
    */
   delegateCandidates(goalRef?: string): Promise<{ openId: string; name: string; why: string }[]>
   /**
-   * 这个人在哪些场所里**有过登记** —— 场所选项集的事实依据。
+   * 委派第②维的选项集 —— **场所**（群与私聊），不是「已经存在的话题」。
    *
-   * 不是「他在哪些群」：平台没有群成员列表 API，那一问我们答不了。答得了的是图上的事实
-   * ——他在这个群里有过一条承诺。两者不是一回事，所以界面上也分开写。
+   * 传 `openId`/`name` 就多两样事实：他在哪些场所**有过登记**（不是「他在哪些群」——
+   * 平台没有群成员列表 API，那一问答不了），以及哪个私聊是和他的（只能按名字认）。
    */
-  sharedPlaces(openId: string): Promise<string[]>
+  delegateRooms(who?: { openId: string; name: string }): Promise<DelegateRoomWire[]>
   /**
    * 我有哪些知识库 —— 真身建在哪儿，由人选。
    *
@@ -725,11 +771,22 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     },
     place: placeKey => call<PlaceViewWire>('place', { placeKey }),
     contract: placeKey => call<ContractViewWire>('contract', { placeKey }),
-    async sendInPlace(placeKey, text, replyTo) {
+    async sendInPlace(placeKey, text, replyTo, register) {
       const result = await write<{
-        msgId?: string; ignited: boolean; refused?: 'not-on-duty' | 'feed'
+        msgId?: string; ignited: boolean; refused?: 'not-on-duty' | 'feed'; sessionId?: string
       }>('send-in-place', {
-        placeKey, text, ...(replyTo === undefined ? {} : { replyTo }),
+        placeKey,
+        text,
+        ...(replyTo === undefined ? {} : { replyTo }),
+        ...(register === undefined ? {} : { register }),
+      })
+      return result.error === undefined ? result.value ?? {} : { error: result.error }
+    },
+    async sendToPerson(openId, text, register) {
+      const result = await write<{
+        msgId?: string; placeKey?: string; ignited: boolean; sessionId?: string
+      }>('send-to-person', {
+        openId, text, ...(register === undefined ? {} : { register }),
       })
       return result.error === undefined ? result.value ?? {} : { error: result.error }
     },
@@ -775,10 +832,12 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       // 读不到就是没有候选可摆——搜索那一层照旧在，人不会被卡住。
       return value?.candidates ?? []
     },
-    async sharedPlaces(openId) {
-      const value = await call<{ placeKeys: string[] }>('shared-places', { openId })
-      // 读不到就当没有事实可依：那时全部群按「不确定」摆出来，而不是把人挡在外面。
-      return value?.placeKeys ?? []
+    async delegateRooms(who) {
+      const value = await call<{ rooms: DelegateRoomWire[] }>(
+        'delegate-rooms', who === undefined ? {} : { ...who },
+      )
+      // 读不到就是没有落点可摆——弹窗那一头会如实说，而不是显示一个空列表。
+      return value?.rooms ?? []
     },
     async workspaces() {
       const { value, error } = await write<{ workspaces: WorkspaceWire[] }>('workspaces', {})

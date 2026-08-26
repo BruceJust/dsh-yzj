@@ -32,6 +32,14 @@ let cards: YzjCards
 let call: Handler
 /** 这一趟 CLI 怎么回话。用例各自换掉它——真身这一段全部的风险都在这里。 */
 let bridge: (command: readonly string[]) => { ok: boolean; json?: unknown; stderr?: string }
+/*
+  通道那一头的两份名录，用例各自换掉。
+
+  **是换内容，不是换服务**：cordis 的 `provide` 一个上下文只认一次，第二次会抛
+  「已经注册过」——所以假通道读的是这两个变量，而不是被整个替换掉。
+*/
+let places: unknown[] = []
+let conversations: unknown[] = []
 
 beforeEach(async () => {
   const root = await mkdtemp(join(tmpdir(), 'yzj-next-declare-'))
@@ -40,11 +48,13 @@ beforeEach(async () => {
   graph.defineFamily(commitmentFamily)
   await graph.selectAccount('acct-1')
   ctx.provide('yzjBridge', { run: async (...args: unknown[]) => bridge(args[0] as string[]) })
+  places = []
+  conversations = []
   ctx.provide('yzjTopics', {
-    tree: () => [],
+    tree: () => places,
     topicOf: () => undefined,
     aliases: () => ['@next'],
-    conversations: () => [],
+    conversations: () => conversations,
   })
   cards = new YzjCards(ctx)
   cards.register(createCommitmentCard(ctx))
@@ -267,16 +277,19 @@ describe('近处候选', () => {
 })
 
 /**
- * **共同场所** —— 场所选项集的第二维（v4.24：共同场所 + DM + 新建）。
+ * **委派第②维的选项集：场所，不是「已经存在的话题」**（v4.24）。
  *
- * 此前给人委派时列的是**我所有的群**，不管那个人在不在——最容易的一次误操作就是把
- * 「张锐负责 X」说进一个张锐根本不在的群：听众集合缺了他那一头（最小听众不变量），
- * 而群里其他人以为这件事已经说好了。
+ * 这一组钉两件事，它们是同一次误设计的两半：
  *
- * 平台没有群成员列表 API，所以「他在不在这个群」我们答不了。答得了的是**他在这个群里
- * 有过登记吗**——图上的事实。两者不是一回事，界面上也分开写。
+ * ① 落点必须是**会话本身**。此前这一屏列的是图上已有的话题，于是最常见的一次委派根本
+ *    无从落地——目标刚定下来要派给张三，那个群里还一个话题都没有，那个群压根不在列表
+ *    上。倒因为果了：**话题是委派的产物，不是委派的前提**。
+ * ② 事实可以缩小选项集，**装作知道不行**。给人委派时此前列的是我所有的群，不管那个人
+ *    在不在——最容易的一次误操作就是把「张锐负责 X」说进一个张锐根本不在的群：听众集合
+ *    缺了他那一头（最小听众不变量），而群里其他人以为这事已经说好了。平台没有群成员
+ *    列表 API，「他在不在」答不了；答得了的是「**他在这个群里有过登记吗**」。
  */
-describe('共同场所', () => {
+describe('委派落点的选项集', () => {
   const registered = async (id: string, openId: string, place: string): Promise<void> => {
     await graph.append({
       type: 'commitment/opened',
@@ -287,29 +300,101 @@ describe('共同场所', () => {
       actor: ME,
     })
   }
-  const shared = async (openId: string): Promise<string[]> => {
-    const result = await call('shared-places', { openId })
-    return (result as { value: { placeKeys: string[] } }).value.placeKeys
+  type Room = {
+    placeKey: string; name: string; kind: string; known: boolean; theirDm: boolean
+    onDuty?: boolean; topics: { sessionId: string; label: string }[]
+  }
+  const rooms = async (who?: { openId: string; name: string }): Promise<Room[]> => {
+    const result = await call('delegate-rooms', who ?? {})
+    return (result as { value: { rooms: Room[] } }).value.rooms
+  }
+  /** 会话列表：一个群、一个和张锐的私聊，外加一个助手号和自聊。 */
+  const withConversations = (): void => {
+    places = [{
+      place: { placeKey: 'yzj-group-g1', groupName: '财务群' },
+      topics: [{ sessionId: 'sess-1', label: '统一模板' }],
+    }]
+    conversations = [
+      { placeKey: 'yzj-group-g1', name: '财务群', kind: 'group', onDuty: true, selfChat: false },
+      { placeKey: 'yzj-group-g2', name: '产品讨论群', kind: 'group', onDuty: false, selfChat: false },
+      { placeKey: 'yzj-dm-d1', name: '张锐', kind: 'direct', onDuty: true, selfChat: false },
+      { placeKey: 'yzj-app-a1', name: '云之家小助手', kind: 'assistant', onDuty: false, selfChat: false },
+      { placeKey: 'yzj-dm-me', name: '我', kind: 'direct', onDuty: true, selfChat: true },
+    ]
   }
 
-  it('他在哪儿有过登记，就报哪儿 —— 这是事实，不是成员名单', async () => {
+  /*
+    **一个还没长出任何话题的群也是落点。** 这一条就是这次修的那个病：此前这个群不在
+    列表上，于是「派给张三」这件最常见的事在界面上无处可落。
+  */
+  it('群与私聊都在，话题挂在场所底下', async () => {
+    withConversations()
+    const list = await rooms()
+    expect(list.map(room => room.name)).toEqual(['财务群', '产品讨论群', '张锐'])
+    expect(list.find(room => room.name === '财务群')?.topics)
+      .toEqual([{ sessionId: 'sess-1', label: '统一模板' }])
+    // 一个话题都没有的群照样在——它是场所，不是话题的容器。
+    expect(list.find(room => room.name === '产品讨论群')?.topics).toEqual([])
+  })
+
+  /*
+    两类会话不摆出来，都是**事实排除**：助手号那一头没有人会读到委派；自聊的听众只有
+    我自己，一条登记在那儿的委派必然违反最小听众不变量。
+  */
+  it('助手号与自聊不在选项集里 —— 那儿的委派没有人接得住', async () => {
+    withConversations()
+    const list = await rooms()
+    expect(list.some(room => room.kind === 'assistant')).toBe(false)
+    expect(list.some(room => room.name === '我')).toBe(false)
+  })
+
+  it('他在哪儿有过登记，就标哪儿 —— 这是事实，不是成员名单', async () => {
+    withConversations()
     await registered('c1', 'u-zhang', 'yzj-group-g1')
-    await registered('c2', 'u-zhang', 'yzj-group-g2')
-    await registered('c3', 'u-other', 'yzj-group-g9')
-    expect((await shared('u-zhang')).sort()).toEqual(['yzj-group-g1', 'yzj-group-g2'])
+    await registered('c2', 'u-other', 'yzj-group-g2')
+    const list = await rooms({ openId: 'u-zhang', name: '张锐' })
+    expect(list.find(room => room.name === '财务群')?.known).toBe(true)
+    // 别人在那儿登记过，不算他在那儿。
+    expect(list.find(room => room.name === '产品讨论群')?.known).toBe(false)
   })
 
   /*
     **没有事实就是没有事实**：那时选项集收敛到私聊 + 新建，而界面要把这句话说出来
     （收敛本身是可见的设计事实）——不是默默列出一堆群让人以为都合适。
   */
-  it('从没在任何群里登记过：空的，而不是「所有群」', async () => {
+  it('从没在任何群里登记过：一个都不标 known，而不是「都算」', async () => {
+    withConversations()
     await registered('c1', 'u-zhang', 'yzj-group-g1')
-    expect(await shared('u-never')).toEqual([])
+    expect((await rooms({ openId: 'u-never', name: '谁' })).some(room => room.known)).toBe(false)
   })
 
-  it('少了 openId 就说少了什么', async () => {
-    expect(await call('shared-places', {})).toMatchObject({ ok: false })
+  it('和他的私聊按名字认 —— 平台不给私聊对面的 openId', async () => {
+    withConversations()
+    const list = await rooms({ openId: 'u-zhang', name: '张锐' })
+    expect(list.filter(room => room.theirDm).map(room => room.placeKey)).toEqual(['yzj-dm-d1'])
+    // 没说是谁的时候，一个私聊都不该被认成「和他的」。
+    expect((await rooms()).some(room => room.theirDm)).toBe(false)
+  })
+
+  it('接单与否是事实，读不到就缺席 —— 缺席 ≠ 没接单', async () => {
+    withConversations()
+    const list = await rooms()
+    expect(list.find(room => room.name === '财务群')?.onDuty).toBe(true)
+    expect(list.find(room => room.name === '产品讨论群')?.onDuty).toBe(false)
+  })
+
+  /*
+    会话列表只读最近若干页，图上的话题却记着更早的场所。少了这一边的后果是「明明有那间
+    屋子，选不着」——而它恰恰是那种老场所：有历史，最近没说话。
+  */
+  it('只在图上、不在最近会话里的场所也要出现，且不谎报接单', async () => {
+    places = [{
+      place: { placeKey: 'yzj-group-old', groupName: '去年的项目群' },
+      topics: [{ sessionId: 'sess-old', label: '收尾' }],
+    }]
+    const list = await rooms()
+    expect(list.map(room => room.name)).toEqual(['去年的项目群'])
+    expect(list[0]?.onDuty).toBeUndefined()
   })
 })
 

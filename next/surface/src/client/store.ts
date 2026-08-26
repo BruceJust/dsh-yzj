@@ -23,7 +23,22 @@ import { closePreview } from './preview.ts'
 export type Frame =
   | { readonly kind: 'session' }
   | { readonly kind: 'board' }
-  | { readonly kind: 'place'; readonly placeKey: string; readonly groupName: string }
+  | {
+    readonly kind: 'place'
+    readonly placeKey: string
+    readonly groupName: string
+    /**
+     * 这个私聊**还不存在** —— 落点由这一句话本身创造 (v4.24 场所选项集).
+     *
+     * 云之家的私聊没有「创建」这个动作：它的出生就是第一句话，groupId 要等平台在
+     * 回包里给。所以这一格带的是 openId 而不是 placeKey——`placeKey` 此刻是个占位，
+     * 只用来让视图按会话重新挂载。
+     *
+     * 缺了它，「给一个还没聊过的人私下委派」这条路就走不通，而那恰恰是最常见的
+     * 一次私下登记：第一次把活派给他。
+     */
+    readonly newDm?: { readonly openId: string; readonly name: string }
+  }
   /**
    * 目标放大态 —— 承诺板的第二缩放级别 (v4.12 §7.6).
    *

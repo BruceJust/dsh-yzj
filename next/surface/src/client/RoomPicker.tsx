@@ -7,9 +7,9 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { PersonWire, SurfaceInject, TreeWire } from './rpc.ts'
+import type { DelegateRoomWire, PersonWire, SurfaceInject } from './rpc.ts'
 import { registerSeed } from './commission.ts'
-import type { Errand } from './store.ts'
+import { pushFrame, sendErrand, type Errand } from './store.ts'
 import css from './board.module.css'
 
 /**
@@ -36,14 +36,68 @@ export interface Portal {
   /**
    * 先问**谁来做**，再问在哪儿说 —— 委派五步② 的两维真选择 (v4.21+).
    *
-   * 只有委派要这一步，而且顺序不能倒过来：**执行者决定场所的选项集**。派给 agent
-   * 的活只在群里说得通（它不在你和同事的私聊里干活）；派给人的活有两种说法——当着
-   * 全组说是施压与透明，私下说是留余地——两种都合法，而选哪一种是社交决策。
+   * 顺序不能倒过来：**执行者决定场所的选项集**。派给 agent 的活只在群里说得通（它不
+   * 在你和同事的私聊里干活）；派给人的活有两种说法——当着全组说是施压与透明，私下说
+   * 是留余地——两种都合法，而选哪一种是社交决策。
    *
-   * 不填这个字段的传送门（催／差距→委派／为此会准备）只问一件事：在哪儿说。它们的
-   * 「谁」早就定了。
+   * **这个字段是必填的**，而它此前是可选的。可选的后果实测撞到了：六个传送门里只有
+   * 板上那一颗填了它，目标页的「＋ 委派」、两处「差距 → 委派」、事件枢纽的「为此会
+   * 准备」全都直接掉进第②维——同一个动词在不同入口给出两种东西，而漏掉的那一维恰恰
+   * 是委派最没定的那一格。**一份需要人记得去填的名册就是下一个漏洞的位置**，所以让
+   * 类型来问：`'room'` 是「谁早就定了」（催、移交），它必须被说出口，不能靠不写。
    */
-  readonly pick?: 'executor'
+  readonly pick: 'executor' | 'room'
+}
+
+/**
+ * 这句话最后落在哪儿 —— **三种落点，不是一种**。
+ *
+ * 此前只有 `topic` 一种，于是「在哪儿说」被偷换成了「在哪个已经存在的话题里说」。
+ * 倒因为果：**话题是委派的产物，不是委派的前提**——一个刚定下来的目标要派给张三，
+ * 那个群里通常还一个话题都没有。
+ */
+export type Landing =
+  /** 挂进正在跑的那一段：承诺继承这个话题的语境。 */
+  | { readonly kind: 'topic'; readonly sessionId: string }
+  /** 场所主楼：这一句自成话题根，话题从它长出来。 */
+  | { readonly kind: 'place'; readonly placeKey: string; readonly groupName: string }
+  /** 和这个人还没聊过：私聊的出生就是这第一句话。 */
+  | { readonly kind: 'new-dm'; readonly openId: string; readonly name: string }
+
+/**
+ * 传送门落地 —— **一份实现，三个消费者**。
+ *
+ * 板、目标页、事件枢纽此前各写一遍 `sendErrand + openSession`，三份一字不差。落点从
+ * 一种变成三种的这一刻，那三份就会开始分道扬镳：谁改到了、谁没改到，只有点进去才
+ * 知道。所以它住在这里，和 `errandFor` 并排。
+ */
+export function landPortal(
+  portal: Portal,
+  landing: Landing,
+  choice: PortalChoice | undefined,
+  openSession: (sessionId: string) => void,
+): void {
+  sendErrand(errandFor(portal, choice))
+  if (landing.kind === 'topic') {
+    openSession(landing.sessionId)
+    return
+  }
+  /*
+    `pushFrame` 而不是 `setFrame`：从板上跳进一间屋子说完话，「‹ 返回」该回到板上你
+    刚才看的那一行。滚动位置这里给不出来（传送门不认识调用方的滚动容器），所以给 0
+    ——回到板顶，好过回不去。
+  */
+  if (landing.kind === 'place') {
+    pushFrame({ kind: 'place', placeKey: landing.placeKey, groupName: landing.groupName }, 0)
+    return
+  }
+  pushFrame({
+    kind: 'place',
+    // 还没有 placeKey——平台要等第一句话发出去才给。这个串只用来让视图重新挂载。
+    placeKey: `pending-dm:${landing.openId}`,
+    groupName: landing.name,
+    newDm: { openId: landing.openId, name: landing.name },
+  }, 0)
 }
 
 /**
@@ -100,11 +154,14 @@ export function RoomPicker(props: {
   portal: Portal
   inject: SurfaceInject
   close(): void
-  go(sessionId: string, choice?: PortalChoice): void
+  go(landing: Landing, choice?: PortalChoice): void
 }): ReactNode {
   const { portal, inject, close, go } = props
-  const [tree, setTree] = useState<TreeWire | undefined>(undefined)
+  /** `undefined` = 还没读回来；`[]` = 真的一间屋子都没有。两句话不能混。 */
+  const [rooms, setRooms] = useState<readonly DelegateRoomWire[] | undefined>(undefined)
   const [filter, setFilter] = useState('')
+  /** 展开了哪个场所底下的已有话题（次级落点，不是默认落点）。 */
+  const [opened, setOpened] = useState<string | undefined>(undefined)
   /*
     ① 谁来做 —— 只有委派问这一步 (委派五步②).
 
@@ -125,19 +182,24 @@ export function RoomPicker(props: {
   */
   const [minting, setMinting] = useState(false)
 
-  useEffect(() => { void inject.tree().then(setTree) }, [inject])
+  /*
+    选项集跟着执行者重新读一次 —— 「他在哪儿有过登记」「哪个私聊是和他的」都是**关于
+    这个人**的事实，换个人就是另一份答案。
+  */
+  const who = executor?.kind === 'person' ? executor.person : undefined
+  useEffect(() => {
+    setRooms(undefined)
+    void inject.delegateRooms(
+      who === undefined ? undefined : { openId: who.openId, name: who.name },
+    ).then(setRooms)
+  }, [inject, who])
 
-  const all = (tree?.places ?? []).map(entry => ({
-    placeKey: entry.place.placeKey,
-    groupName: entry.place.groupName,
-    /** `yzj-dm-` 是私聊。场所的**种类**决定这句话会让谁听见，所以它不是装饰。 */
-    direct: entry.place.placeKey.startsWith('yzj-dm-'),
-    topics: entry.topics.filter(topic => (
-      filter.trim() === ''
-      || topic.label.includes(filter.trim())
-      || entry.place.groupName.includes(filter.trim())
-    )),
-  })).filter(entry => entry.topics.length > 0)
+  const needle = filter.trim()
+  const matched = (rooms ?? []).filter(room => (
+    needle === ''
+    || room.name.includes(needle)
+    || room.topics.some(topic => topic.label.includes(needle))
+  ))
 
   /*
     场所的选项集由执行者决定 (委派五步②)。
@@ -146,40 +208,34 @@ export function RoomPicker(props: {
       一句话发过去谁都不会应。
     - **派给人**：两种都合法，而它们是**两句不同的话**——当着全组说是施压与透明，
       私下说是留余地。所以私聊不是被过滤掉的次等选项，它和群并列。
-
-    与那个人的私聊按名字认：平台不给「这个私聊的对面是谁」的字段，而私聊场所的名字
-    就是对面那个人。认不出来不假装认得——下面那一段会如实说没有。
   */
-  const groups = all.filter(entry => !entry.direct)
-  const theirDm = executor?.kind === 'person'
-    ? all.filter(entry => entry.direct && entry.groupName === executor.person.name)
-    : []
+  const groups = matched.filter(room => room.kind === 'group')
+  const theirDm = who === undefined ? [] : matched.filter(room => room.theirDm)
   /*
     **场所选项集 = 共同场所 + DM + 新建**（v4.24），而「共同场所」这一问平台答不了：
     群成员列表没有 API（三墙之一）。
 
-    答得了的是另一问——**他在这个群里有过登记吗**，那是图上的事实。所以这里把群分成两
-    节：有过登记的（事实）与其余的（**不确定他在不在**）。不是把其余的藏起来：他很可能
-    就在一个还没登记过任何东西的群里，藏了就是拿「我们不知道」冒充「他不在」。
+    答得了的是另一问——**他在这个群里有过登记吗**，那是图上的事实。所以群分成两节：
+    有过登记的（事实）与其余的（**不确定他在不在**）。不是把其余的藏起来：他很可能就在
+    一个还没登记过任何东西的群里，藏了就是拿「我们不知道」冒充「他不在」。
 
     事实缩小选项集合法，装作知道不合法——这两句话的分界就画在这一格上。
   */
-  const [known, setKnown] = useState<readonly string[]>([])
-  const [askedFor, setAskedFor] = useState('')
-  useEffect(() => {
-    if (executor?.kind !== 'person') return
-    const openId = executor.person.openId
-    if (askedFor === openId) return
-    setAskedFor(openId)
-    void inject.sharedPlaces(openId).then(setKnown)
-  }, [inject, executor, askedFor])
-  const withHim = executor?.kind === 'person'
-    ? groups.filter(entry => known.includes(entry.placeKey))
-    : []
-  const others = executor?.kind === 'person'
-    ? groups.filter(entry => !known.includes(entry.placeKey))
-    : groups
-  const places = executor?.kind === 'person' ? [...theirDm, ...withHim, ...others] : groups
+  const withHim = who === undefined ? [] : groups.filter(room => room.known)
+  const others = who === undefined ? groups : groups.filter(room => !room.known)
+  /*
+    派给 agent 时，**接单与否**是同一位置上的那条事实。
+
+    不接单的群里 @ 不会被应答：一条发过去没人听见的委派就是幽灵承诺换了个形状。所以
+    它们排在后面并且明标，而不是藏起来（那个群仍然是个可以说话的地方，只是这句话在
+    那儿不会有回音）。第三种是「读不到接单与否」——不写第三句话，就会有一行把「没查到」
+    显示成「没接单」。
+  */
+  const onDuty = executor?.kind === 'agent' ? groups.filter(room => room.onDuty !== false) : []
+  const offDuty = executor?.kind === 'agent' ? groups.filter(room => room.onDuty === false) : []
+  const places: readonly DelegateRoomWire[] = executor?.kind === 'agent'
+    ? [...onDuty, ...offDuty]
+    : who === undefined ? groups : [...theirDm, ...withHim, ...others]
 
   /** 选完之后那句话的骨架：受话 + 句式，内容一个字都不带。 */
   const choice = (): PortalChoice | undefined => {
@@ -291,62 +347,120 @@ export function RoomPicker(props: {
           className={css.input}
           value={filter}
           autoFocus
-          placeholder="过滤群或话题…"
+          placeholder="过滤群、私聊或话题…"
           onChange={(event) => { setFilter(event.target.value) }}
         />
         <div className={css.rooms}>
-          {tree === undefined
+          {/*
+            **和他还没聊过 → 就在这儿开一个**（v4.24 场所出生）。
+
+            这一格此前是一句说明文字：「先在云之家给 TA 发一句，话题长出来之后就会出现
+            在这里」——把人赶去另一个 app 说一句废话，回来刷新，再委派。而云之家的私聊
+            根本没有「创建」这个动作：**它的出生就是第一句话**，而那句话正是此刻要说的
+            这一句。第一次把活派给一个人，恰恰是最常见的一次私下登记。
+          */}
+          {who !== undefined && theirDm.length === 0 && rooms !== undefined && (
+            <div className={css.roomGroup}>
+              <div className={css.roomSection}>和他的私聊</div>
+              <button
+                type="button"
+                className={css.roomNew}
+                onClick={() => {
+                  go({ kind: 'new-dm', openId: who.openId, name: who.name }, choice())
+                }}
+              >
+                ＋ 开一个和 {who.name} 的私聊 —— 你这一句就是它的第一句
+              </button>
+            </div>
+          )}
+          {rooms === undefined
             ? <div className={css.goalEmpty}>正在读会话…</div>
             : places.length === 0
               ? (
                 <div className={css.goalEmpty}>
-                  没有可跳进去的话题。
-                  {' '}
-                  承诺是在<b>话题</b>里呼吸的——先在群里 @ 一句让话题长出来，再回来委派。
+                  {needle === ''
+                    ? '一个可以说话的地方都没有——会话列表还没拉到，或者这个账号确实还没有任何群与私聊。'
+                    : `没有匹配「${needle}」的群或私聊。`}
                 </div>
               )
-              : places.map((entry, index) => (
-                <div className={css.roomGroup} key={entry.placeKey}>
+              : places.map(room => (
+                <div className={css.roomGroup} key={room.placeKey}>
                   {/*
                     **分节说清依据**：哪些是「他在这儿有过登记」（事实），哪些是「不确定
                     他在不在」（我们答不了的那一问）。收敛本身是可见的设计事实——所以第一
                     节为空时那句话必须出现，而不是让人以为这个产品只会列一堆群。
                   */}
-                  {executor?.kind === 'person' && entry.placeKey === withHim[0]?.placeKey && (
+                  {room.placeKey === theirDm[0]?.placeKey && (
+                    <div className={css.roomSection}>和他的私聊</div>
+                  )}
+                  {who !== undefined && room.placeKey === withHim[0]?.placeKey && (
                     <div className={css.roomSection}>他在这些群里有过登记</div>
                   )}
-                  {executor?.kind === 'person' && entry.placeKey === others[0]?.placeKey && (
+                  {who !== undefined && room.placeKey === others[0]?.placeKey && (
                     <div className={css.roomSection}>
                       {withHim.length === 0
-                        ? `还没见过 ${executor.person.name} 在任何群里有过登记——共同场所无从确认。`
+                        ? `还没见过 ${who.name} 在任何群里有过登记——共同场所无从确认。`
                           + '下面这些群里他在不在，平台不给成员名单，我们答不了：'
                         : '其余的群（他在不在，我们答不了——平台不给成员名单）：'}
                     </div>
                   )}
-                  {executor?.kind === 'person' && index === 0 && entry.direct && (
-                    <div className={css.roomSection}>和他的私聊</div>
+                  {room.placeKey === offDuty[0]?.placeKey && (
+                    <div className={css.roomSection}>
+                      这些群 agent 没接单 —— 委派发过去不会有人应，登记也无从落地：
+                    </div>
                   )}
-                  <div className={css.roomPlace}>
-                    {entry.groupName}
+                  {/*
+                    **场所本身就是落点**，所以它是一颗按得下去的键，不再是一行标题。
+
+                    这一改是这次的主刀：此前场所只是话题的分组标题，能按的只有话题，于是
+                    「在哪儿说」被偷换成「在哪个已经存在的话题里说」——而一个刚定下来的
+                    目标，那个群里通常一个话题都没有。这一句发到主楼，话题从它长出来。
+                  */}
+                  <button
+                    type="button"
+                    className={css.roomPlace}
+                    onClick={() => {
+                      go({ kind: 'place', placeKey: room.placeKey, groupName: room.name }, choice())
+                    }}
+                  >
+                    {room.kind === 'direct' ? '💬 ' : '# '}
+                    {room.name}
                     {/*
                       **这句话会让谁听见**，写在场所名旁边而不是等人自己推断。
                       公开登记与私下登记是两句不同的话，而它们在列表里长得一模一样。
                     */}
-                    {executor?.kind === 'person' && (
-                      <span className={css.roomKind}>
-                        {entry.direct ? '私下登记 · 只有你和 TA' : '公开登记 · 全群可见'}
-                      </span>
-                    )}
-                    {executor?.kind === 'agent' && (
-                      <span className={css.roomKind}>公开委派 · 全群可见</span>
-                    )}
-                  </div>
-                  {entry.topics.map(topic => (
+                    <span className={css.roomKind}>
+                      {room.kind === 'direct'
+                        ? '私下登记 · 只有你和 TA'
+                        : executor?.kind === 'agent' ? '公开委派 · 全群可见' : '公开登记 · 全群可见'}
+                      {room.onDuty === false ? ' · agent 没接单' : ''}
+                    </span>
+                  </button>
+                  {/*
+                    已有话题是**次级落点**，不是唯一落点。
+
+                    默认落点是主楼（这句话自成话题根）；挂进一个正在跑的话题是另一件事
+                    ——那条承诺会继承那个话题的语境，所以它要人主动点开、主动选，而不是
+                    平铺在这里跟主楼抢那一眼。
+                  */}
+                  {room.topics.length > 0 && (
                     <button
                       type="button"
-                      className={css.room}
+                      className={css.roomMore}
+                      onClick={() => {
+                        setOpened(current => (current === room.placeKey ? undefined : room.placeKey))
+                      }}
+                    >
+                      {opened === room.placeKey ? '▾' : '▸'} 或挂进这里正在跑的
+                      {' '}{room.topics.length} 个话题
+                    </button>
+                  )}
+                  {opened === room.placeKey && room.topics.map(topic => (
+                    <button
+                      type="button"
+                      className={`${css.room} ${css.roomTopic}`}
                       key={topic.sessionId}
-                      onClick={() => { go(topic.sessionId, choice()) }}
+                      onClick={() => { go({ kind: 'topic', sessionId: topic.sessionId }, choice()) }}
                     >
                       {topic.label}
                     </button>
@@ -354,25 +468,12 @@ export function RoomPicker(props: {
                 </div>
               ))}
           {/*
-            和这个人**还没有过私聊**时，如实说。
-
-            私下登记这条路此刻走不通，理由是「那间屋子还不存在」——而这是可以自己动手
-            解决的（去云之家私聊一句），所以说清楚比把这一格藏起来有用。藏起来的后果是
-            人以为这个产品只支持公开登记。
-          */}
-          {executor?.kind === 'person' && theirDm.length === 0 && (
-            <div className={css.goalEmpty}>
-              和 <b>{executor.person.name}</b> 还没有过私聊，所以「私下登记」这条路暂时没有落点——
-              先在云之家给 TA 发一句，话题长出来之后就会出现在这里。
-            </div>
-          )}
-          {/*
             尾项，不是首项。
 
             一屏之内「造一个新的」永远排在「用现成的」后面：默认该是复用一个已经存在的
             听众集合，新建是那个默认不成立时才走的路。
           */}
-          {tree !== undefined && !minting && (
+          {rooms !== undefined && !minting && (
             <button
               type="button"
               className={css.roomNew}

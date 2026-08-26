@@ -28,7 +28,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { BoardRowWire, GoalPageWire, SurfaceInject } from './rpc.ts'
 import { sendErrand } from './store.ts'
-import { RoomPicker, errandFor, type Portal } from './RoomPicker.tsx'
+import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
 import {
   assessAsk, breakdownAsk, delegateSeed, gapSeed, goalQuestionSeed, rebaseAsk,
 } from './commission.ts'
@@ -248,6 +248,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               ask({
                 subject: 'goal',
                 goalRef, goalName, voice: 'place', seed: draft,
+                // 移交的执行者刚刚定下来了——这一屏只欠落点。
+                pick: 'room',
                 title: '移交：去哪个会话说？',
                 note: '这条承诺没有记下登记场所，所以落点得你来定。句子还是你自己说。',
               })
@@ -340,6 +342,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                     ask({
                       subject: 'goal',
                       goalRef, goalName, voice: 'place', seed,
+                      // 催的对象就是这条承诺的执行者——「谁」早就定了，只欠落点。
+                      pick: 'room',
                       title: '催：去哪个会话说？',
                       note: '这条承诺没有记下登记场所，所以落点得你来定。句子还是你自己说。',
                     })
@@ -571,7 +575,9 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 ask({
                   subject: 'goal',
                   goalRef, goalName, voice: 'place', seed: delegateSeed(name),
-                  title: '委派：跳进哪个会话说？',
+                  // 两维真选择：先问谁来做，再问在哪儿说——执行者决定场所的选项集。
+                  pick: 'executor',
+                  title: '委派：谁来做、在哪儿说？',
                   note: '公开委派是施压与透明，私下委派是留余地——这个选择不该由系统替你做。',
                 })
               }}
@@ -725,6 +731,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                       ask({
                         subject: 'goal',
                         goalRef, goalName, voice: 'place', seed,
+                        // 同上：催不问「谁」。
+                        pick: 'room',
                         title: '催：去哪个会话说？',
                         note: '这条承诺没有记下登记场所，所以落点得你来定。',
                       })
@@ -874,7 +882,16 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                           subject: 'goal',
                           goalRef, goalName, voice: 'place',
                           seed: gapSeed(name, line.criterion),
-                          title: '把这条缺口变成委派：跳进哪个会话说？',
+                          /*
+                            差距变委派，**也是一次委派** —— 所以它也得先问谁来做。
+
+                            此前这一颗（还有事件枢纽那颗）直接跳到第②维，于是同一个动词
+                            在不同入口给出两种东西：板上那颗问「谁来做」，这颗不问、并且
+                            把落点限死在一个已经存在的话题里。缺口是新长出来的活，它的
+                            执行者**恰恰是最没定的那一格**。
+                          */
+                          pick: 'executor',
+                          title: '把这条缺口变成委派：谁来做、在哪儿说？',
                           note: '句子还是你自己说——这里只负责把你送到该说话的地方。',
                         })
                       }}
@@ -921,10 +938,9 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             portal={portal}
             inject={inject}
             close={() => { setPortal(undefined) }}
-            go={(sessionId, choice) => {
-              sendErrand(errandFor(portal, choice))
+            go={(landing, choice) => {
               setPortal(undefined)
-              openSession(sessionId)
+              landPortal(portal, landing, choice, openSession)
             }}
           />
         )}

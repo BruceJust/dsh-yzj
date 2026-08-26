@@ -28,7 +28,7 @@ import {
   type YzjGroup, type YzjIdentity, type YzjMessage, type YzjTopicRoute,
 } from './protocol.ts'
 import { triage, triageOutbound, type TriageOutcome } from './triage.ts'
-import { parseSendTime } from './topics.ts'
+import { parseSendTime, type DeskSend } from './topics.ts'
 import { executeHandoff, openHandoffCard, prepareHandoff, type HandoffPlan } from './handoff.ts'
 import type { YzjChannelClient } from './client.ts'
 import type { ChannelState } from './state.ts'
@@ -489,7 +489,7 @@ export class YzjPoller {
     placeKey: string,
     text: string,
     replyTo?: string,
-  ): Promise<{ msgId?: string; ignited: boolean; refused?: 'not-on-duty' | 'feed' }> {
+  ): Promise<DeskSend> {
     const identity = this.identity
     if (identity === undefined) throw new Error('云之家身份尚未就绪')
     const groupId = groupIdFromPlaceKey(placeKey)
@@ -565,14 +565,65 @@ export class YzjPoller {
       const answered = await this.answerCardFromDesk(groupId, message, identity)
       if (answered) return { msgId: sent.msgId, ignited: false }
       const batch = await this.client.messages(groupId, 20)
-      await this.runTrigger(group, message, [...batch, message], identity)
+      const born = await this.runTrigger(group, message, [...batch, message], identity)
+      return { msgId: sent.msgId, ignited: true, ...(born === undefined ? {} : { sessionId: born }) }
     } catch (error) {
       // The words are in the group. Saying "failed" now would be a lie about
       // the only irreversible thing that happened.
       this.onError(error)
       return { msgId: sent.msgId, ignited: false }
     }
-    return { msgId: sent.msgId, ignited: true }
+  }
+
+  /**
+   * 给一个还没聊过的人发第一句 —— **私聊在这一刻出生** (v4.24 场所选项集).
+   *
+   * 和 `sendFromDesktop` 的顺序恰好相反,而那是被平台逼出来的:那边先解析场所再发送
+   * （因为发送不可逆,能先失败的都先失败）;这边**根本没有场所可解析**——它是这次发送的
+   * 产物,groupId 要等回包。
+   *
+   * 于是发送之后的每一步都必须是**可以失败而不改口的**:话已经出去了,再说「没发出去」
+   * 就是在唯一不可逆的那件事上撒谎。所以点火拿不到名录时返回 `ignited: false`,而不是
+   * 抛错——那句话在对方的窗口里,板上那条登记也照落。
+   */
+  async sendToPerson(openId: string, text: string): Promise<DeskSend & { placeKey?: string }> {
+    const identity = this.identity
+    if (identity === undefined) throw new Error('云之家身份尚未就绪')
+    const sent = await this.client.send({ toOpenId: openId }, text, undefined, 'desk')
+    const groupId = sent.groupId
+    if (sent.msgId === undefined || groupId === undefined) {
+      return { ...(sent.msgId === undefined ? {} : { msgId: sent.msgId }), ignited: false }
+    }
+    const placeKey = placeKeyFor('direct', groupId)
+    const addressed = isAgentTrigger(
+      { msgId: '', content: text, fromOpenId: identity.openId, msgType: 'text', sendTime: '', param: {} },
+      this.config.aliases,
+      this.config.acceptAccountMentions,
+    )
+    if (!addressed || !this.allowed(groupId)) {
+      return { msgId: sent.msgId, placeKey, ignited: false }
+    }
+    try {
+      const group: YzjGroup = {
+        groupId, groupName: '', groupType: 1, lastMsgId: sent.msgId, lastMsgSendTime: '',
+      }
+      const message: YzjMessage = {
+        msgId: sent.msgId,
+        content: text,
+        fromOpenId: identity.openId,
+        msgType: 'text',
+        sendTime: new Date().toISOString().replace('T', ' ').slice(0, 23),
+        param: {},
+      }
+      const born = await this.runTrigger(group, message, [message], identity)
+      return {
+        msgId: sent.msgId, placeKey, ignited: true,
+        ...(born === undefined ? {} : { sessionId: born }),
+      }
+    } catch (error) {
+      this.onError(error)
+      return { msgId: sent.msgId, placeKey, ignited: false }
+    }
   }
 
   /**
@@ -641,12 +692,16 @@ export class YzjPoller {
     return true
   }
 
+  /**
+   * @returns 这句话落进的那个话题的 sessionId —— 主楼委派长出的新话题要挂目标语境,
+   *   而在这之前桌面那一侧无从知道它叫什么。没被受理（重复入场）时是 undefined。
+   */
   private async runTrigger(
     group: YzjGroup,
     message: YzjMessage,
     batch: readonly YzjMessage[],
     identity: YzjIdentity,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     const lookup = (groupId: string, msgId: string): string | undefined => (
       this.state.topicForMessage(groupId, msgId)
     )
@@ -665,7 +720,7 @@ export class YzjPoller {
 
     // Persist the admission BEFORE the work starts; a failed write un-admits
     // rather than leaving a task that is neither pending nor running.
-    if (!this.state.admit({ group, message, route, admittedAt: Date.now() })) return
+    if (!this.state.admit({ group, message, route, admittedAt: Date.now() })) return undefined
     try {
       await this.state.save()
     } catch (error) {
@@ -673,6 +728,7 @@ export class YzjPoller {
       throw error
     }
     this.orchestrator.enqueue(group, message, route, context)
+    return route.sessionId
   }
 
   /**

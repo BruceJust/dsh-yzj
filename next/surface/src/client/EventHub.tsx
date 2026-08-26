@@ -21,9 +21,8 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { BoardEventWire, SurfaceInject } from './rpc.ts'
-import { RoomPicker, errandFor, type Portal } from './RoomPicker.tsx'
+import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
 import { RepairVerbs, type Repair, type RepairTarget } from './RepairVerbs.tsx'
-import { sendErrand } from './store.ts'
 import { eventPrepSeed } from './commission.ts'
 import { safeHref } from './preview.ts'
 import css from './objects.module.css'
@@ -344,7 +343,9 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
             goalName: event.title,
             voice: 'place',
             seed: eventPrepSeed(event.title),
-            title: '为这场会准备：跳进哪个会话说？',
+            // 会前补的那一刀也要派给谁——同一个动词，同样两维（板与 hub 同构）。
+            pick: 'executor',
+            title: '为这场会准备：谁来做、在哪儿说？',
             note: '会前要补的那一刀，说给谁听、在哪说，只有你知道。',
           })
         }}
@@ -357,10 +358,9 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
           portal={portal}
           inject={inject}
           close={() => { setPortal(undefined) }}
-          go={(sessionId, choice) => {
-            sendErrand(errandFor(portal, choice))
+          go={(landing, choice) => {
             setPortal(undefined)
-            openSession(sessionId)
+            landPortal(portal, landing, choice, openSession)
           }}
         />
       )}

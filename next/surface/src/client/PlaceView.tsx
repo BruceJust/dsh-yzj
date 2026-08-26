@@ -27,7 +27,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { avatarOf, clockOf, dayLabel } from './stream.ts'
-import { pushFrame } from './store.ts'
+import { pushFrame, setFrame, takeErrand } from './store.ts'
 import { YzjContractPanel } from './ContractPanel.tsx'
 import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
 import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
@@ -43,6 +43,13 @@ export interface PlaceViewProps {
   back(): void
   /** Scroll position to restore — the pixel the reader left this view at. */
   restoreScroll?: number
+  /**
+   * 这个私聊**还不存在** —— 这一屏是它出生前的样子 (v4.24 场所选项集).
+   *
+   * 云之家的私聊没有「创建」动作：它的出生就是第一句话。所以这里没有 `placeKey` 可读、
+   * 没有历史可拉，输入框走的也是另一条出站（按 openId 发，落点由平台在回包里给）。
+   */
+  newDm?: { openId: string; name: string }
 }
 
 type Filter = 'all' | 'topics'
@@ -50,7 +57,7 @@ type Filter = 'all' | 'topics'
 const EMPTY: PlaceViewWire = { placeKey: '', groupName: '', messages: [], topics: [], aliases: [] }
 
 export function YzjPlaceView(props: PlaceViewProps): ReactNode {
-  const { placeKey, groupName, inject, openSession, back, restoreScroll } = props
+  const { placeKey, groupName, inject, openSession, back, restoreScroll, newDm } = props
   const [view, setView] = useState<PlaceViewWire>(EMPTY)
   const [filter, setFilter] = useState<Filter>('all')
   const [earlierOpen, setEarlierOpen] = useState(false)
@@ -177,8 +184,24 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   }, [inject, peeked])
 
   const refresh = useCallback(async (): Promise<void> => {
+    // 还没出生的私聊没有历史可拉——问一个不存在的 placeKey 只会拿回一次失败。
+    if (newDm !== undefined) return
     setView(await inject.place(placeKey) ?? { ...EMPTY, placeKey, groupName })
-  }, [inject, placeKey, groupName])
+  }, [inject, placeKey, groupName, newDm])
+
+  /*
+    待建私聊也要知道触发词。
+
+    受话是「这句话说给 agent 听」的那半边，而它的字面来自部署（`@next` / `@云小助`）。
+    场所视图平时从 `place` 那一趟顺回来，这条路没有那一趟——不补一次，从传送门带过来的
+    受话会静静地丢掉，那句委派落进新私聊时没有人在听。
+  */
+  useEffect(() => {
+    if (newDm === undefined) return
+    void inject.inbox().then((view_) => {
+      setView(current => ({ ...current, groupName: newDm.name, aliases: view_?.aliases ?? [] }))
+    })
+  }, [inject, newDm])
 
   useEffect(() => {
     let alive = true
@@ -189,6 +212,56 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
       clearInterval(timer)
     }
   }, [refresh])
+
+  /**
+   * 传送门带过来的那件差事 —— **主楼也是落点** (v4.24 场所选项集).
+   *
+   * 这一屏此前不认识 errand，于是「委派到这个群」这条路整个走不通：人被送进屋子，
+   * 输入框却是空的，选执行者时定下的登记先验也一起丢了——那句话发出去只是一句普通
+   * 消息，板上不长行。**话题是委派的产物**，所以委派的落点本来就常常是一间还没有
+   * 任何话题的屋子；接得住它的只能是这里。
+   *
+   * 和会话那一侧同一条纪律：不覆盖没发完的话（草稿是操作者的），受话等触发词到齐了
+   * 再补（那时才知道这个部署的 agent 叫什么）。
+   */
+  const [pendingGoal, setPendingGoal] = useState<
+    { goalRef: string; goalName: string } | undefined
+  >(undefined)
+  const [pendingCall, setPendingCall] = useState<string | undefined>(undefined)
+  const [pendingRegister, setPendingRegister] = useState<
+    { openId: string; name: string } | undefined
+  >(undefined)
+  useEffect(() => {
+    const errand = takeErrand()
+    if (errand === undefined) return
+    const opening = errand.seed ?? ''
+    if (opening !== '') {
+      setDraft(current => (current.trim() === '' ? opening : current))
+      setToast(value => (
+        boxRef.current !== null && boxRef.current.value.trim() !== ''
+          ? '你有一段没发完的话，没覆盖它——这次要说的请自己写。'
+          : value
+      ))
+    }
+    setPendingCall(errand.call === true ? opening : undefined)
+    setPendingRegister(errand.register)
+    // 一场会不装载语境：会的 id 当成 goalRef 会把目标图污染掉（和会话那一侧同源）。
+    if (errand.subject === 'goal' && errand.goalRef !== '') {
+      setPendingGoal({ goalRef: errand.goalRef, goalName: errand.goalName })
+    }
+  }, [placeKey])
+
+  /*
+    受话补在**输入框里**，看得见、删得掉——删掉就降级成一句普通的话。
+
+    等 `aliases` 到齐再补：刚跳进来时这一屏还没读回它的场所，`view.aliases` 是空的，
+    这一拍直接拼会把受话静静地丢掉（会话那一侧踩过同一个坑）。
+  */
+  useEffect(() => {
+    if (pendingCall === undefined || alias === undefined) return
+    setDraft(current => (current === pendingCall ? `${alias} ${current}`.trimEnd() : current))
+    setPendingCall(undefined)
+  }, [pendingCall, alias])
 
   /*
     Where a room opens.
@@ -308,35 +381,94 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const addressed = aliases.some(alias => draft.includes(alias))
     || (replyTo !== undefined && replyTo.agent === true)
 
+  /**
+   * 说出口了，语境才装载 (v4.9) —— 和会话那一侧一字不差。
+   *
+   * 主楼委派点着之后长出来的是一个**新话题**，而那个话题该继承这个目标：否则「委派
+   * 带着目标语境」和「委派可以落在主楼」两件各自正确的事合起来会撒谎——板上那条承诺
+   * 挂着目标，它在跑的那个话题却什么都不继承，后面在那儿登记的第二条活就挂不上了。
+   */
+  const armBorn = async (sessionId: string | undefined): Promise<void> => {
+    if (sessionId === undefined || pendingGoal === undefined) return
+    const armed = await inject.armTopicGoal(sessionId, pendingGoal.goalRef, pendingGoal.goalName)
+    if (armed.error !== undefined) {
+      setToast(`话已经发出去了，但新长出来的话题没能挂到目标上：${armed.error}`)
+      return
+    }
+    setPendingGoal(undefined)
+  }
+
+  const settle = (result: {
+    error?: string; refused?: string; ignited?: boolean; sessionId?: string
+  }): void => {
+    if (result.refused === 'not-on-duty') {
+      // Nothing was sent. 人看人发不受限制,但在没接单的场所 @ agent 会在同事
+      // 面前留下一个永远不会有人应答的 @ —— 那比在这里说清楚糟得多。
+      setNotOnDuty(true)
+    } else if (result.error !== undefined) setToast(result.error)
+    else {
+      void armBorn(result.sessionId)
+      setDraft('')
+      setReplyTo(undefined)
+      // 说出口了，这次先验就用掉了——下一句话是新的一句话。
+      setPendingRegister(undefined)
+      setToast(result.ignited === true
+        ? '已发出，并且点着了：这条链正在收纳为一个话题。'
+        : '已发到群里。')
+    }
+    setBusy(false)
+    void refresh()
+  }
+
   const send = (): void => {
     const text = draft.trim()
     if (text === '' || busy) return
     setBusy(true)
-    void inject.sendInPlace(placeKey, text, replyTo?.msgId).then((result) => {
-      if (result.refused === 'not-on-duty') {
-        // Nothing was sent. 人看人发不受限制,但在没接单的场所 @ agent 会在同事
-        // 面前留下一个永远不会有人应答的 @ —— 那比在这里说清楚糟得多。
-        setNotOnDuty(true)
-      } else if (result.error !== undefined) setToast(result.error)
-      else {
-        setDraft('')
-        setReplyTo(undefined)
-        setToast(result.ignited === true
-          ? '已发出，并且点着了：这条链正在收纳为一个话题。'
-          : '已发到群里。')
+    /*
+      **登记先验跟着这句话一起走** (v3.15 裁决④).
+
+      选执行者的那一下已经把「这句是登记别人的承诺」定下来了，不必等群里跑一次 turn。
+      发送成功才落库：发不出去的委派不该在板上长出一条谁都没听说过的承诺。
+    */
+    const register = pendingRegister === undefined
+      ? undefined
+      : {
+        ...pendingRegister,
+        ...(pendingGoal === undefined ? {} : { goalRef: pendingGoal.goalRef }),
       }
-      setBusy(false)
-      void refresh()
-    })
+    if (newDm !== undefined) {
+      void inject.sendToPerson(newDm.openId, text, register).then((result) => {
+        if (result.error === undefined && result.placeKey !== undefined) {
+          /*
+            私聊出生了 —— 从占位切到真的那间屋子。
+
+            `setFrame` 而不是 push：待建态不是一个人会想「返回」到的地方，它已经变成
+            了这间屋子本身。
+          */
+          const born = result.placeKey
+          void armBorn(result.sessionId)
+          setPendingRegister(undefined)
+          setDraft('')
+          setBusy(false)
+          setFrame({ kind: 'place', placeKey: born, groupName: newDm.name })
+          return
+        }
+        settle(result)
+      })
+      return
+    }
+    void inject.sendInPlace(placeKey, text, replyTo?.msgId, register).then(settle)
   }
 
   return (
     <div className={`${tokens.tokens} ${css.place}`}>
       <header className={css.head}>
-        <span className={css.icon}>#</span>
+        <span className={css.icon}>{newDm === undefined ? '#' : '💬'}</span>
         <span className={css.title}>{view.groupName || groupName}</span>
         <span className={css.sub}>
-          群视图 · {view.topics.length} 个话题{hot > 0 ? ` · ${String(hot)} 个在办` : ''}
+          {newDm === undefined
+            ? `群视图 · ${String(view.topics.length)} 个话题${hot > 0 ? ` · ${String(hot)} 个在办` : ''}`
+            : '还没有过私聊 · 你这一句就是第一句'}
         </span>
         <span className={css.filters}>
           {(['all', 'topics'] as const).map(value => (
@@ -404,7 +536,15 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           </div>
         )}
 
-        {rows.length === 0 && (
+        {rows.length === 0 && newDm !== undefined && (
+          <div className={css.calm}>
+            你和 <b>{newDm.name}</b> 还没有过私聊。
+            <br />
+            云之家没有「建一个私聊」这个动作——<b>它的出生就是第一句话</b>，也就是下面这一句。
+            按下发送之后，这间屋子会出现在左边的会话列表里。
+          </div>
+        )}
+        {rows.length === 0 && newDm === undefined && (
           <div className={css.calm}>
             这个场所还没有内容。
             <br />
@@ -617,6 +757,33 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
 
       {view.kind !== 'assistant' && (
       <div className={css.composer}>
+        {/*
+          **传送门带过来的东西要看得见** —— 目标语境与登记先验。
+
+          这两样此刻只活在内存里,而它们决定这句话发出去之后会发生什么:板上长出一条挂在
+          谁名下的活、挂在哪个目标下面。看不见的话,一次「换个人」之后带过来的还是上一个
+          人——而那只有等承诺落到板上才发现。
+        */}
+        {(pendingGoal !== undefined || pendingRegister !== undefined) && (
+          <div className={css.errandBar}>
+            {pendingRegister !== undefined && (
+              <span className={css.errandTag}>
+                这一句是在登记 <b>{pendingRegister.name}</b> 的承诺
+              </span>
+            )}
+            {pendingGoal !== undefined && (
+              <span className={css.errandTag}>带着目标：{pendingGoal.goalName}</span>
+            )}
+            <button
+              type="button"
+              className={css.errandDrop}
+              title="不带它了——这句话就当一句普通的话说出去"
+              onClick={() => { setPendingGoal(undefined); setPendingRegister(undefined) }}
+            >
+              不带了
+            </button>
+          </div>
+        )}
         {/*
           未接单：可见状态的出生故事.
 

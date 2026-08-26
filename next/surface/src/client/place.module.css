@@ -211,6 +211,27 @@
   background: #F1F3F6; color: var(--yzj-ink-3); border: 1px solid var(--yzj-line);
 }
 
+/*
+  传送门带过来的东西，摆在输入框上方 —— 看得见，也丢得掉。
+
+  虚线：它还没生效。这句话没发出去之前，登记先验和目标语境都只是**打算**，实线会让
+  它看起来像已经落库的事实。
+*/
+.errandBar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 8px; padding: 5px 10px; border-radius: 10px;
+  border: 1px dashed var(--yzj-pub); background: var(--yzj-pub-tint);
+  font-size: 11px; color: var(--yzj-ink-2);
+}
+.errandTag { line-height: 1.6; }
+.errandTag b { color: var(--yzj-pub-deep); }
+.errandDrop {
+  margin-left: auto; font: inherit; font-size: 10.5px;
+  padding: 2px 9px; border-radius: 11px; cursor: pointer;
+  border: 1px solid var(--yzj-line); background: var(--yzj-surface); color: var(--yzj-ink-3);
+}
+.errandDrop:hover { color: var(--yzj-ink); }
+
 .notOnDuty {
   margin-bottom: 8px; padding: 9px 12px;
   border: 1px solid var(--yzj-amber-line); border-radius: 10px;

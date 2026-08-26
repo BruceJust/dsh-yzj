@@ -217,6 +217,7 @@ export function apply(ctx: Context, config: Config): void {
         ctx, client, state, identity.openId, identity.orgId,
         (route, text) => orchestrator.lightAsk(route, text),
         (placeKey, text, replyTo) => poller.sendFromDesktop(placeKey, text, replyTo),
+        (openId, text) => poller.sendToPerson(openId, text),
         allowedGroupIds,
         aliases,
         async (groupId: string, on: boolean) => {

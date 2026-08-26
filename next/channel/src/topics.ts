@@ -182,6 +182,20 @@ export interface ConversationRow {
   readonly selfChat: boolean
 }
 
+/**
+ * 桌面说出去的一句话，回来是什么 —— **一份形状，三条出站路**。
+ *
+ * `sessionId` 只在**点着了**的时候有：那是这句话刚刚生出来的那个话题。它不是给导航
+ * 用的方便字段，是「委派带着目标语境」这条规则在主楼那条路上的落点——主楼委派长出的
+ * 新话题得继承那个目标，而在此之前，桌面这一侧根本没有办法知道它叫什么。
+ */
+export interface DeskSend {
+  readonly msgId?: string
+  readonly ignited: boolean
+  readonly refused?: 'not-on-duty' | 'feed'
+  readonly sessionId?: string
+}
+
 export interface YzjTopics {
   /** The conversation one session is a window onto. */
   topicOf(sessionId: string): TopicDescriptor | undefined
@@ -237,7 +251,15 @@ export interface YzjTopics {
    */
   sendInPlace(
     placeKey: string, text: string, replyTo?: string,
-  ): Promise<{ msgId?: string; ignited: boolean; refused?: 'not-on-duty' | 'feed' }>
+  ): Promise<DeskSend>
+  /**
+   * 给一个**还没聊过**的人发第一句 —— 私聊的出生 (v4.24 场所选项集).
+   *
+   * 云之家没有「创建私聊」这个动作：`--to-open-id` 发一句，平台在回包里给出 groupId,
+   * 那一刻这间屋子才存在。所以这一条不认 placeKey——它此刻还不存在,正是这次发送把它
+   * 造出来的,回包里的 `placeKey` 就是它。
+   */
+  sendToPerson(openId: string, text: string): Promise<DeskSend & { placeKey?: string }>
   /**
    * 接单开关 — put a conversation into service, or take it out.
    *
@@ -338,7 +360,11 @@ export class YzjTopicReader implements YzjTopics {
     /** Posts into a place and ignites a turn when the agent is addressed. */
     private readonly post: (
       placeKey: string, text: string, replyTo?: string,
-    ) => Promise<{ msgId?: string; ignited: boolean; refused?: 'not-on-duty' | 'feed' }>,
+    ) => Promise<DeskSend>,
+    /** Posts the FIRST message to somebody, creating the DM in the process. */
+    private readonly postToPerson: (
+      openId: string, text: string,
+    ) => Promise<DeskSend & { placeKey?: string }>,
     /** Conversations the agent answers in. Empty means every conversation. */
     private readonly onDutyGroupIds: ReadonlySet<string>,
     /** The trigger words, from config — one source for the gate and the UI. */
@@ -489,10 +515,16 @@ export class YzjTopicReader implements YzjTopics {
 
   async sendInPlace(
     placeKey: string, text: string, replyTo?: string,
-  ): Promise<{ msgId?: string; ignited: boolean; refused?: 'not-on-duty' | 'feed' }> {
+  ): Promise<DeskSend> {
     const body = text.trim()
     if (body === '') throw new Error('Refusing to post an empty message')
     return this.post(placeKey, body, replyTo)
+  }
+
+  async sendToPerson(openId: string, text: string): Promise<DeskSend & { placeKey?: string }> {
+    const body = text.trim()
+    if (body === '') throw new Error('Refusing to post an empty message')
+    return this.postToPerson(openId, body)
   }
 
   /**
