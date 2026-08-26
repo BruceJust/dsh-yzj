@@ -398,7 +398,7 @@ describe('语境继承', () => {
     })
 
     await tools.get('commitment_register')?.execute(
-      { what: '新的一条', executorOpenId: 'u-y', executorName: '小 Y' }, EXEC,
+      { tone: 'stated', what: '新的一条', executorOpenId: 'u-y', executorName: '小 Y' }, EXEC,
     )
     const fresh = commitments().find(state => state.what === '新的一条')
     expect(fresh?.parentGoalRef).toBe(GOAL)
@@ -417,7 +417,7 @@ describe('语境继承', () => {
       actor: OPERATOR,
     })
     await tools.get('commitment_register')?.execute(
-      { what: '卸载之后的一条', executorOpenId: 'u-y' }, EXEC,
+      { tone: 'stated', what: '卸载之后的一条', executorOpenId: 'u-y' }, EXEC,
     )
     // 未挂是合法状态：卸载不是错误，是一个正当的去向。
     expect(commitments().find(state => state.what === '卸载之后的一条')?.parentGoalRef)
@@ -871,7 +871,7 @@ describe('挂接判定序（v4.9）', () => {
       actor: OPERATOR,
     })
     await tools.get('commitment_register')?.execute(
-      { what: '明说挂到别处', executorOpenId: 'u-y', parentGoalRef: other }, EXEC,
+      { tone: 'stated', what: '明说挂到别处', executorOpenId: 'u-y', parentGoalRef: other }, EXEC,
     )
     const row = commitments().find(state => state.what === '明说挂到别处')
     expect(row?.parentGoalRef).toBe(other)
@@ -885,7 +885,7 @@ describe('挂接判定序（v4.9）', () => {
       data: { topicKey: 'yzj-topic-1', goalRef: GOAL },
       actor: OPERATOR,
     })
-    const result = await tools.get('commitment_register')?.execute({
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated',
       what: '模型猜了个别的',
       executorOpenId: 'u-y',
       parentGoalRef: 'https://yzj.example.com/doc/guessed',
@@ -907,7 +907,7 @@ describe('挂接判定序（v4.9）', () => {
 
   it('still uses the guess when the context carries nothing', async () => {
     const guessed = 'https://yzj.example.com/doc/guessed'
-    await tools.get('commitment_register')?.execute({
+    await tools.get('commitment_register')?.execute({ tone: 'stated',
       what: '没语境时的推断',
       executorOpenId: 'u-y',
       parentGoalRef: guessed,

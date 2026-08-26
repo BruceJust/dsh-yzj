@@ -18,6 +18,7 @@ import {
   type CommitmentState,
 } from '../src/commitment/family.ts'
 import { applyCommitmentTools } from '../src/commitment/tools.ts'
+import { waitingFamily } from '../src/task/waiting.ts'
 import type { TurnBinding } from '../src/turns.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
@@ -63,6 +64,8 @@ beforeEach(async () => {
   graph = new YzjGraph(ctx, { root })
   graph.defineFamily(commitmentFamily)
   graph.defineFamily(processFamily)
+  // 请求那一支落在等待族上——先应后登，等待是「等谁、等了多久」的那个对象。
+  graph.defineFamily(waitingFamily)
   await graph.selectAccount('acct-1')
   cards = new YzjCards(ctx)
   cards.register(createCommitmentCard(ctx))
@@ -101,7 +104,7 @@ describe('evidence promotion', () => {
 
 describe('commitment_register', () => {
   it('records a human executor with the audience of the utterance that registered it', async () => {
-    const result = await tools.get('commitment_register')?.execute({
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated',
       what: '把漏水的事转给老贺', executorOpenId: 'p-9', executorName: '张锐', due: '明天下班前',
     }, EXEC)
 
@@ -123,7 +126,7 @@ describe('commitment_register', () => {
     永远空着：我让 agent 登记的每一条别人的活，方向轴都判成「我旁观的」。
   */
   it('把委派者记在承诺上：登记是人说的，agent 只是记', async () => {
-    const result = await tools.get('commitment_register')?.execute({
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated',
       what: '核对一版竞品定价', executorOpenId: 'p-9', executorName: '张锐',
     }, EXEC)
     // `decider` = 这一回合里「谁有权答它开出来的卡」，在群里就是 @ 它的那个人。
@@ -131,21 +134,21 @@ describe('commitment_register', () => {
   })
 
   it('collapses the same utterance registered twice onto one object', async () => {
-    const first = await tools.get('commitment_register')?.execute({ what: '出周报' }, EXEC)
-    const second = await tools.get('commitment_register')?.execute({ what: '出周报' }, EXEC)
+    const first = await tools.get('commitment_register')?.execute({ tone: 'stated', what: '出周报' }, EXEC)
+    const second = await tools.get('commitment_register')?.execute({ tone: 'stated', what: '出周报' }, EXEC)
     expect(second?.commitmentId).toBe(first?.commitmentId)
     expect(second?.content).toContain('未重复创建')
     expect(commitments()).toHaveLength(1)
   })
 
   it('does not collapse two different promises from the same message', async () => {
-    await tools.get('commitment_register')?.execute({ what: '出周报' }, EXEC)
-    await tools.get('commitment_register')?.execute({ what: '对一下发票' }, EXEC)
+    await tools.get('commitment_register')?.execute({ tone: 'stated', what: '出周报' }, EXEC)
+    await tools.get('commitment_register')?.execute({ tone: 'stated', what: '对一下发票' }, EXEC)
     expect(commitments()).toHaveLength(2)
   })
 
   it('marks an inferred parent goal for correction rather than asserting it', async () => {
-    const inferred = await tools.get('commitment_register')?.execute({
+    const inferred = await tools.get('commitment_register')?.execute({ tone: 'stated',
       what: 'a', parentGoalRef: 'yzj://doc/goal-1', inferred: true,
     }, EXEC)
     expect(stateOf(String(inferred?.commitmentId))?.attachedVia).toBe('inferred')
@@ -155,12 +158,12 @@ describe('commitment_register', () => {
   })
 
   it('leaves the parent out entirely when none was given', async () => {
-    const result = await tools.get('commitment_register')?.execute({ what: 'a' }, EXEC)
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated', what: 'a' }, EXEC)
     expect(stateOf(String(result?.commitmentId))?.parentGoalRef).toBeUndefined()
   })
 
   it('defaults to an agent executor bound to this topic when no person is named', async () => {
-    const result = await tools.get('commitment_register')?.execute({ what: '我来查' }, EXEC)
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated', what: '我来查' }, EXEC)
     expect(stateOf(String(result?.commitmentId))?.executor)
       .toEqual({ kind: 'agent', topicKey: 'yzj-topic-1' })
   })
@@ -168,7 +171,7 @@ describe('commitment_register', () => {
 
 describe('commitment_receipt', () => {
   async function open(what = '发分析'): Promise<string> {
-    const result = await tools.get('commitment_register')?.execute({ what, executorOpenId: 'p-9' }, EXEC)
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated', what, executorOpenId: 'p-9' }, EXEC)
     return String(result?.commitmentId)
   }
 
@@ -365,7 +368,7 @@ describe('a new commitment inherits the goal its context already serves', () => 
     // The load-bearing fact. Without it `goalOfTopic` could only ever see
     // agent-executed rows — and the tool that feeds it writes human ones, so
     // inheritance was structurally unreachable in production.
-    const result = await tools.get('commitment_register')?.execute({
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated',
       what: '张锐出结论', executorOpenId: 'p-9', executorName: '张锐',
     }, EXEC)
     const state = graph.rawObject('commitment', String(result?.commitmentId))?.state as
@@ -394,7 +397,7 @@ describe('a new commitment inherits the goal its context already serves', () => 
       },
       actor: { kind: 'agent' },
     })
-    const result = await tools.get('commitment_register')?.execute({
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated',
       what: '新来的活', executorOpenId: 'p-9', executorName: '张锐',
     }, EXEC)
     expect(goalOf(String(result?.commitmentId))).toEqual({
@@ -417,14 +420,14 @@ describe('a new commitment inherits the goal its context already serves', () => 
         actor: { kind: 'agent' },
       })
     }
-    const result = await tools.get('commitment_register')?.execute({
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated',
       what: '两个目标之间', executorOpenId: 'p-9',
     }, EXEC)
     expect(goalOf(String(result?.commitmentId)).ref).toBeUndefined()
   })
 
   it('leaves work unattached when the context serves nothing — 未挂是合法状态', async () => {
-    const result = await tools.get('commitment_register')?.execute({
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated',
       what: '把仓库钥匙给老贺', executorOpenId: 'p-9',
     }, EXEC)
     expect(goalOf(String(result?.commitmentId))).toEqual({ ref: undefined, via: undefined })
@@ -443,7 +446,7 @@ describe('a new commitment inherits the goal its context already serves', () => 
       },
       actor: { kind: 'agent' },
     })
-    const result = await tools.get('commitment_register')?.execute({
+    const result = await tools.get('commitment_register')?.execute({ tone: 'stated',
       what: '说了别的目标', executorOpenId: 'p-9', parentGoalRef: 'yzj://doc/goal-said',
     }, EXEC)
     expect(goalOf(String(result?.commitmentId))).toEqual({
@@ -600,6 +603,62 @@ describe('作废/顺延/移交：话语兜底', () => {
  * 一条已经当面说好的活长得一模一样——这正是这条禁令要消灭的东西。实测就撞见了它：本地
  * 会话里给张锐登记了一条，板上一个字都没提「他还不知道」。
  */
+/**
+ * **语气路由：陈述即登记，请求先应后登**（v4.24 决策 #58）。
+ *
+ * 「张三来做 X」和「张三能不能做 X」在图上是两件完全不同的事，而此前它们走同一条路：
+ * 都落成一条既成承诺。于是**一句还没人答应的请求，在板上变成了张三欠你的东西**——他从
+ * 没答应过，却已经开始逾期、开始被催。设计把这条路由标成「v4.9 以来全程空白」。
+ */
+describe('语气路由', () => {
+  const call = async (args: Record<string, unknown>): Promise<{
+    content: string; commitmentId?: string; waitingId?: string
+  }> => await tools.get('commitment_register')?.execute(args, EXEC) as never
+
+  it('请求：一条承诺都不登记，只记下「在等他答复」', async () => {
+    const result = await call({
+      tone: 'requested', what: '核对一版竞品定价', executorOpenId: 'u-zhang', executorName: '张锐',
+    })
+    expect(commitments()).toHaveLength(0)
+    expect(result.commitmentId).toBeUndefined()
+    expect(result.waitingId).toBeDefined()
+    const wait = graph.rawObject('waiting', String(result.waitingId))
+    expect((wait?.state as { kind?: string; waitedFor?: string })).toMatchObject({
+      kind: 'third-party', waitedFor: 'u-zhang',
+    })
+    // 账上不欠这句话必须说出来——否则人以为已经登记了。
+    expect(result.content).toContain('账上先不欠')
+  })
+
+  /*
+    同一句请求问两遍是一个等待，不是两个：「等了多久」这个数一旦每被提起一次就归零，
+    它就再也不能作为催的依据（等待族的幂等锚本来就为这件事而生）。
+  */
+  it('同一句请求问两遍，还是那一个等待', async () => {
+    const first = await call({ tone: 'requested', what: '核对一版竞品定价', executorOpenId: 'u-zhang' })
+    const again = await call({ tone: 'requested', what: '核对一版竞品定价 ', executorOpenId: 'u-zhang' })
+    expect(again.waitingId).toBe(first.waitingId)
+  })
+
+  it('他答应了：这一次真登记，并把那个等待收口', async () => {
+    const asked = await call({ tone: 'requested', what: '核对一版竞品定价', executorOpenId: 'u-zhang' })
+    const booked = await call({
+      tone: 'stated', what: '核对一版竞品定价', executorOpenId: 'u-zhang', executorName: '张锐',
+      answeredWaitingId: asked.waitingId,
+    })
+    expect(booked.commitmentId).toBeDefined()
+    // 同一件事不该同时躺着「在等答复」和「他欠一条」——其中一个永远不会自己消失。
+    expect((graph.rawObject('waiting', String(asked.waitingId))?.state as { status?: string })?.status)
+      .toBe('closed')
+  })
+
+  it('陈述照旧登记 —— 路由不该把正常的登记也拦下来', async () => {
+    const result = await call({ tone: 'stated', what: '出周报', executorOpenId: 'u-zhang' })
+    expect(result.commitmentId).toBeDefined()
+    expect(commitments()).toHaveLength(1)
+  })
+})
+
 describe('没人被告知的那条，板上要说', () => {
   /** 桌面/本地会话的绑定：没有 placeKey，也就无处公示。 */
   const noPlace: TurnBinding = {
@@ -612,7 +671,7 @@ describe('没人被告知的那条，板上要说', () => {
   }
 
   it('给别人登记而无处公示：盖上「未通知」', async () => {
-    const id = await registerWithoutPlace({ what: '核对定价', executorOpenId: 'u-zhang', executorName: '张锐' })
+    const id = await registerWithoutPlace({ tone: 'stated', what: '核对定价', executorOpenId: 'u-zhang', executorName: '张锐' })
     expect(stateOf(id)?.notified).toBe('failed')
   })
 
@@ -621,12 +680,12 @@ describe('没人被告知的那条，板上要说', () => {
     盖上去只会给每一行加一句没人需要的噪音（颜色预算与行信息层级同一条纪律）。
   */
   it('我自己的活不盖：没有「通知我自己」这回事', async () => {
-    const id = await registerWithoutPlace({ what: '我自己的活', executorOpenId: 'op-1', executorName: '我' })
+    const id = await registerWithoutPlace({ tone: 'stated', what: '我自己的活', executorOpenId: 'op-1', executorName: '我' })
     expect(stateOf(id)?.notified).toBeUndefined()
   })
 
   it('agent 执行的活不盖', async () => {
-    const id = await registerWithoutPlace({ what: 'agent 的活' })
+    const id = await registerWithoutPlace({ tone: 'stated', what: 'agent 的活' })
     expect(stateOf(id)?.notified).toBeUndefined()
   })
 })
@@ -635,8 +694,8 @@ describe('回执路上的主张即验收', () => {
   const register = async (executorOpenId?: string): Promise<string> => {
     const result = await tools.get('commitment_register')?.execute(
       executorOpenId === undefined
-        ? { what: '我自己的活' }
-        : { what: '我自己的活', executorOpenId, executorName: '某人' },
+        ? { tone: 'stated', what: '我自己的活' }
+        : { tone: 'stated', what: '我自己的活', executorOpenId, executorName: '某人' },
       EXEC,
     )
     return String(result?.commitmentId)

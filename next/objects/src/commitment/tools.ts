@@ -20,6 +20,7 @@ import {
   commitmentIdFor, commitmentIdemKeyFor, ownsCommitment, type CommitmentState,
 } from './family.ts'
 import { armedGoalOf } from '../goal/family.ts'
+import { waitingIdFor, waitingIdemKeyFor } from '../task/waiting.ts'
 import type { TurnBinding } from '../turns.ts'
 
 const output = {
@@ -29,6 +30,8 @@ const output = {
     properties: {
       content: { type: 'string' as const, required: true as const },
       commitmentId: { type: 'string' as const },
+      /** 请求那一支开出来的等待——先应后登，所以这一趟没有 commitmentId。 */
+      waitingId: { type: 'string' as const },
     },
   },
   render: (_args: unknown, value: { content: string }) => [
@@ -111,9 +114,19 @@ export function applyCommitmentTools(ctx: Context): () => void {
 
   register(defineTool({
     name: 'commitment_register',
-    description: 'Register a commitment that a PERSON (not you) has taken on, when somebody in this conversation said they would do something. Use it for "让张三负责 B" / "我明天给你" / "老王来对一下" — one call per commitment, quoting what was actually promised. Do NOT use it for your own work; your own tasks are recorded automatically. Only attach parentGoalRef when the goal was actually mentioned — leave it out when unsure.',
+    description: 'Register a commitment that a PERSON (not you) has taken on. `tone` decides what actually happens, and getting it wrong puts a debt on somebody who never agreed to it: STATED ("让张三负责 B" / "我明天给你" / "张三说他来对") books the commitment; REQUESTED ("张三能不能看一下" / "麻烦张三对一下" / "要不要让张三来") books NOTHING — it opens a wait for his answer, and you register only after he agrees. One call per commitment, quoting what was actually promised. If the utterance names SEVERAL people, do not split it yourself: ask who is the single responsible owner (群体无法被问责), then register that one. Do NOT use it for your own work; your own tasks are recorded automatically. Only attach parentGoalRef when the goal was actually mentioned — leave it out when unsure.',
     parameters: {
       what: { type: 'string', required: true, description: 'What was promised, in the promiser\'s own terms.' },
+      tone: {
+        type: 'string',
+        required: true,
+        enum: ['stated', 'requested'],
+        description: 'stated = somebody SAID this will be done (a fact about the world). requested = somebody ASKED for it and the person has not answered yet (a question). When in doubt, choose requested — an un-owed debt on the board is worse than one registration too late.',
+      },
+      answeredWaitingId: {
+        type: 'string',
+        description: 'The wait this answers (from an earlier requested call), when the person has now agreed. Closes that wait as the commitment is booked.',
+      },
       executorOpenId: { type: 'string', description: 'openId of the person who owes it (resolve via yzj_contact_search). Omit only when the commitment is yours.' },
       executorName: { type: 'string', description: 'Display name of that person, for readable cards.' },
       due: { type: 'string', description: 'Deadline exactly as stated ("明天下班前", "8/20"); omit when none was given.' },
@@ -133,6 +146,51 @@ export function applyCommitmentTools(ctx: Context): () => void {
         return {
           content: `已登记过同一条承诺（${existing.id}），未重复创建。`,
           commitmentId: existing.id,
+        }
+      }
+      /*
+        **语气路由** —— 陈述即登记，请求先应后登 (v4.24 决策 #58).
+
+        「张三来做 X」和「张三能不能做 X」在图上是两件完全不同的事，而此前它们走同一条
+        路：都落成一条**既成承诺**。于是一句还没人答应的请求，在板上变成了张三欠你的
+        东西——他从没答应过，却已经开始逾期、开始被催。这条路由 v4.9 以来一直空着。
+
+        请求这一支**什么都不登记**，只开一个等待：等待是「等谁、等了多久」的第一类对象，
+        本来就为这件事而生。他答应了，那句「好」才是承诺的出生话语——那时再登记，并把
+        这个等待收口（先应后登）。
+
+        判定归 LLM（语气是语义，不是句式；demo 用正则只是桩）。**拿不准就选 requested**：
+        账上少一条迟到的承诺，比多一条没人欠的债便宜得多。
+      */
+      if (args.tone === 'requested') {
+        const asked = args.what.replace(/\s+/gu, ' ').trim()
+        const scope = binding?.topicKey ?? binding?.placeKey ?? 'desktop'
+        const waitIdemKey = waitingIdemKeyFor(scope, `请求：${asked}`)
+        const already = ctx.yzjGraph.findByIdemKey(waitIdemKey)
+        const waitingId = already?.id ?? waitingIdFor(scope, `请求：${asked}`)
+        if (already === undefined) {
+          await ctx.yzjGraph.append({
+            type: 'waiting/opened',
+            data: {
+              waitingId,
+              kind: 'third-party',
+              what: `等答复：${asked}`,
+              openedAt: Date.now(),
+              ...(args.executorOpenId === undefined ? {} : { waitedFor: args.executorOpenId }),
+              ...(binding?.topicKey === undefined ? {} : { topicKey: binding.topicKey }),
+              ...(binding?.placeKey === undefined ? {} : { placeKey: binding.placeKey }),
+              ...(binding?.audience === undefined ? {} : { audience: [...binding.audience] }),
+              idemKey: waitIdemKey,
+            },
+            actor: { kind: 'agent' },
+          })
+        }
+        const who = args.executorName ?? '对方'
+        return {
+          content: `这是**一句请求，不是一条承诺**——${who}还没答应，所以账上先不欠。`
+            + `已记下「在等${who}答复」（${waitingId}）。`
+            + `等他答应了再跟我说一声，我那时才登记；他要是不接，就说一句，我把这个等待收掉。`,
+          waitingId,
         }
       }
       const commitmentId = commitmentIdFor(anchor, args.what)
@@ -210,6 +268,23 @@ export function applyCommitmentTools(ctx: Context): () => void {
         },
         actor: { kind: 'agent' },
       })
+      /*
+        **先应后登的后半句**：他答应了，那条等待就该收口。
+
+        不收的话，板上会同时躺着「在等张三答复」和「张三欠一条」——同一件事两个对象，
+        而其中一个永远不会自己消失。`resolved` 是它该有的死法：等到了。
+      */
+      if (args.answeredWaitingId !== undefined) {
+        const wait = ctx.yzjGraph.rawObject('waiting', args.answeredWaitingId)
+        const status = asString(asRecord(wait?.state)?.status)
+        if (wait !== undefined && status !== 'closed') {
+          await ctx.yzjGraph.append({
+            type: 'waiting/closed',
+            data: { waitingId: args.answeredWaitingId, cause: 'resolved' },
+            actor: { kind: 'agent' },
+          })
+        }
+      }
       // The registration is announced in the place it was made, with its own
       // answer path: the person named is usually not the operator, and making
       // the operator relay "he says it is done" is the pumping the design
