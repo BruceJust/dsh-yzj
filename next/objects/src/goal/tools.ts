@@ -411,7 +411,11 @@ export function applyGoalTools(ctx: Context): () => void {
           ? []
           : [`签发时的副本：${evidence.criteria}`]),
         `子承诺：在跟 ${String(evidence.counts.open)} · 逾期 ${String(evidence.counts.overdue)} · 已了 ${String(evidence.counts.settled)}`,
-        ...evidence.children.map(child => (
+        /*
+          **评估遍历义务线，不遍历全量**（v3.19r②）：一条经过移交的义务在 `children` 里
+          有 N 条边，逐条列出去等于让简报把同一件事算两遍。
+        */
+        ...evidence.obligationLine.map(child => (
           `- [${child.status}${child.overdue ? '·逾期' : ''}] ${child.what} — ${child.who}`
           + `${child.due === undefined ? '' : ` · ${child.due}`}`
           + `${child.progress === undefined ? '' : ` · 最近：${child.progress}`}`

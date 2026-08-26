@@ -64,6 +64,8 @@ export interface GoalEvidence {
   /** The success criteria the goal was SIGNED with (v4.10 磨点在可验收). */
   readonly criteria?: string
   readonly children: readonly GoalChild[]
+  /** 义务线：去掉 transferred 之后的那一份。计数与评估读它，见 `goalEvidence` 的注释。 */
+  readonly obligationLine: readonly GoalChild[]
   readonly artifacts: readonly GoalArtifact[]
   readonly counts: {
     readonly open: number
@@ -161,8 +163,16 @@ export function goalEvidence(
     })
   }
 
+  /*
+    义务线：链尾的现行边代表这条义务，transferred 边是它的责任史。见返回值上的注释。
+  */
+  const line = children.filter(child => child.status !== 'transferred')
+
   // 第二跳：the artifacts those topics produced. A goal has no artifacts of its
   // own — it has the work under it, and the work leaves things behind.
+  //
+  // **遍历的是 `children` 而不是 `line`**（v3.19r② 工件归集例外）：移交封存的是责任史，
+  // 不是产出。少了这一句，旧执行者做到一半留下的东西会随着一次移交从目标上消失。
   const artifacts: GoalArtifact[] = []
   const seen = new Set<string>()
   for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
@@ -198,11 +208,23 @@ export function goalEvidence(
     status: asString(structure?.status) ?? 'unknown',
     ...(criteria === undefined ? {} : { criteria }),
     children,
+    /**
+     * **义务线** —— 一条义务经 N 次移交是一条义务，不是 N 条承诺 (v3.19r②).
+     *
+     * 计数与评估都读这一份，而不是 `children`：transferred 边是**责任史封存卷宗**，
+     * 它的义务并没有结束，正在链尾那条现行边上活着。把它算进「已了」，目标每被移交一
+     * 次就凭空多一格完成度，差距简报把同一件事列两遍——而这两处恰恰是拿去对账的。
+     *
+     * `children` 保留全量：**留档要看得见**（板上那一行说得出「已移交 → 王五」），
+     * 产出归集也要遍历它——张锐做了一半的东西不因为移交就蒸发（吸收态封存的是责任史，
+     * 不是产出）。可见与计数是两件事。
+     */
+    obligationLine: line,
     artifacts,
     counts: {
-      open: children.filter(child => child.status === 'open' && !child.overdue).length,
-      overdue: children.filter(child => child.overdue).length,
-      settled: children.filter(child => child.status !== 'open').length,
+      open: line.filter(child => child.status === 'open' && !child.overdue).length,
+      overdue: line.filter(child => child.overdue).length,
+      settled: line.filter(child => child.status !== 'open').length,
     },
   }
 }

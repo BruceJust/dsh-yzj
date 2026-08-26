@@ -48,6 +48,25 @@ export interface Reissued {
   readonly fromExecutor: CommitmentExecutor
 }
 
+/**
+ * 旧边上**还有什么等着人裁决** —— 移交不吞裁决 (v3.19r③).
+ *
+ * 旧边一转吸收态就 `isResolved`，挂在它上面的验收卡随之收口。于是一份「他交了、等你
+ * 验收」的交付，会被一次移交**无声地吞掉**：没有人拒绝过它，也没有人接受过它，它只是
+ * 不见了。这是「绝不静默丢失」这条律的移交面。
+ *
+ * **不阻塞**（移交是 owner 的主权，他有权在裁决之前就换人），但必须**亮出来**：确认
+ * 之前说清「1 份待验收将随旧边封存——验收权仍在你，可以先裁决」。
+ */
+export function pendingDecisionsOn(state: CommitmentState): readonly string[] {
+  const out: string[] = []
+  if (state.delivery !== undefined) {
+    const round = state.round === undefined || state.round === 0 ? '' : `（第 ${String(state.round + 1)} 版）`
+    out.push(`1 份待验收的交付${round}：「${state.delivery.claim}」`)
+  }
+  return out
+}
+
 /** 旧边此刻能不能被重新签发。拒绝要说人话——这是给人看的回执，不是日志。 */
 export function reissuable(
   state: CommitmentState | undefined,

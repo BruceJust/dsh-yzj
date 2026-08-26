@@ -74,6 +74,15 @@ export interface Portal {
     readonly executor?: { readonly openId: string; readonly name: string }
     /** 现场所。列表里那一行要标出来，因为「就在这儿」是一个要被看见的选项。 */
     readonly placeKey?: string
+    /**
+     * 旧边上还等着人裁决的东西 —— **移交不吞裁决** (v3.19r③).
+     *
+     * 旧边一转吸收态，挂在它上面的验收卡就收口了：一份「他交了、等你验收」的交付会被
+     * 一次移交无声地吞掉——没人拒绝过它，也没人接受过它，它只是不见了。
+     *
+     * **不阻塞**（换人是 owner 的主权），但必须亮出来。
+     */
+    readonly pending?: readonly string[]
   }
 }
 
@@ -251,6 +260,9 @@ export async function handoffPortal(
       ...(now.due === undefined ? {} : { due: now.due }),
       ...(now.executor === undefined ? {} : { executor: now.executor }),
       ...(now.placeKey === undefined ? {} : { placeKey: now.placeKey }),
+      ...(now.pending === undefined || now.pending.length === 0
+        ? {}
+        : { pending: now.pending }),
     },
   }
 }
@@ -523,10 +535,28 @@ export function RoomPicker(props: {
           <br />
           {executor === undefined
             ? portal.note
-            : executor.kind === 'agent'
-              ? 'agent 在群里接单——挑一个它在岗的群，这句话说出去就是一次公开委派。'
-              : '当着全组说是施压与透明，私下说是留余地——两种都合法，这个选择不该由系统替你做。'}
+            : move !== undefined
+              ? '移交的那句话由你说，发出去才算数；原来那个场所会自动落一帖解除告知。'
+              : executor.kind === 'agent'
+                ? 'agent 在群里接单——挑一个它在岗的群，这句话说出去就是一次公开委派。'
+                : '当着全组说是施压与透明，私下说是留余地——两种都合法，这个选择不该由系统替你做。'}
         </div>
+        {/*
+          **移交不吞裁决**（v3.19r③）—— 亮出来，但不拦。
+
+          旧边一转吸收态，挂在它上面的验收卡就收口了：一份「他交了、等你验收」的交付会被
+          这一次移交无声地吞掉——没人拒绝过它，也没人接受过它，它只是不见了。换人是 owner
+          的主权，所以这里不设门；但「绝不静默丢失」要求他至少看见这一句。
+        */}
+        {(move?.pending ?? []).length > 0 && (
+          <div className={css.handoffPending}>
+            <b>移交之后，下面这些会随旧边一起封存：</b>
+            {(move?.pending ?? []).map(line => <span key={line}>· {line}</span>)}
+            <span className={css.handoffPendingTail}>
+              验收权仍然在你手上——可以先回去裁决，也可以就这样移交。
+            </span>
+          </div>
+        )}
         <input
           className={css.input}
           value={filter}

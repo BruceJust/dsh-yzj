@@ -671,6 +671,21 @@
 .accepted { flex: none; font-size: 10.5px; color: var(--yzj-ink-3); }
 
 /* 场所分节：说清哪些是事实、哪些是我们答不了的（v4.24 场所选项集） */
+/*
+  移交不吞裁决：亮出来，但不拦（v3.19r③）。
+
+  琥珀而不是红：它不是错误，也不是一道门——它是一句「你知道了再按」。红色会让人以为
+  这里被挡住了，而挡住 owner 换人恰恰是这条裁决明确不做的事。
+*/
+.handoffPending {
+  display: flex; flex-direction: column; gap: 3px;
+  margin: 2px 0 8px; padding: 8px 11px; border-radius: 9px;
+  border: 1px solid var(--yzj-amber-line); background: var(--yzj-amber-bg);
+  font-size: 11px; line-height: 1.7; color: var(--yzj-amber);
+}
+.handoffPending b { color: #8A4B08; }
+.handoffPendingTail { color: var(--yzj-ink-3); }
+
 .roomSection {
   margin: 8px 2px 3px; font-size: 10.5px; line-height: 1.6; color: var(--yzj-ink-3);
 }

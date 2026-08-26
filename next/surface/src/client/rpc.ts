@@ -556,6 +556,8 @@ export interface SurfaceInject {
     due?: string
     executor?: { openId: string; name: string }
     placeKey?: string
+    /** 旧边上还等着人裁决的东西（移交不吞裁决）。移交之前要亮出来，但不阻塞。 */
+    pending?: string[]
     error?: string
   }>
   objects(sessionId?: string): Promise<ObjectFaceWire>
@@ -789,7 +791,7 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     async handoffContext(id) {
       const { value, error } = await write<{
         what?: string; due?: string
-        executor?: { openId: string; name: string }; placeKey?: string
+        executor?: { openId: string; name: string }; placeKey?: string; pending?: string[]
       }>('handoff-context', { id })
       return error === undefined ? value ?? {} : { error }
     },

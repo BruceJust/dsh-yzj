@@ -17,7 +17,8 @@ import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
 import {
   commitmentIdFor, createGoalBody, eventHub, executorName, failureOf, goalCommitmentIdFor,
-  nothingChanges, ownsCommitment, placeOfEdge, readinessLine, reissuable, reissueEdge,
+  nothingChanges, ownsCommitment, pendingDecisionsOn, placeOfEdge, readinessLine, reissuable,
+  reissueEdge,
   releaseNotice,
   transferredToName, type CommitmentState,
 } from '@yzj-next/objects'
@@ -1580,11 +1581,23 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
       })(),
       // 聚合是信号不是状态: counts inform, they never decide. The parent's
       // terminal state is always a human acceptance (Asana's own finding).
-      counts: {
-        open: children.filter(child => child.status === 'open' && !child.overdue).length,
-        overdue: children.filter(child => child.overdue).length,
-        settled: children.filter(child => child.status !== 'open').length,
-      },
+      /*
+        **按义务线计，不按边计**（v3.19r② 移交链去重）。
+
+        一条义务经 N 次移交是**一条**义务，不是 N 条承诺：transferred 边是责任史封存
+        卷宗，它的义务正在链尾那条现行边上活着。算进「已了」的话，一个目标每被移交一次
+        就凭空多一格完成度——而这个数字正是拿去对账、拿去判「该评估了」的那个。
+
+        行仍然全都在（留档要看得见「已移交 → 王五」）：**可见与计数是两件事**。
+      */
+      counts: (() => {
+        const line = children.filter(child => child.status !== 'transferred')
+        return {
+          open: line.filter(child => child.status === 'open' && !child.overdue).length,
+          overdue: line.filter(child => child.overdue).length,
+          settled: line.filter(child => child.status !== 'open').length,
+        }
+      })(),
     }
   }).sort((left, right) => (
     right.counts.overdue - left.counts.overdue || right.counts.open - left.counts.open
@@ -2129,6 +2142,8 @@ export function inboxView(ctx: Context): InboxView {
     if (own !== undefined && status === 'open') openGoals.push(own)
     const parent = asString(state?.parentGoalRef)
     if (parent === undefined || parent === '') continue
+    // 义务线：转手过的那条边既不占一格总数，也不算一格已了（v3.19r②）。
+    if (status === 'transferred') continue
     const bucket = childrenOf.get(parent) ?? { total: 0, settled: 0 }
     bucket.total += 1
     if (status !== 'open') bucket.settled += 1
@@ -2953,6 +2968,12 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                 ...(placeOfEdge(scoped, state) === undefined
                   ? {}
                   : { placeKey: placeOfEdge(scoped, state) as string }),
+                /*
+                  **移交不吞裁决**（v3.19r③）：旧边上还有什么等着人裁决，移交之前要说
+                  出来。不阻塞（换人是 owner 的主权），但绝不静默——旧边一转吸收态，挂在
+                  它上面的验收卡就收口了，那份交付会既没被接受也没被拒绝地消失。
+                */
+                pending: pendingDecisionsOn(state),
               },
             }
           }

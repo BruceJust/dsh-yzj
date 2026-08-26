@@ -430,8 +430,18 @@ export const commitmentFamily: GraphFamily = {
       老执行者在原来那个群里回一句「做完了」，板上就多出一条本该在别处进行的活，而它
       的双胞胎正在新边上跑。一件事两行，两个人各自以为归自己。
     */
-    const absorbing = settled === 'voided' || settled === 'merged' || settled === 'transferred'
-    if (absorbing && event.type !== 'commitment/reopened') {
+    if (settled === 'voided' || settled === 'merged') {
+      if (event.type !== 'commitment/reopened') return previous
+    } else if (settled === 'transferred') {
+      /*
+        **移交没有 reopen**（决策 #59；技术方案 §词汇「吸收态第四员·无 reopen」）。
+
+        作废与合并都留了一扇 reopen，因为它们是**结束**——重开一件被叫停的事是一个人
+        可以做的决定。移交不是结束：这条义务此刻正在链尾那条边上活着。把旧边重开，图上
+        立刻有两条 open 边说着同一件事，而两个人各自以为归自己——「不重不漏」当场破掉。
+
+        「移交回来」不是重开，是**再签发一条新边指回去**：同一个动词，血缘接着长。
+      */
       return previous
     }
     /*
