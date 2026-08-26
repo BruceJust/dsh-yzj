@@ -92,11 +92,16 @@ function overdueNow(due: string | undefined, now: number): boolean {
   return Number.isFinite(parsed) && parsed < now
 }
 
-function endOf(status: string, cause: string | undefined): string {
+/**
+ * @param toName - 移交的去向。**读这份文档的人不在图里**，他只有这一行字——「已移交给
+ *   另一条边」对他等于什么都没说，而下一行紧接着就是接手人那条新出生的行；不写名字，
+ *   那两行之间的因果就只能靠猜。
+ */
+function endOf(status: string, cause: string | undefined, toName?: string): string {
   if (status === 'voided') return `已作废${cause === undefined ? '' : `（${cause}）`}`
   if (status === 'merged') return '已合并到另一条'
-  // 真身上也要分得出转手与作废：读这份文档的人不在图里，他只有这一行字。
-  if (status === 'transferred') return '已移交给另一条边'
+  // 真身上也要分得出转手与作废：一个是黄了，一个是这件事还在做，只是换了人。
+  if (status === 'transferred') return `已移交${toName === undefined ? '' : `给 ${toName}`}`
   return cause === 'accepted' ? '已验收' : '已完成'
 }
 
@@ -125,7 +130,10 @@ export function lineFor(
     return `· ${what} — ${whoOf(state)}${due === undefined ? '' : ` · ${due}`} · 已逾期`
   }
   const status = asString(state?.status as never) ?? 'closed'
-  return `· ${what} — ${whoOf(state)} · ${endOf(status, asString(state?.cause as never))}`
+  const to = asRecord(state?.transferredTo as never)
+  const toName = asString(asRecord(to?.executor)?.name as never)
+    ?? asString(asRecord(to?.executor)?.openId as never)
+  return `· ${what} — ${whoOf(state)} · ${endOf(status, asString(state?.cause as never), toName)}`
 }
 
 /**

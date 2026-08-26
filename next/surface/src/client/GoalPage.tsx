@@ -331,6 +331,35 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             这一族的主权是该承诺 owner 的；上级目标的 owner 对孙辈承诺也不渲染催
             （越级不便利：不禁社交追问，只是不造按钮）。
           */}
+          {/*
+            **可转包不可脱责**（决策 #59）——和板上同一格、同一条判据。
+
+            这一颗此前只长在板上。同一条承诺在这一页也看得见，而这里没有它：那正是
+            「凡是只能在某一页获得的能力就是违规能力」的反面——一个动词在一处有、在
+            另一处没有，人只会以为自己记错了。
+          */}
+          {row.status === 'open' && row.stewardedBy !== undefined && row.direction === 'mine' && (
+            <button
+              type="button"
+              className={css.act}
+              title={`这条归 ${row.stewardedBy} 管，你不能把它转手（那是脱责，只有他签得了）——`
+                + '但你可以把它拆下去交给别人办：你仍然对他负责，责任链加深，不需要谁批准'}
+              onClick={() => {
+                ask({
+                  subject: 'goal',
+                  goalRef, goalName, voice: 'place',
+                  pick: 'executor',
+                  seed: delegateSeed(row.what),
+                  subCommitmentOf: row.id,
+                  title: '转包：谁来做、在哪儿说？',
+                  note: `这条归 ${row.stewardedBy} 管，所以你不能把它转手——但你可以把它拆下去。`
+                    + '拆出来的那条挂在你这一条底下：你仍然对他负责，责任链加深，不需要谁批准。',
+                })
+              }}
+            >
+              转包 ↗
+            </button>
+          )}
           {row.status === 'open' && row.stewardedBy === undefined && (
             <>
               {/*

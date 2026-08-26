@@ -490,10 +490,15 @@ export async function placeView(
   }
 }
 
-/** Statuses that mean nobody is waiting on this any more. */
+/**
+ * Statuses that mean nobody is waiting on this any more.
+ *
+ * `transferred` 在这张单子里（决策 #59）：这件事还在做，但**不在这条边上**——留着它当
+ * 未决，收件箱会为一条已经转手的活一直亮着，而接手的那条自己会亮。
+ */
 const SETTLED = new Set([
   'accepted', 'voided', 'closed', 'resolved', 'approved', 'rejected',
-  'expired', 'superseded', 'merged',
+  'expired', 'superseded', 'merged', 'transferred',
 ])
 
 /**
@@ -2934,8 +2939,15 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                 ...(state.due === undefined ? {} : { due: state.due }),
                 executor: executor.kind === 'human'
                   ? { openId: executor.openId, name: executor.name ?? executor.openId }
-                  // agent 执行的那条没有可预选的人：移交给人是一次真的换手，
-                  // 而 agent 那一头的「换人」是重新委派，不是这个动词。
+                  /*
+                    agent 执行的那条**没有可预选的现任**——它的执行者是一个话题，不是一个
+                    人。移交本身照走（「这个 agent 干不了，给张锐」是一次真的换手），只是
+                    第①维回到「还没选」，拟稿里也不会凭空冒出一个「原来是谁的」。
+
+                    如实的缺口：**旧边那个 agent 任务不会因为移交而停下**。作废也一样不停
+                    ——这套系统里只有 `/cancel` 停得了它。两条边同时在跑是看得见的（板上
+                    一条已移交、一条在跟），但那句「已经在做了」得由人自己去说一声。
+                  */
                   : undefined,
                 // 和守卫、和解除告知读同一个答案——三处各读各的，就会有一次空操作被放行。
                 ...(placeOfEdge(scoped, state) === undefined

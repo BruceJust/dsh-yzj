@@ -42,6 +42,8 @@ const STATUS: Record<string, string> = {
   escalated: '已升级',
   closed: '已关闭',
   merged: '已合并',
+  // 移交不是死法：事还在，只是换了一条边（决策 #59）。缺了这一行会露出裸状态串。
+  transferred: '已移交',
   flagged: '待裁定',
   resolved: '已裁定',
 }

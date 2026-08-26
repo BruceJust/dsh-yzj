@@ -25,7 +25,15 @@ export const GRAPH_ENVELOPE_VERSION = 1
  * 幂等归并、可见域字段的读法……）。对不上就整份重折——重折是 O(日志)，而一份说谎的
  * 缓存的代价没有上限。
  */
-export const GRAPH_FOLD_VERSION = 2
+/*
+  3 —— 承诺族的 reduce 多了 `transferred` 吸收态（决策 #59）。
+
+  这一次**能证明**旧日志的折叠结果不变：新状态只可能来自新事件类型，而历史日志里没有
+  那种事件。可这条规矩写成「任何影响折叠的改动都 +1」，正是为了不必依赖这种证明——
+  上一次（`delegatedBy`）也有人觉得显然，结果 16 个对象对不上。重折是 O(日志)，一份
+  说谎的缓存没有上限。
+*/
+export const GRAPH_FOLD_VERSION = 3
 
 /** Lossless JSON, the only shape a graph event may carry. */
 export type JsonValue =

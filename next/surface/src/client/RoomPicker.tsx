@@ -166,6 +166,62 @@ export type Landing =
   | { readonly kind: 'new-dm'; readonly openId: string; readonly name: string }
 
 /**
+ * 选完之后，这一句话到底会写下什么 —— **抽成纯函数，因为这一格决定的是图**。
+ *
+ * 它把「人刚才点了谁」翻译成三样东西：起头的话、受话、以及**先验**（这句话是登记、是
+ * 移交，还是一次转包）。三者里只有第一样是给人看的，后两样直接决定发送成功之后往图上
+ * 写什么——而它住在组件体内时，没有任何办法钉住。
+ *
+ * 这一段已经在两个方向上出过错：漏掉先验，一次委派就退化成一句普通消息（板上不长行）；
+ * 先验带错，一条活会挂到不相干的人或不相干的父承诺底下。
+ */
+export function portalChoice(
+  portal: Portal,
+  executor: Executor | undefined,
+): PortalChoice | undefined {
+  if (executor === undefined) return undefined
+  const move = portal.handoff
+  /*
+    移交的骨架不是登记句式：**事项与期限继承旧边**，不靠解析这句话得来。移交不发明
+    内容——它重新签发的是同一件事。
+  */
+  if (move !== undefined && executor.kind === 'person') {
+    return {
+      call: true,
+      seed: handoffDraft({
+        what: move.what,
+        ...(move.due === undefined ? {} : { due: move.due }),
+        toName: executor.person.name,
+        ...(move.executor?.name === undefined ? {} : { fromName: move.executor.name }),
+        // 换场所不换人是另一句话：事没换手，换的是这件事以后在哪儿说。
+        samePerson: executor.person.openId === move.executor?.openId,
+      }),
+      handoff: {
+        fromCommitmentId: move.fromCommitmentId,
+        openId: executor.person.openId,
+        name: executor.person.name,
+      },
+    }
+  }
+  return executor.kind === 'agent'
+    // 派给 agent：骨架就是受话本身，做什么由人说。
+    ? { call: true }
+    : {
+      call: true,
+      seed: registerSeed(executor.person.name),
+      // 选了人，这句话就是在登记他的承诺——分类在这一刻定，不必等群里跑一次 turn。
+      register: {
+        openId: executor.person.openId,
+        name: executor.person.name,
+        // 转包：血缘跟着这一句走，否则拆出去的活会变成一条和我无关的平行承诺。
+        ...(portal.subCommitmentOf === undefined
+          ? {}
+          : { parentCommitmentId: portal.subCommitmentOf }),
+      },
+    }
+}
+
+/**
  * 开一次移交 —— **一份实现，三个消费者**（板 / 目标页 / 事件枢纽）。
  *
  * 预选当前值不能靠界面手里那点东西：板上那一行带的是**显示名**不是 openId，场所也只带
@@ -377,46 +433,7 @@ export function RoomPicker(props: {
   )
 
   /** 选完之后那句话的骨架：受话 + 句式，内容一个字都不带。 */
-  const choice = (): PortalChoice | undefined => {
-    if (executor === undefined) return undefined
-    /*
-      移交的骨架不是登记句式：**事项与期限继承旧边**，不靠解析这句话得来。移交不发明
-      内容——它重新签发的是同一件事。
-    */
-    if (move !== undefined && executor.kind === 'person') {
-      return {
-        call: true,
-        seed: handoffDraft({
-          what: move.what,
-          ...(move.due === undefined ? {} : { due: move.due }),
-          toName: executor.person.name,
-          ...(move.executor?.name === undefined ? {} : { fromName: move.executor.name }),
-          samePerson: executor.person.openId === move.executor?.openId,
-        }),
-        handoff: {
-          fromCommitmentId: move.fromCommitmentId,
-          openId: executor.person.openId,
-          name: executor.person.name,
-        },
-      }
-    }
-    return executor.kind === 'agent'
-      // 派给 agent：骨架就是受话本身，做什么由人说。
-      ? { call: true }
-      : {
-        call: true,
-        seed: registerSeed(executor.person.name),
-        // 选了人，这句话就是在登记他的承诺——分类在这一刻定，不必等群里跑一次 turn。
-        register: {
-          openId: executor.person.openId,
-          name: executor.person.name,
-          // 转包：血缘跟着这一句走，否则拆出去的活会变成一条和我无关的平行承诺。
-          ...(portal.subCommitmentOf === undefined
-            ? {}
-            : { parentCommitmentId: portal.subCommitmentOf }),
-        },
-      }
-  }
+  const choice = (): PortalChoice | undefined => portalChoice(portal, executor)
 
   if (needsExecutor) {
     return (
