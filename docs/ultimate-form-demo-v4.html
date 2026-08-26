@@ -1776,6 +1776,7 @@ function repairStrip(c) {
 /* v4.21 三值信号（有证据 / 无信号+最后时间 / 信号过时）——板与 hub 共享同一推导（数据同一查询） */
 function signalOf(c) {
   if (c.receipt) return `<span style="color:var(--green)">有证据 · ${c.receipt}</span>`;
+  if (c.received) return `<span style="color:var(--green)">有证据 · 受领：${c.received}</span>`;
   if (c.state === '待验收' && c.sess) return `<span style="color:var(--green)">有证据 · 交付已回帖，等你验收</span>`;
   if (c.nosignal) return `<span style="color:var(--amber)">无信号 · 最后信号：${c.lastSignal}（观察型承诺，"没消息"≠"没问题"）</span>`;
   if (c.staleSig) return `<span style="color:var(--amber)">⚠ 信号过时 · 最后信号 ${c.staleSig}</span>`;
@@ -2400,6 +2401,27 @@ function focusSelect(input, seg) {
   if (s >= 0) input.setSelectionRange(s, s + seg.length);
 }
 let lastRegName = null;
+/* v4.24 纠正循环 + 语气路由的共享检测——群主楼与 DM 双路同规则（返回 true = 已处理不再往下路由） */
+function correctionOrRequest(text, sessKey, hasPerson) {
+  /* 纠正：ack 公示可纠——"不对请说"必须真的有人说了会改 */
+  if (lastRegName && /改成|不是.*[，,]?\s*是/.test(text) && /(下?周[一二三四五六日]|明天|今天)/.test(text)) {
+    const rc = COMMITS.find(x => x.name === lastRegName);
+    const m = text.match(/(下?周[一二三四五六日]前?|明天|今天)/);
+    if (rc && m) rc.due = m[1].endsWith('前') ? m[1] : m[1] + '前';
+    appendItems(sessKey, [{ type: 'agent-pub', time: nowStr(), kind: 'ack',
+      text: `已纠正：<b>${lastRegName}</b> 期限 → <b>${rc ? rc.due : (m ? m[1] : '')}</b>（ack 公示可纠——解析错了说一句就改，内容提议同通道，登记消息的听众同步看到纠正）。` }], 800);
+    renderSidebar(); renderHead();
+    return true;
+  }
+  /* 语气路由：疑问/请求 ≠ 签发——先应后登（他没答应，账上不能欠）；人名不要求 @（请求常不带 @） */
+  const mentionsPerson = hasPerson || /(李婷|王超|张三|小唐|张锐)/.test(text);
+  if (mentionsPerson && /([吗么][？?]?\s*$|能不能|能帮|可以帮|方便.{0,4}[吗么]?)/.test(text)) {
+    appendItems(sessKey, [{ type: 'agent-pub', time: nowStr(), kind: 'ack',
+      text: `疑问语气 = 请求不是签发——<b>我不登记为承诺</b>（他没答应，账上不能欠）。已作为<b>待答询问</b>送达对方（可应答家族⑥ · 押采纳门样机）：他应了我再登记（<b>先应后登</b>，语气路由 v4.24）。` }], 900);
+    return true;
+  }
+  return false;
+}
 /* v4.21+ 委派/登记的出生落库：话语解析（"登记承诺：X，谁负责，何时" / "X由谁负责"）——发送即入图 */
 function parseRegister(text) {
   const t = text.replace(AGENT_ALIAS, '').replace(/^[\s,，]+/, '').trim();
@@ -2470,7 +2492,8 @@ function handleSend() {
         : '↩ 回复 · 落点不变——已在话题内，链根未变（回复=挂链，落点=链根所在边界）');
     }
     if (hasPerson && !toAgent) toast('已提及成员——对方将收到云之家通知（第七动词：作为同事说话）');
-    if (sess.kind === 'cold' && toAgent) { renderQuoteBar(); warmUp(sessKey); return; }
+    /* v4.24 登记话语穿透冷会话（冷 DM 里登记承诺不该被焐热流程吞掉——登记 ack 直接落时间线） */
+    if (sess.kind === 'cold' && toAgent && !parseRegister(text)) { renderQuoteBar(); warmUp(sessKey); return; }
     if (toAgent) {
       /* v4.21+ 登记话语 → 登记 ack（公示可纠）+ 承诺上板——委派/登记一个动词，入口只是语境来源 */
       const reg = parseRegister(text);
@@ -2485,9 +2508,22 @@ function handleSend() {
           text: `已登记承诺：<b>${reg.name}</b> · 执行者 <b>${reg.who}</b> · ${reg.due}${goalKept
             ? ` · 已挂目标<b>「${ctx.goalTitle}」</b>（语境继承——不对请说）`
             : ' · 未挂目标（chip 已移除——未挂是合法状态，/link 可补挂）'}。登记消息即听众集合${isDM(sess) ? `（本 DM：你与${reg.who}）` : '（本群全员）'}——承诺已上板，我会盯进度：观察与提醒，不代做。` }], 900);
+        /* v4.24 受领三态样本：对方回应 = 受领证据自然发生（受领是证据不是义务——他不回也不催受领） */
+        if (isDM(sess)) setTimeout(() => {
+          appendItems(sessKey, [
+            { type: 'im', who: { 张三: 'zhang', 李婷: 'liting' }[reg.who] || 'zhang', name: reg.who, time: nowStr(), text: `收到，${reg.due}给你。` },
+            { type: 'agent-pub', time: nowStr(), kind: 'ack',
+              text: `受领证据已记：<b>${reg.who}</b> 已回应——信号升级：已登记 → <b>有证据 · 本人已回应</b>。受领是证据不是义务：他不回我也不催受领（无回应不进留意层不老化——催的对象永远是交付，v4.24）。` },
+          ]);
+          const rc = COMMITS.find(x => x.name === reg.name && x.who === reg.who);
+          if (rc) rc.received = `${reg.who}已回应 · 刚刚`;
+          renderSidebar();
+        }, 2600);
         renderQuoteBar();
         return;
       }
+      /* v4.24 纠正循环 + 语气路由——共享检测（群主楼与 DM 双路同规则，勿再漏一路） */
+      if (correctionOrRequest(text, sessKey, hasPerson)) { renderQuoteBar(); return; }
       appendItems(sessKey, [{ type: 'agent-pub', time: nowStr(), kind: 'ack',
         text: hasAt
           ? '已接收（并入当前话题队列，串行执行）。同话题多次 @ 同属本会话；要干净上下文用 /new。'
@@ -2570,6 +2606,13 @@ function mainFloorDelegate(rawText, safe, chipNote, chips) {
   const floor = sessions[floorKey];
   const ctx = state.delegCtx; state.delegCtx = null;
   const goalKept = ctx && ctx.goal && (chips || []).some(ch => ch.startsWith('目标：'));
+  /* v4.24 纠正/请求检测（群主楼路——与 DM 路同一共享函数）：先落用户话语，再路由 */
+  if (correctionOrRequest(rawText, floorKey, /@(李婷|王超|张三|小唐|张锐)/.test(rawText))) {
+    floor.timeline.splice(floor.timeline.length, 0,
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, text: safe + (chipNote || '') });
+    renderTimeline();
+    return;
+  }
   /* v4.21+ 登记话语走登记路，不开话题——登记的是他人的承诺，不是给 agent 的任务 */
   const reg = parseRegister(rawText);
   if (reg) {
@@ -3518,9 +3561,18 @@ document.addEventListener('click', (e) => {
     toast('作废 = 人签发的终态：级联等待对象、回写真身（生与死的「死」）——不留僵尸行，档案经归档可达');
     return;
   }
+  /* v4.24 移交升传送门（#57"不得占位"自我清账）：话语在会话里说，新执行者是社交决策 */
   const rmove = e.target.closest('[data-rmove]');
   if (rmove) {
-    toast('移交 = /handoff 传送门：选新执行者与场所 → 跨场所移交 + 脱密背景包（工件链接 + 验收标准 + 决议摘要随包走，私语不迁移）——话语在会话里说');
+    const c = COMMITS.find(x => x.name === rmove.dataset.rmove);
+    const dest = (c && (c.sess || c.reg)) || 'prodgroup';
+    state.repairFor = null;
+    openSession(dest);
+    setVoice('pub', { silent: true });
+    const input = $('input');
+    input.value = `/handoff ${c ? c.name : ''} → 移交给（新执行者你来定）——脱密背景包随包走：工件链接 + 验收标准 + 决议摘要；私语不迁移`;
+    focusSelect(input, '（新执行者你来定）');
+    toast('移交 = /handoff 传送门：话语在会话里说——新执行者是社交决策（人选不推导），背景包 = 人签发的工件化脱密');
     return;
   }
   const runlink = e.target.closest('[data-runlink]');
