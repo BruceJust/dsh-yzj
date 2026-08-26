@@ -1517,13 +1517,13 @@ export function YzjBoard(props: BoardProps): ReactNode {
  * 这些字一起过滤。
  */
 export function matchWorkspaces(
-  all: readonly { readonly name: string; readonly personal?: boolean }[],
+  all: readonly { readonly name: string; readonly personal?: boolean; readonly owner?: string }[],
   keyword: string,
-): readonly { readonly name: string; readonly personal?: boolean }[] {
+): readonly { readonly name: string; readonly personal?: boolean; readonly owner?: string }[] {
   const word = keyword.trim().toLowerCase()
   if (word === '') return all
   return all.filter((space) => {
-    const hay = `${space.name}${space.personal === true ? ' 个人' : ' 企业'}`.toLowerCase()
+    const hay = `${space.name} ${space.owner ?? ''}${space.personal === true ? ' 个人' : ' 企业'}`.toLowerCase()
     return hay.includes(word)
   })
 }
@@ -1583,6 +1583,7 @@ function BodyMaker(props: {
   const hits = matchWorkspaces(spaces, filter) as readonly WorkspaceWire[]
   const label = (space: WorkspaceWire): string => [
     space.personal === true ? '个人' : '企业',
+    space.owner ?? '',
     space.members === undefined ? '' : `${String(space.members)} 人`,
     space.docs === undefined ? '' : `${String(space.docs)} 篇`,
   ].filter(part => part !== '').join(' · ')

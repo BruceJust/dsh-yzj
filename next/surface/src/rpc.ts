@@ -2982,6 +2982,10 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                     */
                     ...(members === undefined ? {} : { members }),
                     ...(docs === undefined ? {} : { docs }),
+                    // 同名两个库时，「谁建的」比数字更认得出来。
+                    ...(asString(workspace?.ownerName) === undefined
+                      ? {}
+                      : { owner: asString(workspace?.ownerName) as string }),
                   }]
                 }),
               },

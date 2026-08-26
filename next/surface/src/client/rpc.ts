@@ -429,6 +429,8 @@ export interface WorkspaceWire {
   /** 同名的库是真的存在（实测一个账号里两对）。这两个数是唯一现成的区分依据。 */
   members?: number
   docs?: number
+  /** 谁建的。同名两个库时，这一格比数字更认得出来。 */
+  owner?: string
 }
 
 export interface SurfaceInject {

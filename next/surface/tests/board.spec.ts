@@ -1194,10 +1194,10 @@ describe('无信号：系统自己盖的记号不算动静', () => {
  */
 describe('知识库过滤', () => {
   const all = [
-    { name: '我的知识', personal: true },
-    { name: '经营数据' },
-    { name: '项目穿透表-2026' },
-    { name: 'Workshop-SXL' },
+    { name: '我的知识', personal: true, owner: '代少兵' },
+    { name: '经营数据', owner: '张锐' },
+    { name: '经营数据', owner: '李婷' },
+    { name: 'Workshop-SXL', owner: '农佳捷' },
   ]
 
   it('不打字就是全给 —— 过滤不该先藏起来', () => {
@@ -1206,7 +1206,7 @@ describe('知识库过滤', () => {
   })
 
   it('按名字过滤，大小写不计较', () => {
-    expect(matchWorkspaces(all, '经营').map(one => one.name)).toEqual(['经营数据'])
+    expect(matchWorkspaces(all, '经营').map(one => one.name)).toEqual(['经营数据', '经营数据'])
     expect(matchWorkspaces(all, 'workshop').map(one => one.name)).toEqual(['Workshop-SXL'])
   })
 
@@ -1217,6 +1217,15 @@ describe('知识库过滤', () => {
   it('「个人」「企业」也是可过滤的字', () => {
     expect(matchWorkspaces(all, '个人').map(one => one.name)).toEqual(['我的知识'])
     expect(matchWorkspaces(all, '企业')).toHaveLength(3)
+  })
+
+  /*
+    **同名的那两个，靠「谁建的」分开。** 这是实测数据里真的有的形状；只给名字，人只能
+    赌一次，而赌错了目标真身就落在另一批人能打开的地方。
+  */
+  it('按「谁建的」也能过滤 —— 同名两个库唯一分得开的那一格', () => {
+    expect(matchWorkspaces(all, '张锐').map(one => one.owner)).toEqual(['张锐'])
+    expect(matchWorkspaces(all, '李婷').map(one => one.owner)).toEqual(['李婷'])
   })
 
   it('一个都不匹配就是一个都不匹配 —— 这是关于已知全集的真话，不是一次失败', () => {

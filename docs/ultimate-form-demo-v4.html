@@ -2393,6 +2393,13 @@ function appendItems(sessKey, items, delayBase = 0) {
   });
 }
 
+/* v4.24 预填出处律：demo 的选中示例是演示装置——选中态 = "这段是示例，你来说"（打字即替换；真实产品空白委派无预填内容） */
+function focusSelect(input, seg) {
+  input.focus();
+  const s = input.value.indexOf(seg);
+  if (s >= 0) input.setSelectionRange(s, s + seg.length);
+}
+let lastRegName = null;
 /* v4.21+ 委派/登记的出生落库：话语解析（"登记承诺：X，谁负责，何时" / "X由谁负责"）——发送即入图 */
 function parseRegister(text) {
   const t = text.replace(AGENT_ALIAS, '').replace(/^[\s,，]+/, '').trim();
@@ -2402,6 +2409,7 @@ function parseRegister(text) {
 }
 function registerCommit(row) {
   COMMITS.push(row);
+  lastRegName = row.name;
   renderSidebar(); renderHead();
 }
 function handleSend() {
@@ -2573,7 +2581,8 @@ function mainFloorDelegate(rawText, safe, chipNote, chips) {
       { type: 'agent-pub', time: nowStr(), kind: 'ack',
         text: `已登记承诺：<b>${reg.name}</b> · 执行者 <b>${reg.who}</b> · ${reg.due}${goalKept
           ? ` · 已挂目标<b>「${ctx.goalTitle}」</b>（语境继承——不对请说）`
-          : ' · 未挂目标（未带语境——未挂是合法状态，/link 可补挂）'}。登记消息即听众集合（本群全员）——承诺已上板，我会盯进度：观察与提醒，不代做。` },
+          : ' · 未挂目标（未带语境——未挂是合法状态，/link 可补挂）'}。登记消息即听众集合（本群全员）——承诺已上板，我会盯进度：观察与提醒，不代做。${floorKey === 'prodgroup' && reg.who === '张三'
+          ? '<br>⚠ <b>张三不在本群</b>：登记指针已 DM 补递——最小听众不变量：承诺边听众 ≥ {owner, executor}（修边非越境，v4.24）' : ''}` },
     ]);
     toast('登记必有呼吸（幽灵承诺禁令）：登记消息确立听众集合，承诺行已上承诺板');
     return;
@@ -3599,26 +3608,34 @@ document.addEventListener('click', (e) => {
        ctx/chips 必须在 openSession 之后设置（openSession 清语境残留） */
     let placeKey = place;
     const input = $('input');
+    let seg = '';
     if (ex === 'agent') {
       openSession(placeKey);
       setVoice('pub', { silent: true });
       input.value = '@云小助 整理移动端竞品定价页对比，本周内。';
-      toast('传送门：话语在会话里说（可编辑，发送才算数）——公开委派，挂接 = 语境继承（chip 已带上，删 chip = 不挂）');
+      seg = '整理移动端竞品定价页对比，本周内';
+      toast('传送门：任务内容你来说（选中段 = 示例，打字即替换——预填出处律：空白委派无出处即无内容，示例是演示装置）');
     } else if (place === 'dm') {
       placeKey = ex === '张三' ? 'zhangsan' : 'litingdm';
       openSession(placeKey);
       setVoice('pub', { silent: true });
       input.value = `@云小助 登记承诺：重点客户移动端诉求访谈 3 场，${ex}负责，下周五前。`;
-      toast(`私下登记：听众 = 你与${ex}——承诺继承登记话语的听众集合（§1.6），发送即登记（幽灵承诺禁令：登记必有呼吸）`);
+      seg = '重点客户移动端诉求访谈 3 场';
+      toast(`私下登记：听众 = 你与${ex}——任务内容你来说（选中段是示例）；发送即登记（登记必有呼吸）`);
     } else {
       openSession(placeKey);
       setVoice('pub', { silent: true });
       input.value = `@云小助 登记承诺：重点客户移动端诉求访谈 3 场，${ex}负责，下周五前。`;
-      toast(`公开登记：听众 = 全群（施压与透明）——话语可编辑，发送即登记并上板`);
+      seg = '重点客户移动端诉求访谈 3 场';
+      /* v4.24 最小听众不变量：执行者不在所选场所 = 听众集合不完整（demo 事实：张三不在产品讨论群） */
+      toast(ex === '张三'
+        ? '⚠ 张三不在产品讨论群——登记消息他听不见（最小听众不变量：承诺边听众 ≥ {你, 张三}）。可拉他进群/改选 DM；照发则系统 DM 补递登记指针（修边非越境）'
+        : `公开登记：听众 = 全群（施压与透明）——任务内容你来说（选中段是示例），发送即登记并上板`);
     }
     state.delegCtx = { goal: gid, goalTitle, executor: ex, place: placeKey };
     state.chips = [`目标：${goalTitle} · 语境继承`];
-    renderChips(); updateVoiceHint(); input.focus();
+    renderChips(); updateVoiceHint();
+    focusSelect(input, seg);
     input.dispatchEvent(new Event('input'));
     return;
   }
