@@ -657,6 +657,34 @@ describe('写进去的那一行', () => {
       status: 'voided', cause: '这个季度不做了',
     })).toContain('已作废（这个季度不做了）')
   })
+
+  /**
+   * 移交那一行 —— **读这份文档的人不在图里**（决策 #59）。
+   *
+   * 他只有这一行字，而紧接着的下一行就是接手人那条新出生的行。写「已移交给另一条边」
+   * 等于什么都没说：那两行之间的因果只能靠猜。而这份文档恰恰是给图外的人看的，是这条
+   * 义务在组织里唯一的公共记录。
+   */
+  it('移交那行说得出转给了谁 —— 下一行就是他的出生行', () => {
+    expect(lineFor('settled', {
+      what: '拉三家竞品', executor: { kind: 'human', name: '张锐' },
+      status: 'transferred',
+      transferredTo: { commitmentId: 'c2', executor: { kind: 'human', name: '王五' } },
+    })).toBe('· 拉三家竞品 — 张锐 · 已移交给 王五')
+  })
+
+  /*
+    **移交和作废在这份文档里必须分得开**：一个是这件事黄了，一个是这件事还在做、只是
+    换了人。合成同一句「已结束」，读文档的人再也判不出该不该追。
+  */
+  it('移交不写成作废', () => {
+    const moved = lineFor('settled', {
+      what: 'x', executor: { kind: 'human', name: '张锐' }, status: 'transferred',
+    })
+    expect(moved).toContain('已移交')
+    expect(moved).not.toContain('已作废')
+    expect(moved).not.toContain('已完成')
+  })
 })
 
 /**

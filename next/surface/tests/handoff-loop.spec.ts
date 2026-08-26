@@ -353,6 +353,76 @@ describe('移交不吞裁决', () => {
 })
 
 /**
+ * **可见域** —— 边变异模型解不了、而分叉模型一句话答完的那一维。
+ *
+ * 「这条边的听众是谁」在边变异模型里没有答案（两次登记性话语的并集是个泥潭），而听众
+ * 集合是整套东西的地基：它决定谁看得见这件事。分叉之后答案是平凡的——各自那次话语的
+ * 听众——但**平凡不等于自动正确**，得能看见它的后果。
+ *
+ * 最能说明问题的是**移交进私聊**：原来群里的人从此看不见这件事在哪儿、进展如何。那是
+ * 一次真实的可见性收缩，也正是 owner 选私聊时买到的东西。
+ */
+describe('可见域：新边只对新场所可见', () => {
+  const inPlace = (placeKey: string): string[] =>
+    [...graph.query({ kind: 'place', placeKey }, { kind: 'commitment' })].map(one => one.id)
+
+  it('移交进私聊之后，旧群里看不见新边；私聊里看不见旧边', async () => {
+    await openGoal()
+    await firstEdge()
+    const second = await handoff('c1', { openId: 'u-zhang', name: '张锐' }, 'yzj-dm-d1') as string
+
+    expect(inPlace('yzj-group-g1')).toContain('c1')
+    expect(inPlace('yzj-group-g1')).not.toContain(second)
+
+    expect(inPlace('yzj-dm-d1')).toContain(second)
+    expect(inPlace('yzj-dm-d1')).not.toContain('c1')
+  })
+
+  /*
+    **旧群里那条不会变成一条无声消失的活**：它还在，而且说得出自己转给了谁。可见性收缩
+    的是「新边的进展」，不是「这件事发生过」——后者被抹掉才是撒谎。
+  */
+  it('旧群仍然看得见「这件事转走了」，只是看不到之后的进展', async () => {
+    await openGoal()
+    await firstEdge()
+    await handoff('c1', { openId: 'u-zhang', name: '张锐' }, 'yzj-dm-d1')
+    const seen = graph.object({ kind: 'place', placeKey: 'yzj-group-g1' }, 'commitment', 'c1')
+    expect(asString(asRecord(seen?.state)?.status)).toBe('transferred')
+    expect(asRecord(asRecord(seen?.state)?.transferredTo)).toBeDefined()
+  })
+
+  /*
+    owner 看得见全部：他是这两次话语的发话人，两条边的听众里都有他这一头。
+  */
+  it('owner 两条都看得见 —— 他本来就是说话的那个人', async () => {
+    await openGoal()
+    await firstEdge()
+    const second = await handoff('c1', { openId: 'u-zhang', name: '张锐' }, 'yzj-dm-d1') as string
+    const mine = [...graph.query(OPERATOR, { kind: 'commitment' })].map(one => one.id)
+    expect(mine).toContain('c1')
+    expect(mine).toContain(second)
+  })
+})
+
+/**
+ * **决断层**：转手之后旧边不再占「需要你答」的位置。
+ *
+ * 一条已经转走的活还在决断条上等人答，是这套设计点名的那种失败：条长即审批疲劳，而条上
+ * 那一项此刻根本没有可答的东西。
+ */
+describe('决断层：旧边不再要人答', () => {
+  it('转手之后旧边收口，新边接着要人跟', async () => {
+    await openGoal()
+    await firstEdge()
+    const second = await handoff('c1', { openId: 'u-zhang', name: '张锐' }, 'yzj-group-g2') as string
+    const rows = boardFrame(ctx).rows
+    // 「催得动」是「还需要有人做点什么」最直接的可观察形态。
+    expect(rows.find(one => one.id === 'c1')?.remindable).toBe(false)
+    expect(rows.find(one => one.id === second)?.remindable).toBe(true)
+  })
+})
+
+/**
  * 闭环：新边**走得完整条命**。一个只能出生、不能被催、不能交付的新边，等于把移交做成了
  * 一次单程票——而承诺板全部的价值在于每一环既可见又可动。
  */
