@@ -18,6 +18,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { YzjCards } from '@yzj-next/cards'
 import { YzjGraph, type GraphActor, type GraphViewer } from '@yzj-next/graph'
 import { commitmentFamily, eventFamily } from '../src/index.ts'
 import { descriptionFor, eventHub, materialsFor, readinessLine } from '../src/event/hub.ts'
@@ -36,6 +37,13 @@ beforeEach(async () => {
   graph.defineFamily(commitmentFamily)
   graph.defineFamily(eventFamily)
   await graph.selectAccount('acct-1')
+  /*
+    主权要问「我是谁」，而那一问的答案在卡服务里（桌面 actor）。不挂它的话，`stewardedBy`
+    永远是 undefined——**不是「都归我」，是「不知道我是谁就不下断言」**，而一个测不到这条
+    分支的夹具会让人以为主权那一格没接上。
+  */
+  const cards = new YzjCards(ctx)
+  cards.setDesktopActor(OPERATOR)
 })
 
 async function observed(extra: Record<string, unknown> = {}): Promise<void> {
@@ -114,6 +122,50 @@ describe('材料就绪度是推导，不是字段', () => {
     // 没有任何一个 event/* 事件被追加，就绪度已经变了。
     expect(graph.rawEvents(['event/linked'])).toHaveLength(1)
     expect(readinessLine(eventHub(ctx, ANYONE, EVENT) as never)).toContain('都办完了')
+  })
+})
+
+/**
+ * hub 行也要**既可见又可动**（决策 #57：板与 hub 同构）。
+ *
+ * 会前那一眼看出「这件来不及了」，此前能做的只有跳走——而跳到那个话题里也没有动词，
+ * 因为动词长在板和目标页上。修理动词要用的三样（原话期限 / 归属 / 主权）必须跟着行
+ * 走，否则枢纽这一格永远只能是个只读的名单。
+ */
+describe('hub 行带着修理动词要用的那几样', () => {
+  it('原话期限与归属跟着行走 —— 顺延改的是当初说出口的那句', async () => {
+    await observed()
+    await prep('c1', '把三家定价拉齐', { due: '下周三前', parentGoalRef: 'https://y/doc/q3' })
+    const row = eventHub(ctx, ANYONE, EVENT)?.prepares[0]
+    // 原话，不是解析出来的日期：把人说过的话改写成时间戳是拿我们的解析冒充他的承诺。
+    expect(row?.due).toBe('下周三前')
+    expect(row?.goalRef).toBe('https://y/doc/q3')
+  })
+
+  /*
+    **主权与板上同一个谓词。** 别人登记的活，枢纽这一格同样不该长出按钮——不渲染不是
+    禁言，人照样可以在会话里说一句。
+  */
+  it('别人登记的那条，枢纽也说得出它归谁管', async () => {
+    await observed()
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c-theirs', what: '别人登记的活', sourceAnchor: 'yzj:c-theirs',
+        executor: { kind: 'human', openId: 'p-9', name: '张锐' }, audience: ['yzj-group-g1'],
+      },
+      actor: { kind: 'operator', openId: 'u-li' },
+    })
+    await graph.append({
+      type: 'event/linked', data: { eventId: EVENT, commitmentId: 'c-theirs' }, actor: OPERATOR,
+    })
+    expect(eventHub(ctx, ANYONE, EVENT)?.prepares[0]?.stewardedBy).toBe('u-li')
+  })
+
+  it('自己登记的那条不下发「归谁管」—— 等于本人就省略', async () => {
+    await observed()
+    await prep('c1', '把三家定价拉齐')
+    expect(eventHub(ctx, ANYONE, EVENT)?.prepares[0]?.stewardedBy).toBeUndefined()
   })
 })
 
