@@ -217,6 +217,18 @@
   虚线：它还没生效。这句话没发出去之前，登记先验和目标语境都只是**打算**，实线会让
   它看起来像已经落库的事实。
 */
+/*
+  最小听众不变量的警示：**说，不拦**（v4.24 决策 #58）。
+
+  琥珀而不是红：选一个他可能不在的群是合法的社交选择。红色会让人以为这里出了错，而这里
+  只有一个我们答不了的问题。
+*/
+.audienceRisk {
+  margin-bottom: 6px; padding: 6px 11px; border-radius: 9px;
+  border: 1px solid var(--yzj-amber-line); background: var(--yzj-amber-bg);
+  font-size: 11px; line-height: 1.7; color: var(--yzj-amber);
+}
+
 .errandBar {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   margin-bottom: 8px; padding: 5px 10px; border-radius: 10px;

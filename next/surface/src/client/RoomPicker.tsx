@@ -187,9 +187,28 @@ export type Landing =
 export function portalChoice(
   portal: Portal,
   executor: Executor | undefined,
+  /**
+   * 选中的那间屋子。**只为一件事而来：最小听众不变量**（v4.24 决策 #58）。
+   *
+   * 承诺边的听众 **≥ {owner, executor}**——更大是特性（公开是施压与透明），更小则这条边
+   * 从出生起就不完整：群里其他人以为这事说好了，而当事人一个字都没听见。
+   *
+   * 平台不给群成员名单，所以「他在不在」答不了；答得了的是「他在这儿有过登记吗」。这个
+   * 事实**上一屏刚算过**，而算完不带走，它就只是一句分节标题——设计要求的是**代发前
+   * 警示**，也就是要活到发送键跟前。
+   */
+  room?: { readonly known: boolean; readonly kind: 'group' | 'direct' },
 ): PortalChoice | undefined {
   if (executor === undefined) return undefined
   const move = portal.handoff
+  /*
+    只在**群**里问这一句。私聊的听众是确定的（就你和他），而 agent 不需要「在不在」——
+    它的在与不在是接单，另有说法。
+  */
+  const risk = executor.kind === 'person' && room?.kind === 'group' && !room.known
+    ? `还没见过${executor.person.name}在这个群里有过登记——他在不在，平台不给成员名单，`
+      + '我们答不了。发出去之后记得让他知道一声。'
+    : undefined
   /*
     移交的骨架不是登记句式：**事项与期限继承旧边**，不靠解析这句话得来。移交不发明
     内容——它重新签发的是同一件事。
@@ -197,6 +216,7 @@ export function portalChoice(
   if (move !== undefined && executor.kind === 'person') {
     return {
       call: true,
+      ...(risk === undefined ? {} : { audienceRisk: risk }),
       seed: handoffDraft({
         what: move.what,
         ...(move.due === undefined ? {} : { due: move.due }),
@@ -217,6 +237,7 @@ export function portalChoice(
     ? { call: true }
     : {
       call: true,
+      ...(risk === undefined ? {} : { audienceRisk: risk }),
       seed: registerSeed(executor.person.name),
       // 选了人，这句话就是在登记他的承诺——分类在这一刻定，不必等群里跑一次 turn。
       register: {
@@ -325,6 +346,13 @@ export interface PortalChoice {
     readonly openId: string
     readonly name?: string
   }
+  /**
+   * 最小听众不变量的**警示**（v4.24 决策 #58）——听众可能少了执行者那一头。
+   *
+   * 不是拦：选一个他可能不在的群是合法的社交选择（拉人／改场所／照发都由人定）。是**说**：
+   * 这句话发出去之后，板上会长出一条他可能根本不知道的活。
+   */
+  readonly audienceRisk?: string
 }
 
 /**
@@ -348,6 +376,7 @@ export function errandFor(portal: Portal, choice?: PortalChoice): Errand {
     ...(choice?.call === true ? { call: true } : {}),
     ...(choice?.register === undefined ? {} : { register: choice.register }),
     ...(choice?.handoff === undefined ? {} : { handoff: choice.handoff }),
+    ...(choice?.audienceRisk === undefined ? {} : { audienceRisk: choice.audienceRisk }),
   }
 }
 
@@ -445,7 +474,10 @@ export function RoomPicker(props: {
   )
 
   /** 选完之后那句话的骨架：受话 + 句式，内容一个字都不带。 */
-  const choice = (): PortalChoice | undefined => portalChoice(portal, executor)
+  const choice = (room?: DelegateRoomWire): PortalChoice | undefined => portalChoice(
+    portal, executor,
+    room === undefined ? undefined : { known: room.known, kind: room.kind },
+  )
 
   if (needsExecutor) {
     return (
@@ -638,7 +670,7 @@ export function RoomPicker(props: {
                       ? '人没换、场所也没换——这样的移交什么都不会发生'
                       : undefined}
                     onClick={() => {
-                      go({ kind: 'place', placeKey: room.placeKey, groupName: room.name }, choice())
+                      go({ kind: 'place', placeKey: room.placeKey, groupName: room.name }, choice(room))
                     }}
                   >
                     {room.kind === 'direct' ? '💬 ' : '# '}
@@ -694,7 +726,7 @@ export function RoomPicker(props: {
                         一次移交。
                       */
                       disabled={noop(room.placeKey)}
-                      onClick={() => { go({ kind: 'topic', sessionId: topic.sessionId }, choice()) }}
+                      onClick={() => { go({ kind: 'topic', sessionId: topic.sessionId }, choice(room)) }}
                     >
                       {topic.label}
                     </button>

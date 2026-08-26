@@ -173,6 +173,13 @@ export interface Errand {
     readonly openId: string
     readonly name?: string
   }
+  /**
+   * **最小听众不变量**的警示 —— 听众可能少了执行者那一头 (v4.24 决策 #58).
+   *
+   * 选场所那一屏刚算过「他在这儿有过登记吗」，而算完不带走，它就只是一句分节标题。
+   * 设计要的是**代发前警示**：这句话发出去之后，板上会长出一条他可能根本不知道的活。
+   */
+  readonly audienceRisk?: string
 }
 
 let errand: Errand | undefined

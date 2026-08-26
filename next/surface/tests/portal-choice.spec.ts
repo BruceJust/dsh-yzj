@@ -131,6 +131,50 @@ describe('移交：重新签发的先验', () => {
   })
 })
 
+/**
+ * **最小听众不变量**（v4.24 决策 #58）—— 承诺边的听众 ≥ {owner, executor}。
+ *
+ * 更大是特性（公开是施压与透明），更小则这条边从出生起就不完整：群里其他人以为这事说
+ * 好了，而当事人一个字都没听见。平台不给群成员名单，「他在不在」答不了；答得了的是
+ * 「他在这儿有过登记吗」——而这个事实**选场所那一屏刚算过**。算完不带走，它就只是一句
+ * 分节标题；设计要的是**代发前警示**，也就是要活到发送键跟前。
+ */
+describe('最小听众：算过的事实要活到发送键跟前', () => {
+  it('他没在这个群里有过登记 —— 警示跟着这一句走', () => {
+    const choice = portalChoice(BASE, ZHANG, { known: false, kind: 'group' })
+    expect(choice?.audienceRisk).toContain('张锐')
+    expect(choice?.audienceRisk).toContain('答不了')
+  })
+
+  it('他在这儿有过登记：不无中生有一句警告', () => {
+    expect(portalChoice(BASE, ZHANG, { known: true, kind: 'group' })?.audienceRisk)
+      .toBeUndefined()
+  })
+
+  /*
+    **私聊不问这一句**：听众是确定的（就你和他）。在那儿摆一句「他在不在答不了」，是把
+    一个不存在的疑问塞给人。
+  */
+  it('私聊不问「他在不在」 —— 那间屋子的听众是确定的', () => {
+    expect(portalChoice(BASE, ZHANG, { known: false, kind: 'direct' })?.audienceRisk)
+      .toBeUndefined()
+  })
+
+  /*
+    **agent 不问这一句**：它的在与不在是「接单」，另有说法（不接单的群里 @ 不会被应答，
+    那句话在选场所那一屏就说过了）。
+  */
+  it('派给 agent 时不问 —— 它的在不在叫接单', () => {
+    expect(portalChoice(BASE, { kind: 'agent' }, { known: false, kind: 'group' })?.audienceRisk)
+      .toBeUndefined()
+  })
+
+  it('移交也带这句 —— 新执行者同样可能不在那间屋子里', () => {
+    expect(portalChoice(MOVE, ZHANG, { known: false, kind: 'group' })?.audienceRisk)
+      .toContain('张锐')
+  })
+})
+
 describe('先验要真的跟着差事走完全程', () => {
   /*
     翻译对了、差事没带上，等于没翻译。这一跳此前只带 `register`——移交先验加进来的那一刻，
@@ -140,6 +184,11 @@ describe('先验要真的跟着差事走完全程', () => {
     const errand = errandFor(MOVE, portalChoice(MOVE, ZHANG))
     expect(errand.handoff).toEqual({ fromCommitmentId: 'c1', openId: 'u-zhang', name: '张锐' })
     expect(errand.seed).toContain('统一模板')
+  })
+
+  it('最小听众的警示进 errand —— 算完不带走等于没算', () => {
+    const errand = errandFor(BASE, portalChoice(BASE, ZHANG, { known: false, kind: 'group' }))
+    expect(errand.audienceRisk).toContain('张锐')
   })
 
   it('转包的血缘进 errand', () => {

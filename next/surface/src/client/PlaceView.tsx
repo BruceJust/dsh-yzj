@@ -240,6 +240,16 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const [pendingHandoff, setPendingHandoff] = useState<
     { fromCommitmentId: string; openId: string; name?: string } | undefined
   >(undefined)
+  /**
+   * **最小听众不变量**的警示 —— 听众可能少了执行者那一头 (v4.24 决策 #58).
+   *
+   * 选场所那一屏算过「他在这个群里有过登记吗」；答不了「他在不在」（平台不给成员名单）。
+   * 这句话必须活到**发送键跟前**：一条群里其他人以为说好了、而当事人一个字没听见的
+   * 承诺，从出生起听众就不完整。
+   *
+   * **不拦**——选一个他可能不在的群是合法的社交选择（拉人／改场所／照发都由人定）。
+   */
+  const [audienceRisk, setAudienceRisk] = useState('')
   useEffect(() => {
     const errand = takeErrand()
     if (errand === undefined) return
@@ -255,6 +265,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     setPendingCall(errand.call === true ? opening : undefined)
     setPendingRegister(errand.register)
     setPendingHandoff(errand.handoff)
+    setAudienceRisk(errand.audienceRisk ?? '')
     // 一场会不装载语境：会的 id 当成 goalRef 会把目标图污染掉（和会话那一侧同源）。
     if (errand.subject === 'goal' && errand.goalRef !== '') {
       setPendingGoal({ goalRef: errand.goalRef, goalName: errand.goalName })
@@ -443,6 +454,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
       // 说出口了，这次先验就用掉了——下一句话是新的一句话。
       setPendingRegister(undefined)
       setPendingHandoff(undefined)
+      setAudienceRisk('')
       void armBorn(result.sessionId).then((note) => {
         /*
           移交那一头**自己会说话**：解除告知落没落上、主权对不对、是不是「什么都没改」。
@@ -803,6 +815,11 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           谁名下的活、挂在哪个目标下面。看不见的话,一次「换个人」之后带过来的还是上一个
           人——而那只有等承诺落到板上才发现。
         */}
+        {audienceRisk !== '' && (
+          <div className={css.audienceRisk}>
+            ⚠️ {audienceRisk}
+          </div>
+        )}
         {(pendingGoal !== undefined || pendingRegister !== undefined
           || pendingHandoff !== undefined) && (
           <div className={css.errandBar}>
@@ -828,6 +845,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                 setPendingGoal(undefined)
                 setPendingRegister(undefined)
                 setPendingHandoff(undefined)
+                setAudienceRisk('')
               }}
             >
               不带了

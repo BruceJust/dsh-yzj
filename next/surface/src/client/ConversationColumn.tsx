@@ -159,6 +159,16 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   const [pendingHandoff, setPendingHandoff] = useState<
     { fromCommitmentId: string; openId: string; name?: string } | undefined
   >(undefined)
+  /**
+   * **最小听众不变量**的警示 —— 听众可能少了执行者那一头 (v4.24 决策 #58).
+   *
+   * 选场所那一屏算过「他在这个群里有过登记吗」；答不了「他在不在」（平台不给成员名单）。
+   * 这句话必须活到**发送键跟前**：一条群里其他人以为说好了、而当事人一个字没听见的
+   * 承诺，从出生起听众就不完整。
+   *
+   * **不拦**——选一个他可能不在的群是合法的社交选择（拉人／改场所／照发都由人定）。
+   */
+  const [audienceRisk, setAudienceRisk] = useState('')
   const [pendingRegister, setPendingRegister] = useState<
     { openId: string; name: string; parentCommitmentId?: string } | undefined
   >(undefined)
@@ -239,6 +249,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     setPendingCall(errand.call === true ? opening : undefined)
     setPendingRegister(errand.register)
     setPendingHandoff(errand.handoff)
+    setAudienceRisk(errand.audienceRisk ?? '')
     /*
       **一场会不装载语境。**
 
@@ -440,6 +451,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
             setToast('已移交：这句话说出去了，新的那条承诺从它出生。')
           }
           setPendingHandoff(undefined)
+          setAudienceRisk('')
           /*
             说出口了，语境才装载 (v4.9).
 
@@ -996,6 +1008,16 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
               ×
             </button>
           </div>
+        )}
+        {/*
+          **最小听众不变量**的警示 —— 说，不拦（v4.24 决策 #58）。
+
+          承诺边的听众 ≥ {owner, executor}：更大是特性（公开是施压与透明），更小则这条边
+          从出生起就不完整——群里其他人以为这事说好了，而当事人一个字都没听见。选场所那一
+          屏刚算过「他在这儿有过登记吗」，这句话要活到**发送键跟前**才算数。
+        */}
+        {audienceRisk !== '' && (
+          <div className={css.audienceRisk}>⚠️ {audienceRisk}</div>
         )}
         {/*
           锚定条 (D13④) — A0 的锚定层级在 UI 里的真身。
