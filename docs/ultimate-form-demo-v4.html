@@ -997,7 +997,7 @@ const AV = {
 };
 const AGENT_ALIAS = /@agent|@智能体|@云小助/i;
 
-const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null, boardLens: 'all', delegExec: null, delegCtx: null, repairFor: null, voidConfirm: null, gvoidArm: false };
+const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null, boardLens: 'all', delegExec: null, delegCtx: null, repairFor: null, voidConfirm: null, gvoidArm: false, delegDir: false };
 
 /* v4：承诺板数据——图的第三类居民（执行者可为人/agent/流程） */
 /* v4.21 字段语义：due=话语原文（真身）；dueT=解析投影（可空可纠：'today'/'soon'/null——无戳沉底不消失）；
@@ -1818,25 +1818,40 @@ function commitRow(c) {
 /* v4.12 共享动作卡（委派传送门/拆解提案/差距简报）——承诺板与目标枢纽同一套（数据同一查询，割裂不存在） */
 function goalActionCards(gid) {
   let h = '';
-  /* v4.21+ 委派选择条 = 两维真选择（执行者 × 场所），选完传送门跳会话——话语可编辑，发送才算数 */
+  /* v4.24+ 委派选择条：执行者三层（agent 首位 / 近处候选带出处 / 搜索兜底）× 场所（共同场所事实过滤，无共同场所自动收敛） */
   if (state.delegGoal === gid) {
     const ex = state.delegExec;
+    /* 场所选项集 = 与执行者的共同场所（事实）+ DM + 新建——demo 名录写死为演示装置 */
+    const EXEC_PLACES = {
+      张锐: { pub: 'prodgroup', pubLabel: '产品讨论群 · 公开登记', dm: null },
+      张三: { pub: 'prodgroup', pubLabel: '产品讨论群 · 公开登记', dm: 'zhangsan' },
+      李婷: { pub: 'prodgroup', pubLabel: '产品讨论群 · 公开登记', dm: 'litingdm' },
+      郑慧: { pub: 'fingroup', pubLabel: '财务群 · 公开登记', dm: null },
+      小唐: { pub: null, dm: null }, 王五: { pub: null, dm: null },
+    };
+    const pl = ex && ex !== 'agent' ? (EXEC_PLACES[ex] || { pub: null, dm: null }) : null;
     const placeRow = !ex ? '' : ex === 'agent' ? `
       <span style="font-size:11px;color:var(--ink-2);flex-basis:100%">② 场所（听众是社交决策，人选不推导）：</span>
       <button class="btn" data-dgo="agent:prodgroup" style="font-size:11px">产品讨论群 · 公开委派</button>
       <button class="btn" data-dgo="newgroup" style="font-size:11px" title="v4.18 场所出生三句：创设人签发 · 合同默认最严 · 出生血缘携带语境">＋ 新建专项群</button>` : `
-      <span style="font-size:11px;color:var(--ink-2);flex-basis:100%">② 场所（公开委派施压透明 · 私下登记留余地）：</span>
-      <button class="btn" data-dgo="${ex}:prodgroup" style="font-size:11px">产品讨论群 · 公开登记</button>
-      <button class="btn" data-dgo="${ex}:dm" style="font-size:11px">与${ex}的 DM · 私下登记</button>
+      <span style="font-size:11px;color:var(--ink-2);flex-basis:100%">② 场所（公开登记施压透明 · 私下登记留余地${pl.pub ? '' : '——<b>与' + ex + '无共同场所，选项集自动收敛</b>（事实过滤）'}）：</span>
+      ${pl.pub ? `<button class="btn" data-dgo="${ex}:${pl.pub}" style="font-size:11px">${pl.pubLabel}</button>` : ''}
+      ${pl.dm ? `<button class="btn" data-dgo="${ex}:dm" style="font-size:11px">与${ex}的 DM · 私下登记</button>`
+              : `<button class="btn" data-dgo="newdm:${ex}" style="font-size:11px" title="云之家开新 DM——demo 该会话未建，押样机">与${ex}的 DM · 私下登记（开新）</button>`}
       <button class="btn" data-dgo="newgroup" style="font-size:11px" title="v4.18 场所出生三句：创设人签发 · 合同默认最严 · 出生血缘携带语境">＋ 新建专项群</button>`;
+    const cand = (name, src) => `<button class="btn${ex === name ? ' primary' : ''}" data-dexec="${name}" style="font-size:11px" title="候选来源：${src}（事实，非意图推测——选项集的出生故事）">${name} <span style="font-size:9px;color:${ex === name ? '#cfe0ff' : 'var(--ink-3)'}">· ${src}</span></button>`;
+    const dirRow = state.delegDir ? `
+      <span style="font-size:10px;color:var(--ink-3);flex-basis:100%">通讯录（演示名录——真实形态 = contact search 全组织）：${['郑慧', '小唐', '王五'].map(n => cand(n, EXEC_PLACES[n].pub ? '搜索' : '搜索 · 无共同场所')).join(' ')}</span>` : '';
     h += `
     <div class="cm-row" style="background:#FDFEFF;border-color:var(--pub-line);flex-wrap:wrap;gap:6px">
-      <span style="font-size:11px;color:var(--ink-2);flex-basis:100%">① 执行者：</span>
-      <button class="btn${ex === 'agent' ? ' primary' : ''}" data-dexec="agent" style="font-size:11px">🤖 云小助（agent 执行）</button>
-      <button class="btn${ex === '张三' ? ' primary' : ''}" data-dexec="张三" style="font-size:11px">张三</button>
-      <button class="btn${ex === '李婷' ? ' primary' : ''}" data-dexec="李婷" style="font-size:11px">李婷</button>
+      <span style="font-size:11px;color:var(--ink-2);flex-basis:100%">① 执行者（agent 首位 · 候选带出处 · 搜索兜底——事实过滤，选择权在人）：</span>
+      <button class="btn${ex === 'agent' ? ' primary' : ''}" data-dexec="agent" style="font-size:11px">🤖 云小助（你的 agent）</button>
+      ${cand('张锐', '本目标执行者')}${cand('张三', '最近委派 · 走访汇总')}${cand('李婷', '本群成员')}
+      <button class="btn" data-ddir="1" style="font-size:11px">🔍 搜通讯录${state.delegDir ? ' ▴' : '…'}</button>
       <button class="btn" data-dgo="x" style="font-size:11px;margin-left:auto">取消</button>
+      ${dirRow}
       ${placeRow}
+      <span style="font-size:9.5px;color:var(--ink-3);flex-basis:100%">边界：流程执行者不在此（走「按模板实例化」——启动非委派）· 外部人押 entity 影子门（明标不可选而非假装不存在）</span>
     </div>`;
   }
   if (state.decompGoal === gid && state.decompPhase === 'working') h += `
@@ -3644,16 +3659,27 @@ document.addEventListener('click', (e) => {
     renderTimeline();
     return;
   }
+  const ddir = e.target.closest('[data-ddir]');
+  if (ddir) {
+    state.delegDir = !state.delegDir;
+    renderTimeline();
+    if (state.delegDir) toast('搜索兜底全组织（contact user search）——演示名录写死；候选排序按事实（最近/在场/语境），意图推测违法（人选不推导）');
+    return;
+  }
   const dgo = e.target.closest('[data-dgo]');
   if (dgo) {
     const mode = dgo.dataset.dgo;
     const gid = state.delegGoal;
-    if (mode === 'x') { state.delegGoal = null; state.delegExec = null; renderTimeline(); return; }
+    if (mode === 'x') { state.delegGoal = null; state.delegExec = null; state.delegDir = false; renderTimeline(); return; }
     if (mode === 'newgroup') {
       toast('新建专项群 = 创设 + 代发一体，全程人签发（v4.18 场所出生三句）：签发卡含群名/初始成员/「接入 agent」显式勾选——本 demo 押样机，选既有场所可体验完整链');
       return;
     }
-    state.delegGoal = null; state.delegExec = null;
+    if (mode.startsWith('newdm:')) {
+      toast(`与${mode.slice(6)}开新 DM = 云之家原生动作（无共同场所时听众收敛为两人——最小听众不变量的下限恰是 DM）——本 demo 该会话未建押样机，选公开场所或既有 DM 体验完整链`);
+      return;
+    }
+    state.delegGoal = null; state.delegExec = null; state.delegDir = false;
     const [ex, place] = mode.split(':');
     const goalTitle = (GOALS[gid] || {}).title || 'Q3 产品竞争力提升';
     /* 传送门：跳会话预填可编辑话语 + 目标 chip（语境继承）——发送才算数；删 chip = 放弃挂接（可纠）。
