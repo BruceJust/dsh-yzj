@@ -331,8 +331,13 @@ export function applyCommitmentTools(ctx: Context): () => void {
       return {
         content: delivered === undefined
           ? `已登记承诺：${args.what}${args.due === undefined ? '' : `（期限 ${args.due}）`}${inferredNote}。`
-            + `${executorOpenId !== undefined && executorOpenId !== delegator ? '**本人还不知道**（板上这一行已标出），' : ''}`
-            + '请在你的回复里向大家说明这条登记，让他们能纠正。'
+            + `${executorOpenId !== undefined && executorOpenId !== delegator
+              // 最小听众不变量：承诺边的听众 ≥ {owner, executor}，而这一条此刻少了一头。
+              // 修边的办法是**私聊补递一条指针**，不是把这条活悄悄记在他名下（v4.24）。
+              ? '**本人还不知道**（板上这一行已标出）。要我把这条登记私聊发给他吗？说一声我就发——'
+                + '一条没人知道自己欠着的承诺，和一条不存在的承诺一样不可信。'
+              : ''}`
+            + '另外请在你的回复里向大家说明这条登记，让他们能纠正。'
           : `已登记承诺并在会话里公示：${args.what}${args.due === undefined ? '' : `（期限 ${args.due}）`}${inferredNote}。`,
         commitmentId,
       }

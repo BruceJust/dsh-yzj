@@ -89,6 +89,17 @@ export function RepairVerbs(props: {
   /** 可以收养这一条的目标。无归属行才用得上。 */
   goals?: readonly { readonly ref: string; readonly label: string }[]
   /**
+   * **移交升传送门**（v4.24 决策 #58）—— 改完图之后，把人送到该说这句话的地方。
+   *
+   * 移交此前只改图，回执里附一句「记得去登记场所说一声」。那句话把最要紧的一半**派回给
+   * 了人的记性**：新执行者不知道这件事，而幽灵承诺禁令对移交同样成立——一条没人知道自己
+   * 欠着的承诺，在板上和一条真的活长得一模一样。
+   *
+   * 所以移交完成后交出一句**拟稿**，由使用它的那一面开传送门（板与目标页各有自己的
+   * 落点逻辑）。**话由人发**：拟稿只是省下打字，不是替他开口。
+   */
+  announce?(row: RepairTarget, draft: string): void
+  /**
    * 这一行如果是**目标**，它底下还有几条在跟。
    *
    * 同一件事有两扇门：板上目标组头那颗，和平铺列表里这一行的修理条。两扇门只有一扇
@@ -98,7 +109,7 @@ export function RepairVerbs(props: {
   close(): void
   run(id: string, work: Promise<{ error?: string }>, done: string): void
 }): ReactNode {
-  const { repair, siblings, inject, busy, field, setField, field2, setField2, goals, cascadeOpen, close, run } = props
+  const { repair, siblings, inject, busy, field, setField, field2, setField2, goals, cascadeOpen, announce, close, run } = props
   const row = repair.row
 
 /*
@@ -255,11 +266,20 @@ if (repair.kind === 'handoff') {
         className={css.repairGo}
         disabled={field.trim() === '' || busy}
         onClick={() => {
+          const name = field2.trim() === '' ? '' : field2.trim()
           run(
             row.id,
-            inject.handoffCommitment(row.id, field.trim(), field2.trim() === '' ? undefined : field2.trim()),
-            '已移交。记得去登记场所说一声——图改了不等于人知道了。',
+            inject.handoffCommitment(row.id, field.trim(), name === '' ? undefined : name),
+            announce === undefined
+              ? '已移交。记得去登记场所说一声——图改了不等于人知道了。'
+              : '已移交。下面这句话去说一声——新执行者还不知道。',
           )
+          /*
+            拟稿带三样：**是谁、哪一条、原话期限**。没有它们，收到这句话的人还得回头
+            翻记录才知道说的是哪件事——而那份翻找正是这个产品要消掉的东西。
+          */
+          announce?.(row, `${name === '' ? '' : `${name}，`}「${row.what}」这条现在转给你了`
+            + `${row.due === undefined ? '' : `，原定 ${row.due.text}`}。`)
         }}
       >
         移交

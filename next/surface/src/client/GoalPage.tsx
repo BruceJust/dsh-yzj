@@ -238,6 +238,21 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
         <RepairVerbs
           repair={repair}
           siblings={goal.children}
+          /*
+            **移交升传送门**：改完图之后，把人送到该说这句话的地方（v4.24）。落点逻辑
+            和「催」同一条——记得下登记场所就直接跳，记不下就问一句去哪儿说。
+          */
+          announce={(target, draft) => {
+            const child = goal.children.find(one => one.id === target.id)
+            if (child?.sessionId === undefined) {
+              ask({
+                subject: 'goal',
+                goalRef, goalName, voice: 'place', seed: draft,
+                title: '移交：去哪个会话说？',
+                note: '这条承诺没有记下登记场所，所以落点得你来定。句子还是你自己说。',
+              })
+            } else jump('place', draft, child.sessionId)
+          }}
           inject={inject}
           busy={busy !== ''}
           field={field}

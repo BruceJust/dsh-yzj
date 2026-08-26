@@ -751,6 +751,27 @@ export function YzjBoard(props: BoardProps): ReactNode {
             <RepairVerbs
               repair={repair}
               siblings={siblingsOf(row)}
+              /*
+                移交升传送门（v4.24）：板上和「催一下」同一条落点逻辑——有登记场所就
+                把拟稿送过去，没有就走选场所那一问。**话由人发**。
+              */
+              announce={(target, draft) => {
+                const one = view.rows.find(candidate => candidate.id === target.id) ?? row
+                if (one.sessionId === undefined) {
+                  // 没有可跳进去的会话就直说——一颗点下去没有下文的按钮比没有按钮更坏。
+                  setToast('已移交。这条没有可跳进去的会话（登记时不在任何话题里），'
+                    + `请自己跟对方说一声：${draft}`)
+                  return
+                }
+                sendErrand({
+                  subject: 'nudge',
+                  goalRef: one.goalRef ?? '',
+                  goalName: one.what,
+                  voice: 'place',
+                  seed: draft,
+                })
+                openSession(one.sessionId)
+              }}
               goals={goalOptions}
               cascadeOpen={view.goals.find(entry => entry.goalRef === row.isGoal)?.counts.open ?? 0}
               inject={inject}

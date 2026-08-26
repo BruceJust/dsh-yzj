@@ -140,3 +140,43 @@ describe('两级缩放说同一句话', () => {
     expect(seed).toContain('T+3 出报表')
   })
 })
+
+/**
+ * **预填出处律**（v4.24 决策 #58）：预填的每个字都要有出生故事。
+ *
+ * 有语境出处就预填（差距变委派 = 差距项原文；为此会准备 = 这场会的标题），**空白委派
+ * 无出处即无内容**——系统不知道你要委派什么，也就无从示例。demo 为了演示流畅预填了完整
+ * 剧本，那是演示装置；照抄进产品的后果是**发出一条系统发明的承诺**，比空白更糟。
+ */
+describe('预填出处律', () => {
+  /** 一句拟稿里，除了出处给的那几样，不该出现任何具体的任务内容。 */
+  const invented = ['核对', '整理', '拉数据', '写一版', '周五前', '下周']
+
+  it('空白委派只给受话人和句式骨架，不发明任务内容', () => {
+    const seed = registerSeed('张锐')
+    expect(seed).toContain('张锐')
+    // 占位符是**留白**，不是内容：人一眼看得出这里要他自己写。
+    expect(seed).toContain('〔要做什么〕')
+    expect(seed).toContain('〔什么时候前〕')
+    for (const word of invented) expect(seed).not.toContain(word)
+  })
+
+  it('目标委派的起头只摆语境，内容留空', () => {
+    const seed = delegateSeed('Q3 对账')
+    expect(seed).toContain('Q3 对账')
+    for (const word of invented) expect(seed).not.toContain(word)
+  })
+
+  /*
+    有出处的那两条**必须**把出处带上：差距项与会议标题都是人自己说过或系统读出来的
+    事实，不带它才是浪费——那时人得回头再打一遍已经存在的东西。
+  */
+  it('差距变委派带着差距原文 —— 那是它的出生故事', () => {
+    expect(gapSeed('Q3 对账', '差异条目 < 5')).toContain('差异条目 < 5')
+  })
+
+  it('为此会准备带着这场会的标题', () => {
+    expect(eventPrepSeed('攀登计划周会')).toContain('攀登计划周会')
+  })
+})
+
