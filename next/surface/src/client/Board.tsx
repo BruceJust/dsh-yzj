@@ -599,6 +599,29 @@ export function YzjBoard(props: BoardProps): ReactNode {
             待验收
           </span>
         )}
+        {/*
+          **受领三态在板上也要看得见**（v4.24）。
+
+          此前它只记不读：`acceptance` 落了库，而板上一个字都没有——「记下来没人读得到
+          等于没记」是今天已经交过一次学费的那一课。两态的分量不一样，所以说法也不一样：
+
+          - **拒领**是需要你再决定一次的事实（这条现在没有人接），醒目；
+          - **受领**只是一条证据，安静地待着就好——受领不是义务，也不是进展，把它做成
+            一个显眼的绿标，等于在暗示「没这个标的都不对劲」，而那正是确认剧场的入口。
+        */}
+        {row.status === 'open' && row.acceptance?.state === 'declined' && (
+          <span
+            className={css.declined}
+            title={`他没接这条${row.acceptance.note === undefined ? '' : `：「${row.acceptance.note}」`}——就近可以作废，或者重新协商`}
+          >
+            拒领
+          </span>
+        )}
+        {row.status === 'open' && row.acceptance?.state === 'accepted' && (
+          <span className={css.accepted} title="他回话接下了这条——受领是证据，不是义务">
+            已受领
+          </span>
+        )}
         {row.status === 'open' && row.awaitingAcceptance !== true && row.signal !== 'evidence' && (
           <span
             className={row.signal === 'silent' ? css.sigSilent : css.sigStale}

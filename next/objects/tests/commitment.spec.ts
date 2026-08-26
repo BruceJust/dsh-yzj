@@ -652,6 +652,18 @@ describe('语气路由', () => {
       .toBe('closed')
   })
 
+  /*
+    **不靠模型记性。** 同一句请求在同一个语境里，等待的 id 是算得出来的（幂等锚）——
+    模型忘了回传，板上就会同时躺着「在等张三答复」和「张三欠一条」，而其中一个永远
+    不会自己消失。能算出来的东西不该靠谁记得。
+  */
+  it('他答应了：就算没回传等待 id，那条等待也会收口', async () => {
+    const asked = await call({ tone: 'requested', what: '核对一版竞品定价', executorOpenId: 'u-zhang' })
+    await call({ tone: 'stated', what: '核对一版竞品定价', executorOpenId: 'u-zhang', executorName: '张锐' })
+    expect((graph.rawObject('waiting', String(asked.waitingId))?.state as { status?: string })?.status)
+      .toBe('closed')
+  })
+
   it('陈述照旧登记 —— 路由不该把正常的登记也拦下来', async () => {
     const result = await call({ tone: 'stated', what: '出周报', executorOpenId: 'u-zhang' })
     expect(result.commitmentId).toBeDefined()

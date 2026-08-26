@@ -14,6 +14,7 @@ import {
   assessAsk, breakdownAsk, delegateSeed, eventPrepSeed, gapSeed,
   goalCraftSeed, goalQuestionSeed, rebaseAsk, registerSeed,
 } from '../src/client/commission.ts'
+import { handoffDraft } from '../src/client/RepairVerbs.tsx'
 
 const NAME = 'Q3 把对账周期压到 3 天内'
 const REF = 'https://yzj.example.com/doc/q3'
@@ -180,3 +181,28 @@ describe('预填出处律', () => {
   })
 })
 
+/**
+ * 移交升传送门那一句（v4.24 决策 #58）。
+ *
+ * 移交此前只改图 + 一句「记得去说一声」——把最要紧的一半**派回给人的记性**。而这句话
+ * 最容易退化成一句「已移交」：收到的人得回头翻记录才知道说的是哪件事，而那份翻找正是
+ * 这个产品要消掉的东西。
+ */
+describe('移交拟稿', () => {
+  it('带上是谁、哪一条、以及**原话**期限', () => {
+    const draft = handoffDraft({ what: '核对一版竞品定价', due: { text: '下周三前' } }, '张锐')
+    expect(draft).toContain('张锐')
+    expect(draft).toContain('核对一版竞品定价')
+    // 原话，不是解析出来的日期——改写他说过的话，是拿我们的解析冒充他的承诺。
+    expect(draft).toContain('下周三前')
+  })
+
+  it('没记下期限就不编一个', () => {
+    const draft = handoffDraft({ what: '核对一版竞品定价' }, '张锐')
+    expect(draft).not.toContain('原定')
+  })
+
+  it('名字不知道时不留一个空称呼', () => {
+    expect(handoffDraft({ what: '核对定价' }, '')).not.toContain('，「')
+  })
+})

@@ -38,6 +38,22 @@ export interface RepairTarget {
   readonly isGoal?: string
 }
 
+/**
+ * 移交之后该说的那句话 —— **是谁、哪一条、原话期限**。
+ *
+ * 抽出来是为了让它可测：这句话是移交升传送门那一半的全部内容，而它最容易退化成一句
+ * 「已移交」——收到的人得回头翻记录才知道说的是哪件事，而那份翻找正是这个产品要消掉的
+ * 东西。期限用**原话**，不用解析出来的日期：把人说过的话改写成时间戳，是拿我们的解析
+ * 冒充他的承诺。
+ */
+export function handoffDraft(
+  row: { readonly what: string; readonly due?: { readonly text: string } },
+  name: string,
+): string {
+  return `${name === '' ? '' : `${name}，`}「${row.what}」这条现在转给你了`
+    + `${row.due === undefined ? '' : `，原定 ${row.due.text}`}。`
+}
+
 /** 正在对哪一条、做哪一种修理。 */
 export type Repair =
   | { kind: 'postpone'; row: RepairTarget }
@@ -267,19 +283,29 @@ if (repair.kind === 'handoff') {
         disabled={field.trim() === '' || busy}
         onClick={() => {
           const name = field2.trim() === '' ? '' : field2.trim()
+          const work = inject.handoffCommitment(row.id, field.trim(), name === '' ? undefined : name)
           run(
             row.id,
-            inject.handoffCommitment(row.id, field.trim(), name === '' ? undefined : name),
+            work,
             announce === undefined
               ? '已移交。记得去登记场所说一声——图改了不等于人知道了。'
               : '已移交。下面这句话去说一声——新执行者还不知道。',
           )
           /*
-            拟稿带三样：**是谁、哪一条、原话期限**。没有它们，收到这句话的人还得回头
-            翻记录才知道说的是哪件事——而那份翻找正是这个产品要消掉的东西。
+            **传送门只在移交真的成功之后开。**
+
+            第一版把它写在 `run(...)` 后面一行——而 `run` 收下的是一个 promise，那一行是
+            同步的。于是端点拒绝时（主权不对、这条已经终态、找不到 id）人照样被送进会话，
+            composer 里预填着「这条现在转给你了」：**一句关于没发生过的事的话，而且已经
+            摆在了发送键前面**。观察同一个 promise，成功才开口。
+
+            拟稿带三样：**是谁、哪一条、原话期限**。没有它们，收到这句话的人还得回头翻
+            记录才知道说的是哪件事——而那份翻找正是这个产品要消掉的东西。
           */
-          announce?.(row, `${name === '' ? '' : `${name}，`}「${row.what}」这条现在转给你了`
-            + `${row.due === undefined ? '' : `，原定 ${row.due.text}`}。`)
+          void work.then((result) => {
+            if (result.error !== undefined) return
+            announce?.(row, handoffDraft(row, name))
+          })
         }}
       >
         移交

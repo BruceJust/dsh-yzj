@@ -638,3 +638,10 @@
   font: inherit; font-size: 12.5px; color: var(--yzj-ink);
 }
 .spaceDrop { color: var(--yzj-ink-3); }
+
+/* 受领三态：拒领要人再决定一次（醒目），受领只是证据（安静） */
+.declined {
+  flex: none; font-size: 10.5px; font-weight: 650; padding: 1px 7px; border-radius: 6px;
+  background: #FFF1F0; color: var(--yzj-red); border: 1px solid #F5C6C4;
+}
+.accepted { flex: none; font-size: 10.5px; color: var(--yzj-ink-3); }

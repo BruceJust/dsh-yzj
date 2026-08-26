@@ -274,16 +274,28 @@ export function applyCommitmentTools(ctx: Context): () => void {
         不收的话，板上会同时躺着「在等张三答复」和「张三欠一条」——同一件事两个对象，
         而其中一个永远不会自己消失。`resolved` 是它该有的死法：等到了。
       */
-      if (args.answeredWaitingId !== undefined) {
-        const wait = ctx.yzjGraph.rawObject('waiting', args.answeredWaitingId)
+      /*
+        **不靠模型记性**：同一句请求在同一个语境里，等待的 id 是算得出来的。
+
+        第一版只认 `answeredWaitingId`——模型忘了带，板上就同时躺着「在等张三答复」和
+        「张三欠一条」，而其中一个永远不会自己消失。id 由 scope + 那句话推导（等待族的
+        幂等锚），所以这里自己再算一次：**能算出来的东西不该靠人（或模型）记得**。
+        显式传的 id 仍然优先——他答应的可能是另一句话。
+      */
+      const derived = waitingIdFor(
+        binding?.topicKey ?? binding?.placeKey ?? 'desktop',
+        `请求：${args.what.replace(/\s+/gu, ' ').trim()}`,
+      )
+      for (const waitingId of [args.answeredWaitingId, derived]) {
+        if (waitingId === undefined) continue
+        const wait = ctx.yzjGraph.rawObject('waiting', waitingId)
         const status = asString(asRecord(wait?.state)?.status)
-        if (wait !== undefined && status !== 'closed') {
-          await ctx.yzjGraph.append({
-            type: 'waiting/closed',
-            data: { waitingId: args.answeredWaitingId, cause: 'resolved' },
-            actor: { kind: 'agent' },
-          })
-        }
+        if (wait === undefined || status === 'closed') continue
+        await ctx.yzjGraph.append({
+          type: 'waiting/closed',
+          data: { waitingId, cause: 'resolved' },
+          actor: { kind: 'agent' },
+        })
       }
       // The registration is announced in the place it was made, with its own
       // answer path: the person named is usually not the operator, and making
