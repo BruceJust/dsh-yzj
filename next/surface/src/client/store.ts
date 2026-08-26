@@ -155,7 +155,12 @@ export interface Errand {
    * 所以「这句是登记还是委派」不需要等一次群里的 turn 才知道——它在传送门那一刻就
    * 定了。带着它一路到发送，发送成功即落库。
    */
-  readonly register?: { readonly openId: string; readonly name: string }
+  readonly register?: {
+    readonly openId: string
+    readonly name: string
+    /** 转包：拆出来的这条挂在哪条底下（决策 #59「可转包不可脱责」）。 */
+    readonly parentCommitmentId?: string
+  }
   /**
    * 这句话是**那条边的重新签发** —— 移交先验 (决策 #59).
    *

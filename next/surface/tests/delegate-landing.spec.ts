@@ -92,7 +92,7 @@ beforeEach(async () => {
 /** 图上现在有哪些承诺（不含目标那一类）。 */
 const born = (): {
   what?: string; audience?: readonly string[]; topicKey?: string
-  parentGoalRef?: string; executor?: { name?: string }
+  parentGoalRef?: string; parentCommitmentId?: string; executor?: { name?: string }
 }[] => [...graph.query(ME, { kind: 'commitment' })].map(object => ({
   ...(object.state as Record<string, never>),
   audience: object.audience,
@@ -163,6 +163,29 @@ describe('主楼委派：话题是产物，不是前提', () => {
     await call('send-in-place', { placeKey: 'yzj-group-g2', text: SAID })
     expect(seen).toHaveLength(1)
     expect(born()).toHaveLength(0)
+  })
+})
+
+/**
+ * **可转包不可脱责**（决策 #59）—— 「我做不了」的两种意图各有其门。
+ *
+ * 脱责 = 移交（责任锚变更，只有 owner 签得了）；转包 = 递归委派（我仍然对 owner 负责，
+ * 责任链加深，无需批准）。转包与委派是同一个动词、同一张选择条，差别只在**血缘**：不带
+ * 那一格的话，转出去的活会变成一条和我无关的平行承诺——那正是脱责。
+ */
+describe('转包：血缘让责任链加深，而不是转移', () => {
+  it('拆出来的那条挂在我那条底下', async () => {
+    await call('send-in-place', {
+      placeKey: 'yzj-group-g2',
+      text: SAID,
+      register: { ...REGISTER, parentCommitmentId: 'c-mine' },
+    })
+    expect(born()[0]?.parentCommitmentId).toBe('c-mine')
+  })
+
+  it('不转包的普通委派不带血缘 —— 不凭空给一条活安一个父亲', async () => {
+    await call('send-in-place', { placeKey: 'yzj-group-g2', text: SAID, register: REGISTER })
+    expect(born()[0]?.parentCommitmentId).toBeUndefined()
   })
 })
 

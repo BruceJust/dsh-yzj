@@ -160,7 +160,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     { fromCommitmentId: string; openId: string; name?: string } | undefined
   >(undefined)
   const [pendingRegister, setPendingRegister] = useState<
-    { openId: string; name: string } | undefined
+    { openId: string; name: string; parentCommitmentId?: string } | undefined
   >(undefined)
   /** Scroll position handed back by a pop, for the frame we return to. */
   const [restoreScroll, setRestoreScroll] = useState<number | undefined>(undefined)

@@ -49,6 +49,14 @@ export interface Portal {
    */
   readonly pick: 'executor' | 'room'
   /**
+   * 这是一次**转包** —— 拆出来的那条挂在这条底下（决策 #59「可转包不可脱责」）。
+   *
+   * 转包和委派是同一个动词、同一张选择条，差别只在**血缘**：新的那条是我这条的子承诺，
+   * 于是责任链加深而不是转移——我仍然对 owner 负责。不带这一格的话，转出去的活会变成
+   * 一条和我无关的平行承诺，而那正是「脱责」，是这条法则要挡住的东西。
+   */
+  readonly subCommitmentOf?: string
+  /**
    * 这是一次**移交** —— 边的重新签发（决策 #59）。
    *
    * 有它，两维都**预选当前值**：执行者预选现任、场所预选现场所。预选态本身就是语义
@@ -237,7 +245,12 @@ export interface PortalChoice {
   readonly seed?: string
   readonly call?: boolean
   /** 选了人 = 登记路径的结构化先验 (v3.15 裁决④)。 */
-  readonly register?: { readonly openId: string; readonly name: string }
+  readonly register?: {
+    readonly openId: string
+    readonly name: string
+    /** 转包：拆出来的这条挂在哪条底下（决策 #59）。 */
+    readonly parentCommitmentId?: string
+  }
   /** 移交先验：这一句话是那条边的重新签发（决策 #59）。 */
   readonly handoff?: {
     readonly fromCommitmentId: string
@@ -394,7 +407,14 @@ export function RoomPicker(props: {
         call: true,
         seed: registerSeed(executor.person.name),
         // 选了人，这句话就是在登记他的承诺——分类在这一刻定，不必等群里跑一次 turn。
-        register: { openId: executor.person.openId, name: executor.person.name },
+        register: {
+          openId: executor.person.openId,
+          name: executor.person.name,
+          // 转包：血缘跟着这一句走，否则拆出去的活会变成一条和我无关的平行承诺。
+          ...(portal.subCommitmentOf === undefined
+            ? {}
+            : { parentCommitmentId: portal.subCommitmentOf }),
+        },
       }
   }
 

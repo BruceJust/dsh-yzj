@@ -203,6 +203,19 @@ export interface TreeWire {
  * 名单里没有它的位置。界面因此有三种说法而不是两种。
  */
 /**
+ * 登记先验 —— 传送门第②步选执行者时就定下的分类（v3.15 裁决④）。
+ *
+ * `parentCommitmentId` 是**转包**那一格（决策 #59）：拆出来的这条挂在我那条底下，责任链
+ * 加深而不是转移。不带它，转出去的活就成了一条和我无关的平行承诺——那正是「脱责」。
+ */
+export interface RegisterPrior {
+  openId: string
+  name: string
+  goalRef?: string
+  parentCommitmentId?: string
+}
+
+/**
  * 移交先验 —— 这一句话是**哪条边的重新签发**（决策 #59）。
  *
  * 和登记先验同一个位置、同一条纪律：**说出去才算数**。旧模型先改图、再让人去说，而那
@@ -563,7 +576,7 @@ export interface SurfaceInject {
      * 有它 = 这句话是在登记那个人的承诺（传送门第②步选执行者时就定了）。发送成功之后
      * 落库 + 由既有监听器代发 ack，**不开话题**：登记的是别人的承诺，不是给 agent 的任务。
      */
-    register?: { openId: string; name: string; goalRef?: string },
+    register?: RegisterPrior,
     /** 移交先验：这一句是**这条边的重新签发**（决策 #59）。 */
     handoff?: HandoffPrior,
   ): Promise<SentInPlace>
@@ -601,7 +614,7 @@ export interface SurfaceInject {
      * 会话那一侧一直带着它；主楼这一侧此前不带，于是「委派到这个群」这条路发出去的是
      * 一句普通消息：话在群里，板上不长行。
      */
-    register?: { openId: string; name: string; goalRef?: string },
+    register?: RegisterPrior,
     /** 移交先验：这一句是**这条边的重新签发**（决策 #59）。 */
     handoff?: HandoffPrior,
   ): Promise<SentInPlace>
@@ -613,7 +626,7 @@ export interface SurfaceInject {
    */
   sendToPerson(
     openId: string, text: string,
-    register?: { openId: string; name: string; goalRef?: string },
+    register?: RegisterPrior,
     handoff?: HandoffPrior,
   ): Promise<SentInPlace & { placeKey?: string }>
   /** 附件真身：字节走宿主取（没有公开地址），按 fileId 缓存。 */

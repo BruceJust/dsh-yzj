@@ -159,9 +159,18 @@ function refuseUnlessSteward(
     **不执行，也不静默** (v3.14r②)：静默是最大的罪，公开驳斥是社交羞辱，指路是唯一
     正解。端点这一侧和 agent 那一侧说的是同一句话——同一个判断不该有两种说法。
   */
+  /*
+    移交多说一句：**可转包不可脱责**（决策 #59）。
+
+    「我做不了」有两种意图，各有各的门。只说「归他管」的话，这条法则在界面上只剩下否定
+    的那一半——而人真正想问的下一句是「那我能做什么」。
+  */
+  const otherDoor = verb === '移交'
+    ? '你不能把它转手（那是脱责），但可以把它拆下去转包给别人办——你仍然对他负责，不需要谁批准。'
+    : ''
   return failure(
     `${verb}归**登记这条承诺的人**${executor === undefined ? '' : `（执行者是 ${executor}）`}——`
-    + '直接问他一句；或者让 agent 把话拟好，你亲自发过去。',
+    + `直接问他一句；或者让 agent 把话拟好，你亲自发过去。${otherDoor}`,
   )
 }
 
@@ -2375,6 +2384,15 @@ async function registerFromPrior(
       ...(goalRef === undefined || goalRef === ''
         ? {}
         : { parentGoalRef: goalRef, attachedVia: 'inherited' }),
+      /*
+        转包：这条挂在我那条底下（决策 #59「可转包不可脱责」）。
+
+        少了这一格，转出去的活会变成一条**和我无关的平行承诺**——而那正是脱责，是这条
+        法则要挡住的东西。责任链加深，不是转移。
+      */
+      ...(asString(register?.parentCommitmentId) === undefined
+        ? {}
+        : { parentCommitmentId: asString(register?.parentCommitmentId) as string }),
     },
     actor: ctx.yzjCards.desktopActor(),
   })

@@ -229,7 +229,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   >(undefined)
   const [pendingCall, setPendingCall] = useState<string | undefined>(undefined)
   const [pendingRegister, setPendingRegister] = useState<
-    { openId: string; name: string } | undefined
+    { openId: string; name: string; parentCommitmentId?: string } | undefined
   >(undefined)
   /**
    * 这一句是**那条边的重新签发** —— 移交先验（决策 #59）。

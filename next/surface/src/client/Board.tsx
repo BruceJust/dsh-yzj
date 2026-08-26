@@ -517,7 +517,9 @@ export function YzjBoard(props: BoardProps): ReactNode {
           via === '' ? '' : `挂接来源：${via}`,
           row.stewardedBy === undefined
             ? ''
-            : `这条归 ${row.stewardedBy} 管——修理动词只对登记它的人渲染；你仍然可以在会话里直接说`,
+            : `这条归 ${row.stewardedBy} 管——修理动词只对登记它的人渲染；你仍然可以在会话里直接说`
+              // 可转包不可脱责：否定的那一半后面得跟着肯定的那一半（决策 #59）。
+              + (row.direction === 'mine' ? '，或者把这条转包下去' : ''),
         ].filter(line => line !== '').join('　·　') || undefined}
       >
         {pickable && (
@@ -736,6 +738,45 @@ export function YzjBoard(props: BoardProps): ReactNode {
             }}
           >
             修理
+          </button>
+        )}
+        {/*
+          **执行者可转包，不可脱责**（决策 #59 的另一半）。
+
+          「我做不了」有两种意图，它们各有各的门：
+          - **脱责** = 移交，责任锚变更，只能 owner 签发——上面那颗「修理」不为我渲染，
+            正是这条法则的执行面；
+          - **转包** = 递归委派，我仍然对 owner 负责，只是把活拆下去交给别人办。责任链
+            加深而不是转移，所以**无需任何人批准**。
+
+          缺了这一格，主权法则在界面上只剩下否定的那一半：一条别人派给我的活，我什么都
+          做不了——而那不是设计，那是把「不能脱责」误读成了「不能想办法」。
+
+          判据是两条事实的合取：这条活**我在做**（`direction === 'mine'`），而它**不归我
+          管**（`stewardedBy` 有值）。缺一条都不是转包的场景。
+        */}
+        {row.status === 'open' && row.stewardedBy !== undefined && row.direction === 'mine' && (
+          <button
+            type="button"
+            className={css.repairOpen}
+            title={`这条归 ${row.stewardedBy} 管，你不能把它转手（那是脱责，只有他签得了）——`
+              + '但你可以把它拆下去交给别人办：你仍然对他负责，责任链加深，不需要谁批准'}
+            onClick={() => {
+              setPortal({
+                subject: 'goal',
+                goalRef: row.goalRef ?? '',
+                goalName: row.what,
+                voice: 'place',
+                pick: 'executor',
+                seed: delegateSeed(row.what),
+                subCommitmentOf: row.id,
+                title: '转包：谁来做、在哪儿说？',
+                note: `这条归 ${row.stewardedBy} 管，所以你不能把它转手——但你可以把它拆下去。`
+                  + '拆出来的那条挂在你这一条底下：你仍然对他负责，责任链加深，不需要谁批准。',
+              })
+            }}
+          >
+            转包 ↗
           </button>
         )}
         {/*
