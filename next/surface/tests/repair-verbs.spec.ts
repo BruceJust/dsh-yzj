@@ -46,11 +46,16 @@ beforeEach(async () => {
   graph.defineFamily(commitmentFamily)
   graph.defineFamily(assessmentFamily)
   await graph.selectAccount('acct-1')
+  posted = []
   ctx.provide('yzjTopics', {
     tree: () => [{ place: { placeKey: 'yzj-group-g1', groupName: '财务组' }, topics: TOPICS }],
     topicOf: (sessionId: string) => TOPICS.find(topic => topic.sessionId === sessionId),
     aliases: () => ['@next'],
     conversations: () => [],
+    sendInPlace: async (placeKey: string, text: string) => {
+      posted.push({ placeKey, text })
+      return { msgId: `m-${String(posted.length)}`, ignited: false }
+    },
   })
   /*
     真的卡服务，不是一个只会答 `desktopActor` 的替身。
@@ -103,12 +108,17 @@ async function child(id: string, what: string, due?: string): Promise<void> {
       executor: { kind: 'human', openId: 'u-li', name: '李婷' },
       sourceAnchor: `yzj:${id}`,
       topicKey: 'tk-1',
+      // 听众 = 登记那句话落在的地方。移交要拿它去落解除告知。
+      audience: ['yzj-group-g1'],
       parentGoalRef: GOAL,
       ...(due === undefined ? {} : { due }),
     },
     actor: OPERATOR,
   })
 }
+
+/** 这一趟往哪些场所落了话。解除告知有没有发出去，只有这里看得见。 */
+let posted: { placeKey: string; text: string }[] = []
 
 const stateOf = (id: string): Record<string, unknown> =>
   (graph.rawObject('commitment', id)?.state ?? {}) as Record<string, unknown>
@@ -202,37 +212,120 @@ describe('合并：不自动合，但必须能手动合', () => {
   })
 })
 
-describe('移交：换人，不换承诺', () => {
-  it('执行者变了，而这条承诺还是这一条', async () => {
+/**
+ * 移交 = **这条边的重新签发**（决策 #59，推翻 v4.12 的边变异模型）。
+ *
+ * 旧模型是「这条边换个执行者」，而 review 推翻它的理由不是洁癖：`/handoff` 一直是
+ * `/fork` 的语义，而边变异让**听众集合无解**——一条边先后经过两次登记性话语，它的听众
+ * 到底是哪一批人？两次的并集是一个谁都答不上来「这句话说给谁听」的泥潭。
+ *
+ * 分叉之后那个问题不存在了，而且三方知情降成两个既有动作的自然结果：旧边的终态回帖落
+ * 旧场所（旧执行者本来就在那批听众里），新边的出生话语落新场所。
+ *
+ * **写在移交话语上**，不是一颗直接改图的按钮：顺序倒过来就等于把三方知情派回给人的
+ * 记性，而一条没人知道自己欠着的承诺，在板上和一条真的活长得一模一样。
+ */
+describe('移交：边的重新签发', () => {
+  const said = async (extra: Record<string, unknown> = {}): Promise<unknown> => call(
+    'send-in-place',
+    {
+      placeKey: 'yzj-group-g2',
+      text: '张锐，「统一模板」这条现在转给你了。',
+      handoff: { fromCommitmentId: 'c1', openId: 'u-zhang', name: '张锐' },
+      ...extra,
+    },
+  )
+
+  it('旧边转入吸收态并留下去向，新边带血缘出生', async () => {
     await goal()
     await child('c1', '统一模板', '2026-08-30')
-    const before = graph.rawObject('commitment', 'c1')?.createdSeq
-    const result = await call('handoff-commitment', { id: 'c1', openId: 'u-zhang', name: '张锐' })
+    const result = await said() as { ok: boolean; value: { toCommitmentId?: string } }
     expect(result.ok).toBe(true)
-    expect(stateOf('c1').executor).toMatchObject({ kind: 'human', openId: 'u-zhang', name: '张锐' })
-    /*
-      出生边、期限、挂接、状态一个都不能掉——移交如果实现成「作废旧的、新建
-      一条」，这些就全留在一条没人再看的记录上了，而它们正是这条承诺可信的
-      全部理由。
-    */
-    expect(graph.rawObject('commitment', 'c1')?.createdSeq).toBe(before)
-    expect(stateOf('c1').due).toBe('2026-08-30')
-    expect(stateOf('c1').parentGoalRef).toBe(GOAL)
-    expect(stateOf('c1').sourceAnchor).toBe('yzj:c1')
+    const born = result.value.toCommitmentId as string
+    expect(born).not.toBe('c1')
+
+    // 旧边：吸收态 + 去向。留档，不是删除。
+    expect(stateOf('c1').status).toBe('transferred')
+    expect(stateOf('c1').transferredTo).toMatchObject({
+      commitmentId: born,
+      executor: { kind: 'human', openId: 'u-zhang', name: '张锐' },
+    })
+
+    // 新边：这件事本身继承下来，血缘指回旧边。
+    expect(stateOf(born).status).toBe('open')
+    expect(stateOf(born).what).toBe('统一模板')
+    expect(stateOf(born).due).toBe('2026-08-30')
+    expect(stateOf(born).parentGoalRef).toBe(GOAL)
+    expect(stateOf(born).executor).toMatchObject({ openId: 'u-zhang', name: '张锐' })
+    expect(stateOf(born).transferredFrom).toMatchObject({
+      commitmentId: 'c1',
+      executor: { kind: 'human', openId: 'u-li', name: '李婷' },
+    })
+  })
+
+  /*
+    **听众 = 这次移交话语的听众**（v4.4 干净适用）。旧边那批人不跟着走——他们收到的是
+    解除告知。这一条正是边变异模型答不上来的那一问。
+  */
+  it('新边的听众是新场所，不是旧场所', async () => {
+    await goal()
+    await child('c1', '统一模板')
+    const result = await said() as { value: { toCommitmentId: string } }
+    const born = graph.rawObject('commitment', result.value.toCommitmentId)
+    expect(born?.audience).toEqual(['yzj-group-g2'])
+  })
+
+  /*
+    **三方知情 = 零新机制**：旧场所那一帖就是旧边的终态回帖，而旧执行者本来就在那批
+    听众里。跨场所才发——同场所时出生话语本身他就听见了，再补一帖是重复。
+  */
+  it('跨场所移交时，旧场所落一帖解除告知', async () => {
+    await goal()
+    await child('c1', '统一模板')
+    await said()
+    const notice = posted.find(one => one.placeKey === 'yzj-group-g1')
+    expect(notice?.text).toContain('统一模板')
+    expect(notice?.text).toContain('张锐')
+  })
+
+  it('同一个场所里移交，不重复告知一遍', async () => {
+    await goal()
+    await child('c1', '统一模板')
+    await said({ placeKey: 'yzj-group-g1' })
+    // 只有那句移交话语本身（由 sendInPlace 记下），没有第二帖。
+    expect(posted.filter(one => one.placeKey === 'yzj-group-g1')).toHaveLength(1)
+  })
+
+  /*
+    **都不改 = 无事发生**。代价全付（回执与轨迹留在旧边），什么都没换到——而板上看起来
+    就是这件活自己抖了一下、换了个 id。
+  */
+  it('人没换、场所也没换：话发出去了，但不构成移交', async () => {
+    await goal()
+    await child('c1', '统一模板')
+    const result = await said({
+      placeKey: 'yzj-group-g1',
+      handoff: { fromCommitmentId: 'c1', openId: 'u-li', name: '李婷' },
+    }) as { value: { note?: string; toCommitmentId?: string } }
+    expect(result.value.toCommitmentId).toBeUndefined()
+    expect(result.value.note).toContain('没换')
     expect(stateOf('c1').status).toBe('open')
   })
 
-  it('名字可以不给——openId 才是身份', async () => {
+  /*
+    **换场所不换人也是移交**（/handoff 本义：听众变更）。review 曾把选择条写成「排除
+    现执行者」，那正好堵死了这条合法路径。
+  */
+  it('换场所不换人：照样重新签发', async () => {
     await goal()
     await child('c1', '统一模板')
-    expect(await call('handoff-commitment', { id: 'c1', openId: 'u-zhang' })).toMatchObject({ ok: true })
-    expect(stateOf('c1').executor).toMatchObject({ kind: 'human', openId: 'u-zhang' })
-  })
-
-  it('没有新执行者就不算移交', async () => {
-    await goal()
-    await child('c1', '统一模板')
-    expect(await call('handoff-commitment', { id: 'c1' })).toMatchObject({ ok: false })
+    const result = await said({
+      handoff: { fromCommitmentId: 'c1', openId: 'u-li', name: '李婷' },
+    }) as { value: { toCommitmentId?: string } }
+    expect(result.value.toCommitmentId).toBeDefined()
+    expect(stateOf('c1').status).toBe('transferred')
+    expect(stateOf(result.value.toCommitmentId as string).executor)
+      .toMatchObject({ openId: 'u-li' })
   })
 
   it('已经结束的事不能移交——没有东西可交', async () => {
@@ -241,15 +334,64 @@ describe('移交：换人，不换承诺', () => {
     await graph.append({
       type: 'commitment/voided', data: { commitmentId: 'c1', cause: '不做了' }, actor: OPERATOR,
     })
-    expect(await call('handoff-commitment', { id: 'c1', openId: 'u-zhang' })).toMatchObject({ ok: false })
+    const result = await said() as { value: { note?: string; toCommitmentId?: string } }
+    expect(result.value.toCommitmentId).toBeUndefined()
+    expect(result.value.note).toContain('结束')
     expect(stateOf('c1').status).toBe('voided')
   })
 
-  it('移交之后，板上这一行归到新执行者名下', async () => {
+  /*
+    **吸收态要挡得住迟到的话**。老执行者在原来那个群里回一句「做完了」，如果能把旧边
+    复活，板上就会多出一条本该在别处进行的活，而它的双胞胎正在新边上跑。
+  */
+  it('转手之后，旧边不再被任何后续事件动到', async () => {
     await goal()
     await child('c1', '统一模板')
-    await call('handoff-commitment', { id: 'c1', openId: 'u-zhang', name: '张锐' })
-    expect(goalPageFrame(ctx, GOAL)?.goal.children[0]?.who).toBe('张锐')
+    await said()
+    await graph.append({
+      type: 'commitment/closed', data: { commitmentId: 'c1', cause: 'done' }, actor: OPERATOR,
+    })
+    expect(stateOf('c1').status).toBe('transferred')
+  })
+
+  it('移交之后，板上这一行归到新执行者名下，旧行说得出去向', async () => {
+    await goal()
+    await child('c1', '统一模板')
+    await said()
+    const children = goalPageFrame(ctx, GOAL)?.goal.children ?? []
+    const old = children.find(one => one.id === 'c1')
+    expect(old?.status).toBe('transferred')
+    expect(old?.transferredTo).toBe('张锐')
+    expect(children.some(one => one.status === 'open' && one.who === '张锐')).toBe(true)
+  })
+
+  it('少了先验的字段就当没有移交这回事，话照发', async () => {
+    await goal()
+    await child('c1', '统一模板')
+    const result = await said({ handoff: { fromCommitmentId: 'c1' } }) as {
+      ok: boolean; value: { toCommitmentId?: string }
+    }
+    expect(result.ok).toBe(true)
+    expect(result.value.toCommitmentId).toBeUndefined()
+    expect(stateOf('c1').status).toBe('open')
+  })
+
+  /**
+   * 预选当前值那一屏读的就是这个端点（决策 #59）：板上那一行带的是显示名不是 openId，
+   * 场所也只带话题名——预选态承载语义，所以它不能靠猜。
+   */
+  it('移交前问当前值：现任、现场所、事项、原话期限', async () => {
+    await goal()
+    await child('c1', '统一模板', '2026-08-30')
+    const result = await call('handoff-context', { id: 'c1' }) as {
+      ok: boolean
+      value: { what: string; due?: string; executor?: { openId: string }; placeKey?: string }
+    }
+    expect(result.ok).toBe(true)
+    expect(result.value.what).toBe('统一模板')
+    expect(result.value.due).toBe('2026-08-30')
+    expect(result.value.executor).toMatchObject({ openId: 'u-li', name: '李婷' })
+    expect(result.value.placeKey).toBe('yzj-group-g1')
   })
 })
 
@@ -341,7 +483,12 @@ describe('目标页端点', () => {
 const GUARDED: readonly [string, string, Record<string, unknown>][] = [
   ['顺延', 'postpone-commitment', { id: 'c9', due: '2026-09-05' }],
   ['作废', 'void-commitment', { id: 'c9' }],
-  ['移交', 'handoff-commitment', { id: 'c9', openId: 'u-x', name: '某人' }],
+  /*
+    移交的主权守在**两处**，因为它现在有两半：这一处是移交前那一屏（预选当前值要先
+    确认这条归你），另一处是真正写图的那一刻（先验随移交话语一起走，见下面那条用例）。
+    只守其中一处都不够——前者只是不给屏，后者才是不给写。
+  */
+  ['移交', 'handoff-context', { id: 'c9' }],
   ['合并', 'merge-commitment', { id: 'c9', into: 'c1' }],
   ['摘除', 'unlink-commitments', { ids: ['c9'] }],
   ['收养', 'link-commitments', { goalRef: GOAL, ids: ['c9'] }],
@@ -431,6 +578,28 @@ describe('动词主权 = 节点主权的派生', () => {
     // 拒绝不禁言：那条仍然走得通的路要说出来（指路 + 可选转达拟稿，v3.14r②）。
     expect((result as { error?: { message?: string } }).error?.message)
       .toContain('直接问他')
+  })
+
+  /*
+    **移交真正写图的那一刻也要查主权**（决策 #59）。
+
+    这一条上面那张表覆盖不到：移交的写不在任何 `case` 里，它挂在一句已经说出去的话上
+    （先验随发送走）。查源码那条用例只扫得到端点，所以这一半必须由一条**行为用例**顶住
+    ——否则「端点拒绝」会退化成一层皮肤：绕过那一屏，直接带着先验发一句话就写进去了。
+  */
+  it('移交的写路径也拒绝：不归我管的边，说了话也不会转手', async () => {
+    await goal()
+    await theirs()
+    const result = await call('send-in-place', {
+      placeKey: 'yzj-group-g2',
+      text: '某人，这条转给你了。',
+      handoff: { fromCommitmentId: 'c9', openId: 'u-x', name: '某人' },
+    }) as { ok: boolean; value: { note?: string; toCommitmentId?: string } }
+    // 话发出去了（那是人的话，我们不拦），但图上什么都没转手。
+    expect(result.ok).toBe(true)
+    expect(result.value.toCommitmentId).toBeUndefined()
+    expect(result.value.note).toContain('不归你管')
+    expect(stateOf('c9').status).toBe('open')
   })
 
   /*

@@ -17,7 +17,6 @@
 import { type ReactNode } from 'react'
 import type { SurfaceInject } from './rpc.ts'
 import css from './goal.module.css'
-import { PersonPicker } from './PersonPicker.tsx'
 
 /**
  * 修理动词认得的那一条 —— **只要这几样，不要一整行**。
@@ -36,22 +35,6 @@ export interface RepairTarget {
   readonly goalRef?: string
   /** 这一行本身是个目标时，它的真身 URI——作废要据此报级联。 */
   readonly isGoal?: string
-}
-
-/**
- * 移交之后该说的那句话 —— **是谁、哪一条、原话期限**。
- *
- * 抽出来是为了让它可测：这句话是移交升传送门那一半的全部内容，而它最容易退化成一句
- * 「已移交」——收到的人得回头翻记录才知道说的是哪件事，而那份翻找正是这个产品要消掉的
- * 东西。期限用**原话**，不用解析出来的日期：把人说过的话改写成时间戳，是拿我们的解析
- * 冒充他的承诺。
- */
-export function handoffDraft(
-  row: { readonly what: string; readonly due?: { readonly text: string } },
-  name: string,
-): string {
-  return `${name === '' ? '' : `${name}，`}「${row.what}」这条现在转给你了`
-    + `${row.due === undefined ? '' : `，原定 ${row.due.text}`}。`
 }
 
 /** 正在对哪一条、做哪一种修理。 */
@@ -100,8 +83,6 @@ export function RepairVerbs(props: {
   busy: boolean
   field: string
   setField(value: string): void
-  field2: string
-  setField2(value: string): void
   /** 可以收养这一条的目标。无归属行才用得上。 */
   goals?: readonly { readonly ref: string; readonly label: string }[]
   /**
@@ -114,7 +95,13 @@ export function RepairVerbs(props: {
    * 所以移交完成后交出一句**拟稿**，由使用它的那一面开传送门（板与目标页各有自己的
    * 落点逻辑）。**话由人发**：拟稿只是省下打字，不是替他开口。
    */
-  announce?(row: RepairTarget, draft: string): void
+  /**
+   * 移交 —— **开委派那张选择条，两维预选当前值**（决策 #59）。
+   *
+   * 这一格不自己写图：移交的两笔挂在移交话语上，而那句话由人在落点里发出去。这里只负责
+   * 把人送进那一屏。没有接上的一面如实说没有，不画一颗按下去什么都不发生的键。
+   */
+  handoff?(row: RepairTarget): void
   /**
    * 这一行如果是**目标**，它底下还有几条在跟。
    *
@@ -125,7 +112,7 @@ export function RepairVerbs(props: {
   close(): void
   run(id: string, work: Promise<{ error?: string }>, done: string): void
 }): ReactNode {
-  const { repair, siblings, inject, busy, field, setField, field2, setField2, goals, cascadeOpen, announce, close, run } = props
+  const { repair, siblings, inject, busy, field, setField, goals, cascadeOpen, handoff, close, run } = props
   const row = repair.row
 
 /*
@@ -257,59 +244,44 @@ if (repair.kind === 'postpone') {
 if (repair.kind === 'handoff') {
   return (
     <div className={css.repair}>
-      <span className={css.repairWhy}>
-        换人，不换承诺——出生边、听众、已有的回执都还在这一条上。
-        <b>新执行者还不知道</b>：改完图之后，得有人在场所里说出口（幽灵承诺禁令对移交同样成立）。
-      </span>
       {/*
-        **没有人背得下同事的 openId。**
+        **移交 = 这条边的重新签发**（决策 #59，推翻 v4.12 的边变异模型）。
 
-        这两个框此前是「新执行者的 openId」+「显示名（可空）」——一个要人手打身份，
-        一个由人随便写。手打的那个不会报错：一个错的 openId 只是把这条承诺交给一个
-        不存在的人，然后安静地待在板上。身份只能来自通讯录（`PersonPicker`，立目标
-        的 owner 用的是同一个）。
+        这一格此前是一个搜人框加一颗直接改图的键：按下去，图上那条边换了个执行者，回执里
+        附一句「记得去登记场所说一声」。两处错。
+
+        一、**边变异让听众集合无解**——一条边先后经过两次登记性话语，它的听众到底是哪一
+        批人？两次的并集是一个谁都答不上来「这句话说给谁听」的泥潭。分叉之后那个问题不
+        存在：旧边转吸收态留档，新边经移交话语出生，各自的听众就是各自那次话语的听众。
+
+        二、那句「记得说一声」**把最要紧的一半派回给了人的记性**。现在它走传送门：人被送
+        到该说这句话的地方，**发送成功才落两笔**——顺序和登记同律，说出口了才算数。
+
+        选择条因此不是搜人框，是**委派那张选择条预选当前值**：两维任一可改，换人是执行权
+        变更，换场所不换人也是移交（/handoff 本义），都不改则什么都不会发生。
       */}
-      <PersonPicker
-        inject={inject}
-        picked={field.trim() === '' ? undefined : { openId: field.trim(), name: field2.trim() === '' ? field.trim() : field2.trim() }}
-        onPick={(person) => { setField(person?.openId ?? ''); setField2(person?.name ?? '') }}
-        placeholder="搜通讯录：新执行者是谁"
-        clearTitle="换一个人"
-        emptyTail="没选中人就移交不出去——这条承诺得有个真人接着。"
-      />
+      <span className={css.repairWhy}>
+        移交 = <b>这条边的重新签发</b>：旧的一条转为「已移交」留档（回执与轨迹留在原处），
+        新的一条从你说出去的那句话出生。<b>两维都可以改</b>——换人是换执行权，
+        只换场所不换人也是移交（那是听众变了）。
+      </span>
+      <span className={css.repairWhy}>
+        下一步是传送门：把你送到该说这句话的地方，<b>发出去才算数</b>。
+        原来那个场所会自动落一帖解除告知——原执行者本来就在那批听众里。
+      </span>
       <button
         type="button"
         className={css.repairGo}
-        disabled={field.trim() === '' || busy}
-        onClick={() => {
-          const name = field2.trim() === '' ? '' : field2.trim()
-          const work = inject.handoffCommitment(row.id, field.trim(), name === '' ? undefined : name)
-          run(
-            row.id,
-            work,
-            announce === undefined
-              ? '已移交。记得去登记场所说一声——图改了不等于人知道了。'
-              : '已移交。下面这句话去说一声——新执行者还不知道。',
-          )
-          /*
-            **传送门只在移交真的成功之后开。**
-
-            第一版把它写在 `run(...)` 后面一行——而 `run` 收下的是一个 promise，那一行是
-            同步的。于是端点拒绝时（主权不对、这条已经终态、找不到 id）人照样被送进会话，
-            composer 里预填着「这条现在转给你了」：**一句关于没发生过的事的话，而且已经
-            摆在了发送键前面**。观察同一个 promise，成功才开口。
-
-            拟稿带三样：**是谁、哪一条、原话期限**。没有它们，收到这句话的人还得回头翻
-            记录才知道说的是哪件事——而那份翻找正是这个产品要消掉的东西。
-          */
-          void work.then((result) => {
-            if (result.error !== undefined) return
-            announce?.(row, handoffDraft(row, name))
-          })
-        }}
+        disabled={busy || handoff === undefined}
+        onClick={() => { handoff?.(row) }}
       >
-        移交
+        选人和场所 ↗
       </button>
+      {handoff === undefined && (
+        <span className={css.repairWhy}>
+          这一面还没有接上传送门——移交要落在一句说出去的话上，而这里没有落点可去。
+        </span>
+      )}
       <button type="button" className={css.repairX} onClick={() => { close() }}>取消</button>
     </div>
   )

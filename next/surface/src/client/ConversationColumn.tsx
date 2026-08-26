@@ -150,6 +150,15 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
    * 选了人 = 登记路径。和目标 chip 同一条纪律——**说出口了才算数**，所以它是 pending
    * 状态，跟着这次发送走，发不出去就什么都没发生。
    */
+  /**
+   * 这一句是**那条边的重新签发** —— 移交先验（决策 #59）。
+   *
+   * 和登记先验并排：登记让一条新的活出生，移交是一条已有的活换边（旧边转吸收态、旧场所
+   * 落一帖解除告知）。两者要写的图完全不同，挤进一格迟早互相带跑。
+   */
+  const [pendingHandoff, setPendingHandoff] = useState<
+    { fromCommitmentId: string; openId: string; name?: string } | undefined
+  >(undefined)
   const [pendingRegister, setPendingRegister] = useState<
     { openId: string; name: string } | undefined
   >(undefined)
@@ -194,6 +203,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       setPendingGoal(undefined)
       setPendingEvent(undefined)
       setPendingRegister(undefined)
+      setPendingHandoff(undefined)
       return
     }
     setVoice(errand.voice)
@@ -228,6 +238,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     */
     setPendingCall(errand.call === true ? opening : undefined)
     setPendingRegister(errand.register)
+    setPendingHandoff(errand.handoff)
     /*
       **一场会不装载语境。**
 
@@ -416,9 +427,19 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
             ...pendingRegister,
             ...(pendingGoal === undefined ? {} : { goalRef: pendingGoal.goalRef }),
           },
+        pendingHandoff,
       ).then(async (result) => {
         if (result.error !== undefined) setToast(result.error)
         else {
+          /*
+            移交那一头**自己会说话**：解除告知落没落上、主权对不对、是不是「什么都没改」。
+            比任何通用回执都具体，所以它一有话就说。
+          */
+          if (result.note !== undefined) setToast(result.note)
+          else if (result.toCommitmentId !== undefined) {
+            setToast('已移交：这句话说出去了，新的那条承诺从它出生。')
+          }
+          setPendingHandoff(undefined)
           /*
             说出口了，语境才装载 (v4.9).
 

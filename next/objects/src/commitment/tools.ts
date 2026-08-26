@@ -19,6 +19,7 @@ import { asRecord, asString } from '@yzj-next/graph'
 import {
   commitmentIdFor, commitmentIdemKeyFor, ownsCommitment, type CommitmentState,
 } from './family.ts'
+import { executorName, handoffDraft, reissueEdge, releaseNotice } from './handoff.ts'
 import { armedGoalOf } from '../goal/family.ts'
 import { waitingIdFor, waitingIdemKeyFor } from '../task/waiting.ts'
 import type { TurnBinding } from '../turns.ts'
@@ -474,9 +475,23 @@ export function applyCommitmentTools(ctx: Context): () => void {
     },
   }))
 
+  /**
+   * 移交 = **这条边的重新签发**（决策 #59），而这条路上「说出去」和「记下来」是一件事。
+   *
+   * 旧实现只改一个字段，然后在回执里写一句「新执行者还不知道，这句话得有人去说」——把
+   * 最要紧的一半**派回给了人的记性**。而幽灵承诺禁令对移交同样成立：一条没人知道自己
+   * 欠着的承诺，在板上和一条真的活长得一模一样。
+   *
+   * 所以这一趟原子做三件事：**在这个场所说出那句移交话语** → 以那句话为锚给新边接生 →
+   * 旧边转吸收态。听众集合因此是干净的：新边的听众就是这句话的听众。
+   *
+   * **落点是 agent 此刻所在的这个场所**，不是它挑的——场所人选不推导。所以它必须是新
+   * 执行者听得见的地方，否则这一趟就是在一间他不在的屋子里宣布他欠了一件事（最小听众
+   * 不变量）。判不了的时候就拒绝，并指回板上那条选得了场所的路。
+   */
   register(defineTool({
     name: 'commitment_handoff',
-    description: 'Propose HANDING a commitment to a different executor — "这条给李婷做" / "张锐休假，换人". The operator confirms before anything is written. The commitment itself does not change: its birth, its audience and every receipt so far stay on this one record — that is the whole reason to hand off rather than void-and-recreate. Telling the new executor is a separate act: say so in the reply, because a commitment nobody was told about is a ghost.',
+    description: 'Propose HANDING a commitment over to a different executor — "这条给李婷做" / "张锐休假，换人". The operator confirms before anything happens. A handoff is a RE-ISSUE, not an edit: the old record becomes a transferred tombstone that keeps its receipts and history, and a NEW commitment is born from the handoff sentence — which this tool says out loud, here, in this conversation. That means this conversation must be somewhere the new executor can hear; if it is not, use the board, where the place can be chosen. Never use this for "他做不完想找人帮忙" — that is sub-delegation and belongs to the executor, who registers a child commitment of their own.',
     presentCall: args => ({ card: 'generic', title: `移交给：${String(args.name ?? args.openId)}`, kind: 'edit' }),
     parameters: {
       commitmentId: { type: 'string', required: true, description: 'The commitment (from graph_query).' },
@@ -484,26 +499,70 @@ export function applyCommitmentTools(ctx: Context): () => void {
       name: { type: 'string', description: 'Their display name, so the board reads as a name not an id.' },
     },
     output,
-    timeoutMs: 15_000,
+    timeoutMs: 30_000,
     isConcurrencySafe: () => false,
     async execute(args, exec) {
       const gate = repairable(args.commitmentId, '移交', operatorOf(ctx, exec.agent))
       if ('refusal' in gate) return { content: gate.refusal }
-      await ctx.yzjGraph.append({
-        type: 'commitment/updated',
-        data: {
-          commitmentId: args.commitmentId,
-          executor: {
-            kind: 'human',
-            openId: args.openId,
-            ...(args.name === undefined ? {} : { name: args.name }),
-          },
-        },
-        actor: { kind: 'agent' },
+      const binding = bindingOf(ctx, exec.agent)
+      const placeKey = binding?.placeKey
+      if (placeKey === undefined) {
+        return { content: '这里不是一个场所（本地会话），移交话语没有落点——去板上移交，那儿选得了场所。' }
+      }
+      /*
+        **私聊要认得出对面是谁。** 在我和张锐的私聊里说「这条转给李婷」，李婷一个字都
+        听不见——听众集合缺了他那一头，而板上会长出一条他并不知道的活。平台不给私聊
+        对面的 openId，只认得出名字（和选场所那一屏同一份手段、同样的诚实边界）。
+      */
+      const room = ctx.get('yzjTopics')?.conversations().find((one: { placeKey: string }) => one.placeKey === placeKey)
+      if (room?.kind === 'direct' && room.name !== args.name) {
+        return {
+          content: `这是一个私聊，${args.name ?? args.openId}不在这儿——在这里宣布他欠了一件事，他不会知道。`
+            + '去板上移交（那儿选得了场所），或者先到他听得见的地方来说。',
+        }
+      }
+      const name = args.name ?? args.openId
+      const text = handoffDraft({
+        what: gate.state.what,
+        ...(gate.state.due === undefined ? {} : { due: gate.state.due }),
+        toName: name,
+        ...(executorName(gate.state.executor) === undefined
+          ? {}
+          : { fromName: executorName(gate.state.executor) as string }),
+        samePerson: gate.state.executor.kind === 'human'
+          && gate.state.executor.openId === args.openId,
       })
+      const topics = ctx.get('yzjTopics')
+      if (topics === undefined) return { content: '云之家通道未就绪，移交话语发不出去——这一趟什么都没做。' }
+      /*
+        **说不出去就什么都不做。** 反过来（先记账再去说）正是这次要拆掉的那个模型：
+        图上转了手，而两边的人谁都不知道。
+      */
+      const said = await topics.sendInPlace(placeKey, text).catch(() => undefined)
+      if (said?.msgId === undefined) {
+        return { content: '移交话语没能发出去，所以这一趟什么都没记——图和话保持一致。' }
+      }
+      const done = await reissueEdge(ctx, {
+        from: args.commitmentId,
+        executor: { openId: args.openId, ...(args.name === undefined ? {} : { name: args.name }) },
+        placeKey,
+        anchor: `yzj:${said.msgId}`,
+      })
+      if ('error' in done) return { content: done.error }
+      let tail = ''
+      if (done.fromPlaceKey !== undefined && done.fromPlaceKey !== placeKey) {
+        // 旧场所的解除告知 = 旧边的终态回帖。零新机制：旧执行者本来就在那批听众里。
+        const notice = await topics.sendInPlace(
+          done.fromPlaceKey, releaseNotice({ what: done.what, toName: name }),
+        ).catch(() => undefined)
+        tail = notice?.msgId === undefined
+          ? `原来那个场所没能落解除告知——${executorName(done.fromExecutor) ?? '原执行者'}还不知道这条不归他了，请说一声。`
+          : `原来那个场所已落解除告知，${executorName(done.fromExecutor) ?? '原执行者'}那边也知道了。`
+      }
       return {
-        content: `已移交：${gate.state.what} → ${args.name ?? args.openId}。`
-          + '出生边、听众、已有的回执都还在这一条上；**新执行者还不知道**，这句话得有人去说。',
+        content: `已移交：${done.what} → ${name}。这句话已经在这个场所说出去了，`
+          + `新的那条承诺从它出生（旧的一条转为已移交，回执与轨迹留在原处）。${tail}`,
+        commitmentId: done.toCommitmentId,
       }
     },
   }))

@@ -45,6 +45,11 @@ export {
   type CommitmentExecutor, type CommitmentState, type CommitmentStatus,
 } from './commitment/family.ts'
 export { applyCommitmentTools } from './commitment/tools.ts'
+export {
+  executorName, handoffDraft, nothingChanges, reissuable, reissueEdge, releaseNotice,
+  transferredToName,
+  type Reissued, type ReissuePlan,
+} from './commitment/handoff.ts'
 export { assessmentCard } from './goal/assessment-card.ts'
 export { createProposalCard } from './goal/proposal-card.ts'
 export {

@@ -16,8 +16,9 @@ import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
 import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/channel'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
 import {
-  commitmentIdFor, createGoalBody, eventHub, failureOf, goalCommitmentIdFor, ownsCommitment,
-  readinessLine,
+  commitmentIdFor, createGoalBody, eventHub, executorName, failureOf, goalCommitmentIdFor,
+  nothingChanges, ownsCommitment, readinessLine, reissuable, reissueEdge, releaseNotice,
+  transferredToName, type CommitmentState,
 } from '@yzj-next/objects'
 import type {} from '@yzj-next/channel'
 
@@ -796,6 +797,8 @@ export interface BoardRow {
    * 拒领要浮到留意层：那条活现在没有人接，是**需要 owner 再决定一次**的事实。
    */
   readonly acceptance?: { readonly state: 'accepted' | 'declined'; readonly note?: string }
+  /** 移交出去了，接手的是谁（决策 #59）。有它这一行才不是断头路。 */
+  readonly transferredTo?: string
   /** True when the card can be re-delivered into the place that owns it. */
   readonly remindable: boolean
   /**
@@ -1367,6 +1370,16 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
         if (kind !== 'accepted' && kind !== 'declined') return {}
         const note = asString(acceptance?.note)
         return { acceptance: { state: kind, ...(note === undefined ? {} : { note }) } }
+      })(),
+      /*
+        移交的**去向**跟着这一行走（决策 #59）。
+
+        只写「已移交」不写去向，板上这一行就是断头路：事还在，可谁在做查不到。而它和
+        「已作废」的分别必须一直看得见——一个是黄了，一个是转手了。
+      */
+      ...(() => {
+        const to = transferredToName(state as JsonValue | undefined)
+        return to === undefined ? {} : { transferredTo: to }
       })(),
       overdue: status === 'open' && isOverdue(due, now),
       remindable: status === 'open' && (object.audience?.length ?? 0) > 0,
@@ -2367,6 +2380,69 @@ async function registerFromPrior(
   })
 }
 
+/**
+ * 一句已经说出口的**移交话语** → 图上的两笔（决策 #59）。
+ *
+ * 和登记先验是同一条纪律的同一个位置：**说出去才算数**。旧模型是反过来的——先改图，再在
+ * 回执里写一句「记得去说一声」，而那句话把三方知情派回给了人的记性。
+ *
+ * 旧场所那一帖（解除告知）发不出去**不算移交失败**：两笔已经落图，这件事已经转手了。
+ * 报成失败会让人再移交一遍，于是同一件活分叉两次。所以它只回一句实话。
+ */
+async function handoffFromPrior(
+  ctx: Context,
+  input: {
+    readonly msgId?: string
+    readonly handoff: unknown
+    readonly placeKey: string
+    readonly topicKey?: string
+  },
+): Promise<{ readonly toCommitmentId?: string; readonly note?: string } | undefined> {
+  const prior = asRecord(input.handoff as JsonValue)
+  const from = asString(prior?.fromCommitmentId)
+  const openId = asString(prior?.openId)
+  const name = asString(prior?.name)
+  if (from === undefined || openId === undefined) return undefined
+  // 话没发出去就什么都不做：图和话保持一致，人再试一次就是了。
+  if (input.msgId === undefined) return { note: '移交那句话没发出去，所以这条承诺没有转手。' }
+  const state = ctx.yzjGraph.rawObject('commitment', from)?.state as CommitmentState | undefined
+  // 认得出 → 判主权 → 再谈别的：顺序和这一族端点一致（见 `handoff-context`）。
+  if (state !== undefined && !ownsCommitment(
+    asString((ctx.yzjCards.desktopActor() as { openId?: string }).openId), state,
+  )) {
+    return { note: '这条不归你管——移交是 owner 的签发（你可以把自己那份转包下去）。' }
+  }
+  const gate = reissuable(state)
+  if ('refusal' in gate) return { note: gate.refusal }
+  if (nothingChanges(gate.state, { executor: { openId }, placeKey: input.placeKey })) {
+    return { note: '人没换、场所也没换——这句话发出去了，但没有构成一次移交。' }
+  }
+  const done = await reissueEdge(ctx, {
+    from,
+    executor: { openId, ...(name === undefined ? {} : { name }) },
+    placeKey: input.placeKey,
+    anchor: `yzj:${input.msgId}`,
+    ...(input.topicKey === undefined ? {} : { topicKey: input.topicKey }),
+  })
+  if ('error' in done) return { note: done.error }
+  if (done.fromPlaceKey === undefined || done.fromPlaceKey === input.placeKey) {
+    // 同场所：出生话语本身旧执行者就听见了，再补一帖是重复。
+    return { toCommitmentId: done.toCommitmentId }
+  }
+  const sent = await ctx.get('yzjTopics')?.sendInPlace(
+    done.fromPlaceKey, releaseNotice({ what: done.what, toName: name ?? openId }),
+  ).catch(() => undefined)
+  return {
+    toCommitmentId: done.toCommitmentId,
+    ...(sent?.msgId === undefined
+      ? {
+        note: `已移交，但原来那个场所没能落解除告知——${executorName(done.fromExecutor) ?? '原执行者'}`
+          + '还不知道这条不归他了，请说一声。',
+      }
+      : {}),
+  }
+}
+
 /** 他在哪些场所里有过登记。审计得到的事实，和「群成员名单」不是一回事。 */
 function placesRegisteredIn(ctx: Context, openId: string): ReadonlySet<string> {
   const seen = new Set<string>()
@@ -2427,6 +2503,13 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                   placeKey: topic.placeKey,
                   topicKey: topic.topicKey,
                 })
+                const moved = await handoffFromPrior(scoped, {
+                  ...(sent.msgId === undefined ? {} : { msgId: sent.msgId }),
+                  handoff: (payload as { handoff?: JsonValue }).handoff,
+                  placeKey: topic.placeKey,
+                  topicKey: topic.topicKey,
+                })
+                if (moved !== undefined) return { ok: true, value: { ...sent, ...moved } }
               }
               return { ok: true, value: sent }
             } catch (error) {
@@ -2803,38 +2886,42 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             }
           }
           /**
-           * 移交 —— 换人，不换承诺 (v4.12 /handoff).
+           * 移交前的那一屏要知道什么 —— **现任是谁、现在在哪儿说** (决策 #59).
            *
-           * 人会离职、会换岗,而事情还在。移交必须是**这一条**承诺换了执行者,
-           * 不能是「作废旧的、新建一条」——后者把出生边、听众集合、已有的回执
-           * 全留在一条没人再看的记录上,而这些恰恰是这条承诺可信的全部理由。
-           *
-           * 新执行者知不知道,是另一件事:这里只改图,通知仍然要靠人在场所里说
-           * 出口(幽灵承诺禁令对移交同样成立)——所以回执里把这句话带出去。
+           * 选择条预选当前值，而「当前值」是图上的事实，不是界面记得住的东西：板上那一行
+           * 不带 openId（它带的是显示名），场所也只带话题名。预选态本身承载语义——**它就是
+           * 「这是移交，不是新委派」这句话的 UI 形态**——所以它不能靠猜。
            */
-          case 'handoff-commitment': {
+          case 'handoff-context': {
             const id = stringField(payload, 'id')
-            const openId = stringField(payload, 'openId')
-            const name = stringField(payload, 'name')
-            if (id === undefined || openId === undefined) return failure('移交需要承诺 id 与新执行者')
-            const target = scoped.yzjGraph.rawObject('commitment', id)
-            if (target === undefined) return failure(`找不到承诺：${id}`)
+            if (id === undefined) return failure('要先知道移交哪一条')
+            /*
+              **认得出 → 判主权 → 再谈别的**（这一族端点统一的拒绝顺序）。
+
+              倒过来的后果很具体：一条别人登记、又已经作废的边，回的会是「已经结束了」
+              ——而那句话默认了「这条本来归你」。第一句永远得是「它归谁」。
+            */
             const refused = refuseUnlessSteward(scoped, id, '移交')
             if (refused !== undefined) return refused
-            const status = asString(asRecord(target.state)?.status) ?? 'open'
-            if (status !== 'open') return failure('这条承诺已经结束了，不能移交。')
-            try {
-              await scoped.yzjGraph.append({
-                type: 'commitment/updated',
-                data: {
-                  commitmentId: id,
-                  executor: { kind: 'human', openId, ...(name === undefined ? {} : { name }) },
-                },
-                actor: scoped.yzjCards.desktopActor(),
-              })
-              return { ok: true, value: { id, openId } }
-            } catch (error) {
-              return failure(error instanceof Error ? error.message : String(error))
+            const raw = scoped.yzjGraph.rawObject('commitment', id)
+            const gate = reissuable(raw?.state as CommitmentState | undefined)
+            if ('refusal' in gate) return failure(gate.refusal)
+            const state = gate.state
+            const executor = state.executor
+            return {
+              ok: true,
+              value: {
+                what: state.what,
+                ...(state.due === undefined ? {} : { due: state.due }),
+                executor: executor.kind === 'human'
+                  ? { openId: executor.openId, name: executor.name ?? executor.openId }
+                  // agent 执行的那条没有可预选的人：移交给人是一次真的换手，
+                  // 而 agent 那一头的「换人」是重新委派，不是这个动词。
+                  : undefined,
+                ...((state.audience ?? [])[0] === undefined
+                  ? {}
+                  : { placeKey: (state.audience ?? [])[0] }),
+              },
             }
           }
           /** 目标页 = 承诺板的第二缩放级别，读的是同一个查询 (§7.6)。 */
@@ -3011,7 +3098,12 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                 register: (payload as { register?: JsonValue }).register,
                 placeKey,
               })
-              return { ok: true, value: sent }
+              const moved = await handoffFromPrior(scoped, {
+                ...(sent.msgId === undefined ? {} : { msgId: sent.msgId }),
+                handoff: (payload as { handoff?: JsonValue }).handoff,
+                placeKey,
+              })
+              return { ok: true, value: moved === undefined ? sent : { ...sent, ...moved } }
             } catch (error) {
               return failure(error instanceof Error ? error.message : String(error))
             }
@@ -3045,6 +3137,12 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                   register: (payload as { register?: JsonValue }).register,
                   placeKey: sent.placeKey,
                 })
+                const moved = await handoffFromPrior(scoped, {
+                  ...(sent.msgId === undefined ? {} : { msgId: sent.msgId }),
+                  handoff: (payload as { handoff?: JsonValue }).handoff,
+                  placeKey: sent.placeKey,
+                })
+                if (moved !== undefined) return { ok: true, value: { ...sent, ...moved } }
               }
               return { ok: true, value: sent }
             } catch (error) {

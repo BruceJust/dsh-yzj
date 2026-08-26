@@ -54,6 +54,9 @@ function statusLabel(status: CommitmentState['status']): string {
     case 'closed': return '已完成'
     case 'voided': return '已作废'
     case 'merged': return '已合并'
+    // 移交不是死法：事还在，只是换了一条边（决策 #59）。混进「已结束」，卡上就再也
+    // 分不出「黄了」和「转手了」。
+    case 'transferred': return '已移交'
     default: return '进行中'
   }
 }

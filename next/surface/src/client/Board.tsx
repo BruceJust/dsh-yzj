@@ -35,8 +35,8 @@ import {
   currentBoardLens, pushFrame, sendErrand, setBoardLens, setSpotlight,
 } from './store.ts'
 import { revealAside } from './preview.ts'
-import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
-import { RepairVerbs, cascadeLine, voidGate, type Repair } from './RepairVerbs.tsx'
+import { RoomPicker, handoffPortal, landPortal, type Portal } from './RoomPicker.tsx'
+import { RepairVerbs, cascadeLine, voidGate, type Repair, type RepairTarget } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
 import {
   assessAsk, delegateSeed, eventPrepSeed, gapSeed, goalCraftSeed,
@@ -181,6 +181,24 @@ export function nudgeDraft(
   return `问一下「${row.what}」这条现在到哪一步了${when}`
 }
 
+/**
+ * 一条已经结束的行，结束在什么上 —— **四种，不是三种** (决策 #59).
+ *
+ * `transferred` 和 `voided` 最不能混：一个是**黄了**，一个是**转手了**，而后者那件事还在
+ * 别处跑着。混成同一句话，板上就再也分不出「这件事没人做了」和「这件事换人了」。
+ *
+ * 移交那一行还要带**去向**，否则它是一条断头路：事还在，谁在做查不到。
+ */
+function settledLabel(row: { status: string; transferredTo?: string }): string {
+  if (row.status === 'closed') return '已完成'
+  if (row.status === 'voided') return '已作废'
+  if (row.status === 'merged') return '已合并'
+  if (row.status === 'transferred') {
+    return row.transferredTo === undefined ? '已移交' : `已移交 → ${row.transferredTo}`
+  }
+  return row.status
+}
+
 export function YzjBoard(props: BoardProps): ReactNode {
   const { inject, commission, openSession, back, fromSessionId, restoreScroll } = props
   const [view, setView] = useState<BoardViewWire>(EMPTY)
@@ -244,7 +262,6 @@ export function YzjBoard(props: BoardProps): ReactNode {
     return () => { clearTimeout(timer) }
   }, [armed])
   const [field, setField] = useState('')
-  const [field2, setField2] = useState('')
   const setLens = useCallback((next: Lens): void => {
     setBoardLens(next)
     setLensState(next)
@@ -256,6 +273,19 @@ export function YzjBoard(props: BoardProps): ReactNode {
   const [declaring, setDeclaring] = useState(false)
   /** 传送门: the errand waiting for a room to be chosen for it. */
   const [portal, setPortal] = useState<Portal | undefined>(undefined)
+
+  /**
+   * 移交 —— 先问图要当前值，再开那张预选好的选择条（决策 #59）。
+   *
+   * 读不回来就说读不回来：一颗按下去没有下文的键，比没有这颗键更坏。
+   */
+  const openHandoff = useCallback(async (row: RepairTarget): Promise<void> => {
+    const opened = await handoffPortal(inject, row)
+    if ('error' in opened) { setToast(opened.error); return }
+    setRepair(undefined)
+    setPortal(opened)
+  }, [inject])
+
   /*
     今天的会 —— 事件枢纽在板上的那一段 (§5.6).
 
@@ -412,7 +442,6 @@ export function YzjBoard(props: BoardProps): ReactNode {
       if (result.error === undefined) {
         setRepair(undefined)
         setField('')
-        setField2('')
         void refresh()
       }
     })
@@ -540,9 +569,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
           </span>
         )}
         <span className={`${css.due} ${row.overdue ? css.dueOverdue : ''}`}>
-          {row.status !== 'open'
-            ? row.status === 'closed' ? '已完成' : row.status === 'voided' ? '已作废' : '已合并'
-            : row.due?.text ?? '无期限'}
+          {row.status !== 'open' ? settledLabel(row) : row.due?.text ?? '无期限'}
         </span>
         {/*
           幽灵承诺禁令的失败模式：落库了，但没呼吸。
@@ -706,7 +733,6 @@ export function YzjBoard(props: BoardProps): ReactNode {
             onClick={() => {
               setRepair(current => (current?.row.id === row.id ? undefined : { kind: 'postpone', row }))
               setField(row.due?.text ?? '')
-              setField2('')
             }}
           >
             修理
@@ -774,35 +800,13 @@ export function YzjBoard(props: BoardProps): ReactNode {
             <RepairVerbs
               repair={repair}
               siblings={siblingsOf(row)}
-              /*
-                移交升传送门（v4.24）：板上和「催一下」同一条落点逻辑——有登记场所就
-                把拟稿送过去，没有就走选场所那一问。**话由人发**。
-              */
-              announce={(target, draft) => {
-                const one = view.rows.find(candidate => candidate.id === target.id) ?? row
-                if (one.sessionId === undefined) {
-                  // 没有可跳进去的会话就直说——一颗点下去没有下文的按钮比没有按钮更坏。
-                  setToast('已移交。这条没有可跳进去的会话（登记时不在任何话题里），'
-                    + `请自己跟对方说一声：${draft}`)
-                  return
-                }
-                sendErrand({
-                  subject: 'nudge',
-                  goalRef: one.goalRef ?? '',
-                  goalName: one.what,
-                  voice: 'place',
-                  seed: draft,
-                })
-                openSession(one.sessionId)
-              }}
+              handoff={(target) => { void openHandoff(target) }}
               goals={goalOptions}
               cascadeOpen={view.goals.find(entry => entry.goalRef === row.isGoal)?.counts.open ?? 0}
               inject={inject}
               busy={busy !== ''}
               field={field}
               setField={setField}
-              field2={field2}
-              setField2={setField2}
               close={() => { setRepair(undefined) }}
               run={runRepair}
             />

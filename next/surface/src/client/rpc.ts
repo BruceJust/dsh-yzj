@@ -202,6 +202,32 @@ export interface TreeWire {
  * `onDuty` 缺席时是「读不到」，不是「没接单」：这一行可能只从图上的话题拼出来，接单
  * 名单里没有它的位置。界面因此有三种说法而不是两种。
  */
+/**
+ * 移交先验 —— 这一句话是**哪条边的重新签发**（决策 #59）。
+ *
+ * 和登记先验同一个位置、同一条纪律：**说出去才算数**。旧模型先改图、再让人去说，而那
+ * 句「记得说一声」把三方知情派回给了人的记性。
+ */
+export interface HandoffPrior {
+  fromCommitmentId: string
+  openId: string
+  name?: string
+}
+
+/** 桌面往一个场所里说一句话，回来是什么。 */
+export interface SentInPlace {
+  msgId?: string
+  ignited?: boolean
+  refused?: 'not-on-duty' | 'feed'
+  /** 点着了的话，新长出来的那个话题——目标语境要挂到它头上。 */
+  sessionId?: string
+  /** 这一句构成了一次移交时，新签发出来的那条边。 */
+  toCommitmentId?: string
+  /** 移交里那些「话发了但有一半没成」的实话（解除告知没落上、主权不对…）。 */
+  note?: string
+  error?: string
+}
+
 export interface DelegateRoomWire {
   placeKey: string
   name: string
@@ -315,6 +341,8 @@ export interface BoardRowWire {
   awaitingAcceptance?: boolean
   /** 受领三态：缺席 = 已登记（正常起点）／accepted 受领证据／declined 拒领。 */
   acceptance?: { state: 'accepted' | 'declined'; note?: string }
+  /** 移交出去了，接手的是谁（决策 #59）。有它这一行才不是断头路。 */
+  transferredTo?: string
   /** 最后一次有动静是什么时候。 */
   lastSignalAt: number
   inferredGoal: boolean
@@ -504,8 +532,19 @@ export interface SurfaceInject {
   postponeCommitment(id: string, due: string): Promise<{ error?: string }>
   /** 合并：两个人在做同一件事——不自动合，但必须能手动合。 */
   mergeCommitment(id: string, into: string): Promise<{ error?: string }>
-  /** 移交：换人，不换承诺——出生边、听众、回执都还在这一条上。 */
-  handoffCommitment(id: string, openId: string, name?: string): Promise<{ error?: string }>
+  /**
+   * 移交前那一屏要预选的**当前值** —— 现任是谁、现在在哪儿说（决策 #59）。
+   *
+   * 预选态本身承载语义：**它就是「这是移交，不是新委派」这句话的 UI 形态**。所以它不能
+   * 靠界面记，得问图——板上那一行带的是显示名不是 openId，场所也只带话题名。
+   */
+  handoffContext(id: string): Promise<{
+    what?: string
+    due?: string
+    executor?: { openId: string; name: string }
+    placeKey?: string
+    error?: string
+  }>
   objects(sessionId?: string): Promise<ObjectFaceWire>
   fused(sessionId: string): Promise<FusedWindowWire | undefined>
   /**
@@ -525,7 +564,9 @@ export interface SurfaceInject {
      * 落库 + 由既有监听器代发 ack，**不开话题**：登记的是别人的承诺，不是给 agent 的任务。
      */
     register?: { openId: string; name: string; goalRef?: string },
-  ): Promise<{ msgId?: string; error?: string }>
+    /** 移交先验：这一句是**这条边的重新签发**（决策 #59）。 */
+    handoff?: HandoffPrior,
+  ): Promise<SentInPlace>
   /** One read-only turn: answers, writes nothing, opens no task. */
   lightAsk(sessionId: string, text: string): Promise<{ answer?: string; error?: string }>
   forgetMemory(memoryId: string): Promise<boolean>
@@ -561,14 +602,9 @@ export interface SurfaceInject {
      * 一句普通消息：话在群里，板上不长行。
      */
     register?: { openId: string; name: string; goalRef?: string },
-  ): Promise<{
-    msgId?: string
-    ignited?: boolean
-    refused?: 'not-on-duty' | 'feed'
-    /** 点着了的话，新长出来的那个话题——目标语境要挂到它头上。 */
-    sessionId?: string
-    error?: string
-  }>
+    /** 移交先验：这一句是**这条边的重新签发**（决策 #59）。 */
+    handoff?: HandoffPrior,
+  ): Promise<SentInPlace>
   /**
    * 给一个**还没聊过**的人发第一句 —— 私聊的出生 (v4.24 场所选项集)。
    *
@@ -578,13 +614,8 @@ export interface SurfaceInject {
   sendToPerson(
     openId: string, text: string,
     register?: { openId: string; name: string; goalRef?: string },
-  ): Promise<{
-    msgId?: string
-    placeKey?: string
-    ignited?: boolean
-    sessionId?: string
-    error?: string
-  }>
+    handoff?: HandoffPrior,
+  ): Promise<SentInPlace & { placeKey?: string }>
   /** 附件真身：字节走宿主取（没有公开地址），按 fileId 缓存。 */
   attachment(fileId: string, name?: string): Promise<AttachmentBodyWire | undefined>
   /** 下载：宿主放进「下载」文件夹，回真实路径——预览不等于拿到手。 */
@@ -742,11 +773,12 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       const { error } = await write<{ id: string }>('merge-commitment', { id, into })
       return error === undefined ? {} : { error }
     },
-    async handoffCommitment(id, openId, name) {
-      const { error } = await write<{ id: string }>('handoff-commitment', {
-        id, openId, ...(name === undefined ? {} : { name }),
-      })
-      return error === undefined ? {} : { error }
+    async handoffContext(id) {
+      const { value, error } = await write<{
+        what?: string; due?: string
+        executor?: { openId: string; name: string }; placeKey?: string
+      }>('handoff-context', { id })
+      return error === undefined ? value ?? {} : { error }
     },
     async objects(sessionId) {
       return await call<ObjectFaceWire>(
@@ -754,11 +786,12 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       ) ?? { current: [], memory: [], resources: [] }
     },
     fused: sessionId => call<FusedWindowWire>('fused', { sessionId }),
-    async sendToPlace(sessionId, text, replyTo, register) {
-      const result = await write<{ msgId?: string }>('send-to-place', {
+    async sendToPlace(sessionId, text, replyTo, register, handoff) {
+      const result = await write<SentInPlace>('send-to-place', {
         sessionId, text,
         ...(replyTo === undefined ? {} : { replyTo }),
         ...(register === undefined ? {} : { register }),
+        ...(handoff === undefined ? {} : { handoff }),
       })
       return result.error === undefined ? result.value ?? {} : { error: result.error }
     },
@@ -771,22 +804,22 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     },
     place: placeKey => call<PlaceViewWire>('place', { placeKey }),
     contract: placeKey => call<ContractViewWire>('contract', { placeKey }),
-    async sendInPlace(placeKey, text, replyTo, register) {
-      const result = await write<{
-        msgId?: string; ignited: boolean; refused?: 'not-on-duty' | 'feed'; sessionId?: string
-      }>('send-in-place', {
+    async sendInPlace(placeKey, text, replyTo, register, handoff) {
+      const result = await write<SentInPlace>('send-in-place', {
         placeKey,
         text,
         ...(replyTo === undefined ? {} : { replyTo }),
         ...(register === undefined ? {} : { register }),
+        ...(handoff === undefined ? {} : { handoff }),
       })
       return result.error === undefined ? result.value ?? {} : { error: result.error }
     },
-    async sendToPerson(openId, text, register) {
-      const result = await write<{
-        msgId?: string; placeKey?: string; ignited: boolean; sessionId?: string
-      }>('send-to-person', {
-        openId, text, ...(register === undefined ? {} : { register }),
+    async sendToPerson(openId, text, register, handoff) {
+      const result = await write<SentInPlace & { placeKey?: string }>('send-to-person', {
+        openId,
+        text,
+        ...(register === undefined ? {} : { register }),
+        ...(handoff === undefined ? {} : { handoff }),
       })
       return result.error === undefined ? result.value ?? {} : { error: result.error }
     },

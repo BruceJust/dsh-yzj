@@ -92,6 +92,14 @@ function progressOf(state: Record<string, unknown> | undefined): string | undefi
   const status = typeof state?.status === 'string' ? state.status : 'open'
   if (status === 'closed') return '已完成'
   if (status === 'voided') return '已作废'
+  /*
+    移交要说出来，而且要和作废分得开（决策 #59）。
+
+    差距简报是拿去对账的东西：一条被转手的活在这里显示成「没有进展」，读简报的人会以为
+    它停着——而它正在另一条边上跑。两条边都挂在同一个目标下，所以简报里本来就看得到
+    接手的那一条。
+  */
+  if (status === 'transferred') return '已移交'
   return undefined
 }
 

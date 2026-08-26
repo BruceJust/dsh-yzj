@@ -53,6 +53,9 @@ function stateOf(id: string): CommitmentState | undefined {
   return graph.rawObject('commitment', id)?.state as unknown as CommitmentState | undefined
 }
 
+/** 这一趟往哪些场所落了话——移交话语与解除告知，只有这里看得见。 */
+let posted: { placeKey: string; text: string }[] = []
+
 function commitments(): CommitmentState[] {
   return graph.query({ kind: 'operator', openId: 'op-1' }, { kind: 'commitment' })
     .map(object => object.state as unknown as CommitmentState)
@@ -71,6 +74,20 @@ beforeEach(async () => {
   cards.register(createCommitmentCard(ctx))
   binding = BINDING
   ctx.provide('yzjTurns', { bindingFor: () => binding, defaultBinding: () => binding })
+  /*
+    移交要**在这个场所把那句话说出去**，所以工具那条路也得有通道（决策 #59）。
+    没有它，`commitment_handoff` 会如实拒绝——而那正是「说不出去就什么都不做」。
+  */
+  posted = []
+  ctx.provide('yzjTopics', {
+    conversations: () => [
+      { placeKey: 'yzj-group-g1', name: '财务群', kind: 'group', onDuty: true, selfChat: false },
+    ],
+    sendInPlace: async (placeKey: string, text: string) => {
+      posted.push({ placeKey, text })
+      return { msgId: `m-${String(posted.length)}`, ignited: false }
+    },
+  })
   const captured: CapturedTool[] = []
   ctx.provide('tools', {
     register: (definition: CapturedTool) => { captured.push(definition); return () => undefined },
@@ -557,13 +574,61 @@ describe('作废/顺延/移交：话语兜底', () => {
     expect(stateOf('c2').status).toBe('open')
   })
 
-  it('移交换人不换承诺——出生边与回执都还在这一条上', async () => {
+  /*
+    **移交 = 这条边的重新签发**（决策 #59，推翻「换人不换承诺」的边变异模型）。
+
+    agent 这条路和桌面那条写的是同两笔，而且顺序一样：**先把那句话说出去**，再以它为锚
+    给新边接生。倒过来（先记账再去说）正是这次拆掉的东西——图上转了手，而两边的人谁都
+    不知道。
+  */
+  it('移交先说话、再签发：旧边转吸收态，新边带血缘出生', async () => {
     await open('c3')
-    await tools.get('commitment_handoff')?.execute(
+    const result = await tools.get('commitment_handoff')?.execute(
       { commitmentId: 'c3', openId: 'u-zhang', name: '张锐' }, EXEC,
-    )
-    expect((stateOf('c3').executor as { openId?: string }).openId).toBe('u-zhang')
-    expect(stateOf('c3').sourceAnchor).toBe('yzj:c3')
+    ) as { content: string; commitmentId?: string }
+    // 那句话真的落进了这个场所——移交话语不是回执里的一句提醒。
+    expect(posted[0]?.placeKey).toBe('yzj-group-g1')
+    expect(posted[0]?.text).toContain('转给你了')
+
+    expect(stateOf('c3').status).toBe('transferred')
+    const born = result.commitmentId as string
+    expect(born).not.toBe('c3')
+    expect((stateOf(born).executor as { openId?: string }).openId).toBe('u-zhang')
+    expect(stateOf(born).transferredFrom).toMatchObject({ commitmentId: 'c3' })
+    // 出生锚 = 那句移交话语，不是旧边的锚。听众也因此是这次话语的听众。
+    expect(stateOf(born).sourceAnchor).toBe('yzj:m-1')
+  })
+
+  /*
+    **说不出去就什么都不做**：图和话保持一致。反过来会留下一条谁都不知道的转手。
+  */
+  it('移交话语发不出去时，一笔都不写', async () => {
+    await open('c4')
+    posted = []
+    ctx.get('yzjTopics').sendInPlace = async () => ({ ignited: false })
+    const result = await tools.get('commitment_handoff')?.execute(
+      { commitmentId: 'c4', openId: 'u-zhang', name: '张锐' }, EXEC,
+    ) as { content: string }
+    expect(result.content).toContain('什么都没记')
+    expect(stateOf('c4').status).toBe('open')
+  })
+
+  /*
+    **私聊要认得出对面是谁**：在我和张锐的私聊里说「这条转给李婷」，李婷一个字都听不见
+    ——听众集合缺了他那一头（最小听众不变量），而板上会长出一条他并不知道的活。
+  */
+  it('在一个不是他的私聊里移交：拒绝，并指回选得了场所的那条路', async () => {
+    await open('c5')
+    binding = { ...BINDING, placeKey: 'yzj-dm-d1' }
+    ctx.get('yzjTopics').conversations = () => [
+      { placeKey: 'yzj-dm-d1', name: '王五', kind: 'direct', onDuty: true, selfChat: false },
+    ]
+    const result = await tools.get('commitment_handoff')?.execute(
+      { commitmentId: 'c5', openId: 'u-zhang', name: '张锐' }, EXEC,
+    ) as { content: string }
+    expect(result.content).toContain('私聊')
+    expect(result.content).toContain('板上')
+    expect(stateOf('c5').status).toBe('open')
   })
 
   /*

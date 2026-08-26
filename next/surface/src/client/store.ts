@@ -156,6 +156,18 @@ export interface Errand {
    * 定了。带着它一路到发送，发送成功即落库。
    */
   readonly register?: { readonly openId: string; readonly name: string }
+  /**
+   * 这句话是**那条边的重新签发** —— 移交先验 (决策 #59).
+   *
+   * 和登记先验并列而不是复用：登记是**一条新的活出生**，移交是**一条已有的活换边**，
+   * 两者要写的图完全不同（后者还要把旧边转进吸收态、往旧场所落一帖解除告知）。
+   * 挤进同一个字段的话，第一次改动就会有一边把另一边的语义带跑。
+   */
+  readonly handoff?: {
+    readonly fromCommitmentId: string
+    readonly openId: string
+    readonly name?: string
+  }
 }
 
 let errand: Errand | undefined

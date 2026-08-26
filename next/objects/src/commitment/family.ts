@@ -27,7 +27,23 @@ import { createHash } from 'node:crypto'
 import { artifactRef, z, type GraphFamily } from '@yzj-next/graph'
 import { asRecord, asString } from '@yzj-next/graph'
 
-export type CommitmentStatus = 'open' | 'closed' | 'voided' | 'merged'
+/**
+ * `transferred` 是**第四吸收态**，不是第四种死法 (v4.24+ 决策 #59).
+ *
+ * 移交此前是「这条边换了个执行者」——一次字段变异。review 推翻了那个模型，理由不是
+ * 洁癖：`/handoff` 在这套系统里一直是 `/fork` 的语义（**分叉**，不是改名），而边变异
+ * 让**听众集合无解**——一条边先后经过两次登记性话语，它的听众到底是哪一次那批人？
+ * 两次的并集是一个谁都答不上来「这句话说给谁听」的泥潭，而听众集合是这套东西的地基。
+ *
+ * 分叉模型把那个问题变回简单：**旧边转入吸收态，新边经移交话语出生**，各自的听众就是
+ * 各自那次话语的听众（v4.4 干净适用）。附带地，三方知情从一个要发明的补递机制，降成
+ * 两个既有动作的自然结果——旧边的终态回帖落旧场所（旧执行者本来就在那儿），新边的出生
+ * 话语落新场所（新执行者天然知情）。
+ *
+ * 和 `voided` 的分别要一直看得见：作废是**这件事不做了**，移交是**这件事还在做，只是
+ * 换了一条边**。把两者渲染成同一句「已结束」，板上就再也分不出「黄了」和「转手了」。
+ */
+export type CommitmentStatus = 'open' | 'closed' | 'voided' | 'merged' | 'transferred'
 
 /** Who owes the work. An agent executor IS a topic; a human executor is watched. */
 export type CommitmentExecutor =
@@ -109,6 +125,29 @@ export interface CommitmentState {
    * 验收的人看不出这是重交的——而「轮次在卡上可见」正是这个循环存在的意义。
    */
   readonly round?: number
+  /**
+   * 这条边被重新签发到哪儿去了 —— 移交的**去向**，写在旧边上 (决策 #59).
+   *
+   * 只写「已移交」而不写去向，板上那一行就变成了一条断头路：这件事还在，可谁在做、
+   * 在哪条边上做，得靠人去猜。去向是这个吸收态存在的一半理由——另一半是留档（回执与
+   * 轨迹史留在旧边，不跟着走）。
+   */
+  readonly transferredTo?: {
+    readonly commitmentId: string
+    readonly executor: CommitmentExecutor
+    readonly at: number
+  }
+  /**
+   * 这条边**从哪条边移交过来** —— 血缘，写在新边上 (决策 #59).
+   *
+   * 「移交自 X」不是一句说明文字，它是新边唯一的**背景包引用**：旧边上挂着这件事此前的
+   * 工件、验收标准与决议摘要，而它们不迁移（私语更不迁移——那是别人和 agent 的对话）。
+   * 接手的人要看以前发生过什么，走的是这条引用。
+   */
+  readonly transferredFrom?: {
+    readonly commitmentId: string
+    readonly executor: CommitmentExecutor
+  }
   readonly what: string
   readonly executor: CommitmentExecutor
   readonly due?: string
@@ -210,6 +249,16 @@ export const commitmentFamily: GraphFamily = {
          * 否则方向轴与主权谓词在整条会话路径上都是空的。
          */
         delegatedBy: z.string().optional(),
+        /**
+         * 血缘：这条边是从哪条边移交过来的 (决策 #59)。
+         *
+         * 出生就带着，因为它是新边的**背景包引用**——接手的人要看这件事以前发生过什么，
+         * 走的是这条引用（工件、验收标准、决议摘要留在旧边，不迁移；私语更不迁移）。
+         */
+        transferredFrom: z.object({
+          commitmentId: z.string().min(1),
+          executor,
+        }).optional(),
         /*
           出生时就说清也合法——默认从登记场所派生，但**派生只是默认**：一条明知要私下
           处理的活，登记它的时候就可以说「这条不写进目标文档」，不必等 ack 再反转一次。
@@ -337,6 +386,25 @@ export const commitmentFamily: GraphFamily = {
         status: z.literal('merged').default('merged'),
       }),
     },
+    /**
+     * 移交 = **这条边的重新签发**（决策 #59）——这一笔记的是旧边的那一半。
+     *
+     * 两笔一起才是一次移交，而**新边先出生、旧边后转态**。顺序不是风格：反过来的话，
+     * 中间那一刻这件活既不在跟、也还没有接手人——一次**可观测的凭空消失**。按现在的
+     * 顺序，最坏情况是两条边同时活着，那是看得见、也修得掉的（作废其中一条）。
+     */
+    'commitment/transferred': {
+      schema: z.object({
+        commitmentId: z.string().min(1),
+        /** 去向。没有它，板上这一行就是一条断头路：事还在，谁在做查不到。 */
+        transferredTo: z.object({
+          commitmentId: z.string().min(1),
+          executor,
+          at: z.number().int(),
+        }),
+        status: z.literal('transferred').default('transferred'),
+      }),
+    },
   },
   pendingStatuses: ['open'],
   objectIdOf: (_type, data) => asString(asRecord(data)?.commitmentId),
@@ -355,7 +423,15 @@ export const commitmentFamily: GraphFamily = {
     const base = asRecord(previous) ?? {}
     const next = asRecord(event.data) ?? {}
     const settled = asString(base.status)
-    if ((settled === 'voided' || settled === 'merged') && event.type !== 'commitment/reopened') {
+    /*
+      `transferred` 与 voided/merged 并列进吸收态（决策 #59）。
+
+      少写这一个的后果是具体的：旧边移交出去之后，**任何一句迟到的话都能把它复活**——
+      老执行者在原来那个群里回一句「做完了」，板上就多出一条本该在别处进行的活，而它
+      的双胞胎正在新边上跑。一件事两行，两个人各自以为归自己。
+    */
+    const absorbing = settled === 'voided' || settled === 'merged' || settled === 'transferred'
+    if (absorbing && event.type !== 'commitment/reopened') {
       return previous
     }
     /*

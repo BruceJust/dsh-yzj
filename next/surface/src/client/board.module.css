@@ -603,6 +603,12 @@
 .execBack:hover { color: var(--yzj-pub-deep); border-color: var(--yzj-pub-line); }
 /* 这句话会让谁听见——写在场所名旁边，不让人自己推断 */
 .roomKind { font-size: 9.5px; font-weight: 400; color: var(--yzj-ink-3); margin-left: 6px; }
+/* 移交预选当前值：现场所要看得见，「都不改」那颗才解释得清自己为什么点不动。 */
+.roomNow {
+  margin-left: 6px; font-size: 9.5px; font-weight: 600; color: var(--yzj-pub-deep);
+  padding: 1px 6px; border-radius: 9px; background: var(--yzj-pub-tint);
+}
+.roomPlace:disabled, .room:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* 目标降为行内 chip（决策 #56）：透镜一开目标组退场，一跳指路留在行上 */
 .goalChip {

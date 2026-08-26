@@ -28,11 +28,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { BoardRowWire, GoalPageWire, SurfaceInject } from './rpc.ts'
 import { sendErrand } from './store.ts'
-import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
+import { RoomPicker, handoffPortal, landPortal, type Portal } from './RoomPicker.tsx'
 import {
   assessAsk, breakdownAsk, delegateSeed, gapSeed, goalQuestionSeed, rebaseAsk,
 } from './commission.ts'
-import { RepairVerbs, cascadeLine, voidGate, type Repair } from './RepairVerbs.tsx'
+import { RepairVerbs, cascadeLine, voidGate, type Repair, type RepairTarget } from './RepairVerbs.tsx'
 import { safeHref } from './preview.ts'
 import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
@@ -93,8 +93,20 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
   const [armed, setArmed] = useState('')
   /** 传送门：等着人选一间屋子的那件差事。 */
   const [portal, setPortal] = useState<Portal | undefined>(undefined)
+
+  /**
+   * 移交 —— 先问图要当前值，再开那张预选好的选择条（决策 #59）。
+   *
+   * 读不回来就说读不回来：一颗按下去没有下文的键，比没有这颗键更坏。
+   */
+  const openHandoff = useCallback(async (row: RepairTarget): Promise<void> => {
+    const opened = await handoffPortal(inject, row)
+    if ('error' in opened) { setToast(opened.error); return }
+    setRepair(undefined)
+    setPortal(opened)
+  }, [inject])
+
   const [field, setField] = useState('')
-  const [field2, setField2] = useState('')
 
   const fetchSeq = useRef(0)
   const refresh = useCallback(async (): Promise<void> => {
@@ -137,7 +149,6 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
       setBusy('')
       setRepair(undefined)
       setField('')
-      setField2('')
       void refresh()
     })
   }, [refresh])
@@ -238,29 +249,11 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
         <RepairVerbs
           repair={repair}
           siblings={goal.children}
-          /*
-            **移交升传送门**：改完图之后，把人送到该说这句话的地方（v4.24）。落点逻辑
-            和「催」同一条——记得下登记场所就直接跳，记不下就问一句去哪儿说。
-          */
-          announce={(target, draft) => {
-            const child = goal.children.find(one => one.id === target.id)
-            if (child?.sessionId === undefined) {
-              ask({
-                subject: 'goal',
-                goalRef, goalName, voice: 'place', seed: draft,
-                // 移交的执行者刚刚定下来了——这一屏只欠落点。
-                pick: 'room',
-                title: '移交：去哪个会话说？',
-                note: '这条承诺没有记下登记场所，所以落点得你来定。句子还是你自己说。',
-              })
-            } else jump('place', draft, child.sessionId)
-          }}
+          handoff={(target) => { void openHandoff(target) }}
           inject={inject}
           busy={busy !== ''}
           field={field}
           setField={setField}
-          field2={field2}
-          setField2={setField2}
           close={() => { setRepair(undefined) }}
           run={run}
         />
@@ -303,7 +296,21 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               父目标已结束
             </span>
           )}
-          {row.status !== 'open' && <span className={css.settled}>{row.status === 'closed' ? '已了' : row.status === 'voided' ? '已作废' : '已合并'}</span>}
+          {/*
+            四种终态，不是三种（决策 #59）。**移交不是死法**：事还在，只是换了一条边，
+            而接手的那条就在这同一个目标底下——不写去向，这一行是条断头路。
+          */}
+          {row.status !== 'open' && (
+            <span className={css.settled}>
+              {row.status === 'closed'
+                ? '已了'
+                : row.status === 'voided'
+                  ? '已作废'
+                  : row.status === 'transferred'
+                    ? `已移交${row.transferredTo === undefined ? '' : ` → ${row.transferredTo}`}`
+                    : '已合并'}
+            </span>
+          )}
         </div>
         {/* 回流边:回执是这件事到底转回来了没有的唯一证据。 */}
         {row.progress !== undefined && <div className={css.receipt}>回执：{row.progress}</div>}
@@ -353,7 +360,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 催（去说）
               </button>
               <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'postpone', row }); setField(row.due?.text ?? '') }}>顺延期限</button>
-              <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'handoff', row }); setField(''); setField2('') }}>移交</button>
+              <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'handoff', row }); setField('') }}>移交</button>
               <button type="button" className={css.act} onClick={() => { setRepair({ kind: 'merge', row }); setField('') }}>合并</button>
               {/*
                 **作废两段式** (决策 #57)：一键作废与一键验收同罪。这里此前是一下点掉的

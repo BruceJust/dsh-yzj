@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { DelegateRoomWire, PersonWire, SurfaceInject } from './rpc.ts'
+import { handoffDraft } from './handoff.ts'
 import { registerSeed } from './commission.ts'
 import { pushFrame, sendErrand, type Errand } from './store.ts'
 import css from './board.module.css'
@@ -47,6 +48,25 @@ export interface Portal {
    * 类型来问：`'room'` 是「谁早就定了」（催、移交），它必须被说出口，不能靠不写。
    */
   readonly pick: 'executor' | 'room'
+  /**
+   * 这是一次**移交** —— 边的重新签发（决策 #59）。
+   *
+   * 有它，两维都**预选当前值**：执行者预选现任、场所预选现场所。预选态本身就是语义
+   * ——它是「这是移交，不是新委派」这句话的 UI 形态。两维任一可变：换人 = 执行权变更，
+   * **换场所不换人也是移交**（/handoff 本义，听众变更），都不改 = 无事发生。
+   *
+   * 此前这一格是一个只能搜人的框，而且**排除不了「不换人」这条合法路径**：一次纯粹的
+   * 听众变更在界面上根本没有入口。
+   */
+  readonly handoff?: {
+    readonly fromCommitmentId: string
+    readonly what: string
+    readonly due?: string
+    /** 现任。agent 执行的那条没有——那种「换人」是重新委派，不是这个动词。 */
+    readonly executor?: { readonly openId: string; readonly name: string }
+    /** 现场所。列表里那一行要标出来，因为「就在这儿」是一个要被看见的选项。 */
+    readonly placeKey?: string
+  }
 }
 
 /**
@@ -138,6 +158,40 @@ export type Landing =
   | { readonly kind: 'new-dm'; readonly openId: string; readonly name: string }
 
 /**
+ * 开一次移交 —— **一份实现，三个消费者**（板 / 目标页 / 事件枢纽）。
+ *
+ * 预选当前值不能靠界面手里那点东西：板上那一行带的是**显示名**不是 openId，场所也只带
+ * 话题名。而预选态本身承载语义（「这是移交，不是新委派」），所以它必须来自图。
+ *
+ * 三处各写一遍 fetch + 拼 portal 的话，第一次改动就会有一处忘了带 `due`，于是从那一处
+ * 发起的移交，拟稿里的期限凭空消失——而期限正是这句话里最不能丢的三样之一。
+ */
+export async function handoffPortal(
+  inject: SurfaceInject,
+  row: { readonly id: string; readonly what: string; readonly goalRef?: string },
+): Promise<Portal | { readonly error: string }> {
+  const now = await inject.handoffContext(row.id)
+  if (now.error !== undefined) return { error: now.error }
+  return {
+    subject: 'goal',
+    goalRef: row.goalRef ?? '',
+    goalName: now.what ?? row.what,
+    voice: 'place',
+    pick: 'executor',
+    title: '移交：交给谁、在哪儿说？',
+    note: '移交 = 这条边的重新签发：旧的一条转为「已移交」留档，新的一条从你说出去的那句话出生。'
+      + '两维都预选了当前值——换人是换执行权，只换场所不换人也是移交。',
+    handoff: {
+      fromCommitmentId: row.id,
+      what: now.what ?? row.what,
+      ...(now.due === undefined ? {} : { due: now.due }),
+      ...(now.executor === undefined ? {} : { executor: now.executor }),
+      ...(now.placeKey === undefined ? {} : { placeKey: now.placeKey }),
+    },
+  }
+}
+
+/**
  * 传送门落地 —— **一份实现，三个消费者**。
  *
  * 板、目标页、事件枢纽此前各写一遍 `sendErrand + openSession`，三份一字不差。落点从
@@ -184,6 +238,12 @@ export interface PortalChoice {
   readonly call?: boolean
   /** 选了人 = 登记路径的结构化先验 (v3.15 裁决④)。 */
   readonly register?: { readonly openId: string; readonly name: string }
+  /** 移交先验：这一句话是那条边的重新签发（决策 #59）。 */
+  readonly handoff?: {
+    readonly fromCommitmentId: string
+    readonly openId: string
+    readonly name?: string
+  }
 }
 
 /**
@@ -206,6 +266,7 @@ export function errandFor(portal: Portal, choice?: PortalChoice): Errand {
     ...(seed === undefined ? {} : { seed }),
     ...(choice?.call === true ? { call: true } : {}),
     ...(choice?.register === undefined ? {} : { register: choice.register }),
+    ...(choice?.handoff === undefined ? {} : { handoff: choice.handoff }),
   }
 }
 
@@ -241,7 +302,17 @@ export function RoomPicker(props: {
     `undefined` 是「还没选」，不是「没人」：这一屏在选定之前不该显示任何场所，因为
     **场所的选项集由执行者决定**，先摆出来的那一份必然是猜的。
   */
-  const [executor, setExecutor] = useState<Executor | undefined>(undefined)
+  /*
+    移交**预选现任**（决策 #59）——预选态本身就是那句「这是移交，不是新委派」。
+
+    review 曾把这一格写成「排除现执行者」，那是错的：它堵死了**换场所不换人**这条合法
+    路径（/handoff 的本义就是听众变更）。预选而不是排除，两维因此都任意可改。
+  */
+  const [executor, setExecutor] = useState<Executor | undefined>(
+    portal.handoff?.executor === undefined
+      ? undefined
+      : { kind: 'person', person: portal.handoff.executor },
+  )
   const needsExecutor = portal.pick === 'executor' && executor === undefined
   /*
     没有合适的场所时，可以**当场造一个** (设计 v4.18「新建专项群」格).
@@ -277,9 +348,45 @@ export function RoomPicker(props: {
   */
   const hasDm = (rooms ?? []).some(room => room.theirDm)
 
+  const move = portal.handoff
+  /**
+   * **都不改 = 无事发生**（决策 #59 的守卫）。
+   *
+   * 不是省一次写：一次「什么都没改的移交」会在图上留下一条 transferred 的旧边和一条
+   * 内容完全相同的新边，而板上看起来就是这件活自己抖了一下、换了个 id——已有的回执与
+   * 轨迹全留在了那条没人再看的旧边上。**代价全付，什么都没换到。**
+   */
+  const noop = (placeKey: string): boolean => (
+    move !== undefined
+    && executor?.kind === 'person'
+    && executor.person.openId === move.executor?.openId
+    && placeKey === move.placeKey
+  )
+
   /** 选完之后那句话的骨架：受话 + 句式，内容一个字都不带。 */
   const choice = (): PortalChoice | undefined => {
     if (executor === undefined) return undefined
+    /*
+      移交的骨架不是登记句式：**事项与期限继承旧边**，不靠解析这句话得来。移交不发明
+      内容——它重新签发的是同一件事。
+    */
+    if (move !== undefined && executor.kind === 'person') {
+      return {
+        call: true,
+        seed: handoffDraft({
+          what: move.what,
+          ...(move.due === undefined ? {} : { due: move.due }),
+          toName: executor.person.name,
+          ...(move.executor?.name === undefined ? {} : { fromName: move.executor.name }),
+          samePerson: executor.person.openId === move.executor?.openId,
+        }),
+        handoff: {
+          fromCommitmentId: move.fromCommitmentId,
+          openId: executor.person.openId,
+          name: executor.person.name,
+        },
+      }
+    }
     return executor.kind === 'agent'
       // 派给 agent：骨架就是受话本身，做什么由人说。
       ? { call: true }
@@ -459,12 +566,26 @@ export function RoomPicker(props: {
                   <button
                     type="button"
                     className={css.roomPlace}
+                    disabled={noop(room.placeKey)}
+                    title={noop(room.placeKey)
+                      ? '人没换、场所也没换——这样的移交什么都不会发生'
+                      : undefined}
                     onClick={() => {
                       go({ kind: 'place', placeKey: room.placeKey, groupName: room.name }, choice())
                     }}
                   >
                     {room.kind === 'direct' ? '💬 ' : '# '}
                     {room.name}
+                    {/*
+                      **现场所要标出来**（决策 #59 预选当前值）。
+
+                      「就在这儿」是一个要被看见的选项：它既是「不换场所」的那一格，也是
+                      「都不改 = 无事发生」这条守卫唯一说得清楚的地方。不标的话，人只会
+                      看到一颗莫名其妙点不动的按钮。
+                    */}
+                    {move !== undefined && room.placeKey === move.placeKey && (
+                      <span className={css.roomNow}>现在就在这儿</span>
+                    )}
                     {/*
                       **这句话会让谁听见**，写在场所名旁边而不是等人自己推断。
                       公开登记与私下登记是两句不同的话，而它们在列表里长得一模一样。
@@ -500,6 +621,12 @@ export function RoomPicker(props: {
                       type="button"
                       className={`${css.room} ${css.roomTopic}`}
                       key={topic.sessionId}
+                      /*
+                        挂进同一个场所里的某个话题，**听众还是那批人**——移交那一维一个都
+                        没变。守卫跟着场所走而不是跟着话题走，否则「换个话题说」会伪装成
+                        一次移交。
+                      */
+                      disabled={noop(room.placeKey)}
                       onClick={() => { go({ kind: 'topic', sessionId: topic.sessionId }, choice()) }}
                     >
                       {topic.label}

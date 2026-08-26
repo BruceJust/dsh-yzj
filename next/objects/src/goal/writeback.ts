@@ -95,6 +95,8 @@ function overdueNow(due: string | undefined, now: number): boolean {
 function endOf(status: string, cause: string | undefined): string {
   if (status === 'voided') return `已作废${cause === undefined ? '' : `（${cause}）`}`
   if (status === 'merged') return '已合并到另一条'
+  // 真身上也要分得出转手与作废：读这份文档的人不在图里，他只有这一行字。
+  if (status === 'transferred') return '已移交给另一条边'
   return cause === 'accepted' ? '已验收' : '已完成'
 }
 

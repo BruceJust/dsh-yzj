@@ -231,6 +231,15 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const [pendingRegister, setPendingRegister] = useState<
     { openId: string; name: string } | undefined
   >(undefined)
+  /**
+   * 这一句是**那条边的重新签发** —— 移交先验（决策 #59）。
+   *
+   * 和登记先验并排而不是共用：登记让一条新的活出生，移交是一条已有的活换边（还要把旧边
+   * 转进吸收态、往旧场所落一帖解除告知）。挤进同一格，第一次改动就会有一边带跑另一边。
+   */
+  const [pendingHandoff, setPendingHandoff] = useState<
+    { fromCommitmentId: string; openId: string; name?: string } | undefined
+  >(undefined)
   useEffect(() => {
     const errand = takeErrand()
     if (errand === undefined) return
@@ -245,6 +254,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     }
     setPendingCall(errand.call === true ? opening : undefined)
     setPendingRegister(errand.register)
+    setPendingHandoff(errand.handoff)
     // 一场会不装载语境：会的 id 当成 goalRef 会把目标图污染掉（和会话那一侧同源）。
     if (errand.subject === 'goal' && errand.goalRef !== '') {
       setPendingGoal({ goalRef: errand.goalRef, goalName: errand.goalName })
@@ -420,6 +430,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
 
   const settle = (result: {
     error?: string; refused?: string; ignited?: boolean; sessionId?: string
+    toCommitmentId?: string; note?: string
   }): void => {
     if (result.refused === 'not-on-duty') {
       // Nothing was sent. 人看人发不受限制,但在没接单的场所 @ agent 会在同事
@@ -431,10 +442,17 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
       setReplyTo(undefined)
       // 说出口了，这次先验就用掉了——下一句话是新的一句话。
       setPendingRegister(undefined)
+      setPendingHandoff(undefined)
       void armBorn(result.sessionId).then((note) => {
-        setToast(note ?? (result.ignited === true
-          ? '已发出，并且点着了：这条链正在收纳为一个话题。'
-          : '已发到群里。'))
+        /*
+          移交那一头**自己会说话**：解除告知落没落上、主权对不对、是不是「什么都没改」。
+          它比「已发到群里」具体，所以它先说；`armBorn` 那句次之，通用回执垫底。
+        */
+        setToast(result.note ?? note ?? (result.toCommitmentId !== undefined
+          ? '已移交：这句话说出去了，新的那条承诺从它出生。'
+          : result.ignited === true
+            ? '已发出，并且点着了：这条链正在收纳为一个话题。'
+            : '已发到群里。'))
       })
     }
     setBusy(false)
@@ -458,7 +476,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
         ...(pendingGoal === undefined ? {} : { goalRef: pendingGoal.goalRef }),
       }
     if (newDm !== undefined) {
-      void inject.sendToPerson(newDm.openId, text, register).then((result) => {
+      void inject.sendToPerson(newDm.openId, text, register, pendingHandoff).then((result) => {
         if (result.error === undefined && result.placeKey !== undefined) {
           /*
             私聊出生了 —— 从占位切到真的那间屋子。
@@ -478,7 +496,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
       })
       return
     }
-    void inject.sendInPlace(placeKey, text, replyTo?.msgId, register).then(settle)
+    void inject.sendInPlace(placeKey, text, replyTo?.msgId, register, pendingHandoff).then(settle)
   }
 
   return (
@@ -785,11 +803,18 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           谁名下的活、挂在哪个目标下面。看不见的话,一次「换个人」之后带过来的还是上一个
           人——而那只有等承诺落到板上才发现。
         */}
-        {(pendingGoal !== undefined || pendingRegister !== undefined) && (
+        {(pendingGoal !== undefined || pendingRegister !== undefined
+          || pendingHandoff !== undefined) && (
           <div className={css.errandBar}>
             {pendingRegister !== undefined && (
               <span className={css.errandTag}>
                 这一句是在登记 <b>{pendingRegister.name}</b> 的承诺
+              </span>
+            )}
+            {pendingHandoff !== undefined && (
+              <span className={css.errandTag}>
+                这一句是<b>移交</b>：发出去之后，旧的那条转为「已移交」留档，
+                新的一条交给 <b>{pendingHandoff.name ?? pendingHandoff.openId}</b>
               </span>
             )}
             {pendingGoal !== undefined && (
@@ -799,7 +824,11 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
               type="button"
               className={css.errandDrop}
               title="不带它了——这句话就当一句普通的话说出去"
-              onClick={() => { setPendingGoal(undefined); setPendingRegister(undefined) }}
+              onClick={() => {
+                setPendingGoal(undefined)
+                setPendingRegister(undefined)
+                setPendingHandoff(undefined)
+              }}
             >
               不带了
             </button>

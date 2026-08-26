@@ -14,7 +14,7 @@ import {
   assessAsk, breakdownAsk, delegateSeed, eventPrepSeed, gapSeed,
   goalCraftSeed, goalQuestionSeed, rebaseAsk, registerSeed,
 } from '../src/client/commission.ts'
-import { handoffDraft } from '../src/client/RepairVerbs.tsx'
+import { handoffDraft } from '../src/client/handoff.ts'
 
 const NAME = 'Q3 把对账周期压到 3 天内'
 const REF = 'https://yzj.example.com/doc/q3'
@@ -188,21 +188,44 @@ describe('预填出处律', () => {
  * 最容易退化成一句「已移交」：收到的人得回头翻记录才知道说的是哪件事，而那份翻找正是
  * 这个产品要消掉的东西。
  */
+/**
+ * 移交拟稿 —— 三样缺一不可：**是谁、哪一条、原话期限**（决策 #59）。
+ *
+ * 这句话最容易退化成一句「已移交」，而收到的人得回头翻记录才知道说的是哪件事——那份
+ * 翻找正是这个产品要消掉的东西。
+ *
+ * **换场所不换人是另一句话**：事没换手，换的是这件事以后在哪儿说。用同一句「转给你了」
+ * 去说它，收到的人会以为自己刚接了一件新活。
+ */
 describe('移交拟稿', () => {
   it('带上是谁、哪一条、以及**原话**期限', () => {
-    const draft = handoffDraft({ what: '核对一版竞品定价', due: { text: '下周三前' } }, '张锐')
+    const draft = handoffDraft({ what: '核对一版竞品定价', due: '下周三前', toName: '张锐' })
     expect(draft).toContain('张锐')
     expect(draft).toContain('核对一版竞品定价')
     // 原话，不是解析出来的日期——改写他说过的话，是拿我们的解析冒充他的承诺。
     expect(draft).toContain('下周三前')
+    expect(draft).toContain('转给你了')
+  })
+
+  it('说得出原来是谁的 —— 接手的人才知道去问谁', () => {
+    expect(handoffDraft({ what: '对账', toName: '张锐', fromName: '李婷' })).toContain('李婷')
   })
 
   it('没记下期限就不编一个', () => {
-    const draft = handoffDraft({ what: '核对一版竞品定价' }, '张锐')
-    expect(draft).not.toContain('原定')
+    expect(handoffDraft({ what: '核对一版竞品定价', toName: '张锐' })).not.toContain('原定')
   })
 
   it('名字不知道时不留一个空称呼', () => {
-    expect(handoffDraft({ what: '核对定价' }, '')).not.toContain('，「')
+    expect(handoffDraft({ what: '核对定价' })).not.toContain('，「')
+  })
+
+  /*
+    **换场所不换人也是移交**（/handoff 本义：听众变更）。这一条曾被 review 判成「排除
+    现执行者」而堵死，那是错的——但它的话得说对：这件事没有换手。
+  */
+  it('不换人时说的是「以后在这边跟」，不是「转给你了」', () => {
+    const draft = handoffDraft({ what: '对账', toName: '张锐', samePerson: true })
+    expect(draft).not.toContain('转给你了')
+    expect(draft).toContain('在这边跟')
   })
 })

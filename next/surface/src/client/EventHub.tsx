@@ -21,7 +21,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { BoardEventWire, SurfaceInject } from './rpc.ts'
-import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
+import { RoomPicker, handoffPortal, landPortal, type Portal } from './RoomPicker.tsx'
 import { RepairVerbs, type Repair, type RepairTarget } from './RepairVerbs.tsx'
 import { eventPrepSeed } from './commission.ts'
 import { safeHref } from './preview.ts'
@@ -47,7 +47,8 @@ function clockOf(event: BoardEventWire): string {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  open: '在跟', closed: '已完成', voided: '已作废', merged: '已合并',
+  // 移交不是死法：事还在，只是换了一条边（决策 #59）。和作废挤成同一句就再也分不出来。
+  open: '在跟', closed: '已完成', voided: '已作废', merged: '已合并', transferred: '已移交',
 }
 
 /**
@@ -96,6 +97,19 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
   /** 三值：还没读到 / 读到了 / 读到了但没有这一场。合并即撒谎。 */
   const [read, setRead] = useState<'pending' | 'found' | 'gone'>('pending')
   const [portal, setPortal] = useState<Portal | undefined>(undefined)
+
+  /**
+   * 移交 —— 先问图要当前值，再开那张预选好的选择条（决策 #59）。
+   *
+   * 读不回来就说读不回来：一颗按下去没有下文的键，比没有这颗键更坏。
+   */
+  const openHandoff = useCallback(async (row: RepairTarget): Promise<void> => {
+    const opened = await handoffPortal(inject, row)
+    if ('error' in opened) { setNote(opened.error); return }
+    setRepair(undefined)
+    setPortal(opened)
+  }, [inject])
+
   /*
     **「既可见又可动」对 hub 行同样自我适用**（决策 #57：板与 hub 同构）。
 
@@ -104,7 +118,6 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
   */
   const [repair, setRepair] = useState<Repair | undefined>(undefined)
   const [field, setField] = useState('')
-  const [field2, setField2] = useState('')
   const [busy, setBusy] = useState('')
   const [note, setNote] = useState('')
   /** 已经亮出后果、正等第二下的那颗作废。门的两半同生同灭（8 秒后松手）。 */
@@ -233,7 +246,6 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
                     ? undefined
                     : { kind: 'postpone', row: targetOf(prep) }))
                   setField(prep.due ?? '')
-                  setField2('')
                 }}
               >
                 修理
@@ -266,8 +278,7 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
                   busy={busy !== ''}
                   field={field}
                   setField={setField}
-                  field2={field2}
-                  setField2={setField2}
+                  handoff={(target) => { void openHandoff(target) }}
                   close={() => { setRepair(undefined) }}
                   run={(id, work, done) => {
                     setBusy(id)
