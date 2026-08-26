@@ -243,6 +243,19 @@ describe('近处候选', () => {
     expect(await candidates()).toEqual([])
   })
 
+  /*
+    **撤回过的委派不是候选。** 作废掉的那条是「这次不算数了」，摆进候选等于拿一次被收回
+    的决定冒充一条事实——实测就撞见了：今早修掉的那批占位行全是作废状态，于是候选里出现
+    了一个叫「我」的人。
+  */
+  it('作废掉的那次委派不再算数', async () => {
+    await person('c8', 'u-gone', '走掉的人')
+    await graph.append({
+      type: 'commitment/voided', data: { commitmentId: 'c8', cause: '不做了' }, actor: ME,
+    })
+    expect(await candidates()).toEqual([])
+  })
+
   it('一个候选都没有就是空的 —— 第一次用这个产品的人本来就没有近处', async () => {
     expect(await candidates()).toEqual([])
   })

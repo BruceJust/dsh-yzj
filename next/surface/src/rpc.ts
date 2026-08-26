@@ -3003,6 +3003,17 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               const openId = asString(executor?.openId)
               const name = asString(executor?.name)
               if (openId === undefined || openId === me) continue
+              /*
+                **撤回过的委派不是候选。**
+
+                作废/合并掉的那些是「这次不算数了」，把它们摆进候选，等于拿一次被收回的
+                决定冒充一条事实。已完成的留着：那是一次真的、走完了的委派。
+
+                实测抓到的：今早修掉的那批占位行（执行者是个凭空的 id、名字叫「我」）
+                全是作废状态，于是候选里出现了一个叫「我」的人。
+              */
+              const status = asString(state?.status) ?? 'open'
+              if (status === 'voided' || status === 'merged') continue
               const here = goalRef !== undefined && asString(state?.parentGoalRef) === goalRef
               // 我委派过的才算「最近委派过」——别人委派的活不是我的事实。
               const mine = asString(state?.delegatedBy) === me
