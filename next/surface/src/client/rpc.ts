@@ -426,6 +426,9 @@ export interface WorkspaceWire {
   name: string
   /** 个人知识库——只有你看得见。选它意味着这个目标的真身别人打不开。 */
   personal?: boolean
+  /** 同名的库是真的存在（实测一个账号里两对）。这两个数是唯一现成的区分依据。 */
+  members?: number
+  docs?: number
 }
 
 export interface SurfaceInject {

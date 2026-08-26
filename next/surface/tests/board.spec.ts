@@ -19,7 +19,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { boardShape, jumpPlan, nudgeDraft, sinceText } from '../src/client/Board.tsx'
+import { boardShape, jumpPlan, matchWorkspaces, nudgeDraft, sinceText } from '../src/client/Board.tsx'
 import { cascadeLine, voidGate } from '../src/client/RepairVerbs.tsx'
 import {
   assessmentCard, assessmentFamily, createCommitmentCard, commitmentFamily, eventFamily,
@@ -1180,6 +1180,47 @@ describe('无信号：系统自己盖的记号不算动静', () => {
       actor: { kind: 'agent' },
     })
     expect(signalOf('c-ghost')).toBe('evidence')
+  })
+})
+
+/**
+ * 知识库这一格：**过滤，不是搜索**。
+ *
+ * 55 个库装不进一个下拉框；而实测这个账号里还有两对同名的库——只按名字选，等于让人在
+ * 两个看不出区别的选项里赌一次，赌错的后果是目标真身落在了另一批人能打开的地方。
+ *
+ * 和选人那一格刻意不共用：那边是远程搜索（「没搜到」与「读不了」必须分开说），这边是
+ * 本地过滤（名单已经在手上，「这里面没有」是一句关于已知全集的真话）。
+ */
+describe('知识库过滤', () => {
+  const all = [
+    { name: '我的知识', personal: true },
+    { name: '经营数据' },
+    { name: '项目穿透表-2026' },
+    { name: 'Workshop-SXL' },
+  ]
+
+  it('不打字就是全给 —— 过滤不该先藏起来', () => {
+    expect(matchWorkspaces(all, '')).toHaveLength(4)
+    expect(matchWorkspaces(all, '   ')).toHaveLength(4)
+  })
+
+  it('按名字过滤，大小写不计较', () => {
+    expect(matchWorkspaces(all, '经营').map(one => one.name)).toEqual(['经营数据'])
+    expect(matchWorkspaces(all, 'workshop').map(one => one.name)).toEqual(['Workshop-SXL'])
+  })
+
+  /*
+    「个人」这两个字也能拿来过滤：**它是这一步最要紧的那一格**——真身落进个人库，
+    别人就打不开这个目标。
+  */
+  it('「个人」「企业」也是可过滤的字', () => {
+    expect(matchWorkspaces(all, '个人').map(one => one.name)).toEqual(['我的知识'])
+    expect(matchWorkspaces(all, '企业')).toHaveLength(3)
+  })
+
+  it('一个都不匹配就是一个都不匹配 —— 这是关于已知全集的真话，不是一次失败', () => {
+    expect(matchWorkspaces(all, '不存在的库')).toEqual([])
   })
 })
 

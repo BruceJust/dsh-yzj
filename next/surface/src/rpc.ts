@@ -2965,11 +2965,23 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                   const workspace = asRecord(row as never)
                   const id = asString(workspace?.id)
                   if (id === undefined) return []
+                  const members = asNumber(workspace?.memberCount)
+                  const docs = asNumber(workspace?.docCount)
                   return [{
                     id,
                     name: asString(workspace?.name) ?? id,
                     // visibility 2 = 个人知识库。人选落点时，这一格比名字更要紧。
                     personal: workspace?.visibility === 2,
+                    /*
+                      **同名的知识库是真的存在。**
+
+                      实测这个账号的 55 个库里就有两对同名（「项目穿透表-2026」×2、
+                      「经营数据」×2）。只按名字选，等于让人在两个看不出区别的选项里
+                      赌一次——而赌错的后果是目标真身落在了另一批人能打开的地方。
+                      成员数/文档数不是装饰，是这一步唯一现成的区分依据。
+                    */
+                    ...(members === undefined ? {} : { members }),
+                    ...(docs === undefined ? {} : { docs }),
                   }]
                 }),
               },

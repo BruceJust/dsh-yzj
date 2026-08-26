@@ -1502,6 +1502,33 @@ export function YzjBoard(props: BoardProps): ReactNode {
 }
 
 /**
+ * 在手上这份名单里找知识库 —— **过滤，不是搜索**。
+ *
+ * 和选人那一格看着像，本质不同，所以刻意不复用 `PersonPicker`：
+ *
+ * - 选人是**远程搜索**：通讯录在服务端，敲一次问一次，于是「没搜到」和「读不了」是
+ *   两件必须分开说的事（三值）；
+ * - 这里是**本地过滤**：55 个库已经在手上了。「这份名单里没有叫这个的」是一句**关于
+ *   已知全集的真话**，不需要三值，也不该假装自己在查什么。
+ *
+ * 一个下拉框装 55 个选项本来就不能用；而实测这个账号里还有两对**同名**的库——只按
+ * 名字选，等于让人在两个看不出区别的选项里赌一次，赌错的后果是目标真身落在了另一批人
+ * 能打开的地方。所以名字之外把「个人/企业 · 成员数 · 文档数」一并摆出来，并且允许按
+ * 这些字一起过滤。
+ */
+export function matchWorkspaces(
+  all: readonly { readonly name: string; readonly personal?: boolean }[],
+  keyword: string,
+): readonly { readonly name: string; readonly personal?: boolean }[] {
+  const word = keyword.trim().toLowerCase()
+  if (word === '') return all
+  return all.filter((space) => {
+    const hay = `${space.name}${space.personal === true ? ' 个人' : ' 企业'}`.toLowerCase()
+    return hay.includes(word)
+  })
+}
+
+/**
  * 在云之家建一条目标真身 —— **人选落点，系统建文档**。
  *
  * 两件事分得很清楚，因为它们的性质不同：
@@ -1525,6 +1552,7 @@ function BodyMaker(props: {
   const [open, setOpen] = useState(false)
   const [spaces, setSpaces] = useState<readonly WorkspaceWire[]>([])
   const [picked, setPicked] = useState('')
+  const [filter, setFilter] = useState('')
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
 
@@ -1552,20 +1580,54 @@ function BodyMaker(props: {
   }
 
   const chosen = spaces.find(space => space.id === picked)
+  const hits = matchWorkspaces(spaces, filter) as readonly WorkspaceWire[]
+  const label = (space: WorkspaceWire): string => [
+    space.personal === true ? '个人' : '企业',
+    space.members === undefined ? '' : `${String(space.members)} 人`,
+    space.docs === undefined ? '' : `${String(space.docs)} 篇`,
+  ].filter(part => part !== '').join(' · ')
   return (
     <div className={css.bodyBox}>
-      <select
-        className={css.input}
-        value={picked}
-        onChange={(event) => { setPicked(event.target.value) }}
-      >
-        <option value="">建在哪个知识库…</option>
-        {spaces.map(space => (
-          <option key={space.id} value={space.id}>
-            {space.name}{space.personal === true ? '（个人）' : ''}
-          </option>
-        ))}
-      </select>
+      {chosen === undefined
+        ? (
+          <>
+            <input
+              className={css.input}
+              value={filter}
+              placeholder={`建在哪个知识库…（共 ${String(spaces.length)} 个，打字过滤）`}
+              onChange={(event) => { setFilter(event.target.value) }}
+            />
+            {spaces.length > 0 && hits.length === 0 && (
+              // 手上这份名单里没有——这是一句关于已知全集的真话，不是一次失败。
+              <span className={css.fieldHint}>这 {spaces.length} 个里没有名字带「{filter.trim()}」的。</span>
+            )}
+            <div className={css.spaceHits}>
+              {hits.map(space => (
+                <button
+                  type="button"
+                  key={space.id}
+                  className={css.spaceHit}
+                  onClick={() => { setPicked(space.id); setFilter('') }}
+                >
+                  <b>{space.name}</b>
+                  <span className={css.spaceMeta}>{label(space)}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )
+        : (
+          <button
+            type="button"
+            className={css.spacePicked}
+            title="换一个知识库"
+            onClick={() => { setPicked('') }}
+          >
+            {chosen.name}
+            <span className={css.spaceMeta}>{label(chosen)}</span>
+            <span className={css.spaceDrop}>×</span>
+          </button>
+        )}
       {chosen?.personal === true && (
         <span className={css.fieldHint}>
           <b>个人知识库只有你看得见</b>——目标的真身住在这里，别人打不开它，
