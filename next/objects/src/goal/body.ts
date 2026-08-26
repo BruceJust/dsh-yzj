@@ -76,8 +76,15 @@ export async function createGoalBody(
     与 overwrite 等价，而**默认宁 append 勿 overwrite** 是这一族工具的既定纪律（overwrite
     没有版本参数，并发下会盖掉别人刚写的东西）。
   */
+  /*
+    **块类型是实测出来的，不是照着直觉写的。**
+
+    第一版写的是 `heading2`——平台直接 500（`code=10000506，下游HTTP响应错误`），而这次
+    失败是在真跑里露出来的：目标真身建好了、正文空着。标题块的真实形状是
+    `{ type: 'heading', attrs: { level } }`；`heading2` 与 `h2` 都不认。
+  */
   const element = JSON.stringify([
-    { type: 'heading2', content: [{ type: 'text', content: '怎么算完成' }] },
+    { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', content: '怎么算完成' }] },
     ...criteria.split('\n').map(line => ({
       type: 'paragraph',
       content: [{ type: 'text', content: line.trim() }],

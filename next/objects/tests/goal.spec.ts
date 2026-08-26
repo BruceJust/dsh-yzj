@@ -354,6 +354,14 @@ describe('立目标提案：人签发', () => {
     expect(goal?.notified).toBeUndefined()
   })
 
+  it('有真身的提案，「确认」就是「确认」——不再要人去找一个链接', async () => {
+    const result = await tools.get('goal_propose')?.execute({
+      what: '把月结压到三天', successCriteria: 'T+3 出报表', workspace: 'kb-2',
+    }, EXEC) as { proposalId?: string }
+    const rendered = cards.renderText({ kind: 'proposal', id: result.proposalId as string })
+    expect(rendered?.replyHints).toEqual(['确认', '驳回', '收起'])
+  })
+
   it('refuses a second proposal for a URI that already has a goal', async () => {
     await declareGoal()
     const result = await tools.get('goal_propose')?.execute({
