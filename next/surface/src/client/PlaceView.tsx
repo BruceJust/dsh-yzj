@@ -388,14 +388,34 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
    * 带着目标语境」和「委派可以落在主楼」两件各自正确的事合起来会撒谎——板上那条承诺
    * 挂着目标，它在跑的那个话题却什么都不继承，后面在那儿登记的第二条活就挂不上了。
    */
-  const armBorn = async (sessionId: string | undefined): Promise<void> => {
-    if (sessionId === undefined || pendingGoal === undefined) return
+  /**
+   * @returns 有话要说时的那句话；`undefined` 表示按常规回执报就行。
+   *
+   * **不自己 setToast**：调用方在这之后还要报一次「已发出」，两个人抢同一行字，后写
+   * 的那个赢——而后写的恰好是最没信息量的那句。谁说话由一处决定。
+   */
+  const armBorn = async (sessionId: string | undefined): Promise<string | undefined> => {
+    if (pendingGoal === undefined) return undefined
+    /*
+      **没长出话题就没有东西可挂** —— 说一次，然后把 chip 收起来。
+
+      主楼那一句如果没点着 agent（没带受话），它不会生出话题，于是「话题继承这个目标」
+      这件事此刻没有落点。留着那枚 chip 会一直显示成「带着目标」，而它已经不带任何人
+      去任何地方了——下一句无关的话还会继续带着它。承诺那一半没有丢：登记先验里的
+      goalRef 已经跟着这条承诺进了图。
+    */
+    if (sessionId === undefined) {
+      setPendingGoal(undefined)
+      return pendingRegister === undefined
+        ? '已发出。这一句没有点着 agent，没有新话题可挂——目标语境这次没有落点。'
+        : '已发出。板上那条承诺挂在这个目标下面；这一句没点着 agent，所以没有新话题可挂。'
+    }
     const armed = await inject.armTopicGoal(sessionId, pendingGoal.goalRef, pendingGoal.goalName)
     if (armed.error !== undefined) {
-      setToast(`话已经发出去了，但新长出来的话题没能挂到目标上：${armed.error}`)
-      return
+      return `话已经发出去了，但新长出来的话题没能挂到目标上：${armed.error}`
     }
     setPendingGoal(undefined)
+    return undefined
   }
 
   const settle = (result: {
@@ -407,14 +427,15 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
       setNotOnDuty(true)
     } else if (result.error !== undefined) setToast(result.error)
     else {
-      void armBorn(result.sessionId)
       setDraft('')
       setReplyTo(undefined)
       // 说出口了，这次先验就用掉了——下一句话是新的一句话。
       setPendingRegister(undefined)
-      setToast(result.ignited === true
-        ? '已发出，并且点着了：这条链正在收纳为一个话题。'
-        : '已发到群里。')
+      void armBorn(result.sessionId).then((note) => {
+        setToast(note ?? (result.ignited === true
+          ? '已发出，并且点着了：这条链正在收纳为一个话题。'
+          : '已发到群里。'))
+      })
     }
     setBusy(false)
     void refresh()

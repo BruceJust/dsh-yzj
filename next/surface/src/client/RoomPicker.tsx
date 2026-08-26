@@ -19,7 +19,7 @@ import css from './board.module.css'
  * 交代的**。派给 agent 的活会在群里被它接下、干完、回帖；派给人的活是一句登记话语，
  * 它确立的是一个听众集合。所以下一步问的问题也不同。
  */
-type Executor =
+export type Executor =
   | { readonly kind: 'agent' }
   | { readonly kind: 'person'; readonly person: PersonWire }
 
@@ -47,6 +47,79 @@ export interface Portal {
    * 类型来问：`'room'` 是「谁早就定了」（催、移交），它必须被说出口，不能靠不写。
    */
   readonly pick: 'executor' | 'room'
+}
+
+/**
+ * 第②维摆出来的那几节 —— **一份纯函数，因为这一格已经错过一次**。
+ *
+ * 分节是三段各自正确的过滤合起来用，而那种组合最会安静地撒谎：写完的第一版里，「按人
+ * 分节」与「只留群」两段一叠加，**所有私聊一个不剩地消失**——而催一条承诺最常见的落点
+ * 恰恰是私聊。它不报错，只是那一类屋子从此选不着。
+ *
+ * 抽出来的理由就是这个：住在组件体内的这一段没有办法被钉住。
+ */
+export function roomSections(
+  rooms: readonly DelegateRoomWire[],
+  needle: string,
+  executor: Executor | undefined,
+): {
+  readonly theirDm: readonly DelegateRoomWire[]
+  readonly withHim: readonly DelegateRoomWire[]
+  readonly others: readonly DelegateRoomWire[]
+  readonly onDuty: readonly DelegateRoomWire[]
+  readonly offDuty: readonly DelegateRoomWire[]
+  /** 真正渲染的顺序，分节标题按它的首项落位。 */
+  readonly places: readonly DelegateRoomWire[]
+} {
+  const matched = rooms.filter(room => (
+    needle === ''
+    || room.name.includes(needle)
+    || room.topics.some(topic => topic.label.includes(needle))
+  ))
+  /*
+    场所的选项集由执行者决定 (委派五步②)。
+
+    - **派给 agent**：只有群。它不在你和某个同事的私聊里干活——那间屋子里没有它，
+      一句话发过去谁都不会应。
+    - **派给人**：两种都合法，而它们是**两句不同的话**——当着全组说是施压与透明，
+      私下说是留余地。所以私聊不是被过滤掉的次等选项，它和群并列。
+  */
+  const groups = matched.filter(room => room.kind === 'group')
+  const who = executor?.kind === 'person' ? executor.person : undefined
+  const theirDm = who === undefined ? [] : matched.filter(room => room.theirDm)
+  /*
+    **场所选项集 = 共同场所 + DM + 新建**（v4.24），而「共同场所」这一问平台答不了：
+    群成员列表没有 API（三墙之一）。
+
+    答得了的是另一问——**他在这个群里有过登记吗**，那是图上的事实。所以群分成两节：
+    有过登记的（事实）与其余的（**不确定他在不在**）。不是把其余的藏起来：他很可能就在
+    一个还没登记过任何东西的群里，藏了就是拿「我们不知道」冒充「他不在」。
+
+    事实缩小选项集合法，装作知道不合法——这两句话的分界就画在这一格上。
+  */
+  const withHim = who === undefined ? [] : groups.filter(room => room.known)
+  const others = who === undefined ? [] : groups.filter(room => !room.known)
+  /*
+    派给 agent 时，**接单与否**是同一位置上的那条事实。
+
+    不接单的群里 @ 不会被应答：一条发过去没人听见的委派就是幽灵承诺换了个形状。所以
+    它们排在后面并且明标，而不是藏起来（那个群仍然是个可以说话的地方，只是这句话在
+    那儿不会有回音）。第三种是「读不到接单与否」——`onDuty` 缺席时算在岗那一档，不写
+    这一句就会有一行把「没查到」显示成「没接单」。
+  */
+  const onDuty = executor?.kind === 'agent' ? groups.filter(room => room.onDuty !== false) : []
+  const offDuty = executor?.kind === 'agent' ? groups.filter(room => room.onDuty === false) : []
+  /*
+    **没问「谁来做」的传送门，屋子要全摆出来**（催、移交）。
+
+    按人分的那三节建立在「执行者是某个具体的人」之上；没有那个人时照搬那份切法，剩下
+    的就只有群。这一支不是省事，是这一格唯一诚实的答案：不知道要说给谁听的时候，没有
+    任何事实可以拿来缩小选项集。
+  */
+  const places = executor?.kind === 'agent'
+    ? [...onDuty, ...offDuty]
+    : who === undefined ? matched : [...theirDm, ...withHim, ...others]
+  return { theirDm, withHim, others, onDuty, offDuty, places }
 }
 
 /**
@@ -195,47 +268,7 @@ export function RoomPicker(props: {
   }, [inject, who])
 
   const needle = filter.trim()
-  const matched = (rooms ?? []).filter(room => (
-    needle === ''
-    || room.name.includes(needle)
-    || room.topics.some(topic => topic.label.includes(needle))
-  ))
-
-  /*
-    场所的选项集由执行者决定 (委派五步②)。
-
-    - **派给 agent**：只有群。它不在你和某个同事的私聊里干活——那间屋子里没有它，
-      一句话发过去谁都不会应。
-    - **派给人**：两种都合法，而它们是**两句不同的话**——当着全组说是施压与透明，
-      私下说是留余地。所以私聊不是被过滤掉的次等选项，它和群并列。
-  */
-  const groups = matched.filter(room => room.kind === 'group')
-  const theirDm = who === undefined ? [] : matched.filter(room => room.theirDm)
-  /*
-    **场所选项集 = 共同场所 + DM + 新建**（v4.24），而「共同场所」这一问平台答不了：
-    群成员列表没有 API（三墙之一）。
-
-    答得了的是另一问——**他在这个群里有过登记吗**，那是图上的事实。所以群分成两节：
-    有过登记的（事实）与其余的（**不确定他在不在**）。不是把其余的藏起来：他很可能就在
-    一个还没登记过任何东西的群里，藏了就是拿「我们不知道」冒充「他不在」。
-
-    事实缩小选项集合法，装作知道不合法——这两句话的分界就画在这一格上。
-  */
-  const withHim = who === undefined ? [] : groups.filter(room => room.known)
-  const others = who === undefined ? groups : groups.filter(room => !room.known)
-  /*
-    派给 agent 时，**接单与否**是同一位置上的那条事实。
-
-    不接单的群里 @ 不会被应答：一条发过去没人听见的委派就是幽灵承诺换了个形状。所以
-    它们排在后面并且明标，而不是藏起来（那个群仍然是个可以说话的地方，只是这句话在
-    那儿不会有回音）。第三种是「读不到接单与否」——不写第三句话，就会有一行把「没查到」
-    显示成「没接单」。
-  */
-  const onDuty = executor?.kind === 'agent' ? groups.filter(room => room.onDuty !== false) : []
-  const offDuty = executor?.kind === 'agent' ? groups.filter(room => room.onDuty === false) : []
-  const places: readonly DelegateRoomWire[] = executor?.kind === 'agent'
-    ? [...onDuty, ...offDuty]
-    : who === undefined ? groups : [...theirDm, ...withHim, ...others]
+  const { theirDm, withHim, others, offDuty, places } = roomSections(rooms ?? [], needle, executor)
 
   /** 选完之后那句话的骨架：受话 + 句式，内容一个字都不带。 */
   const choice = (): PortalChoice | undefined => {
