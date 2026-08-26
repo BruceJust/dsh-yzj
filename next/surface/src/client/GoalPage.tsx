@@ -708,7 +708,49 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 >
                   催（去说）
                 </button>
+                {/*
+                  **说明文字承诺了三个动词，旁边却只有一个** —— 决策 #57 点名的那种占位，
+                  在这一格上以最纯粹的形式存在过：下面那行 hint 白纸黑字写着「能做的是
+                  催、顺延、或者作废」，而这一行只长了「催」。
+
+                  「不得以说明文字占位」说的正是这件事：一句话把动词许诺出去，人照着去找，
+                  找不到——比什么都不说更坏，因为它先让人相信这里有。
+
+                  主权同一个谓词：无主权不渲染（不灰化，也不禁言）。
+                */}
+                {row.stewardedBy === undefined && (
+                  <>
+                    <button
+                      type="button"
+                      className={css.act}
+                      onClick={() => { setRepair({ kind: 'postpone', row }); setField(row.due?.text ?? '') }}
+                    >
+                      顺延期限
+                    </button>
+                    {/* 作废两段式：这一格和板上、目标级共用 `voidGate` 的同一句话。 */}
+                    <button
+                      type="button"
+                      className={`${css.act} ${armed === row.id ? css.actDanger : ''}`}
+                      disabled={busy === row.id}
+                      onClick={() => {
+                        if (armed !== row.id) {
+                          setArmed(row.id)
+                          setToast('作废是不可逆的人签发终态：等待它的对象级联收口、真身回写一笔。再点一次确认。')
+                          return
+                        }
+                        setArmed('')
+                        run(row.id, inject.voidCommitment(row.id, '在留意层作废'), `已作废：${row.what}`)
+                      }}
+                    >
+                      {voidGate(armed === row.id).label}
+                    </button>
+                  </>
+                )}
               </div>
+            ))}
+            {/* 顺延要一个输入框，它就长在这一行下面——动词就近，不是把人送去别处。 */}
+            {attention.map(row => (
+              <div key={`attend-form-${row.id}`}>{repairForm(row)}</div>
             ))}
             <div className={css.hint}>
               逾期和没信号都是<b>信号，不是可应答对象</b>——没有「答」这个动作，

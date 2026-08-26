@@ -15,18 +15,37 @@
  */
 
 import { type ReactNode } from 'react'
-import type { BoardRowWire, SurfaceInject } from './rpc.ts'
+import type { SurfaceInject } from './rpc.ts'
 import css from './goal.module.css'
 import { PersonPicker } from './PersonPicker.tsx'
 
+/**
+ * 修理动词认得的那一条 —— **只要这几样，不要一整行**。
+ *
+ * 此前它写死成 `BoardRowWire`，于是**只有板和目标页用得上**：事件枢纽的行是另一种形状
+ * （会前那一眼要的东西），要复用就得伪造一整行承诺。而这几个动词真正读的只有 id、
+ * 原话、状态、原话期限、归属——把这件事说清楚，「板与 hub 同构」（决策 #57）就不必靠
+ * 造假来达成。
+ */
+export interface RepairTarget {
+  readonly id: string
+  readonly what: string
+  readonly status: string
+  /** 当初说出口的那句期限（原话，不是解析出来的日期）。 */
+  readonly due?: { readonly text: string }
+  readonly goalRef?: string
+  /** 这一行本身是个目标时，它的真身 URI——作废要据此报级联。 */
+  readonly isGoal?: string
+}
+
 /** 正在对哪一条、做哪一种修理。 */
 export type Repair =
-  | { kind: 'postpone'; row: BoardRowWire }
-  | { kind: 'handoff'; row: BoardRowWire }
-  | { kind: 'merge'; row: BoardRowWire }
-  | { kind: 'void'; row: BoardRowWire }
+  | { kind: 'postpone'; row: RepairTarget }
+  | { kind: 'handoff'; row: RepairTarget }
+  | { kind: 'merge'; row: RepairTarget }
+  | { kind: 'void'; row: RepairTarget }
   /** 收养（无归属行）与摘除（有归属行）**互斥**：同一格的加减法 (决策 #57)。 */
-  | { kind: 'attach'; row: BoardRowWire }
+  | { kind: 'attach'; row: RepairTarget }
 
 /**
  * 作废那颗按钮此刻说什么 —— **两段式** (决策 #57).
@@ -60,7 +79,7 @@ export function cascadeLine(openChildren: number): string {
 export function RepairVerbs(props: {
   repair: Repair
   /** 可以合并进去的同伴。板上是同组/同「无归属」的行，目标页上是这个目标的子承诺。 */
-  siblings: readonly BoardRowWire[]
+  siblings: readonly RepairTarget[]
   inject: SurfaceInject
   busy: boolean
   field: string
@@ -108,7 +127,7 @@ if (repair.kind === 'void') {
         className={`${css.repairGo} ${css.repairDanger}`}
         disabled={busy}
         onClick={() => {
-          run(row.id, inject.voidCommitment(row.id, '操作者在承诺板作废'), `已作废：${row.what}`)
+          run(row.id, inject.voidCommitment(row.id, '在修理条作废'), `已作废：${row.what}`)
         }}
       >
         确认作废

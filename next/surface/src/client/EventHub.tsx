@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { BoardEventWire, SurfaceInject } from './rpc.ts'
 import { RoomPicker, errandFor, type Portal } from './RoomPicker.tsx'
+import { RepairVerbs, type Repair, type RepairTarget } from './RepairVerbs.tsx'
 import { sendErrand } from './store.ts'
 import { eventPrepSeed } from './commission.ts'
 import { safeHref } from './preview.ts'
@@ -74,12 +75,53 @@ export function materialsOf(event: BoardEventWire): { uri: string; title: string
   return out
 }
 
+/**
+ * 一条 hub 行看在修理动词眼里是什么 —— 只有它真正需要的那几样。
+ *
+ * 不伪造一整行承诺：枢纽的行是「会前那一眼」的形状，硬凑成板行意味着编出一堆这里
+ * 根本不知道的字段（信号、方向、最后动静），而编出来的字段迟早会被谁当真。
+ */
+function targetOf(prep: BoardEventWire['prepares'][number]): RepairTarget {
+  return {
+    id: prep.commitmentId,
+    what: prep.what,
+    status: prep.status,
+    ...(prep.due === undefined ? {} : { due: { text: prep.due } }),
+    ...(prep.goalRef === undefined ? {} : { goalRef: prep.goalRef }),
+  }
+}
+
 export function YzjEventHub(props: EventHubProps): ReactNode {
   const { eventId, title, inject, openSession, close } = props
   const [event, setEvent] = useState<BoardEventWire | undefined>(undefined)
   /** 三值：还没读到 / 读到了 / 读到了但没有这一场。合并即撒谎。 */
   const [read, setRead] = useState<'pending' | 'found' | 'gone'>('pending')
   const [portal, setPortal] = useState<Portal | undefined>(undefined)
+  /*
+    **「既可见又可动」对 hub 行同样自我适用**（决策 #57：板与 hub 同构）。
+
+    这一格此前只有「去看 ›」：会前那一眼看出「这件来不及了」，能做的只有跳走——而跳到
+    那个话题里也没有动词，因为动词长在板和目标页上。修理入口就摆在看见它的地方。
+  */
+  const [repair, setRepair] = useState<Repair | undefined>(undefined)
+  const [field, setField] = useState('')
+  const [field2, setField2] = useState('')
+  const [busy, setBusy] = useState('')
+  const [note, setNote] = useState('')
+  /** 已经亮出后果、正等第二下的那颗作废。门的两半同生同灭（8 秒后松手）。 */
+  const [armed, setArmed] = useState('')
+
+  useEffect(() => {
+    if (armed === '') return undefined
+    const timer = setTimeout(() => { setArmed('') }, 8_000)
+    return () => { clearTimeout(timer) }
+  }, [armed])
+
+  useEffect(() => {
+    if (note === '') return undefined
+    const timer = setTimeout(() => { setNote('') }, 5_000)
+    return () => { clearTimeout(timer) }
+  }, [note])
 
   const refresh = useCallback(async (): Promise<void> => {
     const all = await inject.events()
@@ -181,8 +223,68 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
                   去看 ›
                 </button>
               )}
+            {/* 无主权不渲染——和板、目标页共用同一个谓词、同一份判断。 */}
+            {prep.status === 'open' && prep.stewardedBy === undefined && (
+              <button
+                type="button"
+                className={css.hubGo}
+                title="顺延期限 / 移交 / 合并 / 作废 / 收养或摘除——改的都是当初说出口的话"
+                onClick={() => {
+                  setRepair(current => (current?.row.id === prep.commitmentId
+                    ? undefined
+                    : { kind: 'postpone', row: targetOf(prep) }))
+                  setField(prep.due ?? '')
+                  setField2('')
+                }}
+              >
+                修理
+              </button>
+            )}
+            {repair !== undefined && repair.row.id === prep.commitmentId && (
+              <div className={css.hubRepair}>
+                <div className={css.hubTabs}>
+                  {([
+                    ['postpone', '顺延期限'], ['handoff', '移交'], ['merge', '合并'],
+                    ['void', '作废…'], ['attach', prep.goalRef === undefined ? '收养' : '摘除'],
+                  ] as const).map(([kind, label]) => (
+                    <button
+                      type="button"
+                      key={kind}
+                      className={`${css.hubGo} ${repair.kind === kind ? css.hubTabOn : ''}`}
+                      onClick={() => {
+                        setRepair({ kind, row: targetOf(prep) })
+                        setField(kind === 'postpone' ? prep.due ?? '' : '')
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <RepairVerbs
+                  repair={repair}
+                  siblings={(event?.prepares ?? []).map(targetOf)}
+                  inject={inject}
+                  busy={busy !== ''}
+                  field={field}
+                  setField={setField}
+                  field2={field2}
+                  setField2={setField2}
+                  close={() => { setRepair(undefined) }}
+                  run={(id, work, done) => {
+                    setBusy(id)
+                    void work.then((result) => {
+                      setBusy('')
+                      setNote(result.error ?? done)
+                      setRepair(undefined)
+                      void refresh()
+                    })
+                  }}
+                />
+              </div>
+            )}
           </div>
         ))}
+        {note !== '' && <div className={css.hubNote}>{note}</div>}
 
       {/*
         材料就绪度 —— 会上真正要用的是**东西**，不是「已完成」四个字。

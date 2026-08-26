@@ -13,6 +13,7 @@
  */
 
 import { mkdtemp } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -1230,6 +1231,39 @@ describe('知识库过滤', () => {
 
   it('一个都不匹配就是一个都不匹配 —— 这是关于已知全集的真话，不是一次失败', () => {
     expect(matchWorkspaces(all, '不存在的库')).toEqual([])
+  })
+})
+
+/**
+ * 作废这道门的**全集**（决策 #57：任何入口皆两段式）。
+ *
+ * 上一轮我把四个入口逐个补了门，而门这种东西的失效方式从来不是「某一扇写错了」，是
+ * **明天有人开了第五扇**。所以这一条反过来查源码：凡是调用 `voidCommitment` 的地方，
+ * 附近必须有 `armed`（两段式那一半）。
+ *
+ * 这是同一课的第三次：主权端点漏了收养、修理条漏了作废、留意层的说明文字承诺了三个
+ * 动词只长了一个——**一份需要人记得去补的名册，就是下一个漏洞的位置**。
+ */
+describe('作废全入口两段式', () => {
+  it('凡是能作废的地方，都得先亮一次后果', () => {
+    const dir = new URL('../src/client/', import.meta.url)
+    const ungated: string[] = []
+    for (const file of ['Board.tsx', 'GoalPage.tsx', 'EventHub.tsx', 'RepairVerbs.tsx']) {
+      const source = readFileSync(new URL(file, dir), 'utf8')
+      const lines = source.split('\n')
+      lines.forEach((line, index) => {
+        if (!line.includes('inject.voidCommitment(')) return
+        /*
+          门可以长在两个地方：调用点自己（`armed` 两段），或者一扇**专门的作废面板**
+          （`RepairVerbs` 里那一段——打开它本身就是第一段，面板里列着后果）。两者都
+          算，其余都不算。
+        */
+        const near = lines.slice(Math.max(0, index - 22), index + 3).join('\n')
+        if (near.includes('armed') || near.includes("kind === 'void'")) return
+        ungated.push(`${file}:${String(index + 1)}`)
+      })
+    }
+    expect(ungated).toEqual([])
   })
 })
 

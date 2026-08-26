@@ -1044,6 +1044,10 @@ export interface BoardEvent {
     /** 一跳可达：会前发现还差一件，下一步永远是去看那一件到哪儿了。 */
     readonly sessionId?: string
     readonly artifacts: readonly { readonly uri: string; readonly title: string }[]
+    /** 修理动词要的三样（决策 #57：板与 hub 同构）。 */
+    readonly due?: string
+    readonly stewardedBy?: string
+    readonly goalRef?: string
   }[]
   /** 材料清单已经写进日程描述、全参会人看得到的那一版。 */
   readonly postedMaterials?: string

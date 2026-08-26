@@ -180,6 +180,10 @@ export interface BoardEventWire {
     /** 一跳可达：会前发现还差一件，下一步永远是去看那一件到哪儿了。 */
     sessionId?: string
     artifacts: { uri: string; title: string }[]
+    /** 修理动词要的三样（决策 #57：板与 hub 同构）。 */
+    due?: string
+    stewardedBy?: string
+    goalRef?: string
   }[]
   postedMaterials?: string
   known: boolean

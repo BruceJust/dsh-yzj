@@ -437,14 +437,29 @@ export function YzjBoard(props: BoardProps): ReactNode {
   )
 
 
-  const voidRow = useCallback((row: BoardRowWire): void => {
+  /**
+   * 作废一行 —— **门就在这个函数里**，不在调用点。
+   *
+   * 第一版把两段式写在按钮的 onClick 上，而这个 helper 自己是敞开的：明天多一个调用点，
+   * 门就少一扇，且没有任何东西会提醒。**门要长在动作上**，不是长在某一次调用上。
+   *
+   * @returns 这一下是「亮出后果」还是「真的作废了」——调用点据此决定说什么。
+   */
+  const voidRow = useCallback((row: BoardRowWire, cascadeOpen = 0): 'armed' | 'done' => {
+    if (armed !== row.id) {
+      setArmed(row.id)
+      setToast(`作废是不可逆的人签发终态。${cascadeLine(cascadeOpen)}再点一次确认。`)
+      return 'armed'
+    }
+    setArmed('')
     setBusy(row.id)
     void inject.voidCommitment(row.id, '操作者在承诺板作废').then((result) => {
       setToast(result.error ?? `已作废：${row.what}`)
       setBusy('')
       void refresh()
     })
-  }, [inject, refresh])
+    return 'done'
+  }, [armed, inject, refresh])
 
   const rowNode = (row: BoardRowWire, pickable = false, inGoal = false): ReactNode => {
     /*
@@ -1015,16 +1030,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
               第二段才动手。目标级作废的波及面比一行大得多，而它此前是一下点掉的。
             */
             title="作废这个目标。它下面的工作不会自动移走——仍在原处，可以逐条「摘除」"
-            onClick={() => {
-              const id = goal.row?.id ?? ''
-              if (armed !== id) {
-                setArmed(id)
-                setToast(`作废目标是不可逆的人签发终态。${cascadeLine(goal.counts.open)}再点一次确认。`)
-                return
-              }
-              setArmed('')
-              voidRow(goal.row as BoardRowWire)
-            }}
+            onClick={() => { voidRow(goal.row as BoardRowWire, goal.counts.open) }}
           >
             {voidGate(armed === goal.row.id).label}
           </button>

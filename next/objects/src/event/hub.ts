@@ -17,7 +17,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString, type GraphViewer } from '@yzj-next/graph'
-import { isSettled, type CommitmentStatus } from '../commitment/family.ts'
+import { isSettled, ownsCommitment, type CommitmentStatus } from '../commitment/family.ts'
 import { splitAtFence, withLedger } from '../fence.ts'
 
 /** 会前那一眼要的分辨率，只有三档。 */
@@ -37,6 +37,18 @@ export interface EventPrep {
   readonly topicKey?: string
   /** 这件事留下的东西——会上真正要用的是它，不是「已完成」四个字。 */
   readonly artifacts: readonly { readonly uri: string; readonly title: string }[]
+  /*
+    下面三样是**修理动词要用的**（决策 #57：板与 hub 同构）。
+
+    枢纽这一格此前只有「去看 ›」：会前那一眼看出「这件来不及了」，能做的却只有跳走
+    ——而跳到那个话题里也没有动词，因为动词长在板和目标页上。**「既可见又可动」对 hub
+    行同样自我适用**，所以把顺延要用的原话期限、主权要用的委派者、合并要用的归属一并
+    带出来。带的是判断需要的最小三样，不是把整行承诺搬过来。
+  */
+  readonly due?: string
+  /** 不归我管时是谁——与板、目标页共用 `ownsCommitment` 同一个谓词。 */
+  readonly stewardedBy?: string
+  readonly goalRef?: string
 }
 
 export interface EventHub {
@@ -130,12 +142,27 @@ export function eventHub(ctx: Context, viewer: GraphViewer, eventId: string): Ev
     if (object === undefined) continue
     const state = asRecord(object.state)
     const topicKey = asString(state?.topicKey)
+    const due = asString(state?.due)
+    const goalRef = asString(state?.parentGoalRef)
+    const delegatedBy = asString(state?.delegatedBy)
+    const me = asString((ctx.yzjCards?.desktopActor() as { openId?: string } | undefined)?.openId)
+    /*
+      主权与板上同一个谓词、同一份判断。查看者不明时不下断言（`ownsCommitment` 对
+      undefined 的 openId 返回 false，所以这里显式跳过——**不知道我是谁 ≠ 不是我的**）。
+    */
+    const steward = me === undefined
+      || ownsCommitment(me, delegatedBy === undefined ? {} : { delegatedBy })
+      ? undefined
+      : delegatedBy
     prepares.push({
       commitmentId: id,
       what: asString(state?.what) ?? '',
       who: whoOf(state),
       status: asString(state?.status) ?? 'open',
       ...(topicKey === undefined ? {} : { topicKey }),
+      ...(due === undefined ? {} : { due }),
+      ...(goalRef === undefined ? {} : { goalRef }),
+      ...(steward === undefined ? {} : { stewardedBy: steward }),
       artifacts: artifactsOf.get(id) ?? [],
     })
   }

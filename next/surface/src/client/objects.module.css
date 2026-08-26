@@ -159,3 +159,12 @@
   margin: 10px 2px 4px; font-size: 10.5px; line-height: 1.6;
   color: var(--yzj-ink-3); letter-spacing: .02em;
 }
+
+/* hub 行的修理条：板与 hub 同构（决策 #57） */
+.hubRepair { flex-basis: 100%; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.hubTabs { display: flex; flex-wrap: wrap; gap: 5px; }
+.hubTabOn { border-color: var(--yzj-pub); color: var(--yzj-pub); }
+.hubNote {
+  margin: 6px 2px 0; padding: 6px 9px; border-radius: 8px;
+  background: #F4F6F9; font-size: 11px; line-height: 1.6; color: var(--yzj-ink-2);
+}
