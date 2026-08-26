@@ -771,6 +771,22 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                     >
                       顺延期限
                     </button>
+                    {/*
+                      **拒领之后最该有的那个动词是移交**（决策 #59「三入口一动词」的第二
+                      入口：executor 求助再协商 → owner 裁决）。
+
+                      这一格此前只有「重新协商（去说）／顺延／作废」——而拒领的意思恰恰是
+                      「这个人做不了」，最直接的裁决就是换个人。少了它，人要么退回作废（把
+                      一件还该做的事杀掉），要么自己绕到板上去找。
+                    */}
+                    <button
+                      type="button"
+                      className={css.act}
+                      title="移交 = 这条边的重新签发：旧的转为已移交留档，新的从你说出去的那句话出生"
+                      onClick={() => { void openHandoff(row) }}
+                    >
+                      移交…
+                    </button>
                     {/* 作废两段式：这一格和板上、目标级共用 `voidGate` 的同一句话。 */}
                     <button
                       type="button"
