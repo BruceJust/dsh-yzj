@@ -133,6 +133,31 @@ describe('commitment_register', () => {
     expect(stateOf(String(result?.commitmentId))?.delegatedBy).toBe('op-1')
   })
 
+  /*
+    **纠正循环**（v4.24）：ack 亮出解析的三要素，纠正 = 对 ack 说话。
+
+    此前这句话只报事项与期限——**执行者那一格没印出来**，而它恰恰是最容易解析错、错了
+    代价最大的一格（登记到另一个人名下）。「不对请说」这句承诺要成立，前提是人看得见我们
+    到底解析成了什么：一句藏着一半判断的确认，纠正不了它没露出来的那一半。
+  */
+  it('ack 把三要素都摆出来，并请人纠正', async () => {
+    const result = await tools.get('commitment_register')?.execute({
+      tone: 'stated', what: '核对定价', executorOpenId: 'p-9', executorName: '张锐', due: '周五前',
+    }, EXEC)
+    const said = String(result?.content)
+    expect(said).toContain('核对定价')
+    expect(said).toContain('张锐')
+    expect(said).toContain('周五前')
+    expect(said).toContain('不对就直接说')
+  })
+
+  it('没说期限就写「（没说）」—— 不编一个，也不装作没有这一格', async () => {
+    const result = await tools.get('commitment_register')?.execute({
+      tone: 'stated', what: '核对定价', executorOpenId: 'p-9', executorName: '张锐',
+    }, EXEC)
+    expect(String(result?.content)).toContain('（没说）')
+  })
+
   it('collapses the same utterance registered twice onto one object', async () => {
     const first = await tools.get('commitment_register')?.execute({ tone: 'stated', what: '出周报' }, EXEC)
     const second = await tools.get('commitment_register')?.execute({ tone: 'stated', what: '出周报' }, EXEC)

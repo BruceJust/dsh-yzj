@@ -114,7 +114,7 @@ export function applyCommitmentTools(ctx: Context): () => void {
 
   register(defineTool({
     name: 'commitment_register',
-    description: 'Register a commitment that a PERSON (not you) has taken on. `tone` decides what actually happens, and getting it wrong puts a debt on somebody who never agreed to it: STATED ("让张三负责 B" / "我明天给你" / "张三说他来对") books the commitment; REQUESTED ("张三能不能看一下" / "麻烦张三对一下" / "要不要让张三来") books NOTHING — it opens a wait for his answer, and you register only after he agrees. One call per commitment, quoting what was actually promised. If the utterance names SEVERAL people, do not split it yourself: ask who is the single responsible owner (群体无法被问责), then register that one. Do NOT use it for your own work; your own tasks are recorded automatically. Only attach parentGoalRef when the goal was actually mentioned — leave it out when unsure.',
+    description: 'Register a commitment that a PERSON (not you) has taken on. Register only what was ACTUALLY said: an explicit delegation or promise. "回头看看吧" / "这个我们再想想" / an idea nobody owned is NOT a commitment — booking those turns the conversation into surveillance, and 宁空勿错 (a missing row is cheap, an invented debt is not). `tone` decides what actually happens, and getting it wrong puts a debt on somebody who never agreed to it: STATED ("让张三负责 B" / "我明天给你" / "张三说他来对") books the commitment; REQUESTED ("张三能不能看一下" / "麻烦张三对一下" / "要不要让张三来") books NOTHING — it opens a wait for his answer, and you register only after he agrees. One call per commitment, quoting what was actually promised. If the utterance names SEVERAL people, do not split it yourself: ask who is the single responsible owner (群体无法被问责), then register that one. Do NOT use it for your own work; your own tasks are recorded automatically. Only attach parentGoalRef when the goal was actually mentioned — leave it out when unsure.',
     parameters: {
       what: { type: 'string', required: true, description: 'What was promised, in the promiser\'s own terms.' },
       tone: {
@@ -340,17 +340,28 @@ export function applyCommitmentTools(ctx: Context): () => void {
           : via === 'inherited'
             ? `（父目标从本话题的语境继承：${goalRef}，说错了直接说）`
             : ''
+      /*
+        **纠正循环**：ack 亮出解析的三要素，纠正 = 对 ack 说话 (v4.24 决策 #58).
+
+        此前这句话只报了事项与期限——**执行者那一格没印出来**，而它恰恰是最容易解析错、
+        错了代价最大的一格（登记到了另一个人名下）。「不对请说」这句承诺要成立，前提是
+        人看得见我们到底解析成了什么：一句藏着一半判断的确认，纠正不了它没露出来的那一半。
+      */
+      const executorLine = executorOpenId === undefined
+        ? 'agent（我自己做）'
+        : args.executorName ?? executorOpenId
+      const parsed = `事项：${args.what}｜执行者：${executorLine}｜期限：${args.due ?? '（没说）'}`
       return {
         content: delivered === undefined
-          ? `已登记承诺：${args.what}${args.due === undefined ? '' : `（期限 ${args.due}）`}${inferredNote}。`
+          ? `已登记承诺。${parsed}${inferredNote}\n**这三样有一样不对就直接说，我改。**`
             + `${executorOpenId !== undefined && executorOpenId !== delegator
               // 最小听众不变量：承诺边的听众 ≥ {owner, executor}，而这一条此刻少了一头。
               // 修边的办法是**私聊补递一条指针**，不是把这条活悄悄记在他名下（v4.24）。
-              ? '**本人还不知道**（板上这一行已标出）。要我把这条登记私聊发给他吗？说一声我就发——'
+              ? '\n**本人还不知道**（板上这一行已标出）。要我把这条登记私聊发给他吗？说一声我就发——'
                 + '一条没人知道自己欠着的承诺，和一条不存在的承诺一样不可信。'
               : ''}`
-            + '另外请在你的回复里向大家说明这条登记，让他们能纠正。'
-          : `已登记承诺并在会话里公示：${args.what}${args.due === undefined ? '' : `（期限 ${args.due}）`}${inferredNote}。`,
+            + '\n另外请在你的回复里向大家说明这条登记，让他们能纠正。'
+          : `已登记承诺并在会话里公示。${parsed}${inferredNote}\n**这三样有一样不对就直接说，我改。**`,
         commitmentId,
       }
     },
