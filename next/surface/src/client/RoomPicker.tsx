@@ -197,6 +197,22 @@ export function RoomPicker(props: {
             🤖 交给 agent 做
             <span className={css.execNote}>它在群里接单、回帖、交付；私聊里没有它</span>
           </button>
+          {/*
+            **第②层：近处候选，每个带出处**（v4.24 选项集三层）。
+
+            此前这一格只有两层——agent 恒首位，然后直接掉进全组织通讯录搜索。于是最常见
+            的那次委派（就是刚才那个目标里的那个人）也要重新打一遍名字，而**打字是在重新
+            回忆一件系统已经知道的事**。
+
+            出处是硬要求：一个说不出自己为什么在这里的候选，和「系统觉得你想找谁」没有
+            区别，而后者正是「人选不推导」禁止的东西。候选只缩小选项集——搜索那一层
+            始终在，谁都没被挡住。
+          */}
+          <NearbyExecutors
+            inject={inject}
+            {...(portal.subject === 'goal' ? { goalRef: portal.goalRef } : {})}
+            pick={person => { setExecutor({ kind: 'person', person }) }}
+          />
           <ExecutorSearch inject={inject} pick={person => { setExecutor({ kind: 'person', person }) }} />
           <div className={css.sheetFoot}>
             <span className={css.sheetHint}>
@@ -341,6 +357,47 @@ export function RoomPicker(props: {
   )
 }
 
+
+/**
+ * 近处候选 —— 执行者选择的第②层。
+ *
+ * 三条来源**都是事实**：这个目标里已经有谁在干（已在语境）、你最近委派过谁（时间事实）。
+ * 设计里还有第三条「当前场所成员（在场事实）」，而**平台没有群成员列表 API**（三墙之
+ * 一）——拿不到就不摆，不假装有。
+ *
+ * 一个候选都没有时**整格消失**，不留一句「暂无候选」：第一次用这个产品的人本来就没有
+ * 近处，那不是缺失。
+ */
+function NearbyExecutors(props: {
+  inject: SurfaceInject
+  goalRef?: string
+  pick(person: PersonWire): void
+}): ReactNode {
+  const { inject, goalRef, pick } = props
+  const [rows, setRows] = useState<readonly { openId: string; name: string; why: string }[]>([])
+
+  useEffect(() => {
+    void inject.delegateCandidates(goalRef).then(setRows)
+  }, [inject, goalRef])
+
+  if (rows.length === 0) return null
+  return (
+    <div className={css.rooms}>
+      {rows.map(row => (
+        <button
+          type="button"
+          className={css.room}
+          key={row.openId}
+          onClick={() => { pick({ openId: row.openId, name: row.name }) }}
+        >
+          {row.name}
+          {/* 出处就印在候选上：它凭什么在这里，人一眼看得见，也就一眼能否掉。 */}
+          <span className={css.roomWhy}>{row.why}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
 
 /**
  * 按名字找那个人 —— 两维真选择的第一维。

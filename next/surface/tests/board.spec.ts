@@ -1266,4 +1266,3 @@ describe('作废全入口两段式', () => {
     expect(ungated).toEqual([])
   })
 })
-

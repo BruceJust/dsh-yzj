@@ -193,3 +193,63 @@ describe('真身建在云之家', () => {
   })
 })
 
+/**
+ * 执行者选择的第②层：**近处候选，每个带出处**（v4.24 选项集三层）。
+ *
+ * 此前这一格只有两层——agent 恒首位，然后直接掉进全组织通讯录搜索。于是最常见的那次
+ * 委派（就是刚才那个目标里的那个人）也要重新打一遍名字，而**打字是在重新回忆一件系统
+ * 已经知道的事**。
+ *
+ * 三条来源都是事实，不是推测；出处是硬要求——一个说不出自己为什么在这里的候选，和
+ * 「系统觉得你想找谁」没有区别，而后者正是「人选不推导」禁止的东西。
+ */
+describe('近处候选', () => {
+  const person = async (id: string, openId: string, name: string, extra: Record<string, unknown> = {}): Promise<void> => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id, what: `活 ${id}`, sourceAnchor: `yzj:${id}`,
+        executor: { kind: 'human', openId, name }, delegatedBy: 'op-me', ...extra,
+      },
+      actor: ME,
+    })
+  }
+  const candidates = async (goalRef?: string): Promise<{ name: string; why: string }[]> => {
+    const result = await call('delegate-candidates', goalRef === undefined ? {} : { goalRef })
+    return (result as { value: { candidates: { name: string; why: string }[] } }).value.candidates
+  }
+
+  it('这个目标里已经有他的活 —— 排在最前，出处说得出口', async () => {
+    await person('c1', 'u-li', '李婷', { parentGoalRef: GOAL })
+    await person('c2', 'u-zhang', '张锐')
+    const rows = await candidates(GOAL)
+    expect(rows[0]).toEqual({ openId: 'u-li', name: '李婷', why: '这个目标里已经有他的活' })
+    expect(rows[1]?.why).toBe('你最近委派过他')
+  })
+
+  /*
+    **只算我委派的。** 别人委派给别人的活不是我的事实——把它摆进我的候选里，就是拿
+    「这个人存在」冒充「这个人和你有关」。
+  */
+  it('别人委派的不算我的近处', async () => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c9', what: '别人的活', sourceAnchor: 'yzj:c9',
+        executor: { kind: 'human', openId: 'u-x', name: '某人' }, delegatedBy: 'u-other',
+      },
+      actor: { kind: 'operator', openId: 'u-other' },
+    })
+    expect(await candidates()).toEqual([])
+  })
+
+  it('一个候选都没有就是空的 —— 第一次用这个产品的人本来就没有近处', async () => {
+    expect(await candidates()).toEqual([])
+  })
+
+  it('我自己不进候选 —— 委派给自己不是委派', async () => {
+    await person('c3', 'op-me', '我')
+    expect(await candidates()).toEqual([])
+  })
+})
+

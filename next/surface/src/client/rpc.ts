@@ -562,6 +562,13 @@ export interface SurfaceInject {
    */
   people(keyword: string): Promise<{ people: PersonWire[]; error?: string }>
   /**
+   * 近处候选 —— 执行者选择的第②层，**每个带出处**（v4.24 选项集条款）。
+   *
+   * 候选只缩小选项集，从不代选：搜索那一层始终在。出处是硬要求（预填出处律的延伸）
+   * ——一个说不出自己为什么在这里的候选，和「系统觉得你想找谁」没有区别。
+   */
+  delegateCandidates(goalRef?: string): Promise<{ openId: string; name: string; why: string }[]>
+  /**
    * 我有哪些知识库 —— 真身建在哪儿，由人选。
    *
    * 和通讯录同一条纪律：三值（列到了 / 一个也没有 / 读不了）。落点是社交决策，不推导
@@ -753,6 +760,13 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     },
     async tree() {
       return await call<TreeWire>('tree', {}) ?? { places: [] }
+    },
+    async delegateCandidates(goalRef) {
+      const value = await call<{ candidates: { openId: string; name: string; why: string }[] }>(
+        'delegate-candidates', goalRef === undefined ? {} : { goalRef },
+      )
+      // 读不到就是没有候选可摆——搜索那一层照旧在，人不会被卡住。
+      return value?.candidates ?? []
     },
     async workspaces() {
       const { value, error } = await write<{ workspaces: WorkspaceWire[] }>('workspaces', {})

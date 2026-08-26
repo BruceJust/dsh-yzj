@@ -2977,6 +2977,54 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             两个端点合起来兑现一句话：**哪个知识库由人选（落点是社交决策，不推导），
             文档由系统建**。
           */
+          /*
+            **执行者选择三层的第②层：近处候选，每个带出处**（v4.24 选项集条款）。
+
+            此前这一格只有两层——agent 恒首位，然后直接掉进全组织通讯录搜索。于是最常见
+            的那次委派（就是刚才那个目标里的那个人）也要重新打一遍名字，而**打字是在
+            重新回忆一件系统已经知道的事**。
+
+            三条来源**都是事实**，不是推测：这个目标里已经有谁在干（已在语境）、你最近
+            委派过谁（时间事实）。设计里还有第三条「当前场所成员（在场事实）」——**平台
+            没有群成员列表 API**（三墙之一），所以它这里拿不到，不假装有。
+
+            排序按事实（本目标优先，其次最近），**不按「系统觉得你想找谁」**——那正是
+            「人选不推导」禁止的东西。候选只缩小选项集，从不代选：搜索那一层始终在。
+          */
+          case 'delegate-candidates': {
+            const goalRef = stringField(payload, 'goalRef')
+            const me = asString((scoped.yzjCards.desktopActor() as { openId?: string }).openId)
+            const out = new Map<string, { openId: string; name: string; why: string; at: number }>()
+            for (const object of scoped.yzjGraph.query(
+              { kind: 'operator', openId: '' }, { kind: 'commitment' },
+            )) {
+              const state = asRecord(object.state)
+              const executor = asRecord(state?.executor)
+              const openId = asString(executor?.openId)
+              const name = asString(executor?.name)
+              if (openId === undefined || openId === me) continue
+              const here = goalRef !== undefined && asString(state?.parentGoalRef) === goalRef
+              // 我委派过的才算「最近委派过」——别人委派的活不是我的事实。
+              const mine = asString(state?.delegatedBy) === me
+              if (!here && !mine) continue
+              const why = here ? '这个目标里已经有他的活' : '你最近委派过他'
+              const seen = out.get(openId)
+              // 同一个人两条来源时，语境那一条更贴近此刻的问题。
+              if (seen === undefined || (here && seen.why !== '这个目标里已经有他的活')
+                || (seen.why === why && object.updatedAt > seen.at)) {
+                out.set(openId, { openId, name: name ?? openId, why, at: object.updatedAt })
+              }
+            }
+            const ranked = [...out.values()]
+              .sort((left, right) => {
+                const byContext = Number(right.why === '这个目标里已经有他的活')
+                  - Number(left.why === '这个目标里已经有他的活')
+                return byContext !== 0 ? byContext : right.at - left.at
+              })
+              .slice(0, 6)
+              .map(({ openId, name, why }) => ({ openId, name, why }))
+            return { ok: true, value: { candidates: ranked } }
+          }
           case 'workspaces': {
             const bridge = scoped.get('yzjBridge')
             if (bridge === undefined) return failure('云之家通道未就绪')

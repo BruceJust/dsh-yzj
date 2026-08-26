@@ -358,6 +358,8 @@
   border: 1px solid var(--yzj-line); background: var(--yzj-surface); cursor: pointer;
 }
 .room:hover { border-color: var(--yzj-pub); background: var(--yzj-pub-tint); }
+/* 候选的出处：它凭什么在这里，人一眼看得见（v4.24 选项集第②层） */
+.roomWhy { margin-left: 8px; font-size: 10.5px; color: var(--yzj-ink-3); }
 
 /*
   新建专项群 —— 尾项，虚线，和现成的场所长得**不一样**。
