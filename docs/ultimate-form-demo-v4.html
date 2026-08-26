@@ -997,7 +997,7 @@ const AV = {
 };
 const AGENT_ALIAS = /@agent|@智能体|@云小助/i;
 
-const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null, boardLens: 'all', delegExec: null, delegCtx: null, repairFor: null, voidConfirm: null, gvoidArm: false, delegDir: false };
+const state = { current: 'competitor', voice: 'pri', chips: [], resTab: 'cur', resSub: 'docs', resType: 'all', preview: null, groupFilter: 'all', ask: false, weeklyShown: false, quote: null, navStack: [], expandedTopics: {}, collapsed: {}, goalForm: false, delegGoal: null, decompGoal: null, evalGoal: null, filePreview: null, pvW: null, hubGoal: null, viewAs: 'me', evPrepChoose: null, decompPhase: null, evalPhase: null, boardLens: 'all', delegExec: null, delegCtx: null, repairFor: null, voidConfirm: null, gvoidArm: false, delegDir: false, moveFor: null, moveExec: null, movePlace: null };
 
 /* v4：承诺板数据——图的第三类居民（执行者可为人/agent/流程） */
 /* v4.21 字段语义：due=话语原文（真身）；dueT=解析投影（可空可纠：'today'/'soon'/null——无戳沉底不消失）；
@@ -1773,6 +1773,24 @@ function repairStrip(c) {
                : `<button class="btn" data-radopt="${c.name}" style="font-size:10.5px" title="/link：无归属承诺挂进目标（事后挂接第三时刻）">收养</button>`}
       <button class="btn" data-rback="1" style="font-size:10.5px;margin-left:auto">收起</button></div>`;
 }
+/* v4.24+ 移交选择条（决策 #59）：委派选择条预选当前值——两维任一可变，换场所不换人也是移交（/handoff 本义） */
+function moveStrip(c) {
+  if (state.moveFor !== c.name) return '';
+  const curPlace = c.reg || 'prodgroup';
+  const ex = state.moveExec || c.who;
+  const pl = state.movePlace || curPlace;
+  const exChip = (n, note) => `<button class="btn${ex === n ? ' primary' : ''}" data-mexec="${n}" style="font-size:10.5px">${n}${note ? ` <span style="font-size:9px;color:${ex === n ? '#cfe0ff' : 'var(--ink-3)'}">· ${note}</span>` : ''}</button>`;
+  const plChip = (k, label) => `<button class="btn${pl === k ? ' primary' : ''}" data-mplace="${k}" style="font-size:10.5px">${label}</button>`;
+  return `
+    <div class="cm-row" style="background:#FDFEFF;border-color:var(--pub-line);font-size:11px;gap:6px;flex-wrap:wrap">
+      <span style="font-size:10px;color:var(--ink-3);flex-basis:100%">移交「${c.name}」= 这条边的重新签发（预选 = 现状，改哪维哪维变：换人 = 执行权变更 · 换场所 = 听众变更 · 都不改 = 无事发生）：</span>
+      <span style="font-size:10px;color:var(--ink-3)">执行者：</span>${exChip(c.who, '现任 · 预选')}${c.who !== '王五' ? exChip('王五', '搜索') : ''}${c.who !== '郑慧' ? exChip('郑慧', '搜索') : ''}${c.exec !== 'agent' ? exChip('云小助', 'agent 接手') : ''}
+      <span style="font-size:10px;color:var(--ink-3);margin-left:8px">场所：</span>${plChip(curPlace, (curPlace === 'fingroup' ? '财务群' : curPlace === 'prodgroup' ? '产品讨论群' : curPlace) + ' · 现场所')}${curPlace !== 'prodgroup' ? plChip('prodgroup', '产品讨论群') : ''}${curPlace !== 'fingroup' ? plChip('fingroup', '财务群') : ''}
+      <button class="btn primary" data-mgo="${c.name}" style="font-size:10.5px;margin-left:auto">移交 ›（传送门）</button>
+      <button class="btn" data-mback="1" style="font-size:10.5px">取消</button>
+      <span style="font-size:9.5px;color:var(--ink-3);flex-basis:100%">旧边转 transferred 吸收态（终态回帖落旧场所——旧执行者天然知情）· 新边出生带血缘"移交自${c.who}" · 背景包随包走 · 受领三态重启——三方知情零新机制</span>
+    </div>`;
+}
 /* v4.21 三值信号（有证据 / 无信号+最后时间 / 信号过时）——板与 hub 共享同一推导（数据同一查询） */
 function signalOf(c) {
   if (c.receipt) return `<span style="color:var(--green)">有证据 · ${c.receipt}</span>`;
@@ -1785,7 +1803,7 @@ function signalOf(c) {
 }
 /* v4.21 信号序（组内排序成文）：待决 > 逾期 > 无信号/过时 > 运行 > 进行中 > 休眠 > 终态 */
 function rankOf(c) {
-  if (c.void || c.state === '已验收') return 9;
+  if (c.void || c.transferred || c.state === '已验收') return 9;
   if (c.state === '待验收' || c.receipt) return 0;
   if (c.overdue) return 1;
   if (c.nosignal || c.staleSig) return 2;
@@ -1795,7 +1813,8 @@ function rankOf(c) {
 }
 function commitRow(c) {
   let stateH;
-  if (c.state === '待验收' || c.receipt) stateH = `<span class="badge b-review">待验收</span>`;
+  if (c.transferred) stateH = `<span class="cm-due">已移交 ${c.transferred}</span>`;
+  else if (c.state === '待验收' || c.receipt) stateH = `<span class="badge b-review">待验收</span>`;
   else if (c.exec === 'agent') stateH = c.sess ? (badgeHtml(sessions[c.sess]) || `<span class="badge b-done">已归档</span>`) : `<span class="cm-due">${c.state || '已登记'}</span>`;
   else if (c.overdue) stateH = `<span class="badge b-unread">逾期</span>`;
   else stateH = `<span class="cm-due">${c.state || '已登记'}</span>`;
@@ -1812,8 +1831,8 @@ function commitRow(c) {
     <span class="ex-tag ${c.exec}">${c.exec === 'agent' ? 'agent' : c.exec === 'human' ? '人' : '流程'}</span>
     <span style="flex:1;min-width:0"><span style="font-size:12.8px;font-weight:650">${c.name}</span>${dueChip}${gchip}
     <span style="display:block;font-size:10.5px;color:var(--ink-3)">${c.who}${anchor} · <span class="cm-due${c.overdue ? ' overdue' : ''}">${c.due}</span> · ${signalOf(c)}</span></span>
-    <span style="display:flex;gap:5px;align-items:center;flex:none">${!c.owner && c.overdue && !c.receipt ? `<button class="btn" data-hurge="1" style="font-size:10px;padding:1px 8px">催</button>` : ''}${!c.owner ? `<button class="btn" data-hmenu="${c.name}" style="font-size:10px;padding:1px 8px" title="修理动词族：催/顺延/作废/合并/移交/收养/摘除——主权=该承诺的验收人（v4.22）">⋯</button>` : ''}
-    ${stateH}</span></div>` + repairStrip(c);
+    <span style="display:flex;gap:5px;align-items:center;flex:none">${!c.owner && !c.transferred && c.overdue && !c.receipt ? `<button class="btn" data-hurge="1" style="font-size:10px;padding:1px 8px">催</button>` : ''}${!c.owner && !c.transferred && c.state !== '已验收' ? `<button class="btn" data-hmenu="${c.name}" style="font-size:10px;padding:1px 8px" title="修理动词族：催/顺延/作废/合并/移交/收养/摘除——主权=该承诺的验收人（v4.22）">⋯</button>` : ''}
+    ${stateH}</span></div>` + repairStrip(c) + moveStrip(c);
 }
 /* v4.12 共享动作卡（委派传送门/拆解提案/差距简报）——承诺板与目标枢纽同一套（数据同一查询，割裂不存在） */
 function goalActionCards(gid) {
@@ -1935,7 +1954,9 @@ function openGoalHub(gid) {
   openSession('goalhub');
 }
 function hubCommitRow(c) {
-  const stateH = (c.state === '待验收' || c.receipt)
+  const stateH = c.transferred
+    ? `<span class="cm-due">已移交 ${c.transferred}</span>`
+    : (c.state === '待验收' || c.receipt)
     ? `<span class="badge b-review">待验收</span>`
     : c.exec === 'agent'
     ? (c.sess ? (badgeHtml(sessions[c.sess]) || '<span class="badge b-done">已归档</span>') : `<span class="cm-due">${c.state || '已登记'}</span>`)
@@ -1957,7 +1978,7 @@ function hubCommitRow(c) {
       <span style="display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px">来源：${c.linked || '—'} · ${c.who}${c.owner && c.owner !== viewerName ? ` · <span style="color:#8A6D3B">验收：${c.owner}</span>` : ''} · ${c.due} · ${signal}</span>
       <span style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;align-items:center">${sessLink} ${prod}
         ${iOwn ? `<button class="btn" data-hmenu="${c.name}" style="font-size:10px;padding:1px 8px" title="修理动词主权 = 该承诺的验收人（无主权不渲染——非灰化不禁言）">⋯ 修理</button>` : ''}</span>
-    </span>${stateH}</div>` + (state.viewAs === 'me' || (c.owner && c.owner === ({ zhangrui: '张锐', zhenghui: '郑慧', wangchao: '王超' }[state.viewAs])) ? repairStrip(c) : '');
+    </span>${stateH}</div>` + (state.viewAs === 'me' || (c.owner && c.owner === ({ zhangrui: '张锐', zhenghui: '郑慧', wangchao: '王超' }[state.viewAs])) ? repairStrip(c) + moveStrip(c) : '');
 }
 function renderGoalHub() {
   const gid = state.hubGoal || 'g1';
@@ -2479,6 +2500,30 @@ function handleSend() {
   renderChips();
   updateVoiceHint();
 
+  /* v4.24+ /handoff（决策 #59）：一句话语原子完成——旧边 transferred 吸收态 + 新边出生带血缘，三方知情 = 两帖自然结果 */
+  const hm = text.match(/^\/handoff\s+(.+?)\s*→\s*([^\s——，,]+)/);
+  if (hm) {
+    const c = COMMITS.find(x => x.name === hm[1].trim() && !x.void && !x.transferred);
+    if (!c) { toast('未找到可移交的承诺（已终态/已移交的边不可再移交）'); return; }
+    const newEx = hm[2].trim();
+    const oldWho = c.who, oldReg = c.reg;
+    c.transferred = `→ ${newEx} · 刚刚`;
+    registerCommit({ name: c.name, exec: newEx === '云小助' ? 'agent' : 'human', who: newEx, due: c.due, dueT: c.dueT,
+      state: '已登记', goal: c.goal, linked: `移交自${oldWho} · 血缘留档`, aud: 'all', reg: sessKey });
+    appendItems(sessKey, [
+      { type: 'im', who: 'me', name: 'Bruce（我）', time: nowStr(), mine: true, text: text.replace(/&/g, '&amp;').replace(/</g, '&lt;') },
+      { type: 'agent-pub', time: nowStr(), kind: 'ack',
+        text: `移交完成：<b>${c.name}</b> 新边出生——执行者 <b>${newEx}</b>（移交自${oldWho} · 血缘留档，回执与轨迹史留旧边）· 背景包已附（旧边工件链接 + 验收标准 + 决议摘要；私语不迁移）· 受领三态重启：${newEx} 回应即受领证据。` },
+    ]);
+    /* 三方知情零新机制：旧边终态回帖落旧登记场所——旧执行者本在其听众集合，解除告知即此帖 */
+    if (oldReg && oldReg !== sessKey && sessions[oldReg]) {
+      appendItems(oldReg, [{ type: 'agent-pub', time: nowStr(), kind: 'ack',
+        text: `↪ <b>${c.name}</b>（${oldWho}）已移交 → ${newEx}——旧边转 transferred 吸收态留档；本帖即解除告知（终态回帖落旧场所 = 三方知情的自然结果，零新机制）。` }], 600);
+    }
+    toast('移交 = 边的重新签发：旧边 transferred（终态回帖落旧场所）+ 新边出生带血缘——一句话语原子完成（决策 #59）');
+    renderSidebar(); renderHead();
+    return;
+  }
   const hasAt = AGENT_ALIAS.test(text);
   const hasPerson = /@(李婷|王超|张三|小唐|张锐)/.test(text);
   const safe = text
@@ -3154,7 +3199,7 @@ function openSession(key) {
   state.preview = null;
   state.quote = null; /* 锚不跨会话残留：落点真身随所在框重算 */
   state.chips = []; state.delegCtx = null; renderChips(); /* 语境 chip 同律：不跨会话残留——否则传送门语境会越境粘上别处话语（§1.6） */
-  state.repairFor = null; state.voidConfirm = null; state.gvoidArm = false; /* 修理条与确认门同律：不跨会话残留 */
+  state.repairFor = null; state.voidConfirm = null; state.gvoidArm = false; state.moveFor = null; state.moveExec = null; state.movePlace = null; /* 修理条/确认门/移交条同律：不跨会话残留 */
   state.filePreview = null; renderFilePv(); /* 预览随语境走：切会话即收 */
   renderSidebar(); renderHead(); renderTimeline(); refreshVoiceAvail(); renderRight();
 }
@@ -3576,18 +3621,34 @@ document.addEventListener('click', (e) => {
     toast('作废 = 人签发的终态：级联等待对象、回写真身（生与死的「死」）——不留僵尸行，档案经归档可达');
     return;
   }
-  /* v4.24 移交升传送门（#57"不得占位"自我清账）：话语在会话里说，新执行者是社交决策 */
+  /* v4.24+ 移交（决策 #59）：打开预选当前值的两维选择条——边的重新签发 */
   const rmove = e.target.closest('[data-rmove]');
   if (rmove) {
-    const c = COMMITS.find(x => x.name === rmove.dataset.rmove);
-    const dest = (c && (c.sess || c.reg)) || 'prodgroup';
     state.repairFor = null;
-    openSession(dest);
+    state.moveFor = rmove.dataset.rmove; state.moveExec = null; state.movePlace = null;
+    renderTimeline();
+    return;
+  }
+  const mexec = e.target.closest('[data-mexec]');
+  if (mexec) { state.moveExec = mexec.dataset.mexec; renderTimeline(); return; }
+  const mplace = e.target.closest('[data-mplace]');
+  if (mplace) { state.movePlace = mplace.dataset.mplace; renderTimeline(); return; }
+  const mback = e.target.closest('[data-mback]');
+  if (mback) { state.moveFor = null; state.moveExec = null; state.movePlace = null; renderTimeline(); return; }
+  const mgo = e.target.closest('[data-mgo]');
+  if (mgo) {
+    const c = COMMITS.find(x => x.name === mgo.dataset.mgo);
+    if (!c) return;
+    const newEx = state.moveExec || c.who;
+    const newPl = state.movePlace || c.reg || 'prodgroup';
+    if (newEx === c.who && newPl === (c.reg || 'prodgroup')) { toast('两维都没改——无事发生（移交 = 重新签发，签发内容与现状相同即无签发）'); return; }
+    state.moveFor = null; state.moveExec = null; state.movePlace = null;
+    openSession(newPl);
     setVoice('pub', { silent: true });
     const input = $('input');
-    input.value = `/handoff ${c ? c.name : ''} → 移交给（新执行者你来定）——脱密背景包随包走：工件链接 + 验收标准 + 决议摘要；私语不迁移`;
-    focusSelect(input, '（新执行者你来定）');
-    toast('移交 = /handoff 传送门：话语在会话里说——新执行者是社交决策（人选不推导），背景包 = 人签发的工件化脱密');
+    input.value = `/handoff ${c.name} → ${newEx}——背景包随包走：旧边工件链接 + 验收标准 + 决议摘要；私语不迁移`;
+    focusSelect(input, newEx);
+    toast('移交传送门：话语在会话里说（可编辑，发送才算数）——发送即原子完成：旧边 transferred + 新边出生带血缘');
     return;
   }
   const runlink = e.target.closest('[data-runlink]');
