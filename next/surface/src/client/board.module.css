@@ -599,3 +599,19 @@
   font-size: 11px; line-height: 1.6;
 }
 
+/* 建真身：人选知识库，系统建文档——损耗归系统，判断留给人 */
+.bodyMake {
+  align-self: flex-start; margin-top: 4px;
+  font: inherit; font-size: 11px; padding: 4px 10px; border-radius: 8px; cursor: pointer;
+  border: 1px dashed var(--yzj-line); background: transparent; color: var(--yzj-ink-2);
+}
+.bodyMake:hover { border-color: var(--yzj-pub); color: var(--yzj-pub); }
+.bodyBox {
+  display: flex; flex-direction: column; gap: 5px; margin-top: 6px;
+  padding: 8px; border-radius: 9px; border: 1px solid var(--yzj-line); background: #FBFCFD;
+}
+.bodyActs { display: flex; align-items: center; gap: 8px; }
+.sheetGhost {
+  font: inherit; font-size: 11.5px; padding: 5px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--yzj-line); background: transparent; color: var(--yzj-ink-2);
+}

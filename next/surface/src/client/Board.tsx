@@ -29,6 +29,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type {
   BoardEventWire,
   BoardAssessmentWire, BoardGoalWire, BoardRowWire, BoardViewWire, PersonWire, SurfaceInject,
+  WorkspaceWire,
 } from './rpc.ts'
 import {
   currentBoardLens, pushFrame, sendErrand, setBoardLens, setSpotlight,
@@ -1501,6 +1502,101 @@ export function YzjBoard(props: BoardProps): ReactNode {
 }
 
 /**
+ * 在云之家建一条目标真身 —— **人选落点，系统建文档**。
+ *
+ * 两件事分得很清楚，因为它们的性质不同：
+ *
+ * - **建在哪个知识库是社交决策**（谁打得开这个目标就取决于它），所以必须问，且不设
+ *   「默认建在最近那个」这种便利——那等于替人决定谁看得见；个人知识库那一档还要当场
+ *   说清「只有你看得见」，因为它是最容易顺手点中、后果又最反直觉的一个。
+ * - **建文档是纯损耗**，人做它没有任何判断可言：离开产品、新建、复制链接、回来粘上。
+ *   这一段归系统。
+ *
+ * 建完只回填链接，**不代替你按「立目标」**：签发仍然是人的那一下（铁律人签发）。
+ */
+function BodyMaker(props: {
+  inject: SurfaceInject
+  title: string
+  onMade(url: string): void
+}): ReactNode {
+  const { inject, title, onMade } = props
+  const [open, setOpen] = useState(false)
+  const [spaces, setSpaces] = useState<readonly WorkspaceWire[]>([])
+  const [picked, setPicked] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    void inject.workspaces().then((result) => {
+      setSpaces(result.workspaces)
+      // 读不了 ≠ 一个都没有：故障要说成故障（和通讯录同一条纪律）。
+      setNote(result.error === undefined
+        ? (result.workspaces.length === 0 ? '一个知识库都没有——先在云之家建一个。' : '')
+        : `知识库列不出来（${result.error}）——这不等于你没有知识库。`)
+    })
+  }, [inject, open])
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className={css.bodyMake}
+        onClick={() => { setOpen(true) }}
+      >
+        ＋ 在云之家新建一个真身
+      </button>
+    )
+  }
+
+  const chosen = spaces.find(space => space.id === picked)
+  return (
+    <div className={css.bodyBox}>
+      <select
+        className={css.input}
+        value={picked}
+        onChange={(event) => { setPicked(event.target.value) }}
+      >
+        <option value="">建在哪个知识库…</option>
+        {spaces.map(space => (
+          <option key={space.id} value={space.id}>
+            {space.name}{space.personal === true ? '（个人）' : ''}
+          </option>
+        ))}
+      </select>
+      {chosen?.personal === true && (
+        <span className={css.fieldHint}>
+          <b>个人知识库只有你看得见</b>——目标的真身住在这里，别人打不开它，
+          「组织在哪里看这个目标」这一问就没有答案了。
+        </span>
+      )}
+      {note !== '' && <span className={css.fieldHint}>{note}</span>}
+      <div className={css.bodyActs}>
+        <button
+          type="button"
+          className={css.sheetGo}
+          disabled={picked === '' || title === '' || busy}
+          title={title === '' ? '先写目标名——文档就用它当标题' : '在云之家建一个同名文档，链接自动填回来'}
+          onClick={() => {
+            setBusy(true)
+            setNote('')
+            void inject.createGoalBody({ workspace: picked, title }).then((result) => {
+              setBusy(false)
+              if (result.url === undefined) { setNote(result.error ?? '没建成'); return }
+              onMade(result.url)
+              setOpen(false)
+            })
+          }}
+        >
+          {busy ? '建文档中…' : '建一个'}
+        </button>
+        <button type="button" className={css.sheetGhost} onClick={() => { setOpen(false) }}>取消</button>
+      </div>
+    </div>
+  )
+}
+
+/**
  * 立目标 — the board form of the registration verb.
  *
  * The form IS the confirmation card: the operator types it and presses it, and
@@ -1565,14 +1661,33 @@ function DeclareGoal(props: {
           />
         </label>
         <label className={css.field}>
-          <span className={css.fieldLabel}>真身链接</span>
+          <span className={css.fieldLabel}>真身</span>
+          {/*
+            **真身建在云之家，不是让人去粘一个链接**（v4.8 立目标；技术方案：「真身行经
+            既有 sheet/doc 工具 + 确认流创建」）。
+
+            这里此前只有一个链接输入框，意思是：你先离开这个产品，去云之家建一个文档，
+            复制链接，回来粘上——**把人当成了两个系统之间的集成层**，而这正是这套东西
+            声称要消灭的那种损耗。它站在一句已经被推翻的前提上（「agent 建不了云之家
+            文档」），和「通讯录不能按名字搜」是同一次误判的两个化身。
+
+            粘链接这条路留着：**真身外部原则**——目标很可能本来就存在，那时候「新建一个」
+            才是错的那一个。
+          */}
           <input
             className={css.input}
             value={goalRef}
-            placeholder="云之家目标文档 / 表格的链接"
+            placeholder="粘一个已有的云之家文档链接，或在下面新建一个"
             spellCheck={false}
             onChange={(event) => { setGoalRef(event.target.value) }}
           />
+          {goalRef.trim() === '' && (
+            <BodyMaker
+              inject={inject}
+              title={what.trim()}
+              onMade={(url) => { setGoalRef(url) }}
+            />
+          )}
         </label>
         {/*
           磨点在「可验收」(v4.10).

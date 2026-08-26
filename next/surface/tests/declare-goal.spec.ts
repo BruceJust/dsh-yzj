@@ -30,6 +30,8 @@ let ctx: Context
 let graph: YzjGraph
 let cards: YzjCards
 let call: Handler
+/** 这一趟 CLI 怎么回话。用例各自换掉它——真身这一段全部的风险都在这里。 */
+let bridge: (command: readonly string[]) => { ok: boolean; json?: unknown; stderr?: string }
 
 beforeEach(async () => {
   const root = await mkdtemp(join(tmpdir(), 'yzj-next-declare-'))
@@ -37,6 +39,7 @@ beforeEach(async () => {
   graph = new YzjGraph(ctx, { root })
   graph.defineFamily(commitmentFamily)
   await graph.selectAccount('acct-1')
+  ctx.provide('yzjBridge', { run: async (...args: unknown[]) => bridge(args[0] as string[]) })
   ctx.provide('yzjTopics', {
     tree: () => [],
     topicOf: () => undefined,
@@ -47,6 +50,7 @@ beforeEach(async () => {
   cards.register(createCommitmentCard(ctx))
   // 通道拿到身份时给的两样东西：我是谁，以及我叫什么。
   cards.setDesktopActor(ME, '代少兵')
+  bridge = () => ({ ok: true, json: [] })
   let captured: Handler | undefined
   ctx.provide('connection', {
     rpc: { handle: (_path: string, fn: Handler) => { captured = fn } },
@@ -110,3 +114,59 @@ describe('立目标的 owner', () => {
     expect(graph.rawObject('commitment', goalCommitmentIdFor(GOAL))).toBeUndefined()
   })
 })
+
+/**
+ * 真身：**人选落点，系统建文档** (v4.8 立目标；技术方案「真身行经既有 sheet/doc 工具 +
+ * 确认流创建」)。
+ *
+ * 这张表此前只有一个链接输入框——你先离开这个产品、去云之家建一个文档、复制链接、回来
+ * 粘上。**把人当成两个系统之间的集成层**，正是这套东西声称要消灭的那种损耗；而它站在
+ * 一句早已被推翻的前提上（「agent 建不了云之家文档」）。
+ */
+describe('真身建在云之家', () => {
+  it('列知识库：把「是不是个人的」一并带出来 —— 选它意味着别人打不开这个目标', async () => {
+    bridge = () => ({ ok: true, json: [
+      { id: 'kb-1', name: '我的知识', visibility: 2 },
+      { id: 'kb-2', name: '财务共享库', visibility: 1 },
+    ] })
+    const result = await call('workspaces', {})
+    expect(result).toMatchObject({ ok: true })
+    expect((result as { value: { workspaces: unknown[] } }).value.workspaces).toEqual([
+      { id: 'kb-1', name: '我的知识', personal: true },
+      { id: 'kb-2', name: '财务共享库', personal: false },
+    ])
+  })
+
+  it('建真身：回的是能打开的那条链接', async () => {
+    bridge = (command) => {
+      expect(command).toEqual(['doc', 'create', '--workspace', 'kb-2', '--title', 'Q3 对账'])
+      return { ok: true, json: { id: 'doc-9', title: 'Q3 对账' } }
+    }
+    const result = await call('create-goal-body', { workspace: 'kb-2', title: 'Q3 对账' })
+    expect((result as { value: { url: string } }).value.url)
+      .toBe('https://www.yunzhijia.com/knowledge/lingee/#/store/doc/doc-9')
+  })
+
+  /*
+    **建了一个找不回来的文档，比没建更坏。** 目标会挂在一个空链接上，而板上那一行看起来
+    一切正常——真身之变律里最难查的那一种：引用还在，指向的东西不存在。
+  */
+  it('云之家没回传 id：算失败，不回一个空链接', async () => {
+    bridge = () => ({ ok: true, json: { title: 'Q3 对账' } })
+    const result = await call('create-goal-body', { workspace: 'kb-2', title: 'Q3 对账' })
+    expect(result).toMatchObject({ ok: false })
+    expect((result as { error: { message: string } }).error.message).toContain('id')
+  })
+
+  it('CLI 失败就说失败 —— 不把一次故障说成「没有知识库」', async () => {
+    bridge = () => ({ ok: false, stderr: 'token 过期' })
+    expect(await call('workspaces', {})).toMatchObject({ ok: false })
+    expect(await call('create-goal-body', { workspace: 'kb-2', title: 'x' })).toMatchObject({ ok: false })
+  })
+
+  it('少了知识库或标题就说少了什么', async () => {
+    expect(await call('create-goal-body', { title: 'x' })).toMatchObject({ ok: false })
+    expect(await call('create-goal-body', { workspace: 'kb-1' })).toMatchObject({ ok: false })
+  })
+})
+

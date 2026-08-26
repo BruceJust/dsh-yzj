@@ -420,6 +420,14 @@ export interface ObjectFaceWire {
   scope?: { kind: 'place' | 'local'; placeName?: string }
 }
 
+/** 一个知识库：真身可以建在哪儿。 */
+export interface WorkspaceWire {
+  id: string
+  name: string
+  /** 个人知识库——只有你看得见。选它意味着这个目标的真身别人打不开。 */
+  personal?: boolean
+}
+
 export interface SurfaceInject {
   inbox(): Promise<InboxView | undefined>
   board(): Promise<BoardViewWire>
@@ -542,6 +550,16 @@ export interface SurfaceInject {
    * 恰好会在最伤人的场合出现：CLI 挂了、token 过期时，人得到的是「查无此人」。
    */
   people(keyword: string): Promise<{ people: PersonWire[]; error?: string }>
+  /**
+   * 我有哪些知识库 —— 真身建在哪儿，由人选。
+   *
+   * 和通讯录同一条纪律：三值（列到了 / 一个也没有 / 读不了）。落点是社交决策，不推导
+   * ——「建在哪个知识库」这一问只有人答得了，系统替他挑一个默认，就是替他决定谁看得见
+   * 这个目标。
+   */
+  workspaces(): Promise<{ workspaces: WorkspaceWire[]; error?: string }>
+  /** 在云之家建一条目标真身，回链接。人选知识库、系统建文档。 */
+  createGoalBody(input: { workspace: string; title: string }): Promise<{ url?: string; error?: string }>
   /** 今天还没开完的会 —— 事件枢纽在板上的那一段。 */
   events(): Promise<BoardEventWire[]>
   /**
@@ -719,6 +737,17 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     },
     async tree() {
       return await call<TreeWire>('tree', {}) ?? { places: [] }
+    },
+    async workspaces() {
+      const { value, error } = await write<{ workspaces: WorkspaceWire[] }>('workspaces', {})
+      if (error !== undefined) return { workspaces: [], error }
+      return { workspaces: value?.workspaces ?? [] }
+    },
+    async createGoalBody(input) {
+      const { value, error } = await write<{ url: string }>('create-goal-body', { ...input })
+      if (error !== undefined) return { error }
+      // 没拿到链接就说没拿到——一个空的成功比一次失败更难查。
+      return value?.url === undefined ? { error: '云之家没有回传真身链接' } : { url: value.url }
     },
     async people(keyword) {
       // 用 `write` 那条路不是因为它是写，是因为**只有它把宿主的原话带回来**：

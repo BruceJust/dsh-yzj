@@ -2936,6 +2936,68 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               return { ok: true, value: { lines: [] } }
             }
           }
+          /*
+            真身：**建在云之家，不是让人去粘一个链接** (v4.8 立目标 / 技术方案「真身行经
+            既有 sheet/doc 工具 + 确认流创建」).
+
+            立目标的表里此前只有一个「云之家目标文档 / 表格的链接」输入框。那意味着人得
+            离开这个产品、去云之家建一个文档、复制链接、回来粘上——**把人当成了两个系统
+            之间的集成层**，而这正是这套东西声称要消灭的那种损耗。
+
+            它站在一句已经被推翻的前提上（提案卡那段注释里还写着「agent 建不了云之家
+            文档」）：`doc create` 一直都在，这个部署里也真的建过。和「通讯录不能按名字
+            搜」是同一次误判的两个化身。
+
+            两个端点合起来兑现一句话：**哪个知识库由人选（落点是社交决策，不推导），
+            文档由系统建**。
+          */
+          case 'workspaces': {
+            const bridge = scoped.get('yzjBridge')
+            if (bridge === undefined) return failure('云之家通道未就绪')
+            const result = await bridge.run(['doc', 'workspace', 'list'], { timeoutMs: 20_000 })
+            if (!result.ok) return failure(failureOf(result, '知识库列不出来'))
+            const rows = Array.isArray(result.json) ? result.json : []
+            return {
+              ok: true,
+              value: {
+                workspaces: rows.flatMap((row) => {
+                  const workspace = asRecord(row as never)
+                  const id = asString(workspace?.id)
+                  if (id === undefined) return []
+                  return [{
+                    id,
+                    name: asString(workspace?.name) ?? id,
+                    // visibility 2 = 个人知识库。人选落点时，这一格比名字更要紧。
+                    personal: workspace?.visibility === 2,
+                  }]
+                }),
+              },
+            }
+          }
+          case 'create-goal-body': {
+            const workspace = stringField(payload, 'workspace')
+            const title = stringField(payload, 'title')
+            if (workspace === undefined || title === undefined) {
+              return failure('建真身需要知识库与标题')
+            }
+            const bridge = scoped.get('yzjBridge')
+            if (bridge === undefined) return failure('云之家通道未就绪')
+            const result = await bridge.run(
+              ['doc', 'create', '--workspace', workspace, '--title', title],
+              { timeoutMs: 30_000 },
+            )
+            if (!result.ok) return failure(failureOf(result, '真身没能建出来'))
+            const id = asString(asRecord(result.json as never)?.id)
+            /*
+              **没拿到 id 就算失败。** 建了一个找不回来的文档，比没建更坏：目标会挂在一个
+              空链接上，而板上那一行看起来一切正常。
+            */
+            if (id === undefined) return failure('云之家没有回传文档 id，真身链接取不到')
+            return {
+              ok: true,
+              value: { url: `https://www.yunzhijia.com/knowledge/lingee/#/store/doc/${id}`, id },
+            }
+          }
           case 'contract': {
             const placeKey = stringField(payload, 'placeKey')
             if (placeKey === undefined) return failure('contract requires placeKey')

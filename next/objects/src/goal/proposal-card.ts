@@ -70,11 +70,15 @@ function placeFor(item: ProposalItem, state: ProposalState): string | undefined 
 /**
  * The goal body's URI, preferring the one pasted with the confirmation.
  *
- * 真身外挂: the agent cannot create a Yunzhijia document, so a goal proposal
- * arrives with the link it was TOLD — and the commonest real sequence is that
- * the operator makes the doc while reading the proposal and pastes the link
- * into the confirmation. Accepting only something that parses as an http(s)
- * URL keeps 「确认 1」 from being mistaken for a link.
+ * 真身外挂: a goal proposal arrives with the link it was TOLD, and this field is
+ * where a different one can override it. Accepting only something that parses as
+ * an http(s) URL keeps 「确认 1」 from being mistaken for a link.
+ *
+ * **「agent 建不了云之家文档」这句前提是错的**，它曾经写在这里，并且长出了一整段让人
+ * 当集成层的动线（去云之家新建、复制链接、回来粘上）。`yzj_doc_create` 一直都在，这个
+ * 部署里也真的建过——和「通讯录不能按名字搜」是同一次误判的两个化身。看板那一侧已经改成
+ * 「人选知识库、系统建文档」；**这条卡片路还没有**：agent 提案时该顺手问一句「要我建
+ * 一个吗」，建完把链接带在提案上。明标未做，不假装它不存在。
  */
 function goalRefFrom(state: ProposalState, input: string | undefined): string | undefined {
   const typed = (input ?? '').trim()
