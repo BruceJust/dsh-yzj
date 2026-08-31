@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>云之家 × DSH · 终极形态 v5 —— P–agent–P′：复利开双账（决策 #60）</title>
+<title>云之家 × DSH · 终极形态 v5 —— P–agent–P′：复利开双账（决策 #60 · v4.25r）</title>
 <style>
 /* ============================================================
-   终极形态 v5 · P–agent–P′ 沙盘（决策 #60）
-   演示对象：人的回程律——校准回执 · 预期立约 · 归因四格 · 金库
-   与 v4 的关系：同一产品的第二本账；组织侧只留最小语境（一个群、
-   一次真实验收），其余全量能力见 v4 主线沙盘。
+   终极形态 v5 · P–agent–P′ 完整串联沙盘（决策 #60 + v4.25r 七收紧）
+   目的：不是演示新功能，而是演示第二本账如何长在第一本账的既有
+   节点上——收件箱（逐级兑付+三不入负样本）、群（验收卡）、财务群
+   （条尾租约入口→两读分岔）、私语域（既有域承载新对象）、金库
+   （四区+换挡台三档位）、承诺板（负样本）。三视角查看者样本。
    ============================================================ */
 :root {
   --bg: #EDEFF2;
@@ -53,7 +54,6 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-size: 13.5px; color: var(--ink); background: var(--bg);
 }
-.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 :focus-visible { outline: 2px solid var(--pub); outline-offset: 2px; border-radius: 4px; }
 
@@ -75,8 +75,8 @@ body.annotate .annotate-toggle { background: #24304A; border-color: #3E5AA6; col
 body.annotate .annotate-toggle .dot { background: #7FA7F5; }
 
 /* ---------- 剧本条 ---------- */
-.hintbar { display: flex; align-items: center; gap: 10px; padding: 7px 16px; background: #FFFDF5; border-bottom: 1px solid #EFE8D2; font-size: 12px; color: #6B5A36; overflow-x: auto; white-space: nowrap; }
-.hintbar .step { padding: 3px 9px; border-radius: 999px; border: 1px solid #E9DFC8; background: #FBF8EE; color: #8A7A50; }
+.hintbar { display: flex; align-items: center; gap: 8px; padding: 7px 16px; background: #FFFDF5; border-bottom: 1px solid #EFE8D2; font-size: 11.5px; color: #6B5A36; overflow-x: auto; white-space: nowrap; }
+.hintbar .step { padding: 3px 8px; border-radius: 999px; border: 1px solid #E9DFC8; background: #FBF8EE; color: #8A7A50; }
 .hintbar .step.on { background: #6B5A36; border-color: #6B5A36; color: #FFFDF5; font-weight: 600; }
 .hintbar .step.done { color: #A79B77; text-decoration: line-through; text-decoration-thickness: 1px; }
 .hintbar .advance { margin-left: auto; padding: 4px 12px; border-radius: 8px; background: #B45309; color: #fff; font-weight: 600; font-size: 12px; }
@@ -86,20 +86,22 @@ body.annotate .annotate-toggle .dot { background: #7FA7F5; }
 .layout { display: flex; height: calc(100% - 46px - 32px); }
 
 /* 侧栏 */
-.sidebar { width: 218px; flex: none; background: #F5F6F8; border-right: 1px solid var(--line); padding: 10px 0; overflow-y: auto; }
+.sidebar { width: 224px; flex: none; background: #F5F6F8; border-right: 1px solid var(--line); padding: 10px 0; overflow-y: auto; }
 .sb-sect { padding: 8px 12px 3px; font-size: 10.5px; letter-spacing: .12em; color: var(--ink-3); font-weight: 700; }
-.sb-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px 7px 16px; font-size: 13px; color: var(--ink-2); text-align: left; border-left: 3px solid transparent; }
+.sb-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px 7px 16px; font-size: 13px; color: var(--ink-2); text-align: left; border-left: 3px solid transparent; position: relative; }
 .sb-row:hover { background: #ECEEF2; }
 .sb-row.on { background: #E7EDFB; border-left-color: var(--pub); color: var(--ink); font-weight: 600; }
 .sb-row .ava { width: 22px; height: 22px; border-radius: 6px; background: var(--pub-tint); color: var(--pub-deep); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: none; }
 .sb-row .ava.pri { background: var(--paper); color: var(--paper-deep); border: 1px solid var(--paper-line); }
+.sb-row .ava.att { background: #FDF1E0; color: var(--amber); border: 1px solid var(--amber-line); }
 .sb-row .meta { display: block; font-size: 10.5px; color: var(--ink-3); font-weight: 400; margin-top: 1px; }
 .sb-row .badge-n { margin-left: auto; min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; background: var(--amber); color: #fff; font-size: 10.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.sb-row .badge-n.soft { background: #A8B0C0; }
 .sb-note { margin: 10px 14px 0; padding: 8px 10px; border: 1px dashed var(--paper-line); border-radius: 8px; background: #FBF9F1; font-size: 11px; color: var(--paper-deep); line-height: 1.55; }
 
 /* 中栏 */
 .center { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--surface); position: relative; }
-.chead { height: 44px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+.chead { min-height: 44px; flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .chead .t { font-weight: 700; font-size: 14px; }
 .chead .sub { font-size: 11.5px; color: var(--ink-3); }
 .chead .lock { font-size: 10.5px; color: var(--paper-deep); border: 1px solid var(--paper-line); background: var(--paper); padding: 2px 8px; border-radius: 999px; }
@@ -107,9 +109,10 @@ body.annotate .annotate-toggle .dot { background: #7FA7F5; }
 .timeline.pri { background: var(--paper); }
 
 /* 消息 */
-.msg { display: flex; gap: 10px; margin-bottom: 14px; max-width: 720px; position: relative; }
+.msg { display: flex; gap: 10px; margin-bottom: 14px; max-width: 740px; position: relative; }
 .msg .ava { width: 30px; height: 30px; border-radius: 8px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: #E5E8EE; color: #5A6272; }
 .msg .ava.agent { background: #1F2733; color: #7FA7F5; }
+.msg .ava.me { background: #E0E9FB; color: var(--pub-deep); }
 .msg .body { min-width: 0; flex: 1; }
 .msg .who { font-size: 11.5px; color: var(--ink-3); margin-bottom: 3px; }
 .msg .bubble { background: #F3F5F8; border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 12px; line-height: 1.6; font-size: 13px; position: relative; }
@@ -118,21 +121,22 @@ body.annotate .annotate-toggle .dot { background: #7FA7F5; }
 .sysline { text-align: center; font-size: 11px; color: var(--ink-3); margin: 16px 0 14px; }
 .sysline b { color: var(--paper-deep); }
 
-/* 卡片（可应答对象） */
+/* 卡片 */
 .card { border: 1px solid var(--pub-line); background: var(--pub-tint); border-radius: var(--radius); padding: 11px 13px; margin-top: 7px; position: relative; }
 .card.paper { border-color: var(--paper-line); background: #FFFDF6; }
-.card .chdr { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--pub-deep); font-weight: 700; letter-spacing: .04em; margin-bottom: 6px; }
+.card .chdr { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--pub-deep); font-weight: 700; letter-spacing: .04em; margin-bottom: 6px; flex-wrap: wrap; }
 .card.paper .chdr { color: var(--paper-deep); }
 .card .ct { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
 .card .cline { font-size: 12px; color: var(--ink-2); line-height: 1.65; }
 .card .provenance { font-size: 11px; color: var(--ink-3); margin: 4px 0 7px; padding-left: 8px; border-left: 2px solid var(--paper-line); }
+.privtag { font-size: 10px; padding: 1px 7px; border-radius: 999px; background: var(--paper); border: 1px solid var(--paper-line); color: var(--paper-deep); font-weight: 600; }
 .anchor { display: flex; gap: 7px; align-items: flex-start; font-size: 12px; padding: 5px 8px; border-radius: 7px; margin-top: 4px; background: rgba(255,255,255,.6); border: 1px solid transparent; line-height: 1.5; }
 .anchor .ic { flex: none; font-weight: 700; }
 .anchor.ok .ic { color: var(--green); }
 .anchor.warn { background: var(--amber-bg); border-color: var(--amber-line); }
 .anchor.warn .ic { color: var(--amber); }
 .anchor .src { color: var(--ink-3); font-size: 11px; }
-.anchor .src a { color: var(--pub); text-decoration: none; }
+.anchor .src a, .jump { color: var(--pub); text-decoration: none; cursor: pointer; }
 .cactions { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; }
 .btn { padding: 5px 13px; border-radius: 8px; border: 1px solid var(--line); background: #fff; font-size: 12.5px; color: var(--ink-2); }
 .btn:hover { border-color: var(--pub); color: var(--pub-deep); }
@@ -143,8 +147,12 @@ body.annotate .annotate-toggle .dot { background: #7FA7F5; }
 .done-strip { margin-top: 8px; padding: 7px 10px; border-radius: 8px; background: var(--green-bg); border: 1px solid var(--green-line); color: var(--green); font-size: 12px; font-weight: 600; }
 .done-strip .sub { display: block; font-weight: 400; color: #3E6B50; font-size: 11px; margin-top: 2px; }
 .muted-strip { margin-top: 8px; padding: 7px 10px; border-radius: 8px; background: #F4F1E7; border: 1px dashed var(--paper-line); color: var(--paper-deep); font-size: 12px; }
+.tail-entry { margin-top: 7px; font-size: 11.5px; }
+.tail-entry button { color: var(--paper-deep); border-bottom: 1px dashed var(--paper-line); padding-bottom: 1px; }
+@keyframes flashbg { 0% { box-shadow: 0 0 0 3px rgba(180,83,9,.55); } 100% { box-shadow: 0 0 0 3px rgba(180,83,9,0); } }
+.flash { animation: flashbg 1.8s ease-out 2; }
 
-/* 预期输入（对话式立约） */
+/* 预期输入 */
 .expect-input { margin-top: 9px; }
 .expect-input textarea { width: 100%; min-height: 54px; resize: vertical; border: 1px solid var(--paper-line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 12.5px; background: #fff; color: var(--ink); }
 .expect-input textarea:focus { outline: 2px solid var(--paper-deep); outline-offset: 1px; }
@@ -157,42 +165,73 @@ body.annotate .annotate-toggle .dot { background: #7FA7F5; }
 .quad { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: #fff; font-size: 12px; text-align: left; line-height: 1.4; }
 .quad small { display: block; font-size: 10.5px; color: var(--ink-3); margin-top: 1px; }
 .quad:hover { border-color: var(--paper-deep); }
-.quad.picked { border-color: var(--paper-deep); background: #F6EFDD; font-weight: 600; }
-.qtag { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; font-weight: 600; }
+.qtag { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
 .qtag.q1 { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-line); }
 .qtag.q2 { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line); }
 .qtag.q3 { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-line); }
 .qtag.q4 { background: #EDF0F5; color: var(--ink-2); border: 1px solid var(--line); }
 
+/* 收件箱 */
+.inbox-wrap { flex: 1; overflow-y: auto; padding: 18px 22px 26px; background: #FAFBFC; }
+.ib-head { max-width: 720px; margin: 0 auto 12px; font-size: 12px; color: var(--ink-3); line-height: 1.7; position: relative; }
+.ib-head h2 { font-size: 16px; color: var(--ink); margin-bottom: 3px; }
+.ib-row { max-width: 720px; margin: 0 auto 9px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 11px 14px; display: flex; gap: 10px; align-items: center; cursor: pointer; font-size: 12.5px; }
+.ib-row:hover { border-color: var(--pub-line); }
+.ib-row .kind { font-size: 10.5px; font-weight: 700; color: var(--pub-deep); background: var(--pub-tint); border: 1px solid var(--pub-line); padding: 2px 8px; border-radius: 999px; flex: none; }
+.ib-row .go { margin-left: auto; color: var(--ink-3); flex: none; font-size: 11.5px; }
+.ib-row .src { display: block; font-size: 10.5px; color: var(--ink-3); margin-top: 1px; }
+.ib-empty { max-width: 720px; margin: 0 auto; padding: 16px; border: 1px dashed var(--line); border-radius: var(--radius); background: #fff; font-size: 12.5px; color: var(--ink-2); line-height: 1.8; position: relative; }
+
 /* 金库 */
 .vault-wrap { flex: 1; overflow-y: auto; background: var(--vault); padding: 18px 22px 26px; }
-.vault-head { max-width: 760px; margin: 0 auto 14px; }
+.vault-head { max-width: 780px; margin: 0 auto 14px; }
 .vault-head h2 { font-size: 17px; display: flex; align-items: center; gap: 9px; }
 .contract-chips { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
 .cchip { font-size: 10.5px; padding: 2px 9px; border-radius: 999px; background: #EFE8D2; border: 1px solid var(--vault-line); color: var(--vault-ink); font-weight: 600; }
-.vsect { max-width: 760px; margin: 0 auto 14px; background: #FFFDF6; border: 1px solid var(--vault-line); border-radius: var(--radius); box-shadow: var(--shadow); }
-.vsect .vh { padding: 9px 14px; border-bottom: 1px solid #EFE8D2; font-size: 12px; font-weight: 700; color: var(--vault-ink); display: flex; align-items: center; gap: 8px; }
+.vsect { max-width: 780px; margin: 0 auto 14px; background: #FFFDF6; border: 1px solid var(--vault-line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.vsect .vh { padding: 9px 14px; border-bottom: 1px solid #EFE8D2; font-size: 12px; font-weight: 700; color: var(--vault-ink); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .vsect .vh .n { font-weight: 400; color: var(--ink-3); font-size: 11px; }
 .vrow { padding: 9px 14px; border-bottom: 1px solid #F4EEDC; font-size: 12.5px; line-height: 1.6; display: flex; gap: 9px; align-items: flex-start; }
 .vrow:last-child { border-bottom: none; }
 .vrow .vmeta { display: block; font-size: 11px; color: var(--ink-3); margin-top: 2px; }
-.vrow .vmeta a, .numdoor { color: var(--pub); text-decoration: none; cursor: pointer; font-weight: 600; }
+.numdoor { color: var(--pub); text-decoration: none; cursor: pointer; font-weight: 600; background: none; border-bottom: 1px dashed var(--pub-line); }
 .vempty { padding: 14px; font-size: 12px; color: var(--paper-deep); line-height: 1.7; }
-.refuse-block { max-width: 760px; margin: 0 auto 14px; padding: 12px 14px; border: 1px dashed var(--vault-line); border-radius: var(--radius); background: #FBF8EE; font-size: 12px; color: var(--vault-ink); line-height: 1.75; }
+.refuse-block { max-width: 780px; margin: 0 auto 14px; padding: 12px 14px; border: 1px dashed var(--vault-line); border-radius: var(--radius); background: #FBF8EE; font-size: 12px; color: var(--vault-ink); line-height: 1.75; position: relative; }
 .refuse-block b { color: #4A3A16; }
+.gearset { display: inline-flex; border: 1px solid var(--vault-line); border-radius: 999px; overflow: hidden; margin-left: auto; flex: none; }
+.gearset button { font-size: 10.5px; padding: 3px 10px; color: var(--ink-3); background: #FBF8EE; }
+.gearset button + button { border-left: 1px solid var(--vault-line); }
+.gearset button.on { background: var(--paper-deep); color: #fff; font-weight: 700; }
+
+/* 承诺板 */
+.board-wrap { flex: 1; overflow-y: auto; padding: 18px 22px 26px; background: #F7F8FA; }
+.bd-head { max-width: 780px; margin: 0 auto 12px; position: relative; }
+.bd-head h2 { font-size: 16px; margin-bottom: 7px; }
+.lens-chips { display: flex; gap: 6px; }
+.lens-chips button { font-size: 11.5px; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink-2); }
+.lens-chips button.on { background: var(--pub); border-color: var(--pub); color: #fff; font-weight: 600; }
+.bd-group { max-width: 780px; margin: 0 auto 12px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.bd-group .gh { padding: 8px 14px; border-bottom: 1px solid #F0F2F5; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.bd-row { padding: 9px 14px; border-bottom: 1px solid #F5F6F8; font-size: 12.5px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.bd-row:last-child { border-bottom: none; }
+.bd-row .st { font-size: 10.5px; padding: 1px 7px; border-radius: 999px; flex: none; }
+.st.wait { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line); }
+.st.ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-line); }
+.st.run { background: var(--pub-tint); color: var(--pub-deep); border: 1px solid var(--pub-line); }
+.st.none { background: #F1F3F6; color: var(--ink-3); border: 1px solid var(--line); }
+.bd-row .src { flex-basis: 100%; font-size: 10.5px; color: var(--ink-3); }
+.bd-row .gchip { font-size: 10.5px; color: var(--pub-deep); background: var(--pub-tint); border: 1px solid var(--pub-line); border-radius: 999px; padding: 1px 8px; }
+.bd-row .mine { font-size: 10.5px; color: var(--paper-deep); background: var(--paper); border: 1px solid var(--paper-line); border-radius: 999px; padding: 1px 8px; }
+.bd-empty { max-width: 780px; margin: 0 auto; padding: 14px; border: 1px dashed var(--line); border-radius: var(--radius); background: #fff; font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
 
 /* 右栏 */
-.rpanel { width: 296px; flex: none; border-left: 1px solid var(--line); background: #FAFBFC; overflow-y: auto; padding: 14px; }
+.rpanel { width: 300px; flex: none; border-left: 1px solid var(--line); background: #FAFBFC; overflow-y: auto; padding: 14px; }
 .rp-title { font-size: 11px; letter-spacing: .1em; font-weight: 700; color: var(--ink-3); margin-bottom: 9px; }
 .rp-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 12px; margin-bottom: 11px; font-size: 12px; line-height: 1.65; position: relative; }
 .rp-card.paper { background: #FFFDF6; border-color: var(--paper-line); }
 .rp-card h4 { font-size: 12.5px; margin-bottom: 6px; }
 .cm-row { padding: 6px 0; border-bottom: 1px solid #F0F2F5; font-size: 12px; line-height: 1.5; }
 .cm-row:last-child { border-bottom: none; }
-.cm-row .st { font-size: 10.5px; padding: 1px 7px; border-radius: 999px; margin-left: 5px; }
-.st.wait { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line); }
-.st.ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-line); }
-.st.run { background: var(--pub-tint); color: var(--pub-deep); border: 1px solid var(--pub-line); }
 .cm-row .src { display: block; font-size: 10.5px; color: var(--ink-3); margin-top: 1px; }
 .flowline { font-size: 11.5px; color: var(--vault-ink); background: #FBF8EE; border: 1px dashed var(--vault-line); border-radius: 8px; padding: 8px 10px; margin-top: 8px; line-height: 1.8; text-align: center; }
 
@@ -204,34 +243,33 @@ body.annotate .pin.inline { display: inline-flex; }
 
 /* 弹层 */
 .popover-mask { display: none; position: fixed; inset: 0; background: rgba(20,24,32,.32); z-index: 40; }
-.popover { display: none; position: fixed; z-index: 41; top: 50%; left: 50%; transform: translate(-50%,-50%); width: min(560px, 92vw); max-height: 76vh; overflow-y: auto; background: #fff; border-radius: 14px; box-shadow: var(--shadow-pop); padding: 18px 20px; }
+.popover { display: none; position: fixed; z-index: 41; top: 50%; left: 50%; transform: translate(-50%,-50%); width: min(580px, 92vw); max-height: 76vh; overflow-y: auto; background: #fff; border-radius: 14px; box-shadow: var(--shadow-pop); padding: 18px 20px; }
 body.pop .popover-mask, body.pop .popover { display: block; }
 .popover .pno { display: inline-flex; width: 22px; height: 22px; border-radius: 50%; background: #B45309; color: #fff; font-size: 12px; font-weight: 700; align-items: center; justify-content: center; margin-right: 8px; }
 .popover h3 { font-size: 15px; display: flex; align-items: center; margin-bottom: 10px; }
 .popover .pbody { font-size: 13px; line-height: 1.85; color: var(--ink-2); }
 .popover .pbody b { color: var(--ink); }
 .popover .pclose { position: absolute; top: 12px; right: 14px; font-size: 18px; color: var(--ink-3); }
-.caselist { margin-top: 8px; }
 .caselist .ci { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; font-size: 12.5px; line-height: 1.6; }
 .caselist .ci .m { color: var(--ink-3); font-size: 11px; }
 
 /* toast */
-#toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(80px); background: #20242C; color: #F2F4F8; font-size: 12.5px; padding: 9px 16px; border-radius: 10px; box-shadow: var(--shadow-pop); transition: transform .25s; z-index: 60; max-width: 82vw; line-height: 1.6; }
+#toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(90px); background: #20242C; color: #F2F4F8; font-size: 12.5px; padding: 9px 16px; border-radius: 10px; box-shadow: var(--shadow-pop); transition: transform .25s; z-index: 60; max-width: 82vw; line-height: 1.6; }
 #toast.show { transform: translateX(-50%) translateY(0); }
 
-/* composer（演示降级，如实说明） */
 .composer { flex: none; border-top: 1px solid var(--line); padding: 9px 16px; background: #FBFCFD; font-size: 12px; color: var(--ink-3); }
 .composer .fake { border: 1px dashed var(--line); border-radius: 9px; padding: 8px 12px; background: #fff; }
+.composer a { color: var(--pub); }
 </style>
 </head>
 <body class="annotate">
 
 <div class="topbar">
   <span class="wordmark">DSH <em>×</em> 云之家</span>
-  <span class="crumb">终极形态 <b>v5</b> · P–agent–P′：复利开双账 <span style="color:#5A6272">（决策 #60 · 设计 v4.25）</span></span>
+  <span class="crumb">终极形态 <b>v5</b> · P–agent–P′：复利开双账 <span style="color:#5A6272">（决策 #60 · v4.25r）</span></span>
   <span class="spacer"></span>
   <span class="viewer-switch" id="viewerSwitch">
-    <span>视角（查看者样本律）：</span>
+    <span>视角：</span>
     <button data-viewer="me" class="on">Bruce</button>
     <button data-viewer="zhangrui">张锐</button>
     <button data-viewer="lizong">李总（上级）</button>
@@ -260,46 +298,66 @@ body.pop .popover-mask, body.pop .popover { display: block; }
 /* ================= 状态 ================= */
 const S = {
   viewAs: 'me',
-  view: 'group',            // group | dm | vault
-  accepted: false,          // Bruce 验收
+  view: 'inbox',            // inbox | group | fin | dm | vault | board
+  accepted: false,
   offer: 'pending',         // pending | input | born | declined
   expectText: null,
-  refused: false,           // 「帮我写」被拒过
+  refused: false,
+  declined: false,
+  bxApproved: false,        // 报销 #24 确认
+  tailOpen: false,          // 条尾两读卡展开
+  gearBx: 'default',        // 报销族档位
+  gearHt: 'default',        // 供应商合同族档位
+  gearBreak: 'default',     // 目标拆解族档位
   thursday: false,
-  attribution: null,        // Bruce 回执四格
-  leaseBx: null,            // 报销：lease | weight
-  leaseHt: null,            // 合同：lease | weight
-  zrAttr: null,             // 张锐回执四格
+  attribution: null,
+  zrAttr: null,
+  dmUnread: 0,              // 私语未读（消息层：读即清——v4.25r 三不入）
+  zrDmUnread: 1,
+  boardLens: 'all',
+  flashCard: null,
 };
-
 const VIEWER = { me: 'Bruce', zhangrui: '张锐', lizong: '李总' };
+const QLBL = { q1: '对了·因判断', q2: '对了·因运气', q3: '错了·因判断', q4: '错了·因世界' };
 
 /* ================= 设计注解 ================= */
 const NOTES = {
   1: { title: '判别式：增量落在谁身上——不是参与，不是主权',
-       body: 'agent–P–agent′ 与 P–agent–P′ 两个回路元素相同、动作相同：人都参与，人都握着批准键。唯一可观察的判据是<b>回路终点谁带着增量归来</b>（C–M–C′ 与 M–C–M′ 的判别法）。v4.24 及之前，复利四载体（记忆/工件/流程/信任）全在系统侧——设计给了人<b>不变薄的护栏</b>（三主权时刻、社交摩擦不碰、反剧场），没给<b>变厚的回路</b>。v5 演示的就是那条回路：人的每次裁决有回流边。' },
+       body: 'agent–P–agent′ 与 P–agent–P′ 两个回路元素相同、动作相同：人都参与，人都握着批准键。唯一可观察的判据是<b>回路终点谁带着增量归来</b>（C–M–C′ 与 M–C–M′ 的判别法）。此前复利四载体（记忆/工件/流程/信任）全在系统侧——设计给了人<b>不变薄的护栏</b>（三主权时刻、社交摩擦不碰、反剧场），没给<b>变厚的回路</b>。v5 演示的不是新功能，是那条回路如何长在第一本账的既有节点上：验收卡（既有）→ 私语域（既有）→ 条尾租约入口（既有）→ 金库（唯一新面，且住在私语侧）。' },
   2: { title: '温水剧场：P′ 不是人文附加，是可信度的承重墙',
-       body: '反剧场推到底：<b>主权时刻的质量依赖主权者的厚度</b>。提案质量越高 → 驳回率越低 → 裁决信息量越低 → 人越不细看 → 三主权时刻退化为三剧场时刻——"可信地完成"自塌。透明救不了：现代圈养不用铁栏用玻璃，轨迹、回执、审计让人<b>观看</b>，而观看不是练习。所以人的判断力不设计，系统自己的可信度先塌。' },
+       body: '反剧场推到底：<b>主权时刻的质量依赖主权者的厚度</b>。提案质量越高 → 驳回率越低 → 裁决信息量越低 → 人越不细看 → 三主权时刻退化为三剧场时刻——"可信地完成"自塌。透明救不了：现代圈养不用铁栏用玻璃，轨迹、回执、审计让人<b>观看</b>，观看不是练习。' },
   3: { title: '产婆术条款：agent 只接生，不能代产',
-       body: '凡构成判断力的表达——委派内容、成功标准、催办话语、<b>预期与归因</b>、裁决本身——agent 可以提问、结构化、备料、举证，<b>不能代写</b>（产婆自己不生育，只接生别人的孩子）。它是既有裁决的公分母：磨目标"作者权≠思考伙伴"、预填出处律"内容由人说"、催=拟稿亲发、差距简报"判断由你下"。边界：<b>难度长在真实决断里，不长在仪式里</b>——强制写验收理由=亲手制造对齐表演。试试「帮我写」。' },
+       body: '凡构成判断力的表达——委派内容、成功标准、催办话语、<b>预期与归因</b>、裁决本身——agent 可以提问、结构化、备料、举证，<b>不能代写</b>。它是既有裁决的公分母：磨目标"作者权≠思考伙伴"、预填出处律"内容由人说"、催=拟稿亲发、差距简报"判断由你下"。边界：<b>难度长在真实决断里，不长在仪式里</b>——强制写验收理由=亲手制造对齐表演。试试「帮我写」。' },
   4: { title: '给人修回程律',
        body: '回程律：每条边都有出生与余生。把 P 当图上的节点看——人不断发出裁决边，却没有任何东西回流到人身上：按图自己的记账法，这就是 agent–P–agent′ 的<b>拓扑学定义</b>。<b>校准回执 = 当时裁决 × 后来事实</b>，原料图已天然生产（裁决留痕 × 终态回流），机制近零新增：它只是一个落在私语域的可应答对象（单答家族复用）。' },
-  5: { title: '预期 = 对话式立约，不可回填',
-       body: '预期是<b>可选</b>的一句可证伪的赌注——说出来的，不是表单里填的（表单字段=每次验收都交作业=仪式摩擦）。<b>不可回填</b>：预期只在裁决时刻出生，事后补写的不是预期。agent 只在有出处时开口问一次（此处出处：你跳过了一条未消解差距），不立即按下不表、绝不追问——追问即索要，索要即剧场。示例句明标"演示装置"（v4.24 出处律：demo 示例不是规格）。另注意：<b>不立预期，周四的回执照样会来</b>——裁决本身就是隐式预期。' },
-  6: { title: '归因四格：人自己下，防两种自欺',
-       body: '对表时归因由<b>人自己下</b>——agent 代归因是产婆术违规。四格防两种自欺：把运气当实力（②被伪装成①）、把误判赖给世界（③被伪装成④）。格子是判例的标签，不是分数的原料——金库永不把四格汇总成"判断力得分"。' },
-  7: { title: '判断力档案硬合同：仅你，单向耦合',
-       body: '判断力档案<b>仅本人、不入组织图、不可导出、永不进绩效与任何聚合</b>。误判史归组织，成长回路当场翻转为监控回路——"无上级驾驶舱""席位诱惑明拒"的同族律。耦合单向：组织图作为证据源流向个人金库，永不反向。§1.6 隔离哲学的最后一次应用：<b>你的误判史谁听得见——只有你</b>。切到李总视角看空样本与明拒。' },
-  8: { title: '租约入口两读：每张租约都是一块退役的肌肉',
-       body: '连续 23 次通过、中位停留 1.4 秒——两种可能：这类裁决<b>不再需要你</b>（无信息量 → 设为租约，既有机制），或它<b>需要你更多</b>（你不再细看 → 加负重：下次摆开全部证据、不预选、无一键通过）。系统只摆证据，两个出口同权，选择在人。注意两张卡证据不同、合理出口不同——<b>分岔是真的</b>，不是伪选择。' },
+  5: { title: '预期 = 对话式立约 · 不可回填 · 疲劳治理',
+       body: '预期是<b>可选</b>的一句可证伪的赌注——说出来的，不是表单里填的。<b>不可回填</b>：预期只在裁决时刻出生。agent 只在有出处时开口问一次，不立即按下不表、绝不追问——追问即索要，索要即剧场；<b>连续不立即降频停问</b>（人用脚投票就是应答），重新打开的入口在金库（v4.25r 邀约疲劳治理）。示例句明标"演示装置"（v4.24 出处律）。另注意：<b>不立预期，周四的回执照样会来</b>——裁决本身就是隐式预期。' },
+  6: { title: '归因四格：人自己下 · 候选措辞只许证据不许判词',
+       body: '归因由<b>人自己下</b>——agent 代归因是产婆术违规。四格防两种自欺：把运气当实力（②被伪装成①）、把误判赖给世界（③被伪装成④）。v4.25r 显示层收紧：候选格的辅助文字只能是<b>证据与假设</b>（"简报③当时已在卡上"），不得是心理判词（"没当回事"=替人写好的归因，违规——本 demo 初版犯过，已改）。' },
+  7: { title: '判断力档案硬合同（v4.25r 修正版）',
+       body: '五条：<b>仅本人</b>；<b>不入组织图</b>（私账真身=个人域图数据，host 内存不是真身——确认卡教训适用）；<b>组织与他人不可导出、本人可整体取走与销毁</b>（初版"不可导出"一刀切是错的——组织扣押成长账本 = Org–P–Org′，数据主权归人）；<b>永不绩效聚合</b>；<b>审计导出不可触及</b>（对称保留律"永不记忆场所"之后的第二例外区）。部署二值开关：组织可整体不启用金库，但"启用且组织可见"的中间态<b>明拒</b>——那是戴着成长面具的监控。' },
+  8: { title: '条尾入口 → 两读分岔：既有语法的语义扩员',
+       body: '「这类裁决还需要你吗›」就是 v4.15 的条尾租约入口——<b>零新入口</b>，只是分岔从一个出口（租约）扩成两个：连续 23 次通过、中位停留 1.4 秒，两种可能——这类裁决<b>不再需要你</b>（无信息量→租约），或它<b>需要你更多</b>（你不再细看→负重：摆开证据、不预选、无一键通过）。系统只摆证据，两个出口同权，选择在人。注意两读卡是<b>仅你可见的操作者层</b>（证据来自你的私账），不是群消息——组织侧没人知道你在换挡。' },
   9: { title: '金库明拒：无分数、无排名、无画像',
-       body: '金库五不做：<b>无分数、无排名、无画像、无建议倾向、无团队视图</b>。金库只陈列判例与对表，结论你自己下（产婆术对显示层同样适用）。反面即"判断力 72 分 / 超越 83% 同事"式的量化人设——那是把人重新变成被优化的对象，回路当场翻转。' },
+       body: '金库五不做：<b>无分数、无排名、无画像、无建议倾向、无团队视图</b>。金库只陈列判例与对表，结论你自己下。v4.25r 补：<b>P′ 四资产里只有"判断"被机制化</b>——品味与志向的量化明拒（"品味 72 分"是教练剧场，机制化即其死亡）。' },
   10: { title: '验收句：拿走系统的那一天，人比第一天更强',
-       body: '杠铃与拐杖的分界：同样是"辅助"，杠铃练厚肌肉，拐杖养出萎缩。<b>搬运的肌肉不值得保留</b>（那是老茧——损耗性摩擦归零是对的）；判断、表达、关系的肌肉萎缩即圈养。可观测版（检验标准⑥）：第六个月的人，敢裁第一天不敢裁的事——金库"模式"区最后一行就是这句话的证据形态。' },
+       body: '杠铃与拐杖的分界：同样是"辅助"，杠铃练厚肌肉，拐杖养出萎缩。<b>搬运的肌肉不值得保留</b>（那是老茧——损耗性摩擦归零是对的）；判断、表达、关系的肌肉萎缩即圈养。可观测版（检验标准⑥）：第六个月的人，敢裁第一天不敢裁的事——"模式"区最后一行就是这句话的证据形态。' },
   11: { title: '查看者样本律：成长回路人人有',
-       body: '张锐视角有<b>他自己的</b>金库与回执（工期预估第 3 次偏乐观）——P′ 不是老板的特权，执行者同样在回路里。Bruce 的预期与回执对张锐<b>不存在</b>（不是灰化，是不渲染）。李总视角：金库是他自己的空账（空状态如实解释"预期不可回填"），且<b>没有任何入口</b>看到下属的对表——每类空状态要有样本（样本纪律）。' },
+       body: '张锐视角有<b>他自己的</b>金库与回执（工期第 3 次偏乐观）——P′ 不是老板的特权。Bruce 的预期与回执对张锐<b>不存在</b>（不是灰化，是不渲染）；张锐的侧栏也没有财务群（可见域）。李总视角：金库是他自己的空账（空状态如实解释"不可回填"），且<b>没有任何入口</b>看到下属的对表。每类空状态要有样本（样本纪律）。' },
   12: { title: '摩擦第四类：成长性摩擦（构成性难度）',
        body: '损耗归零、主权保留、社交不碰之外的第四类：<b>难度即内容</b>的事——想清"可验收"、判断交付好坏、开口催人。消灭这类难度，等于消灭它本该生产的那个人。摩擦检验句的第三个答案：有些难度保护的不是主权、不是社交，是<b>人的未来</b>。' },
+  13: { title: '私账三不入（v4.25r）——负样本是硬合同的唯一可见证明',
+       body: '校准回执/立约邀约/两读卡<b>不进收件箱、不进决断条、不进任何可应答聚合徽标</b>。收件箱是组织的账的唯一聚合处；私账对象的在场方式=私语域<b>未读</b>（消息层语义，读即清——不是"未答数"）与金库本身。未答回执<b>不老化、不可催、不成欠账</b>——这本账的债主是你自己，回执是邀约不是待办。你现在看到的这个空收件箱，就是硬合同的证明：周四回流之后，回执去了私语域，<b>这里没有多出任何一行</b>。' },
+  14: { title: '持镜人条款：镜子只能被本人照',
+       body: 'agent 只能在<b>人发起</b>的对表/回看/换挡时刻引用金库内容（备料举证），<b>不得把金库模式静默转化为组织侧行为变更</b>——不得因你的误判史替你加门、挡你裁决、调整提案策略。"以帮你成长之名采集行为喂系统"是判别式最阴险的违反形态。本人行为事实（停留时长等）可入私账作镜子的证据，但永不进入组织侧通道与模型调优。agent 是持镜人，不是整容师——所以验收卡不会因为你常跳锚而变严，除非<b>你自己</b>换到负重档。' },
+  15: { title: '三档位定律：温水剧场的另一半在生成侧',
+       body: '初版两读只守了<b>裁决侧</b>（审批疲劳）。温水的另一半是<b>生成侧萎缩</b>：拆解提案越来越好，人就不再练拆解。所以租约与负重是一根轴的两端：<b>租约</b>（全自动）← <b>默认</b>（agent 提案、人裁决）→ <b>负重</b>（人先手、agent 补充——"我先拆，你再补"，产婆术的可调节形态）。<b>每个提案族都有三档</b>，档位是人的私有设置，金库证据辅助换挡。这不是配置项，是你与系统之间的训练强度旋钮。' },
+  16: { title: '收件箱：组织账的唯一聚合处 · 逐级兑付',
+       body: '收件箱聚合的是<b>组织侧阻塞待答对象</b>（验收卡、确认卡、裁决卡……），先答先赢、指针投影非复制落座——点行跳回对象原位（语境在场），答完即溶、跨投影生效。它与金库是两本账的两个聚合处：<b>等你裁决的在这里，你裁决过的（与事实的对表）在金库</b>。两处永不混流。' },
+  17: { title: '私语域是既有域，不是新频道',
+       body: '往上翻：磨目标（8/12——注意成功标准②"附竞品对比"正是你亲笔磨出来的，也正是你后来跳过的那条锚——出生故事闭环）、轻问（一次性投影）本来就住在这里。立约邀约与校准回执只是这个域里的两位新住客，<b>零新 surface</b>。' },
+  18: { title: '板上零私账：承诺板只对组织的账负责',
+       body: '板 = 账本的对账面（v4.21）——这里的每一行都是组织侧承诺，可见域内人人同源。<b>金库的任何数字永远不在板上</b>：没有"校准率"列、没有"判断力"排序。你在这里看到的与张锐看到的是同一本账（各自切片）；你的私账只在你的金库。负样本纪律：说"不在"，就要让你亲眼看到"确实不在"。' },
 };
 
 /* ================= 工具 ================= */
@@ -310,7 +368,7 @@ function pinIn(no) { return `<button class="pin inline" data-note="${no}" aria-l
 let toastT = null;
 function toast(msg) {
   const t = $('toast'); t.innerHTML = msg; t.classList.add('show');
-  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3600);
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 4200);
 }
 function openPop(title, bodyHtml, no) {
   $('popTitle').textContent = title; $('popBody').innerHTML = bodyHtml;
@@ -321,74 +379,135 @@ function openPop(title, bodyHtml, no) {
 
 /* ================= 剧本条 ================= */
 function stepState() {
-  if (!S.accepted) return 0;
-  if (!S.thursday) return 1;
-  if (S.attribution === null && S.viewAs === 'me') return 2;
-  return 3;
+  if (!S.accepted && !S.bxApproved) return 0;
+  if (!S.accepted) return 1;
+  if (S.offer === 'pending' || S.offer === 'input') return 2;
+  if (!S.bxApproved) return 3;
+  if (!S.thursday) return 3;
+  if (S.attribution === null) return 4;
+  return 5;
 }
 function renderHintbar() {
   const cur = stepState();
   const steps = [
-    '① 产品群：验收（跳过一条未消解差距）',
-    '② 私语域：立预期——或不立（回执照样会来）',
-    '③ 事实回流：校准回执 · 归因四格你来下',
-    '④ 金库对表 · 换视角看隐私硬合同',
+    '① 收件箱：两件等你（逐级兑付）',
+    '② 产品群：验收（跳过一条未消解差距）',
+    '③ 私语域：立预期——或不立',
+    '④ 财务群：第 24 次确认 → 条尾分岔',
+    '⑤ 归因入账 → 金库换挡台',
+    '⑥ 承诺板与三视角（负样本）',
   ];
   const advReady = S.accepted && (S.offer === 'born' || S.offer === 'declined') && !S.thursday;
   $('hintbar').innerHTML = steps.map((s, i) =>
     `<span class="step ${i === cur ? 'on' : i < cur ? 'done' : ''}">${s}</span>`).join('') +
     (S.thursday || S.viewAs !== 'me' ? '' :
       `<button class="advance" id="advanceBtn" ${advReady ? '' : 'disabled'}
-        title="${advReady ? '推进到周四：评审结果回流' : '先在群里验收、在私语域答复预期邀约（立或不立都行）'}">▸ 到周四 · 评审结果回来</button>`);
+        title="${advReady ? '推进到周四：评审结果回流' : '先验收，并对预期邀约作出答复（立或不立都行）'}">▸ 到周四 · 评审结果回来</button>`);
   const b = $('advanceBtn');
-  if (b) b.onclick = () => { if (!advReady) { toast('先完成 ①②：验收，并对预期邀约作出答复（立或不立都行——回执不依赖预期）。'); return; }
-    S.thursday = true; toast('周四到了：评审结果回流——组织侧登记新一轮，私语域收到校准回执。'); renderAll(); };
+  if (b) b.onclick = () => {
+    if (!advReady) { toast('先完成 ①②③：验收，并对预期邀约作出答复（立或不立都行——回执不依赖预期）。'); return; }
+    S.thursday = true; S.dmUnread += 1;
+    toast('周四到了：评审结果回流——组织侧登记新一轮；校准回执落在<b>私语域</b>。现在打开收件箱看看：那里没有多出任何一行（私账三不入）。');
+    renderAll();
+  };
+}
+
+/* ================= 收件箱数据 ================= */
+function inboxItems() {
+  if (S.viewAs !== 'me') return [];
+  const items = [];
+  if (!S.accepted) items.push({ kind: '验收卡', t: '《Q4 定价方案 v3》待验收 · 张锐的交付主张', src: '产品群 · 承诺「9/1 前给出 Q4 定价方案」', nav: 'group', flash: 'accCard' });
+  if (!S.bxApproved) items.push({ kind: '确认卡', t: '报销入账 ¥3,240（王超）· agent 要写的参数', src: '财务群 · 流程「月度报销」实例 #24', nav: 'fin', flash: 'bxCard' });
+  return items;
 }
 
 /* ================= 侧栏 ================= */
-function dmBadge() {
-  if (S.viewAs === 'me') {
-    let n = 0;
-    if (S.accepted && S.offer === 'pending') n++;
-    if (S.thursday && S.attribution === null) n++;
-    if (S.leaseBx === null) n++; if (S.leaseHt === null) n++;
-    return n;
-  }
-  if (S.viewAs === 'zhangrui') return S.zrAttr === null ? 1 : 0;
-  return 0;
-}
 function renderSidebar() {
   const v = S.viewAs;
-  const groupMeta = S.thursday ? '主楼 · 1 目标 · 3 承诺' : '主楼 · 1 目标 · 2 承诺';
-  const badge = dmBadge();
+  const ibN = inboxItems().length;
+  const unread = v === 'me' ? S.dmUnread : v === 'zhangrui' ? S.zrDmUnread : 0;
+  const finRow = v === 'me' ? `
+    <button class="sb-row ${S.view === 'fin' ? 'on' : ''}" data-nav="fin">
+      <span class="ava">财</span>
+      <span>财务群<span class="meta">主楼 · 流程「月度报销」</span></span>
+    </button>` : '';
   $('sidebar').innerHTML = `
-    <div class="sb-sect">☁ 云之家</div>
+    <div class="sb-sect">◎ 注意力 ${pinIn(16)}</div>
+    <button class="sb-row ${S.view === 'inbox' ? 'on' : ''}" data-nav="inbox">
+      <span class="ava att">收</span>
+      <span>收件箱<span class="meta">组织侧待答 · 唯一聚合处</span></span>
+      ${ibN ? `<span class="badge-n">${ibN}</span>` : ''}
+    </button>
+    <div class="sb-sect" style="margin-top:8px">☁ 云之家</div>
     <button class="sb-row ${S.view === 'group' ? 'on' : ''}" data-nav="group">
       <span class="ava">产</span>
-      <span>产品群<span class="meta">${groupMeta}</span></span>
+      <span>产品群<span class="meta">主楼 · 1 目标 · ${S.thursday ? 3 : 2} 承诺</span></span>
     </button>
+    ${finRow}
     <div class="sb-sect" style="margin-top:8px">⌂ 本地 · 私语 ${pinIn(7)}</div>
     <button class="sb-row ${S.view === 'dm' ? 'on' : ''}" data-nav="dm">
       <span class="ava pri">私</span>
       <span>与 agent 私语<span class="meta">仅你可见</span></span>
-      ${badge ? `<span class="badge-n">${badge}</span>` : ''}
+      ${unread ? `<span class="badge-n soft" title="消息未读（读即清）——不是待答计数：私账不进任何可应答聚合">${unread}</span>` : ''}
     </button>
     <button class="sb-row ${S.view === 'vault' ? 'on' : ''}" data-nav="vault">
       <span class="ava pri">🔒</span>
       <span>我的判断（金库）<span class="meta">私账 · 不入组织图</span></span>
     </button>
-    <div class="sb-note">当前视角：<b>${VIEWER[v]}</b>。金库与私语域随视角整体切换——每人只有自己的那本账，别人的对 ta <b>不渲染</b>（非灰化）。${pinIn(11)}</div>
+    <div class="sb-sect" style="margin-top:8px">▦ 取景框</div>
+    <button class="sb-row ${S.view === 'board' ? 'on' : ''}" data-nav="board">
+      <span class="ava">板</span>
+      <span>承诺板<span class="meta">组织的对账面</span></span>
+    </button>
+    <div class="sb-note">当前视角：<b>${VIEWER[v]}</b>。收件箱/私语/金库随视角整体切换——每人只有自己的那本私账，别人的对 ta <b>不渲染</b>。${pinIn(11)}<br>
+    <span style="color:#A79B77">私语角标 = 消息未读（读即清），不是"未答数"——私账对象不进可应答聚合（三不入）。</span></div>
   `;
   $('sidebar').querySelectorAll('[data-nav]').forEach(b =>
-    b.addEventListener('click', () => { S.view = b.dataset.nav; renderAll(); }));
+    b.addEventListener('click', () => {
+      S.view = b.dataset.nav;
+      if (S.view === 'dm') { if (S.viewAs === 'me') S.dmUnread = 0; if (S.viewAs === 'zhangrui') S.zrDmUnread = 0; }
+      renderAll();
+    }));
 }
 
-/* ================= 中栏：产品群 ================= */
+/* ================= 收件箱 ================= */
+function inboxView() {
+  const items = inboxItems();
+  const emptyMe = `
+    <div class="ib-empty">
+      ${pin(13, 'right:-9px;top:-9px')}
+      <b>没有等你的裁决。</b><br>
+      收件箱只聚合<b>组织的账</b>（验收卡、确认卡、裁决卡……）。你的私账——预期、校准回执、两读换挡——<b>永远不会出现在这里</b>：未答的回执不老化、不可催、不成欠账，它们安静地待在私语域与金库里等你（私账三不入）。
+      ${S.thursday ? '<br><span style="color:var(--paper-deep)">周四的校准回执已经到了——去私语域看，这里没有多出任何一行。这就是硬合同的可见证明。</span>' : ''}
+    </div>`;
+  const emptyOther = `
+    <div class="ib-empty">
+      <b>没有等${VIEWER[S.viewAs]}的裁决。</b><br>
+      ${S.viewAs === 'zhangrui'
+        ? '你交付的《定价方案 v3》在等 Bruce 验收——等待可见由承诺板三值信号承担，不在你的收件箱（你不是它的验收人）。'
+        : '本沙盘里没有等李总裁决的组织侧对象。下属的私账（预期/回执/对表）无论何时都不会出现在这里——那不是"暂时没有"，是结构性不存在。'}
+    </div>`;
+  return `<div class="inbox-wrap">
+    <div class="ib-head">
+      <h2>收件箱 ${pinIn(16)}</h2>
+      唯一跨会话聚合 · 先答先赢 · 指针投影非复制落座（点行跳回对象原位，语境在场）
+    </div>
+    ${items.length ? items.map(i => `
+      <div class="ib-row" data-ibnav="${i.nav}" data-flash="${i.flash}">
+        <span class="kind">${i.kind}</span>
+        <span>${i.t}<span class="src">${i.src}</span></span>
+        <span class="go">前往原位 →</span>
+      </div>`).join('') : (S.viewAs === 'me' ? emptyMe : emptyOther)}
+  </div>`;
+}
+
+/* ================= 产品群 ================= */
 function groupTimeline() {
   const v = S.viewAs;
   const mineZr = v === 'zhangrui' ? '（我）' : '';
   let html = `
-  <div class="sysline">8月28日 · 目标「Q4 定价策略」· 张锐的承诺「9/1 前给出 Q4 定价方案」进行中</div>
+  <div class="sysline">8月28日 · 目标「Q4 定价策略」· 张锐的承诺「9/1 前给出 Q4 定价方案」进行中<br>
+  <span style="font-size:10.5px">出生：8/12 周会拆解提案 · 逐条裁决后<b>落库即代发登记话语</b>（幽灵承诺禁令）——本条即当时的登记消息锚</span></div>
   <div class="msg">
     <span class="ava">张</span>
     <div class="body">
@@ -397,7 +516,7 @@ function groupTimeline() {
         <div class="card" style="margin-top:8px;background:#fff">
           <div class="chdr">📄 工件 · IM 出生形态</div>
           <div class="ct">Q4 定价方案 v3.docx</div>
-          <div class="cline">血缘：v2 ← 评审意见（8/25 话题）· 真身在云之家 · <a href="#" data-act="peek" style="color:var(--pub);text-decoration:none">并排预览</a></div>
+          <div class="cline">血缘：v2 ← 评审意见（8/25 话题）· 真身在云之家 · <a href="#" class="jump" data-act="peek">并排预览</a></div>
         </div>
       </div>
       <div class="time">14:20</div>
@@ -409,14 +528,14 @@ function groupTimeline() {
       <div class="who">dsh</div>
       <div class="bubble">
         收到交付主张。差距简报如下——验收权在 Bruce。${pinIn(2)}
-        <div class="card">
+        <div class="card" id="accCard">
           ${pin(12, 'right:-9px;top:-9px')}
-          <div class="chdr">⚖ 验收卡 · 可应答对象（任一投影应答全局生效）</div>
+          <div class="chdr">⚖ 验收卡 · 可应答对象（任一投影应答全局生效——收件箱同一对象）</div>
           <div class="ct">《Q4 定价方案 v3》 · 承诺「9/1 前给出 Q4 定价方案」</div>
-          <div class="cline">执行者 张锐 · 验收人 Bruce · 差距简报（逐条证据锚点，判断由你下）：</div>
-          <div class="anchor ok"><span class="ic">✓</span><span>成功标准「三档阶梯价」——已满足 <span class="src">（真身 §2 条目锚）</span></span></div>
+          <div class="cline">执行者 张锐 · 验收人 Bruce · 差距简报（成功标准来自目标真身正文——<b>你 8/12 亲笔磨出的两条</b>）：</div>
+          <div class="anchor ok"><span class="ic">✓</span><span>成功标准①「三档阶梯价」——已满足 <span class="src">（真身 §2 条目锚）</span></span></div>
           <div class="anchor ok"><span class="ic">✓</span><span>财务口径复核——王超已回执 <span class="src">（8/27 群消息锚）</span></span></div>
-          <div class="anchor warn"><span class="ic">⚠</span><span>成功标准「附竞品对比」——<b>未见对应段落（未消解）</b> <span class="src">（真身全文检索 · 简报锚③）</span></span></div>
+          <div class="anchor warn"><span class="ic">⚠</span><span>成功标准②「附竞品对比」——<b>未见对应段落（未消解）</b> <span class="src">（真身全文检索 · 简报锚③ · 标准出处：<a class="jump" data-act="goto-grind">你的磨稿会话 ↗</a>）</span></span></div>
           ${acceptZone()}
         </div>
       </div>
@@ -439,7 +558,7 @@ function groupTimeline() {
     <div class="body">
       <div class="who">dsh</div>
       <div class="bubble">已登记新一轮：<b>「补竞品对比后重评 · 张锐 · 下周一前」</b><br>
-        <span style="font-size:11px;color:var(--ink-3)">出生：↑本条消息（sourceAnchor）· 挂接：Q4 定价策略（语境继承）· ack 可纠</span></div>
+        <span style="font-size:11px;color:var(--ink-3)">出生：↑本条消息（sourceAnchor）· 挂接：Q4 定价策略（语境继承）· ack 可纠——默认生效可纠层，<b>不进收件箱</b></span></div>
       <div class="time">周四 16:06</div>
     </div>
   </div>`;
@@ -449,7 +568,7 @@ function groupTimeline() {
 function acceptZone() {
   if (!S.accepted) {
     if (S.viewAs !== 'me') {
-      return `<div class="cline" style="margin-top:8px;color:var(--ink-3)">验收动词只对验收人 Bruce 渲染（动词主权=节点主权派生，无主权不渲染）。</div>`;
+      return `<div class="cline" style="margin-top:8px;color:var(--ink-3)">验收动词只对验收人 Bruce 渲染（动词主权 = 节点主权派生，无主权不渲染）。</div>`;
     }
     return `<div class="cactions">
       <button class="btn primary" data-act="accept">✓ 验收</button>
@@ -458,38 +577,106 @@ function acceptZone() {
     </div>`;
   }
   let s = `<div class="done-strip">✓ 已验收 · Bruce · 8/28 14:32
-    <span class="sub">简报③「竞品对比」未消解——跳过留痕（这一笔会出现在校准回执里）</span></div>`;
+    <span class="sub">简报锚③「竞品对比」未消解——跳过留痕（这一笔会出现在你的校准回执里，也只会出现在那里）</span></div>`;
   if (S.thursday) s += `<div class="muted-strip">↻ 该承诺的义务线已进入新一轮（见下方周四登记）——旧验收留痕不改史（更正即追加律）。</div>`;
   return s;
 }
 
-/* ================= 中栏：私语域 ================= */
+/* ================= 财务群 ================= */
+function finTimeline() {
+  let html = `
+  <div class="sysline">流程「月度报销」· 实例 #24 · agent 按模板整理凭证（流程 = 带模板的复合承诺特例）</div>
+  <div class="msg">
+    <span class="ava">王</span>
+    <div class="body">
+      <div class="who">王超</div>
+      <div class="bubble">发票传好了，麻烦走一下本月报销。</div>
+      <div class="time">周一 10:02</div>
+    </div>
+  </div>
+  <div class="msg">
+    <span class="ava agent">D</span>
+    <div class="body">
+      <div class="who">dsh</div>
+      <div class="bubble">
+        凭证齐，等你确认入账。
+        <div class="card" id="bxCard">
+          <div class="chdr">✍ 确认卡 · agent 要写的参数（收件箱同一对象）</div>
+          <div class="ct">报销入账 · 王超 · ¥3,240</div>
+          <div class="cline">科目：差旅-华东 · 3 张发票齐（<a href="#" class="jump" data-act="peek">凭证锚</a>）· 口径：2026-Q3 版</div>
+          ${bxZone()}
+        </div>
+      </div>
+      <div class="time">周一 10:03</div>
+    </div>
+  </div>`;
+  return html;
+}
+function bxZone() {
+  if (!S.bxApproved) {
+    return `<div class="cactions">
+      <button class="btn primary" data-act="bx-approve">✓ 确认入账</button>
+      <button class="btn" data-act="bx-reject">✗ 驳回</button>
+      <button class="btn quiet" data-act="bx-hold">挂起</button>
+    </div>`;
+  }
+  let s = `<div class="done-strip">✓ 已确认 · Bruce · 刚刚
+    <span class="sub">这是「报销审批」族连续第 24 次通过</span></div>`;
+  if (S.gearBx === 'default' && !S.tailOpen) {
+    s += `<div class="tail-entry"><button data-act="tail-open">这类裁决还需要你吗 ›</button> <span style="color:var(--ink-3);font-size:10.5px">（条尾租约入口 · v4.15 既有语法）</span>${pinIn(8)}</div>`;
+  }
+  if (S.tailOpen && S.gearBx === 'default') {
+    s += `
+    <div class="card paper" style="margin-top:8px">
+      ${pin(8, 'right:-9px;top:-9px')}
+      <div class="chdr">⏱ 两读 · 两个出口同权 <span class="privtag">仅你可见 · 非消息</span></div>
+      <div class="provenance">证据来自<b>你的私账</b>（组织侧没人看得见这张卡）：连续 23 次通过 · 中位停留 1.4 秒 · 金额分布 3 个月未变。<br>
+      agent 未曾也不会因此改动组织侧任何行为——换挡由你签发（持镜人条款${pinIn(14)}）。</div>
+      <div class="cactions">
+        <button class="btn" data-act="gear" data-k="gearBx" data-v="lease">设为租约（它不再需要你）</button>
+        <button class="btn" data-act="gear" data-k="gearBx" data-v="weight">加负重（它需要你更多）</button>
+        <button class="btn quiet" data-act="tail-close">先不动</button>
+      </div>
+    </div>`;
+  }
+  if (S.gearBx === 'lease') s += `<div class="muted-strip">✓ 报销审批 → <b>租约档</b>（金额 ≤ 现分布 · 90 天期 · 到期重签）——裁决无信息量时，租约是诚实的出口。换挡记录在你的金库。</div>`;
+  if (S.gearBx === 'weight') s += `<div class="muted-strip">✓ 报销审批 → <b>负重档</b>——下次此类提案默认摆开全部证据锚、不预选、无一键通过。仅对你生效，仅你可见。</div>`;
+  return s;
+}
+
+/* ================= 私语域 ================= */
 function dmTimeline() {
   if (S.viewAs === 'me') return dmMe();
   if (S.viewAs === 'zhangrui') return dmZr();
   return dmLz();
 }
 function dmMe() {
-  let html = `<div class="sysline">私语域 · <b>仅你与 agent</b> · 组织侧任何人不可见 ${pinIn(7)}</div>`;
+  let html = `<div class="sysline">私语域 · <b>仅你与 agent</b> · 组织侧任何人不可见 ${pinIn(7)}</div>
+  <div class="sysline">8月12日 ${pinIn(17)}</div>
+  <div class="msg"><span class="ava me">B</span><div class="body"><div class="who">Bruce</div>
+    <div class="bubble">帮我把 Q4 定价目标磨到「可验收」。</div><div class="time">8/12 09:31</div></div></div>
+  <div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
+    <div class="bubble">两问之后，你亲笔定的成功标准已写入目标真身正文：<b>①三档阶梯价 ②附竞品对比</b>。作者是你，我只接生（磨点在"可验收"）。</div><div class="time">8/12 09:40</div></div></div>
+  <div class="msg"><span class="ava me">B</span><div class="body"><div class="who">Bruce</div>
+    <div class="bubble">上季度华东平均折扣多少？</div><div class="time">8/26 15:02</div></div></div>
+  <div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
+    <div class="bubble">12.3%（销售表 §3）。轻问 = 一次性投影，不落账。</div><div class="time">8/26 15:02</div></div></div>`;
   if (!S.accepted) {
-    html += `<div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
-      <div class="bubble">这里现在很安静。私语域的开口都要有出处——群里那份《定价方案 v3》验收后，如果有值得立预期的理由，我会在这儿问你一次。<br>
-      <span style="font-size:11px;color:var(--ink-3)">（agent 不会平白开口：无出处即无内容——预填出处律对话语同样适用）</span></div></div></div>`;
+    html += `<div class="sysline">——之后这里一直安静。私语域的开口都要有出处：群里那份《定价方案 v3》验收后，如果有值得立预期的理由，agent 会在这儿问一次。</div>`;
     return html;
   }
-  /* 邀约（有出处，只问一次） */
-  html += `<div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
+  html += `<div class="sysline">8月28日</div>
+  <div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
     <div class="bubble">
       <div class="card paper">
         ${pin(5, 'right:-9px;top:-9px')}
         <div class="chdr">🌱 立个预期？ · 一次性邀约，不追问</div>
-        <div class="provenance">出处：你在 1 条未消解差距上直接验收了《定价方案 v3》（简报锚③）——这是个可对表的时刻。</div>
+        <div class="provenance">出处：你在 1 条未消解差距上直接验收了《定价方案 v3》（简报锚③——那条标准还是你 8/12 亲笔磨的）。这是个可对表的时刻。</div>
         <div class="cline">立了，周四评审的结果回来就能对表。不立也不影响任何组织侧流程——回执周四照样会来（裁决本身就是隐式预期）。</div>
         ${offerZone()}
       </div>
     </div><div class="time">8/28 14:33</div></div></div>`;
   if (S.thursday) html += receiptMe();
-  html += leaseCards();
   return html;
 }
 function offerZone() {
@@ -512,27 +699,28 @@ function offerZone() {
     </div>`;
   }
   if (S.offer === 'declined') {
-    return `<div class="muted-strip">好，按下不表——这一单不再问。（周四的回执照样会来：裁决本身就是隐式预期）</div>`;
+    return `<div class="muted-strip">好，按下不表——这一单不再问；连续几次不立，这类时刻我会整体降频（重新打开在金库）。周四的回执照样会来：裁决本身就是隐式预期。</div>`;
   }
   return `<div class="done-strip">🔒 预期已立 · 检验中
-    <span class="sub">「${esc(S.expectText)}」 · 检验点：周四评审后 · 锚：验收裁决 + 简报③ · 仅你可见 · 不可回填（只在裁决时刻出生）</span></div>`;
+    <span class="sub">「${esc(S.expectText)}」 · 检验点：周四评审后 · 锚：验收裁决 + 简报锚③ · 仅你可见 · 不可回填（只在裁决时刻出生）</span></div>`;
 }
 function receiptMe() {
   const expectLine = S.expectText
     ? `<div class="cline"><b>当时（8/28）</b>：预期「${esc(S.expectText)}」</div>`
     : `<div class="cline"><b>当时（8/28）</b>：无显式预期——你的裁决是「验收」，隐式预期即「它已经够好」。</div>`;
-  return `<div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
+  return `<div class="sysline">9月4日 · 周四</div>
+  <div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
     <div class="bubble">
       <div class="card paper">
         ${pin(4, 'right:-9px;top:-9px')}
-        <div class="chdr">📮 校准回执 · 当时裁决 × 后来事实 · 仅你可见</div>
+        <div class="chdr">📮 校准回执 · 当时裁决 × 后来事实 <span class="privtag">仅你可见 · 不进收件箱${pinIn(13)}</span></div>
         <div class="ct">《Q4 定价方案 v3》</div>
         ${expectLine}
         <div class="cline"><b>事实（周四）</b>：评审被打回，缺竞品对比 <span style="font-size:11px;color:var(--ink-3)">（张锐消息锚 · 一跳可回）</span></div>
-        <div class="anchor warn"><span class="ic">⚠</span><span><b>关键判例</b>：差距简报③当时已标记「未消解」，你看过并跳过 <span class="src"><a href="#" data-act="goto-card">回到那张卡 ↗</a></span></span></div>
+        <div class="anchor warn"><span class="ic">⚠</span><span><b>证据</b>：差距简报锚③当时已在卡上、标记「未消解」，验收动作留痕在其后 <span class="src"><a href="#" class="jump" data-act="goto-card">回到那张卡 ↗</a></span></span></div>
         ${attrZone('attribution', [
-          '证据在手没当回事——这是可复现的判断姿势',
-          '评审标准/客户关注点临时变化，事前不可知',
+          '简报锚③当时已在卡上——同款判例此前有两案可查',
+          '评审关注点临时变化，事前无从得知',
         ])}
       </div>
     </div><div class="time">周四 16:10</div></div></div>`;
@@ -542,77 +730,43 @@ function attrZone(key, hints) {
   const quads = [
     { id: 'q1', t: '对了 · 因判断', s: '判例入账，姿势可复用' },
     { id: 'q2', t: '对了 · 因运气', s: '结果好 ≠ 判断对——防自欺①' },
-    { id: 'q3', t: '错了 · 因判断', s: hints ? hints[0] : '判断姿势的问题' },
-    { id: 'q4', t: '错了 · 因世界', s: hints ? hints[1] : '前提变了，事前不可知' },
+    { id: 'q3', t: '错了 · 因判断', s: hints[0] },
+    { id: 'q4', t: '错了 · 因世界', s: hints[1] },
   ];
   if (val === null) {
-    return `<div class="cline" style="margin-top:7px"><b>归因（你来下，我不代下）</b>${pinIn(6)}</div>
+    return `<div class="cline" style="margin-top:7px"><b>归因（你来下，我不代下——候选注只给证据与假设）</b>${pinIn(6)}</div>
       <div class="quadgrid">${quads.map(q =>
         `<button class="quad" data-act="attr" data-key="${key}" data-q="${q.id}">${q.t}<small>${q.s}</small></button>`).join('')}</div>`;
   }
-  const picked = quads.find(q => q.id === val);
   const extra = key === 'attribution' && val === 'q3'
     ? '模式「跳过未消解锚后被打回」：<button class="numdoor" data-act="cases-skip">第 3 次</button>（每个数字是门）'
     : '已入对表（金库可查）。';
-  return `<div class="done-strip" style="margin-top:8px">✓ 已对表 · ${picked.t}
+  return `<div class="done-strip" style="margin-top:8px">✓ 已对表 · ${QLBL[val]}
     <span class="sub">${extra} · 归因可纠（更正即追加，不改史）</span></div>`;
 }
-function leaseCards() {
-  const cardBx = S.leaseBx === null ? `
-    <div class="card paper">
-      ${pin(8, 'right:-9px;top:-9px')}
-      <div class="chdr">⏱ 这类裁决还需要你吗 · 两个出口同权</div>
-      <div class="ct">报销审批提案</div>
-      <div class="provenance">出处：你近 90 天裁决留痕的派生查询（仅你可见）——连续 23 次通过 · 中位停留 1.4 秒 · 金额分布 3 个月未变。</div>
-      <div class="cactions">
-        <button class="btn" data-act="lease" data-k="leaseBx" data-v="lease">设为租约（它不再需要你）</button>
-        <button class="btn" data-act="lease" data-k="leaseBx" data-v="weight">加负重（它需要你更多）</button>
-      </div>
-    </div>` :
-    (S.leaseBx === 'lease'
-      ? `<div class="done-strip">✓ 报销审批 → 已设租约（金额 ≤ 现分布 · 90 天期 · 到期重签）<span class="sub">裁决无信息量时，租约是诚实的出口——比无意识点击好。</span></div>`
-      : `<div class="done-strip">✓ 报销审批 → 已加负重<span class="sub">下次此类提案默认摆开全部证据锚、不预选、无一键通过。仅对你生效，仅你可见。</span></div>`);
-  const cardHt = S.leaseHt === null ? `
-    <div class="card paper">
-      <div class="chdr">⏱ 这类裁决还需要你吗 · 两个出口同权</div>
-      <div class="ct">供应商合同审批提案</div>
-      <div class="provenance">出处：连续 11 次通过 · 中位停留 2.1 秒 · <b>但金额中位数 3 个月涨了 4 倍</b>——通过率没变，标的变了。</div>
-      <div class="cactions">
-        <button class="btn" data-act="lease" data-k="leaseHt" data-v="lease">设为租约</button>
-        <button class="btn" data-act="lease" data-k="leaseHt" data-v="weight">加负重</button>
-      </div>
-    </div>` :
-    (S.leaseHt === 'weight'
-      ? `<div class="done-strip">✓ 供应商合同 → 已加负重<span class="sub">下次此类提案默认摆开全部证据锚、不预选、无一键通过。金额涨 4 倍的裁决值得慢一档。</span></div>`
-      : `<div class="done-strip">✓ 供应商合同 → 已设租约<span class="sub">你选择了租约——系统照办（选择权在人，系统只摆证据）。金库会继续记这类标的的走向。</span></div>`);
-  return `<div class="sysline">留意层 · 温水剧场守卫（证据来自你自己的裁决留痕）${pinIn(2)}</div>
-    <div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
-    <div class="bubble">${cardBx}${cardHt}</div></div></div>`;
-}
 function dmZr() {
-  let html = `<div class="sysline">私语域 · <b>仅张锐与 agent</b> · Bruce 的预期与回执在这里<b>不存在</b> ${pinIn(11)}</div>`;
-  html += `<div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
+  return `<div class="sysline">私语域 · <b>仅张锐与 agent</b> · Bruce 的预期与回执在这里<b>不存在</b> ${pinIn(11)}</div>
+  <div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
     <div class="bubble">
       <div class="card paper">
-        <div class="chdr">📮 校准回执 · 工期 · 仅你可见</div>
+        <div class="chdr">📮 校准回执 · 工期 <span class="privtag">仅你可见</span></div>
         <div class="ct">《Q4 定价方案 v3》交付</div>
         <div class="cline"><b>当时（8/21）</b>：你说「周三能交 v3」<span style="font-size:11px;color:var(--ink-3)">（群消息锚）</span></div>
         <div class="cline"><b>事实</b>：8/23（周五）交付——偏后 2 天</div>
-        <div class="anchor warn"><span class="ic">⚠</span><span><b>判例</b>：近 3 次交付预估，第 3 次偏乐观（+2d · +1d · +2d，<button class="numdoor" data-act="cases-zr">看判例</button>）</span></div>
-        ${attrZone('zrAttr', ['估期时没算上评审往返——姿势可修', '中途被插了紧急需求，事前不可知'])}
+        <div class="anchor warn"><span class="ic">⚠</span><span><b>证据</b>：近 3 次交付预估第 3 次偏后（+2d · +1d · +2d，<button class="numdoor" data-act="cases-zr">看判例</button>）</span></div>
+        ${attrZone('zrAttr', ['三次判例的偏差都落在评审往返段——事实可查', '中途被插了紧急需求，事前无从得知'])}
       </div>
     </div><div class="time">8/24 09:12</div></div></div>`;
-  return html;
 }
 function dmLz() {
   return `<div class="sysline">私语域 · <b>仅李总与 agent</b></div>
     <div class="msg"><span class="ava agent">D</span><div class="body"><div class="who">dsh（私语）</div>
     <div class="bubble">本周没有待对表的预期，也没有到期回执。<br>
-    <span style="font-size:11px;color:var(--ink-3)">agent 不会索要预期——预期只在你的裁决时刻出生（索要即剧场）。你想看部门的承诺与交付，请去承诺板/目标枢纽（v4 主线）——那是组织的账。</span></div>
+    <span style="font-size:11px;color:var(--ink-3)">agent 不会索要预期——预期只在你的裁决时刻出生（索要即剧场）。想看部门的承诺与交付，请去承诺板——那是组织的账。</span></div>
     </div></div>`;
 }
 
-/* ================= 中栏：金库 ================= */
+/* ================= 金库 ================= */
 function vaultView() {
   if (S.viewAs === 'me') return vaultMe();
   if (S.viewAs === 'zhangrui') return vaultZr();
@@ -621,21 +775,25 @@ function vaultView() {
 function contractChips() {
   return `<div class="contract-chips">
     <span class="cchip">仅你可见</span><span class="cchip">不入组织图</span>
-    <span class="cchip">不可导出</span><span class="cchip">永不绩效</span>
-    <span class="cchip">耦合单向：图 → 金库</span>
+    <span class="cchip">组织不可导出 · 本人可取走</span><span class="cchip">永不绩效</span>
+    <span class="cchip">审计不可触及</span><span class="cchip">耦合单向：图 → 金库</span>
   </div>`;
 }
+function gearset(key) {
+  const cur = S[key];
+  return `<span class="gearset">${['lease','default','weight'].map(g =>
+    `<button data-act="gear" data-k="${key}" data-v="${g}" class="${cur === g ? 'on' : ''}">${{lease:'租约',default:'默认',weight:'负重'}[g]}</button>`).join('')}</span>`;
+}
 function vaultMe() {
-  const expectRow = S.offer === 'born'
-    ? (S.thursday && S.attribution !== null
-        ? ''
-        : `<div class="vrow"><span>🌱</span><span>「${esc(S.expectText || '')}」 · <b>检验中</b><span class="vmeta">检验点：周四评审后 · 锚：验收裁决 + 简报③ · 出生：8/28 私语立约</span></span></div>`)
+  const expectRow = S.offer === 'born' && !(S.thursday && S.attribution !== null)
+    ? `<div class="vrow"><span>🌱</span><span>「${esc(S.expectText || '')}」 · <b>检验中</b><span class="vmeta">检验点：周四评审后 · 锚：验收裁决 + 简报锚③ · 出生：8/28 私语立约</span></span></div>`
     : '';
   const settledNew = (S.thursday && S.attribution !== null)
-    ? `<div class="vrow"><span class="qtag ${S.attribution}">${{q1:'对了·因判断',q2:'对了·因运气',q3:'错了·因判断',q4:'错了·因世界'}[S.attribution]}</span>
-        <span>《Q4 定价方案 v3》验收${S.expectText ? `——预期「${esc(S.expectText)}」` : '（隐式预期）'}，周四被打回<span class="vmeta">判例：跳过简报③未消解锚 · 对表：周四 16:10</span></span></div>`
+    ? `<div class="vrow"><span class="qtag ${S.attribution}">${QLBL[S.attribution]}</span>
+        <span>《Q4 定价方案 v3》验收${S.expectText ? `——预期「${esc(S.expectText)}」` : '（隐式预期）'}，周四被打回<span class="vmeta">判例：跳过简报锚③ · 对表：周四 16:10 · <a class="jump" data-act="goto-card">回到验收卡 ↗</a></span></span></div>`
     : '';
   const skipN = (S.thursday && S.attribution === 'q3') ? 3 : 2;
+  const inviteState = S.declined ? '近 30 天：立 2 · 不立 2（再连续不立将降频停问——人用脚投票就是应答）' : '正常（近 30 天：立 2 · 不立 1）';
   return `<div class="vault-wrap">
     <div class="vault-head">
       <h2>🔒 我的判断 · 私账 ${pinIn(7)}</h2>
@@ -644,7 +802,7 @@ function vaultMe() {
     <div class="vsect">
       <div class="vh">检验中的预期 <span class="n">· 立约时刻出生，不可回填 ${pinIn(5)}</span></div>
       ${expectRow}
-      <div class="vrow"><span>⏳</span><span>「8/29 前签下华信续约」 · <b>已过检验点，待对表</b><span class="vmeta">出生：8/12 私语立约（续约谈判裁决时）· agent 已在私语域问你结果（等待语义：可跟进——问结果合法，索要预期非法）</span></span></div>
+      <div class="vrow"><span>⏳</span><span>「8/29 前签下华信续约」 · <b>已过检验点，待对表</b><span class="vmeta">出生：8/12 私语立约（续约谈判裁决时）· agent 已在私语域问你结果（问结果合法，索要预期非法）· 不老化不可催——这本账的债主是你自己</span></span></div>
       ${expectRow || settledNew ? '' : `<div class="vempty">主线预期还没出生——去产品群验收，然后在私语域亲口立一个。预期不可回填：这里永远不会出现"事后补写"的行。</div>`}
     </div>
     <div class="vsect">
@@ -658,21 +816,28 @@ function vaultMe() {
       <div class="vrow"><span>↩</span><span>「国庆前签约富临」——你撤回：前提变了（客户预算冻结）<span class="vmeta">撤回：8/20 · 前提消失时撤回预期是诚实，不是失败</span></span></div>
     </div>
     <div class="vsect">
+      <div class="vh">换挡台 <span class="n">· 三档位定律：租约 ← 默认 → 负重，按提案族 · 档位私有 ${pinIn(15)}${pinIn(14)}</span></div>
+      <div class="vrow"><span>⏱</span><span><b>报销审批</b><span class="vmeta">证据：连续 ${S.bxApproved ? 24 : 23} 次通过 · 中位停留 1.4s · 金额分布 3 个月未变${S.gearBx !== 'default' ? ' · 换挡记录：条尾入口 · 刚刚' : ' · 条尾入口在财务群等你'}</span></span>${gearset('gearBx')}</div>
+      <div class="vrow"><span>⏱</span><span><b>供应商合同审批</b><span class="vmeta">证据：连续 11 次通过 · 中位停留 2.1s · <b>但金额中位数 3 个月 ×4</b>——通过率没变，标的变了</span></span>${gearset('gearHt')}</div>
+      <div class="vrow"><span>🛠</span><span><b>目标拆解提案</b><span class="vmeta">证据：近 5 次提案你全盘通过、零改动——负重档 = "你先拆，agent 再补"（产婆术的可调节形态，生成侧温水的解）</span></span>${gearset('gearBreak')}</div>
+      <div class="vrow"><span>🌱</span><span><b>立约邀约频率</b><span class="vmeta">${inviteState} · 重新打开的主权在这里</span></span></div>
+    </div>
+    <div class="vsect">
       <div class="vh">模式 <span class="n">· 每个数字是门（逐级兑付对私账同样适用）${pinIn(10)}</span></div>
       <div class="vrow"><span>⚠</span><span>跳过未消解锚后被打回：<button class="numdoor" data-act="cases-skip">${skipN} 次</button><span class="vmeta">派生自：你的验收留痕 × 后续终态——不是系统的意见，是你自己的判例</span></span></div>
-      <div class="vrow"><span>📐</span><span>对张锐工期的预估：平均乐观 <button class="numdoor" data-act="cases-zr-est">1.7 天</button>（3 判例）<span class="vmeta">下次给他排期时，这是你自己的校准系数——用不用在你</span></span></div>
+      <div class="vrow"><span>📐</span><span>对张锐工期的预估：平均偏后 <button class="numdoor" data-act="cases-zr-est">1.7 天</button>（3 判例）<span class="vmeta">下次排期时这是你自己的校准系数——用不用在你（agent 不会替你改排期：持镜人条款）</span></span></div>
       <div class="vrow"><span>💪</span><span>法务类裁决：三月前 100% 转王超预审 → 本月<b>独立拒收 2 份</b><span class="vmeta">检验标准⑥的证据形态：第六个月的人，敢裁第一天不敢裁的事</span></span></div>
     </div>
     <div class="refuse-block">
       <b>金库五不做</b>：无分数 · 无排名 · 无画像 · 无建议倾向 · 无团队视图。${pinIn(9)}<br>
-      金库只陈列判例与对表，结论你自己下——产婆术对显示层同样适用。
+      P′ 四资产里只有<b>判断</b>被机制化——表达归产婆术、品味归磨稿亲笔、志向归目标作者权、关系归社交摩擦不碰；品味与志向的量化<b>明拒</b>。金库只陈列判例与对表，结论你自己下。
     </div>
   </div>`;
 }
 function vaultZr() {
   const zrN = S.zrAttr !== null ? 3 : 2;
   const settled = S.zrAttr !== null
-    ? `<div class="vrow"><span class="qtag ${S.zrAttr}">${{q1:'对了·因判断',q2:'对了·因运气',q3:'错了·因判断',q4:'错了·因世界'}[S.zrAttr]}</span>
+    ? `<div class="vrow"><span class="qtag ${S.zrAttr}">${QLBL[S.zrAttr]}</span>
         <span>「周三能交 v3」——实际周五交<span class="vmeta">对表：8/24 · 判例入账</span></span></div>`
     : '';
   return `<div class="vault-wrap">
@@ -690,8 +855,12 @@ function vaultZr() {
       <div class="vrow"><span class="qtag q1">对了·因判断</span><span>「用阶梯价替代一口价，评审会买账」——7 月评审采纳<span class="vmeta">对表：7/18</span></span></div>
     </div>
     <div class="vsect">
+      <div class="vh">换挡台</div>
+      <div class="vrow"><span>🛠</span><span><b>交付前自检清单提案</b><span class="vmeta">证据：近 3 次交付有 2 次被简报标出未消解锚——负重档 = 交付前你先自检、agent 再补</span></span>${gearset('gearBreak')}</div>
+    </div>
+    <div class="vsect">
       <div class="vh">模式 · 每个数字是门</div>
-      <div class="vrow"><span>📐</span><span>交付估期偏乐观：<button class="numdoor" data-act="cases-zr">${zrN} 判例</button>（+2d · +1d${S.zrAttr !== null ? ' · +2d' : ''}）<span class="vmeta">派生自：你的估期话语 × 实际交付时间——只有你看得见这行</span></span></div>
+      <div class="vrow"><span>📐</span><span>交付估期偏后：<button class="numdoor" data-act="cases-zr">${zrN} 判例</button>（+2d · +1d${S.zrAttr !== null ? ' · +2d' : ''}）<span class="vmeta">派生自：你的估期话语 × 实际交付时间——只有你看得见这行</span></span></div>
     </div>
     <div class="refuse-block"><b>这本账是张锐的。</b>Bruce 的预期、回执、模式在此视角下不存在——不是灰化，是不渲染。成长回路不是老板的特权，执行者同样在 P–agent–P′ 里。</div>
   </div>`;
@@ -713,51 +882,130 @@ function vaultLz() {
     <div class="refuse-block">
       ${pin(7, 'right:-9px;top:-9px')}
       <b>找「下属的对表」？——不存在。</b><br>
-      误判史归组织，成长回路当场翻转为监控回路（决策 #60 判断力档案硬合同：仅本人 · 不入组织图 · 不可导出 · 永不绩效聚合）。<br>
-      你能看的是<b>组织的账</b>：他们的承诺、交付与回执——承诺板 / 目标枢纽（<a href="./ultimate-form-demo-v4.html" style="color:var(--pub)">v4 主线沙盘 ↗</a>）。两本账，两种可见性，永不合流。
+      误判史归组织，成长回路当场翻转为监控回路（决策 #60 判断力档案硬合同：仅本人 · 不入组织图 · 组织不可导出本人可取走 · 永不绩效 · 审计不可触及）。<br>
+      你能看的是<b>组织的账</b>：他们的承诺、交付与回执——去承诺板。两本账，两种可见性，永不合流。
     </div>
   </div>`;
+}
+
+/* ================= 承诺板 ================= */
+function boardCommits() {
+  const rows = [
+    { t: '9/1 前给出 Q4 定价方案', ex: '张锐', owner: 'Bruce', goal: 'Q4 定价策略',
+      st: S.accepted ? (S.thursday ? { c: 'ok', t: '已验收 · 义务线转新一轮' } : { c: 'ok', t: '已验收' }) : { c: 'wait', t: '待验收' },
+      born: '出生：8/12 周会拆解提案 · 代发登记' },
+    { t: '财务口径复核', ex: '王超', owner: 'Bruce', goal: 'Q4 定价策略',
+      st: { c: 'ok', t: '已回执' }, born: '出生：8/25 群内登记' },
+  ];
+  if (S.thursday) rows.push({ t: '补竞品对比后重评', ex: '张锐', owner: 'Bruce', goal: 'Q4 定价策略',
+    st: { c: 'run', t: '进行中' }, born: '出生：张锐周四消息 · 语境继承 · ack 可纠' });
+  rows.push({ t: '整理供应商目录', ex: '李雷', owner: 'Bruce', goal: null,
+    st: { c: 'none', t: '无信号 3 天' }, born: '出生：8/26 DM 登记 · 未挂（合法状态）' });
+  return rows;
+}
+function boardView() {
+  const me = VIEWER[S.viewAs];
+  const rows = boardCommits();
+  const lens = S.boardLens;
+  const chip = (id, label) => `<button data-lens="${id}" class="${lens === id ? 'on' : ''}">${label}</button>`;
+  let bodyHtml = '';
+  if (lens === 'all') {
+    const g = rows.filter(r => r.goal);
+    const org = rows.filter(r => !r.goal);
+    bodyHtml = `
+      <div class="bd-group">
+        <div class="gh">◎ Q4 定价策略 · owner Bruce</div>
+        ${g.map(r => bdRow(r, me, true)).join('')}
+      </div>
+      <div class="bd-group">
+        <div class="gh">· 无归属（未挂是合法状态）</div>
+        ${org.map(r => bdRow(r, me, true)).join('')}
+      </div>`;
+  } else if (lens === 'owed') {
+    const owed = rows.filter(r => r.owner === me && r.ex !== me && !['已验收', '已回执'].includes(r.st.t.split(' ')[0]));
+    bodyHtml = owed.length
+      ? `<div class="bd-group"><div class="gh">欠我的 · 应收账簿（债务人 × 信号——目标退场为行内 chip）</div>${owed.map(r => bdRow(r, me, false)).join('')}</div>`
+      : `<div class="bd-empty"><b>没人欠你未终态的承诺。</b>已终态的在「全部」里可查——账簿只列应收，不列已收（来取不是来喂）。</div>`;
+  } else {
+    const mine = rows.filter(r => r.ex === me);
+    bodyHtml = mine.length
+      ? `<div class="bd-group"><div class="gh">我欠的 · 行动清单</div>${mine.map(r => bdRow(r, me, false)).join('')}</div>`
+      : `<div class="bd-empty"><b>你当前不欠账。</b>板是对账面不是任务箱——没有就是没有。</div>`;
+  }
+  return `<div class="board-wrap">
+    <div class="bd-head">
+      ${pin(18, 'right:-6px;top:-4px')}
+      <h2>承诺板 · 组织的对账面（${me} 的切片）</h2>
+      <div class="lens-chips">${chip('all', '全部')}${chip('owed', '欠我的')}${chip('mine', '我欠的')}</div>
+    </div>
+    ${bodyHtml}
+    <div class="bd-empty" style="margin-top:12px">
+      <b>板上零私账${pinIn(18)}</b>：没有"校准率"列、没有"判断力"排序、没有任何来自金库的数字。你与张锐看到的是同一本账的各自切片；你的私账只在你的金库。
+    </div>
+  </div>`;
+}
+function bdRow(r, me, withGoalGroup) {
+  const mine = r.ex === me ? `<span class="mine">我负责</span>` : '';
+  const goalChip = !withGoalGroup && r.goal ? `<span class="gchip">◎ ${r.goal}</span>` : '';
+  return `<div class="bd-row"><span>${r.t}</span> · <span>${r.ex}</span>${mine}${goalChip}<span class="st ${r.st.c}">${r.st.t}</span><span class="src">${r.born} · 验收人 ${r.owner}</span></div>`;
 }
 
 /* ================= 中栏渲染 ================= */
 function renderCenter() {
   const c = $('center');
+  if (S.view === 'inbox') { c.innerHTML = inboxView(); return; }
+  if (S.view === 'board') { c.innerHTML = boardView(); bindBoard(); return; }
   if (S.view === 'group') {
     c.innerHTML = `
       <div class="chead"><span class="t">产品群</span><span class="sub">主楼 · 服务中（在岗）· 听众 = 群成员（随成员动态）</span>${pinIn(1)}</div>
       <div class="timeline" id="tl">${groupTimeline()}</div>
-      <div class="composer"><div class="fake">本沙盘聚焦验收之后的私账回路——完整对话器（回复 / @成员 / 委派 / 话题）见 <a href="./ultimate-form-demo-v4.html" style="color:var(--pub)">v4 主线</a>。</div></div>`;
+      <div class="composer"><div class="fake">本沙盘聚焦既有环上的私账接缝——完整对话器（回复 / @成员 / 委派 / 话题）见 <a href="./ultimate-form-demo-v4.html">v4 主线</a>。</div></div>`;
+  } else if (S.view === 'fin') {
+    c.innerHTML = `
+      <div class="chead"><span class="t">财务群</span><span class="sub">主楼 · 服务中（在岗）· 仅 Bruce/王超/agent</span></div>
+      <div class="timeline" id="tl">${finTimeline()}</div>
+      <div class="composer"><div class="fake">流程实例 = 带模板的复合承诺（v4 主线有完整月结剧本）。</div></div>`;
   } else if (S.view === 'dm') {
     c.innerHTML = `
-      <div class="chead"><span class="t">与 agent 私语</span><span class="lock">🔒 仅你可见</span><span class="sub">${VIEWER[S.viewAs]} 的私语域</span></div>
+      <div class="chead"><span class="t">与 agent 私语</span><span class="lock">🔒 仅你可见</span><span class="sub">${VIEWER[S.viewAs]} 的私语域——磨目标、轻问、立约、对表都住在这儿</span>${pinIn(17)}</div>
       <div class="timeline pri" id="tl">${dmTimeline()}</div>
-      <div class="composer"><div class="fake">私语域是完整对话器（磨目标、轻问、立预期都在这儿说）——本沙盘只演立约与对表两拍。</div></div>`;
+      <div class="composer"><div class="fake">私语域是完整对话器——本沙盘演其中的立约与对表两拍。</div></div>`;
   } else {
     c.innerHTML = vaultView();
   }
-  const tl = $('tl'); if (tl) tl.scrollTop = tl.scrollHeight;
+  const tl = $('tl');
+  if (tl && !S.flashCard) tl.scrollTop = tl.scrollHeight;
+  if (S.flashCard) {
+    const el = document.getElementById(S.flashCard);
+    if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
+    S.flashCard = null;
+  }
+}
+function bindBoard() {
+  document.querySelectorAll('[data-lens]').forEach(b =>
+    b.addEventListener('click', () => { S.boardLens = b.dataset.lens; renderAll(); }));
 }
 
 /* ================= 右栏 ================= */
 function renderRpanel() {
   const r = $('rpanel');
-  if (S.view === 'group') {
+  if (S.view === 'group' || S.view === 'inbox' || S.view === 'board' || S.view === 'fin') {
     const third = S.thursday
-      ? `<div class="cm-row">③ 补竞品对比后重评 · 张锐 · 下周一<span class="st run">进行中</span><span class="src">出生：张锐周四消息 · 挂接：语境继承 · ack 可纠</span></div>` : '';
-    const st1 = S.accepted ? '<span class="st ok">已验收</span>' : '<span class="st wait">待验收</span>';
+      ? `<div class="cm-row">③ 补竞品对比后重评 · 张锐 <span class="st run" style="font-size:10.5px;padding:1px 7px;border-radius:999px">进行中</span><span class="src">出生：张锐周四消息 · 语境继承 · ack 可纠</span></div>` : '';
+    const st1 = S.accepted ? '<span class="st ok" style="font-size:10.5px;padding:1px 7px;border-radius:999px">已验收</span>' : '<span class="st wait" style="font-size:10.5px;padding:1px 7px;border-radius:999px">待验收</span>';
     r.innerHTML = `
       <div class="rp-title">语境 · 组织的账（第一本账）</div>
       <div class="rp-card">
         <h4>◎ 目标 · Q4 定价策略</h4>
         <div class="cm-row">① 9/1 前给出 Q4 定价方案 · 张锐 ${st1}<span class="src">出生：8/12 周会拆解提案 · 代发登记</span></div>
-        <div class="cm-row">② 财务口径复核 · 王超<span class="st ok">已回执</span><span class="src">出生：8/25 群内登记</span></div>
+        <div class="cm-row">② 财务口径复核 · 王超 <span class="st ok" style="font-size:10.5px;padding:1px 7px;border-radius:999px">已回执</span><span class="src">出生：8/25 群内登记</span></div>
         ${third}
       </div>
       <div class="rp-card paper">
         <h4>两本账的分界 ${pinIn(1)}</h4>
-        左边这一列（目标、承诺、回执）是<b>组织的账</b>——听众集合内可见、可审计。<br>
-        验收之后发生在<b>私语域与金库</b>里的一切（预期、校准回执、归因、模式），属于<b>人的账</b>——仅本人。
-        <div class="flowline">组织图 ──证据──▶ 金库（私）<br>金库 ──✕──▶ 任何聚合 / 绩效 / 上级</div>
+        目标、承诺、回执、验收——<b>组织的账</b>：听众集合内可见、可审计、上板。<br>
+        预期、校准回执、归因、换挡——<b>人的账</b>：仅本人，在私语域与金库。
+        <div class="flowline">组织图 ──证据──▶ 金库（私）<br>金库 ──✕──▶ 收件箱 / 板 / 聚合 / 绩效</div>
       </div>`;
   } else if (S.view === 'dm') {
     const me = S.viewAs === 'me';
@@ -772,13 +1020,17 @@ function renderRpanel() {
         <button class="btn gold" data-act="open-vault" style="margin-top:8px">打开金库 →</button>
       </div>
       <div class="rp-card paper">
-        <h4>硬合同 ${pinIn(7)}</h4>
-        仅你可见 · 不入组织图 · 不可导出 · 永不绩效。<br>
-        误判史归组织 = 成长回路翻转为监控回路——所以耦合<b>单向</b>：图供事实，金库炼判断。
+        <h4>硬合同（v4.25r）${pinIn(7)}</h4>
+        仅你可见 · 不入组织图 · <b>组织不可导出、本人可取走</b> · 永不绩效 · 审计不可触及。<br>
+        部署二值开关：组织可不启用金库，但"启用且组织可见"的中间态<b>明拒</b>。
+      </div>
+      <div class="rp-card">
+        <h4>持镜人条款 ${pinIn(14)}</h4>
+        agent 只在<b>你发起</b>的对表/回看/换挡时刻引用金库；不因你的误判史改组织侧任何行为。镜子只能被本人照。
       </div>`;
   } else {
     r.innerHTML = `
-      <div class="rp-title">双螺旋 · 决策 #60</div>
+      <div class="rp-title">双螺旋 · 决策 #60 + v4.25r</div>
       <div class="rp-card paper">
         <h4>两条链互喂，谁也不吞谁 ${pinIn(1)}</h4>
         <b>agent′</b> 的增量来自你的话语与裁决（记忆、判例、信任）；<br>
@@ -786,6 +1038,15 @@ function renderRpanel() {
         逐环判据：同一次点击，反馈只流回系统是<b>萃取</b>，也流回人是<b>练习</b>。
       </div>
       <div class="rp-card paper">
+        <h4>P′ 四资产 ${pinIn(9)}</h4>
+        判断 = 金库回路（唯一新增机制）<br>
+        表达 = 产婆术（命名既有）<br>
+        品味 = 磨稿亲笔（既有）<br>
+        志向 = 目标作者权（既有）<br>
+        关系 = 社交摩擦不碰（既有）<br>
+        <span style="color:var(--ink-3)">品味与志向的量化明拒——机制化即其死亡。</span>
+      </div>
+      <div class="rp-card">
         <h4>验收句 ${pinIn(10)}</h4>
         <b>拿走系统的那一天，人比第一天更强。</b><br>
         杠铃与拐杖的分界——搬运的肌肉不值得保留（老茧），判断/表达/关系的肌肉萎缩即圈养。
@@ -794,8 +1055,8 @@ function renderRpanel() {
         <h4>机制账单（近零新增）${pinIn(4)}</h4>
         校准回执 = 可应答对象落私语域（单答家族复用）；<br>
         预期 = 登记动词的私语形态；<br>
-        租约两读 = 既有租约提议卡补一个出口；<br>
-        唯一新增的"面" = 本金库视图，且它住在私语域。
+        两读/三档位 = 条尾租约入口的语义扩员（零新入口）；<br>
+        唯一新增的"面" = 本金库视图，且它住在私语侧。
       </div>`;
   }
 }
@@ -805,7 +1066,7 @@ const CASES = {
   'cases-skip': { t: '模式判例：跳过未消解锚后被打回', items: [
     { d: '7/14', s: '《周报数据口径》——简报标"数据缺口未消解"，验收后被财务打回补数', m: '锚：差距简报② · 终态：返工 1 轮' },
     { d: '8/02', s: '《供货框架合同》——简报标"违约条款未消解"，验收后法务退回', m: '锚：差距简报① · 终态：返工 1 轮' },
-    { d: '8/28', s: '《Q4 定价方案 v3》——简报标"竞品对比未消解"，周四评审打回', m: '锚：差距简报③ · 终态：新一轮（本 demo 主线）', cond: 'q3' },
+    { d: '8/28', s: '《Q4 定价方案 v3》——简报标"竞品对比未消解"，周四评审打回', m: '锚：差距简报③ · 终态：新一轮（本沙盘主线）', needAttr: true },
   ]},
   'cases-zr': { t: '判例：张锐交付估期', items: [
     { d: '7/22', s: '「周五能交竞品调研」——实际下周二交（+2d）', m: '估期话语锚 × 交付时间' },
@@ -820,7 +1081,7 @@ const CASES = {
 };
 function showCases(key) {
   const c = CASES[key]; if (!c) return;
-  const items = c.items.filter(i => !i.cond || (key === 'cases-skip' && S.attribution === 'q3') || (key === 'cases-zr' && S.zrAttr !== null));
+  const items = c.items.filter(i => !i.needAttr || S.attribution === 'q3');
   openPop(c.t, `<div class="caselist">${items.map(i =>
     `<div class="ci"><b>${i.d}</b> · ${i.s}<div class="m">${i.m}</div></div>`).join('')}
     <div style="font-size:11.5px;color:var(--ink-3);margin-top:6px">每个数字是门（逐级兑付对私账同样适用）——判例可回锚，模式不可编造。</div>`);
@@ -830,12 +1091,14 @@ function showCases(key) {
 document.addEventListener('click', e => {
   const noteBtn = e.target.closest('[data-note]');
   if (noteBtn) { const n = NOTES[noteBtn.dataset.note]; if (n) openPop(n.title, n.body, noteBtn.dataset.note); return; }
+  const ib = e.target.closest('[data-ibnav]');
+  if (ib) { S.view = ib.dataset.ibnav; S.flashCard = ib.dataset.flash; renderAll(); return; }
   const act = e.target.closest('[data-act]');
   if (!act) return;
   const a = act.dataset.act;
   if (a === 'accept') {
-    S.accepted = true;
-    toast('已验收（简报③未消解——跳过留痕）。私语域来了一条有出处的邀约。');
+    S.accepted = true; S.dmUnread += 1;
+    toast('已验收（简报锚③未消解——跳过留痕）。收件箱该行答完即溶；私语域来了一条有出处的邀约（消息未读 +1）。');
     renderAll(); return;
   }
   if (a === 'reject' || a === 'wait') {
@@ -844,16 +1107,26 @@ document.addEventListener('click', e => {
       : '继续等 → 不产生任何状态（等待可见由三值信号承担）——见 v4 主线。');
     return;
   }
+  if (a === 'bx-approve') {
+    S.bxApproved = true;
+    toast('已确认入账（第 24 次连续通过）。注意条尾出现了「这类裁决还需要你吗›」——v4.15 既有租约入口，现在是两读分岔。');
+    renderAll(); return;
+  }
+  if (a === 'bx-reject' || a === 'bx-hold') { toast('驳回/挂起路径见 v4 主线（财务对账裁决卡剧本）——本沙盘聚焦通过后的条尾分岔。'); return; }
+  if (a === 'tail-open') { S.tailOpen = true; renderAll(); return; }
+  if (a === 'tail-close') { S.tailOpen = false; toast('先不动——档位保持默认。换挡台在金库，证据一直在。'); renderAll(); return; }
   if (a === 'peek') { e.preventDefault(); toast('并排预览（工件三态）见 v4 主线——本沙盘不重演。'); return; }
+  if (a === 'goto-grind') { e.preventDefault(); S.view = 'dm'; if (S.viewAs === 'me') S.dmUnread = 0; renderAll(); toast('这条成功标准是你 8/12 在私语域亲笔磨出来的——出生故事闭环。'); return; }
   if (a === 'offer-input') { S.offer = 'input'; renderAll(); setTimeout(() => { const ta = $('expectTa'); if (ta) ta.focus(); }, 30); return; }
-  if (a === 'offer-decline') { S.offer = 'declined'; toast('按下不表，这一单不再问。周四的回执照样会来——裁决本身就是隐式预期。'); renderAll(); return; }
+  if (a === 'offer-decline') { S.offer = 'declined'; S.declined = true; toast('按下不表，这一单不再问；连续不立会整体降频（重开在金库）。周四的回执照样会来。'); renderAll(); return; }
   if (a === 'offer-sample') {
     const ta = $('expectTa'); if (ta) { ta.value = '周四评审一次过，不需要第二轮'; ta.focus(); }
     toast('示例是演示装置（v4.24 出处律）——真实产品里这句话由你说。'); return;
   }
-  if (a === 'offer-ghost') { S.refused = true; const ta = $('expectTa'); const keep = ta ? ta.value : ''; renderAll();
-    const ta2 = $('expectTa'); if (ta2) ta2.value = keep;
-    return; }
+  if (a === 'offer-ghost') {
+    S.refused = true; const ta = $('expectTa'); const keep = ta ? ta.value : '';
+    renderAll(); const ta2 = $('expectTa'); if (ta2) ta2.value = keep; return;
+  }
   if (a === 'offer-send') {
     const ta = $('expectTa');
     const txt = ta ? ta.value.trim() : '';
@@ -869,9 +1142,14 @@ document.addEventListener('click', e => {
       : '已入对表（张锐的私账）。');
     renderAll(); return;
   }
-  if (a === 'lease') { S[act.dataset.k] = act.dataset.v; renderAll(); return; }
+  if (a === 'gear') {
+    S[act.dataset.k] = act.dataset.v; S.tailOpen = false;
+    const lbl = { lease: '租约（全自动，90 天期到期重签）', default: '默认（agent 提案、你裁决）', weight: '负重（摆开证据 / 你先手、agent 再补）' }[act.dataset.v];
+    toast(`换挡：${lbl}。档位是你的私有设置——组织侧无人知晓，agent 照办不揣测（持镜人条款）。`);
+    renderAll(); return;
+  }
   if (a === 'open-vault') { S.view = 'vault'; renderAll(); return; }
-  if (a === 'goto-card') { e.preventDefault(); S.view = 'group'; renderAll(); toast('回到验收卡——判例可回锚（一跳指路）。'); return; }
+  if (a === 'goto-card') { e.preventDefault(); S.view = 'group'; S.flashCard = 'accCard'; renderAll(); toast('回到验收卡——判例可回锚（一跳指路）。'); return; }
   if (a.startsWith('cases-')) { showCases(a); return; }
 });
 $('popClose').addEventListener('click', () => document.body.classList.remove('pop'));
@@ -883,6 +1161,7 @@ $('annotateToggle').addEventListener('click', () => {
 $('viewerSwitch').querySelectorAll('[data-viewer]').forEach(b =>
   b.addEventListener('click', () => {
     S.viewAs = b.dataset.viewer;
+    if (S.view === 'fin' && S.viewAs !== 'me') S.view = 'group';  /* 可见域：张锐/李总不在财务群 */
     $('viewerSwitch').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
     renderAll();
   }));
