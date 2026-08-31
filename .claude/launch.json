@@ -2,29 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "demo-static",
-      "runtimeExecutable": "/bin/sh",
-      "runtimeArgs": ["-c", "exec python3 -m http.server ${PORT:-4173} --directory docs"],
-      "port": 4173,
-      "autoPort": true
-    },
-    {
-      "name": "yzj-next",
-      "runtimeExecutable": "/bin/sh",
-      "runtimeArgs": [
-        "-c",
-        "pnpm build && DSH_HOME=$HOME/.dsh-next exec node $HOME/.npm-global/bin/dsh web --port 3090 --no-open"
-      ],
-      "port": 3090
-    },
-    {
-      "name": "yzj-legacy",
-      "runtimeExecutable": "/bin/sh",
-      "runtimeArgs": [
-        "-c",
-        "exec node $HOME/.npm-global/bin/dsh web --port 3080 --no-open"
-      ],
-      "port": 3080
+      "name": "docs-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "docs"],
+      "port": 8123
     }
   ]
 }
