@@ -33,18 +33,15 @@
 .chip:hover { background: #E7DBBF; }
 
 /*
-  两栏 —— **中栏是流、右栏是物**，和会话面同一条语义（#61 澄清①）。
+  金库是**中栏**，一列 —— 右栏在宿主的对象面槽位上（v2.2 对象面账本律①）。
 
-  金库的「物」是判例的**证据**。两栏并列而不是分屏跳转，为的是**对表不出屏**：
-  边看证据边下归因。把证据摆进另一个页面，四格就得凭记忆答——那正是「验收不出屏」
-  当初要躲的那种失真，只不过换到了私账这一侧。
+  「中栏是流、右栏是物」在这里和在会话面是同一条语义：金库的物 = 判例的证据，它由
+  对象面按 frame 分派出来的那一棵树画。曾经这里自己长过一个 aside，那等于在同一屏上
+  摆了两个右栏——**账本随会话整体切换**说的正是这件事不该发生。
+
+  **对表不出屏**照旧成立，而且更实：证据在真正的右栏上，四格在这一列的行上，一屏之内。
 */
-.body { flex: 1; min-height: 0; display: flex; gap: 14px; }
-.stream { flex: 1; min-width: 0; overflow-y: auto; padding: 12px 0 24px 20px; }
-.aside {
-  flex: none; width: 268px; overflow-y: auto;
-  padding: 12px 20px 24px 0;
-}
+.body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 20px 24px; }
 
 /* 检索框 —— **金库内**的检索。这个面上没有 viewer 参数，因为它只有一个读者。 */
 .searchRow { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }

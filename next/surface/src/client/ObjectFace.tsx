@@ -22,9 +22,8 @@ import {
 } from 'react'
 import type { ObjectFaceWire, SurfaceInject } from './rpc.ts'
 import { ArtifactPreview } from './PreviewPanel.tsx'
-import { ArtifactCard } from './ArtifactCard.tsx'
+import { ResourceTab } from './ResourceTab.tsx'
 import { YzjEventHub } from './EventHub.tsx'
-import { artifactRefOf } from './artifacts.ts'
 import { currentSpotlight, setSpotlight, subscribeSpotlight } from './store.ts'
 import { useAsidePreviewHost, usePreview } from './preview.ts'
 import tokens from './tokens.module.css'
@@ -246,29 +245,21 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
             ]
         )}
 
-        {tab !== 'memory' && rows.length === 0 && (
-          <div className={css.calm}>
-            {tab === 'current'
+        {/*
+          当前与资源画的是同一种行，所以走同一个组件 —— 而**资源那一格是跨账本恒定
+          格**（v2.2 账本律③）：金库右栏的资源 tab 复用的就是这一个，不是另写一份
+          长得像的。恒定如果靠两份代码各自保持一致，它就只是暂时一致。
+        */}
+        {tab !== 'memory' && (
+          <ResourceTab
+            rows={rows}
+            empty={tab === 'current'
               ? '这个会话还没有产出工件。写文档、建表格之后会出现在这里，并同时出现在中间那一列它被写出来的位置。'
               : face.scope?.kind === 'place'
                 ? `「${where}」里还没有任何话题产出过工件。`
                 : '本机会话还没有产出工件。群里产出的在各自的群里。'}
-          </div>
-        )}
-
-        {/*
-          和中栏那条产出行、承诺板那个抽屉画的是同一张卡——一个物不配两套 UI。
-          能取到字节的(agent 上传的文件)点开就在这一栏并排看,取不到的
-          (云之家在线文档)给一扇门。
-        */}
-        {tab !== 'memory' && rows.map(row => (
-          <ArtifactCard
-            key={`${row.uri}:${String(row.time)}`}
-            artifact={artifactRefOf({
-              uri: row.uri, title: row.title, action: row.action, notes: [row.placeKey],
-            })}
           />
-        ))}
+        )}
       </div>
     </div>
   )

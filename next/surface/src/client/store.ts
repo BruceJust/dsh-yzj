@@ -229,7 +229,22 @@ export function currentFrame(): Frame {
 }
 
 export function setFrame(next: Frame): void {
+  const leavingVault = frame.kind === 'vault' && next.kind !== 'vault'
   frame = next
+  /*
+    **残留面 = 第四泄漏口**（继聚合面 / 导出面 / 搜索面之后，v2.2 对象面账本律②）.
+
+    证据面的选中态与它带出来的私账预览是**会话视图态**，生命周期上限 = 会话停留期。
+    切离私账**即毁，不是隐藏**——投屏或共享屏幕时，右栏残留的一条判例就是一次泄漏。
+    「切会话即收」对私账内容从整洁纪律**升格为泄漏面条款**。
+
+    而且**不做「切回恢复上次选中」的贴心**：在私账域，便利与泄漏常常是同一个实现。
+    切回金库 = 默认态（待对表首项备料）重新出发。
+
+    它落在这一个点上而不是十几个组件里，理由和隐身档同一条：**换账本只有这一处
+    机械时刻**，写在这儿就不会有人忘记。
+  */
+  if (leavingVault) setVaultSelection(undefined)
   /*
     切场景即收预览 (v4.11「切会话即收」).
 
@@ -283,4 +298,30 @@ export function setSpotlight(next: Spotlight | undefined): void {
 export function subscribeSpotlight(listener: () => void): () => void {
   spotlightListeners.add(listener)
   return () => { spotlightListeners.delete(listener) }
+}
+
+/* ——— 金库右栏此刻摆的是哪一行 —— 会话视图态，切离私账即毁（v2.2 账本律②） ——— */
+
+/** 选中的那一行。**没有「上次选中」这种东西**——切离即毁。 */
+export interface VaultSelection {
+  readonly kind: 'calibration' | 'expectation'
+  readonly id: string
+}
+
+let vaultSelection: VaultSelection | undefined
+const vaultSelectionListeners = new Set<() => void>()
+
+export function currentVaultSelection(): VaultSelection | undefined {
+  return vaultSelection
+}
+
+export function setVaultSelection(next: VaultSelection | undefined): void {
+  if (vaultSelection === next) return
+  vaultSelection = next
+  for (const listener of vaultSelectionListeners) listener()
+}
+
+export function subscribeVaultSelection(listener: () => void): () => void {
+  vaultSelectionListeners.add(listener)
+  return () => { vaultSelectionListeners.delete(listener) }
 }

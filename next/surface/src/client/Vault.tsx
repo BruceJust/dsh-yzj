@@ -15,28 +15,29 @@
  *   的东西不说出来，看起来就只是还没做。
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode,
+} from 'react'
 import type {
-  EvidenceFaceWire, ObjectPreviewWire, PrivateRowWire, SurfaceInject,
-  VaultCaseWire, VaultExpectationWire, VaultViewWire,
+  PrivateRowWire, SurfaceInject, VaultCaseWire, VaultExpectationWire, VaultViewWire,
 } from './rpc.ts'
 import { PrivateCard } from './PrivateCard.tsx'
 import { YzjVaultContract } from './VaultContract.tsx'
+import { currentVaultSelection, setVaultSelection, subscribeVaultSelection } from './store.ts'
 import tokens from './tokens.module.css'
 import css from './vault.module.css'
 
 export interface VaultProps {
   inject: SurfaceInject
   back(): void
-  /**
-   * 一跳回真身 —— 证据行上的「回真身 ↗」落在哪儿.
-   *
-   * 不给这两个 prop，那颗按钮就**不长出来**（不是灰的）。灰按钮是「你不配」的展示；
-   * 不渲染才是「这条路在这个宿主里不存在」——#57 占位律。
-   */
-  openSession?(sessionId: string): void
-  openGoal?(goalRef: string): void
 }
+
+/*
+  这里**没有** `openSession` / `openGoal`（v2.2 账本律①）。
+
+  「回真身 ↗」长在**右栏**，因为它是物那一面的动作：中栏是流、右栏是物。金库这一列
+  只管陈列判例与对表；一跳去哪儿由对象面那一栏说了算，而它已经是另一个槽位了。
+*/
 
 const ATTRIBUTIONS: readonly { id: 'q1' | 'q2' | 'q3' | 'q4'; label: string }[] = [
   { id: 'q1', label: '对了 · 因判断' },
@@ -50,7 +51,7 @@ const when = (at: number): string => new Date(at).toLocaleString('zh-CN', {
 })
 
 export function YzjVault(props: VaultProps): ReactNode {
-  const { inject, back, openSession, openGoal } = props
+  const { inject, back } = props
   const [view, setView] = useState<VaultViewWire | undefined>(undefined)
   const [rows, setRows] = useState<readonly PrivateRowWire[]>([])
   const [error, setError] = useState<string | undefined>(undefined)
@@ -59,14 +60,13 @@ export function YzjVault(props: VaultProps): ReactNode {
   /** 哪一行正开着输入框：撤回理由 / 补登事实 / 立约。 */
   const [editing, setEditing] = useState<{ key: string; text: string } | undefined>(undefined)
   /**
-   * 右栏此刻摆的是哪一行的证据。
+   * 右栏此刻摆的是哪一行 —— **状态不在这个组件里**（v2.2 账本律②）.
    *
-   * `undefined` = **默认态**：待对表首项的备料。打开金库就是**人发起的回看时刻**——
-   * 持镜人条款说的「人发起」在这里有了一个确切的时刻定义，agent 此刻聚合证据合法
-   * （**备料不定案**：右栏摆的是当时的话，四格仍然在中栏、仍然由你按）。
+   * 它住在 `store.ts` 那一格上，因为右栏已经是**另一个槽位**（对象面按 frame 分派）；
+   * 而更要紧的是：`setFrame` 在离开金库那一刻把它清掉——**切离私账即毁，不是隐藏**。
+   * 残留面是第四泄漏口：投屏时右栏残留的一条判例就是一次泄漏。
    */
-  const [selected, setSelected] = useState<{ kind: 'calibration' | 'expectation'; id: string } | undefined>(undefined)
-  const [evidence, setEvidence] = useState<EvidenceFaceWire | undefined>(undefined)
+  const selected = useSyncExternalStore(subscribeVaultSelection, currentVaultSelection)
   const [query, setQuery] = useState('')
   /** 最后一次敲下去的那个词。回包晚于它的一律丢掉。 */
   const latestQuery = useRef('')
@@ -75,26 +75,12 @@ export function YzjVault(props: VaultProps): ReactNode {
   const [takeout, setTakeout] = useState<{ casebook: string; readme: string } | undefined>(undefined)
   /** 合同面板开着没有。chips 是它的入口摘要——点得开，才不是一句挂在墙上的标语。 */
   const [contractOpen, setContractOpen] = useState(false)
-  /**
-   * 锚活着的那些行，组织侧此刻长什么样 —— **预览是组织侧的礼貌**（PTD-26）.
-   *
-   * 它由 surface 单独去取（`objectPreview`），**不经私账层**：操作者本来就看得见
-   * 这些对象。所以这一份缓存丢了、取不到、锚死了，右栏都照旧完整——正文从来不靠它。
-   */
-  const [previews, setPreviews] = useState<Readonly<Record<string, ObjectPreviewWire>>>({})
 
   const reload = useCallback(async (): Promise<void> => {
-    const [next, stream, face] = await Promise.all([
-      inject.vault(),
-      inject.privateRows(),
-      selected === undefined
-        ? inject.vaultEvidence()
-        : inject.vaultEvidence(selected.kind, selected.id),
-    ])
+    const [next, stream] = await Promise.all([inject.vault(), inject.privateRows()])
     setView(next)
     setRows(stream.rows)
-    setEvidence(face)
-  }, [inject, selected])
+  }, [inject])
 
   useEffect(() => {
     void reload()
@@ -103,41 +89,6 @@ export function YzjVault(props: VaultProps): ReactNode {
     return () => { clearInterval(timer) }
   }, [reload])
 
-  /*
-    要取预览的那些锚 —— **只取活着的，且只在这一集变了的时候取**。
-
-    锚死的不取：不是省一次请求，**预览消失本身就是显形的一半**——那一行留下快照
-    加一枚「真身已变/已亡」的徽记，而不是一个看起来还活着的标题。
-
-    不挂五秒节拍：金库主体那一刷是因为它是自己的账，随时可能有新回执落进来；预览是
-    组织侧的礼貌，把它挂上同一个节拍，就是拿一次「顺便看一眼」换成了对组织图的轮询。
-    真要看最新的，那颗「回真身 ↗」就在旁边——那才是这一行的刷新路径。
-  */
-  const anchorKeys = (evidence?.rows ?? [])
-    .filter(row => row.premise === 'live' && row.anchor !== undefined)
-    .map(row => `${(row.anchor as { kind: string }).kind}:${(row.anchor as { id: string }).id}`)
-    .join('|')
-
-  useEffect(() => {
-    const live = anchorKeys === '' ? [] : anchorKeys.split('|').map((one) => {
-      const cut = one.indexOf(':')
-      return { kind: one.slice(0, cut), id: one.slice(cut + 1) }
-    })
-    if (live.length === 0) { setPreviews({}); return }
-    let dropped = false
-    void Promise.all(live.map(async (anchor) => {
-      const one = await inject.objectPreview(anchor.kind, anchor.id)
-      return { key: `${anchor.kind}:${anchor.id}`, one }
-    })).then((results) => {
-      if (dropped) return
-      const next: Record<string, ObjectPreviewWire> = {}
-      for (const result of results) {
-        if (result.one !== undefined) next[result.key] = result.one
-      }
-      setPreviews(next)
-    })
-    return () => { dropped = true }
-  }, [anchorKeys, inject])
 
   /** 每一个写动词的同一条路：带回宿主的原话，然后重读。 */
   const run = useCallback(async (
@@ -269,7 +220,7 @@ export function YzjVault(props: VaultProps): ReactNode {
           {verbButton(
             '证据',
             '右栏摆开这一行的证据：摘要为主、锚为辅。边看边答，不必离开这一屏。',
-            () => { setSelected({ kind: 'expectation', id: row.expectationId }) },
+            () => { setVaultSelection({ kind: 'expectation', id: row.expectationId }) },
             selected?.kind === 'expectation' && selected.id === row.expectationId,
           )}
           {row.verbs.includes('note-fact') && verbButton(
@@ -325,7 +276,7 @@ export function YzjVault(props: VaultProps): ReactNode {
           {verbButton(
             '证据',
             '右栏摆开当时的裁决与事实快照——边看边下归因，不必离开这一屏',
-            () => { setSelected({ kind: 'calibration', id: row.calibrationId }) },
+            () => { setVaultSelection({ kind: 'calibration', id: row.calibrationId }) },
             selected?.kind === 'calibration' && selected.id === row.calibrationId,
           )}
           {/* 改归因 —— 更正即追加，最新生效，史不改。 */}
@@ -399,7 +350,6 @@ export function YzjVault(props: VaultProps): ReactNode {
       )}
 
       <div className={css.body}>
-        <div className={css.stream}>
         {error !== undefined && <p className={css.error}>{error}</p>}
 
         {/*
@@ -461,7 +411,7 @@ export function YzjVault(props: VaultProps): ReactNode {
                 key={`${row.kind}:${row.id}`}
                 row={row}
                 busy={busy}
-                showEvidence={(id) => { setSelected({ kind: 'calibration', id }) }}
+                showEvidence={(id) => { setVaultSelection({ kind: 'calibration', id }) }}
                 loopback={(family, patternKey, on, gear) => run(async () => (
                   patternKey === undefined
                     ? inject.shiftGear(family, gear ?? 'weight', 'receipt')
@@ -560,7 +510,15 @@ export function YzjVault(props: VaultProps): ReactNode {
             <span className={css.rowMain}>
               <b>{row.label}</b>（{row.what}）
               <span className={css.rowNote}>
-                {row.evidence.join(' · ')}
+                {/*
+                  换挡依据是**照片**（`AnchoredText[]`，立此存照律），不是字符串数组。
+
+                  上一版这里 `.join()` 直接把对象拼成了 `[object Object]` ——三行换挡
+                  依据全是这五个字。类型改过之后没有一处用例读它的**内容**，于是它在
+                  屏幕上错了整整两轮：`toContain` 查不出多出来的东西，而这一行的字
+                  没人断言过。
+                */}
+                {row.evidence.map(one => one.text).join(' · ')}
                 {row.leaseAvailable ? '' : ` · ${row.leaseNote ?? ''}`}
               </span>
             </span>
@@ -776,129 +734,6 @@ export function YzjVault(props: VaultProps): ReactNode {
             </button>
           </div>
         </div>
-        </div>
-
-        {/*
-          右栏 —— **中栏是流、右栏是物**，金库的物 = 判例的证据 (#61 澄清①).
-
-          三层，顺序不能反：
-
-          - **摘要为主.** 第一行永远是私账自存的那张照片。组织图断了，这一栏零缺字。
-          - **锚为辅.** 「回真身 ↗」是一跳，不是内容的来源；活性探测只回状态。
-          - **锚死显形.** 真身没了，快照原样在场 + 一枚徽记。`unknown` 不显形——
-            读不到组织图时说一句「真身已变」是编造。
-
-          预览分层：锚活着时的只读预览由 **surface 去调组织侧既有的对象面通道**
-          （viewer=operator，操作者本来就看得见这些对象）；**pledger 一层不取内容**。
-          于是锚死时预览消失、快照仍在、对表继续。
-        */}
-        <aside className={css.aside}>
-          <div className={css.section}>
-            证据面 · 右栏是物
-            <span className={css.sectionNote}> · 摘要为主 · 锚为辅 · 锚死显形</span>
-          </div>
-          {evidence === undefined
-            ? (
-              <div className={css.empty}>
-                {/*
-                  **空态要有出生故事**：「还没有」和「你还没选」是两句话。
-
-                  默认态摆的是待对表首项的备料；一条都不待对表时这里本来就该空——
-                  可空着不说话，人会以为右栏坏了。所以它顺手指出下一步。
-                */}
-                没有待对表的预期，所以这里空着。
-                <br />
-                左边任意一行按「证据」，它的照片就摆到这儿——<b>对表不出屏</b>，
-                四格仍然在那一行上。
-              </div>
-            )
-            : (
-              <>
-                <div className={css.rowNote} style={{ marginBottom: 6 }}>{evidence.title}</div>
-                {evidence.rows.map((one, index) => {
-                  const key = one.anchor === undefined ? '' : `${one.anchor.kind}:${one.anchor.id}`
-                  const preview = previews[key]
-                  /*
-                    **有门才画门**（#57 占位律）。
-
-                    落点要同时满足两件事：这个对象说得出自己躺在哪儿，**且**宿主给了
-                    过去的能力。少一样就不画——灰按钮是「你不配」的展示，不渲染才是
-                    「这条路在这个宿主里不存在」。上一版画的是灰按钮，而它的注释写的
-                    是不画：**注释与代码打架时，先信代码会骗人的那一半**。
-                  */
-                  const jump = preview?.sessionId !== undefined && openSession !== undefined
-                    ? () => { openSession(preview.sessionId as string) }
-                    : preview?.goalRef !== undefined && openGoal !== undefined
-                      ? () => { openGoal(preview.goalRef as string) }
-                      : undefined
-                  return (
-                    <div
-                      key={`${one.at}:${String(index)}`}
-                      className={`${css.evidenceRow} ${one.premise === 'changed' ? css.evidenceDead : ''}`}
-                    >
-                      {/* 第一行永远是照片。**它不是从锚解析出来的**。 */}
-                      {one.text}
-                      <span className={css.evidenceMeta}>
-                        {new Date(one.at).toLocaleString('zh-CN', { hour12: false })}
-                        {one.mark === undefined ? '' : ` · ⚠ ${one.mark}`}
-                        {one.anchor === undefined
-                          ? ' · 无锚：这一段只有快照，本来就跳不回去'
-                          : ` · ${one.anchor.kind}:${one.anchor.id}（回真身用的坐标，内容不来自它）`}
-                      </span>
-                      {/*
-                        **只读预览** —— 组织侧此刻长什么样（PTD-26）.
-
-                        它由 surface 单独去取，不经私账层；锚死时它整个不在，而上面
-                        那一行的快照原样在场。**这一块消失不影响对表**——正文从来
-                        不靠它，它只是「回去看看」之前的一眼。
-                      */}
-                      {preview?.alive === true && (
-                        <div className={css.preview}>
-                          <b>现在</b>：{preview.title ?? ''}
-                          {(preview.lines ?? []).map(line => (
-                            <span className={css.evidenceMeta} key={line}>{line}</span>
-                          ))}
-                        </div>
-                      )}
-                      {/*
-                        「回真身 ↗」—— **一跳**，不是把真身搬进来。
-
-                        没有落点就不画这颗按钮：一颗点了没反应的「回真身」，比没有
-                        更糟。宿主没给导航能力时同理（`openSession`/`openGoal` 缺席）。
-                      */}
-                      {jump !== undefined && (
-                        <div className={css.actions}>
-                          <button
-                            type="button"
-                            className={css.verb}
-                            onClick={jump}
-                            title="一跳回它躺着的地方。内容不来自这一跳——正文在上面那张照片里。"
-                          >
-                            回真身 ↗
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-                <div className={css.rowNote}>{evidence.note}</div>
-              </>
-            )}
-
-          {/*
-            记忆 tab 的**空态出生故事** —— 金库 ≠ 记忆 (#61 澄清③).
-
-            这一栏在会话面里是「记忆」。在金库语境下它永远是空的，而**恰好为空和
-            不可能有是两句话**：工程上蒸馏管道对这本账没有通路（依赖方向铁律），
-            反向也禁（pledger 的依赖面上没有 memory 服务）。
-          */}
-          <div className={css.section}>记忆</div>
-          <div className={css.empty}>
-            空，而且<b>永远为空</b>：金库内容永不入记忆库。
-            <br />
-            记忆是 agent 的复利、金库是人的复利——两本复利账不合流，也互不蒸馏。
-          </div>
-        </aside>
       </div>
     </div>
   )

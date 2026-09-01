@@ -2326,7 +2326,7 @@ export function inboxView(ctx: Context): InboxView {
       把私账塞回了「有几件事等你」的语法里，而三不入的全部意思是它永远不在那套语法
       里。未答的邀约与回执不老化、不可催、不成欠账——这本账的债主是你自己。
     */
-    pledger: { enabled: ctx.get('yzjPledgerDesk')?.enabled === true },
+    pledger: { enabled: pledgerDesk(ctx)?.enabled === true },
   }
 }
 
@@ -2378,6 +2378,31 @@ function clip(text: string): string {
  * confirmation is part of the conversation that produced it, and moving it
  * elsewhere is how "please confirm" ends up orphaned from its own context.
  */
+/**
+ * 演示隐身档 (D10) —— **私账层整层不存在，而不是逐处判断** (v2.2 / 断言㉚).
+ *
+ * 隐身档是**泄漏面条款的运行时开关**：投屏是残留面的高危场景，这一档把「仅你可见
+ * 层」在物理上兑现成「此刻谁都不可见」。
+ *
+ * 兑现的形态是**让 desk 在这一层看起来根本没有**——于是后视镜条、条尾两读、档位
+ * 生效面、私语流、金库入口、证据面全部一起消失，走的是 `pledger.enabled: false`
+ * 那条已经有断言盯着的退化路径（断言⑩）。
+ *
+ * 若改成「每个渲染点各自 `if (!stealth)`」，那就是十几个可以忘记的地方；而**投屏那
+ * 一刻忘掉一个，就是把某人的判例投在墙上**。一个开关一条路，是这一条唯一能守住的形状。
+ */
+let stealthMode = false
+
+/**
+ * 私账桌面面 —— **所有取用都经这里**（隐身档下恒为 undefined）。
+ *
+ * 模块级标志而不是逐次传参：隐身是**进程级的显示层配置**（`applySurfaceRpc` 的入参，
+ * 一次设定不再变），而把它做成参数，就等于在每一个调用点开一个「忘记传」的口子。
+ */
+function pledgerDesk(ctx: Context): Context['yzjPledgerDesk'] {
+  return stealthMode ? undefined : ctx.get('yzjPledgerDesk')
+}
+
 export function cardsFor(
   ctx: Context, topic: TopicDescriptor | undefined, sessionId?: string,
 ): StreamCard[] {
@@ -2430,7 +2455,7 @@ export function cardsFor(
         未启用私账（或未开镜、族不认识）时三样全是 undefined：六个接缝的回落形态
         就是「什么都没有」，界面一个字不变（断言⑩）。
       */
-      const desk = ctx.get('yzjPledgerDesk')
+      const desk = pledgerDesk(ctx)
       const resolved = definition.isResolved(object.state as never)
       /*
         **后视镜长在还没答的卡上，条尾两读长在答完的卡上。**
@@ -2477,7 +2502,7 @@ export function cardsFor(
     「零新入口」的意思也在这儿：既有的条尾租约入口从来只有一个位置，扩成两读不该把
     一个位置扩成二十个。挂在最新那一张上，因为那是你刚刚答完的、还看得见的那一次。
   */
-  const desk = ctx.get('yzjPledgerDesk')
+  const desk = pledgerDesk(ctx)
   if (desk !== undefined) {
     const newest = new Map<string, StreamCard>()
     for (const card of out) {
@@ -2700,6 +2725,8 @@ function placesRegisteredIn(ctx: Context, openId: string): ReadonlySet<string> {
 }
 
 export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = false): void {
+  // 隐身档一次设定：私账层从此在这一层「不存在」，而不是每处各判一次。
+  stealthMode = stealth
   // `yzjCards` alongside `connection`: the scoped context is what every
   // handler runs on, and a property read without its injection throws at
   // request time — for topics that have cards only, which is the worst
@@ -2797,7 +2824,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             card-act 同一条），而私账的读取面上根本没有「以谁的身份看」这个参数。
           */
           case 'vault': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             if (desk === undefined) return failure('这个部署没有启用私账层')
             const days = (payload as { windowDays?: unknown }).windowDays
             const view = desk.vault(typeof days === 'number' ? { days } : undefined)
@@ -2806,7 +2833,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               : { ok: true, value: view }
           }
           case 'private-rows': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             return {
               ok: true,
               value: {
@@ -2817,7 +2844,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             }
           }
           case 'pledger-act': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             if (desk === undefined) return failure('这个部署没有启用私账层')
             const kind = stringField(payload, 'kind')
             const id = stringField(payload, 'id')
@@ -2842,7 +2869,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
            * （重复）的正确回应是「先撤回」——猜错的代价是一次白等。
            */
           case 'pledger-pledge': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             if (desk === undefined) return failure('这个部署没有启用私账层')
             const kind = stringField(payload, 'verdictKind')
             const id = stringField(payload, 'verdictId')
@@ -2856,14 +2883,14 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               : failure(`[${(outcome.refusal as PledgeRefusal).kind}] ${outcome.refusal.message}`)
           }
           case 'pledger-decline': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             const inviteId = stringField(payload, 'inviteId')
             if (desk === undefined) return failure('这个部署没有启用私账层')
             if (inviteId === undefined) return failure('pledger-decline requires inviteId')
             return { ok: true, value: { receipt: await desk.decline(inviteId) } }
           }
           case 'pledger-withdraw': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             const expectationId = stringField(payload, 'expectationId')
             if (desk === undefined) return failure('这个部署没有启用私账层')
             if (expectationId === undefined) return failure('撤回要说清是哪一条预期')
@@ -2881,7 +2908,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
            * `text` 一个字节不动地落账：它是人刚打的那句话，这条路上没有模型。
            */
           case 'pledger-note': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             const text = stringField(payload, 'text')
             if (desk === undefined) return failure('这个部署没有启用私账层')
             if (text === undefined) return failure('补登事实要有内容——一句你自己的话')
@@ -2920,7 +2947,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             }
           }
           case 'pledger-reattribute': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             const calibrationId = stringField(payload, 'calibrationId')
             const attribution = stringField(payload, 'attribution')
             if (desk === undefined) return failure('这个部署没有启用私账层')
@@ -2935,7 +2962,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             }
           }
           case 'pledger-shift': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             const family = stringField(payload, 'family')
             const gear = stringField(payload, 'gear')
             if (desk === undefined) return failure('这个部署没有启用私账层')
@@ -2949,7 +2976,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             }
           }
           case 'pledger-mirror': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             const family = stringField(payload, 'family')
             const patternKey = stringField(payload, 'patternKey')
             if (desk === undefined) return failure('这个部署没有启用私账层')
@@ -2968,7 +2995,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
            * `0` 是合法值（全关邀约）：一个不能被关到零的「可调」是假的可调。
            */
           case 'pledger-quota': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             const quota = (payload as { quota?: unknown }).quota
             if (desk === undefined) return failure('这个部署没有启用私账层')
             if (typeof quota !== 'number') return failure('配额要给一个 0-3 的整数')
@@ -2985,7 +3012,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
            * **读操作**：这条路上一个事件都不写（读自己的账是自由）。
            */
           case 'pledger-export': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             if (desk === undefined) return failure('这个部署没有启用私账层')
             const exported = desk.exportVault()
             return exported === undefined
@@ -2999,7 +3026,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
            * 打开金库就是**人发起的回看时刻**，agent 此刻聚合证据合法——备料不定案。
            */
           case 'pledger-evidence': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             if (desk === undefined) return failure('这个部署没有启用私账层')
             const kind = stringField(payload, 'kind')
             const id = stringField(payload, 'id')
@@ -3014,7 +3041,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
            * Header 的 chips 是入口摘要；这一条是它点开之后的那一面。
            */
           case 'pledger-contract': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             if (desk === undefined) return failure('这个部署没有启用私账层')
             return { ok: true, value: desk.contract() }
           }
@@ -3046,13 +3073,13 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
            * provider——**不把不存在的面写成已存在的接缝**。
            */
           case 'pledger-search': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             const query = stringField(payload, 'query')
             if (desk === undefined) return failure('这个部署没有启用私账层')
             return { ok: true, value: { hits: query === undefined ? [] : desk.search(query) } }
           }
           case 'pledger-reopen-invites': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             const family = stringField(payload, 'family')
             if (desk === undefined) return failure('这个部署没有启用私账层')
             if (family === undefined) return failure('要说清哪一族')
@@ -3070,7 +3097,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
            * 而且不能只是一颗按钮——不可逆的终态由人签发，签发要有一次真的动作。
            */
           case 'pledger-destroy': {
-            const desk = scoped.get('yzjPledgerDesk')
+            const desk = pledgerDesk(scoped)
             const confirm = stringField(payload, 'confirm')
             if (desk === undefined) return failure('这个部署没有启用私账层')
             try {

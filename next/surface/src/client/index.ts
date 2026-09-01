@@ -20,7 +20,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { YzjConversationColumn } from './ConversationColumn.tsx'
-import { YzjObjectFace } from './ObjectFace.tsx'
+import { YzjRightColumn } from './RightColumn.tsx'
 import { YzjPreviewOverlay } from './PreviewOverlay.tsx'
 import { YzjSidebar } from './Sidebar.tsx'
 import { setPreviewOpener } from './preview.ts'
@@ -29,6 +29,8 @@ import { createSurfaceInject } from './rpc.ts'
 export { YzjConversationColumn, type ConversationColumnProps } from './ConversationColumn.tsx'
 export { YzjSidebar, type SidebarProps } from './Sidebar.tsx'
 export { YzjObjectFace, type ObjectFaceProps } from './ObjectFace.tsx'
+export { YzjRightColumn, type RightColumnProps } from './RightColumn.tsx'
+export { YzjVaultObjectFace, type VaultObjectFaceProps } from './VaultObjectFace.tsx'
 export { YzjBoard, type BoardProps } from './Board.tsx'
 export { YzjVault, type VaultProps } from './Vault.tsx'
 export { YzjGoalPage, type GoalPageProps } from './GoalPage.tsx'
@@ -229,6 +231,10 @@ export function apply(ctx: ClientContext): void {
    * The right column: what the flow has deposited as things. It replaces the
    * host's tool-details panel, which has nothing to show now that the tool
    * rows it indexed live inside our own work blocks.
+   *
+   * 这一格注册的是**路由**（v2.2 对象面账本律）：右栏没有自己的身份，它是当前
+   * 会话的物的投影——`kind = vault` 换成私账证据面那一棵树，其余一切会话走组织侧
+   * 对象面。**账本随会话整体切换**，而不是在同一棵树里多长一块。
    */
   ctx.slots.inject('details', () => ctx.slots.register(
     {
@@ -236,7 +242,7 @@ export function apply(ctx: ClientContext): void {
       priority: -1,
       inject: () => ({ inject: surfaceInject }),
     },
-    props => YzjObjectFace({
+    props => YzjRightColumn({
       ...(props.sessionId === undefined ? {} : { sessionId: props.sessionId }),
       inject: props.inject,
       // 右栏也要能指路：事件枢纽通向挂在会上的那件活正在干的话题。

@@ -42,8 +42,7 @@ import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
 import { closePreview } from './preview.ts'
 import {
-  backTarget, currentFrame, popFrame, pushFrame, setFrame, setSpotlight, subscribeFrame,
-  takeErrand,
+  backTarget, currentFrame, popFrame, setFrame, setSpotlight, subscribeFrame, takeErrand,
 } from './store.ts'
 import type { FusedWindowWire, SurfaceInject } from './rpc.ts'
 import tokens from './tokens.module.css'
@@ -665,23 +664,13 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     ——立约与对表的**话语**在私语通道里说，这里只陈列判例与对表。
   */
   if (frame.kind === 'vault') {
-    return (
-      <YzjVault
-        inject={inject}
-        back={() => { setFrame({ kind: 'session' }) }}
-        /*
-          **一跳回真身** —— 证据行上的那颗按钮落在哪儿 (v2.1 / #61 澄清①).
+    /*
+      金库只是**中栏**（v2.2 对象面账本律①）。
 
-          用 `pushFrame` 而不是 `setFrame`：跳过去之后「‹ 返回」要能回到金库那一屏
-          ——**回真身是一跳，不是一次离开**。对表的语境还在，人回得来。
-        */
-        openSession={(id) => {
-          pushFrame({ kind: 'session' }, 0)
-          openSession(id)
-        }}
-        openGoal={(goalRef) => { pushFrame({ kind: 'goal', goalRef, goalName: goalRef }, 0) }}
-      />
-    )
+      右栏由对象面那个槽位按 frame 分派——`kind = vault` 时它整体换成私账证据面那一
+      棵树。所以「回真身 ↗」不在这里：它是物那一面的动作，长在右栏上。
+    */
+    return <YzjVault inject={inject} back={() => { setFrame({ kind: 'session' }) }} />
   }
 
   /*

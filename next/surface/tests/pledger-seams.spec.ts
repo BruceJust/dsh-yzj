@@ -10,14 +10,14 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor, type GraphViewer } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import { commitmentFamily, createCommitmentCard } from '@yzj-next/objects'
 import {
   FAMILY_DELIVERY_ACCEPTANCE, PledgerCards, YzjPledger, calibrationCard, createDesk, inviteCard,
 } from '@yzj-next/pledger'
-import { cardsFor, inboxView, objectPreviewOf } from '../src/rpc.ts'
+import { applySurfaceRpc, cardsFor, inboxView, objectPreviewOf } from '../src/rpc.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const VIEWER: GraphViewer = { kind: 'operator', openId: 'op-1' }
@@ -379,5 +379,63 @@ describe('证据面的预览分层（surface 内，不新增接缝）：快照�
     expect(evidenceRowsOf.length).toBe(2)
     // 而 surface 这一条要三个：ctx（组织图）、kind、id——**两条路，两个签名**。
     expect(objectPreviewOf.length).toBe(3)
+  })
+})
+
+describe('㉚ D10 演示隐身：私账层整层不存在，而不是逐处判断', () => {
+  /*
+    隐身档是**泄漏面条款的运行时开关**：投屏是残留面的高危场景，这一档把「仅你可见
+    层」在物理上兑现成「此刻谁都不可见」。
+
+    兑现的形态是**让 desk 在这一层看起来根本没有**——走的是 `pledger.enabled: false`
+    那条已经有断言盯着的退化路径（断言⑩）。若改成每个渲染点各自 `if (!stealth)`，
+    那就是十几个可以忘记的地方，而**投屏那一刻忘掉一个，就是把某人的判例投在墙上**。
+  */
+  afterEach(() => {
+    // 这一档是进程级显示配置，跑完把它关回去，别影响同文件后面的用例。
+    applySurfaceRpc(new Context(), 20, false)
+  })
+
+  it('隐身档下：后视镜条 / 条尾两读 / 档位生效面 / 金库入口全部不在', async () => {
+    await boot(true)
+    await openCommitment('c-stealth')
+    await cards.act({ kind: 'commitment', id: 'c-stealth' }, 'accept', OPERATOR, 'desktop')
+    const desk = ctx.get('yzjPledgerDesk')
+    await desk?.mirror(FAMILY_DELIVERY_ACCEPTANCE, `${FAMILY_DELIVERY_ACCEPTANCE}:q3`, true)
+
+    // 先证明**关着的时候它确实在**——否则这条断言只是在断言一个空屏。
+    applySurfaceRpc(new Context(), 20, false)
+    expect(inboxView(ctx).pledger?.enabled).toBe(true)
+
+    applySurfaceRpc(new Context(), 20, true)
+    /*
+      金库入口读的就是这个布尔（左栏那一行未启用时**不存在**，不是灰的）——
+      于是隐身档一开，入口、私语未读豁免、以及一切读 desk 的接缝一起消失。
+    */
+    expect(inboxView(ctx).pledger?.enabled).toBe(false)
+    const projected = cardsFor(ctx, topic, 'sess-1')
+    for (const card of projected) {
+      expect(card.strip).toBeUndefined()
+      expect(card.twoRead).toBeUndefined()
+      expect(card.gearEffect).toBeUndefined()
+    }
+    // 全屏 canary：投影里一个私账字样都不许剩。
+    expect(JSON.stringify(projected)).not.toContain('仅你可见')
+    expect(JSON.stringify(projected)).not.toContain('后视镜')
+  })
+
+  it('关掉即恢复，且隐身态本身不落任何一条私账事件', async () => {
+    await boot(true)
+    await openCommitment('c-stealth-2')
+    await cards.act({ kind: 'commitment', id: 'c-stealth-2' }, 'accept', OPERATOR, 'desktop')
+    await pledger.flush()
+    const before = pledger.events(['gear/shifted', 'mirror/toggled', 'invite/opened']).length
+
+    applySurfaceRpc(new Context(), 20, true)
+    expect(inboxView(ctx).pledger?.enabled).toBe(false)
+    applySurfaceRpc(new Context(), 20, false)
+    // 关掉即恢复：它是显示层状态，不是账目。
+    expect(inboxView(ctx).pledger?.enabled).toBe(true)
+    expect(pledger.events(['gear/shifted', 'mirror/toggled', 'invite/opened']).length).toBe(before)
   })
 })

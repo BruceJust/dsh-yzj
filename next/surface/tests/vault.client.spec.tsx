@@ -282,6 +282,22 @@ describe('金库：每一行既可见又可动', () => {
     }
   })
 
+  it('屏幕上没有一处 [object Object] —— 类型换了，读它的那一行也要跟着换', async () => {
+    /*
+      换挡依据在 v2.0 从 `string[]` 变成了照片（`AnchoredText[]`），而这一行还在
+      `.join()`——于是三行换挡依据全成了「[object Object]」，在屏幕上错了整整两轮。
+
+      **既有用例一条都不会红**：`toContain` 查的是「这个词出现过」，对**多出来的
+      东西**一律无感；而没有一处用例读过这一行的内容。所以这一条查的是**字面**：
+      整屏不许出现那五个字。
+    */
+    const { root } = render(<YzjVault inject={fakeInject([])} back={() => {}} />)
+    await act(async () => { await Promise.resolve() })
+    expect(root.textContent).not.toContain('[object Object]')
+    // 而且要真的把那句依据读出来——否则这条断言可以靠「什么都不渲染」通过。
+    expect(root.textContent).toContain('近 90 天这一族的判例：2 条')
+  })
+
   it('租约档不可达，而且说出理由，不是画一扇打不开的门', async () => {
     const { root } = render(<YzjVault inject={fakeInject([])} back={() => {}} />)
     await act(async () => { await Promise.resolve() })
@@ -318,52 +334,20 @@ describe('金库：每一行既可见又可动', () => {
     }
   })
 
-  it('右栏是物：证据面摆开照片，锚活的那一行带只读预览与一跳', async () => {
-    const calls: string[] = []
-    const jumped: string[] = []
-    const { root } = render(
-      <YzjVault
-        inject={fakeInject(calls)}
-        back={() => {}}
-        openSession={(id) => { jumped.push(id) }}
-      />,
-    )
-    await act(async () => { await Promise.resolve() })
-    // 默认态 = 待对表首项的备料：**打开金库 = 人发起的回看时刻**。
-    expect(calls).toContain('evidence::')
-    expect(root.textContent).toContain('证据面')
-
-    // 摘要为主：第一行是照片，不是从锚解析出来的。
-    await act(async () => { await Promise.resolve(); await Promise.resolve() })
-    expect(root.textContent).toContain('竞品对比表')
+  it('金库这一列不再自带右栏 —— 一屏一个右栏，账本随会话整体切换', async () => {
     /*
-      **预览是组织侧的礼貌**：它由 surface 单独去取，摆在快照下面。
-      锚活着才取——锚死那一行整块不在，而快照原样在场。
-    */
-    expect(calls.some(one => one.startsWith('preview:commitment:c-1'))).toBe(true)
-    expect(root.textContent).toContain('现在')
-
-    const jump = [...root.querySelectorAll('button')].find(node => node.textContent?.startsWith('回真身'))
-    expect(jump).toBeDefined()
-    await act(async () => { (jump as HTMLButtonElement).click() })
-    expect(jumped).toEqual(['ses-1'])
-  })
-
-  it('宿主给不了落点时，「回真身」整个不渲染 —— 灰按钮是「你不配」的展示', async () => {
-    /*
-      同一份数据、同一个对象**有**落点（fixture 里 c-1 带 sessionId），差别只在
-      这一次没给 `openSession`。所以这一条断的正是「宿主没有导航能力时不画门」——
-      不是「碰巧没数据所以没画」。
-
-      **不写成 `undefined || disabled` 的两可断言**：那种写法两种实现都能过，于是
-      注释说不画、代码画灰按钮，也没人会发现。（上一版就是这么过去的。）
+      **曾经这里长过一个 aside**，而宿主的对象面槽位照旧渲染着组织侧那一栏：同一屏上
+      两个右栏，两本账并排。v2.2 的账本律说的正是这件事不该发生——右栏没有自己的
+      身份，它是**当前会话的物的投影**，切会话即整体重算。
     */
     const { root } = render(<YzjVault inject={fakeInject([])} back={() => {}} />)
-    await act(async () => { await Promise.resolve(); await Promise.resolve() })
-    expect(root.textContent).toContain('竞品对比表')
-    const jump = [...root.querySelectorAll('button')].find(node => node.textContent?.startsWith('回真身'))
-    expect(jump).toBeUndefined()
+    await act(async () => { await Promise.resolve() })
+    expect(root.querySelector('aside')).toBeNull()
+    expect(root.textContent).not.toContain('证据面')
+    // 证据入口仍在这一列上：它把选中态写进 store，右栏那边读它。
+    expect([...root.querySelectorAll('button')].map(one => one.textContent)).toContain('证据')
   })
+
 
   it('硬合同 chips 是入口不是终点：点开是一份与场所合同同语法的合同', async () => {
     const calls: string[] = []
