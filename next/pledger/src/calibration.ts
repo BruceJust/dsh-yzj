@@ -104,6 +104,13 @@ export const calibrationCard: PledgerCardDefinition<CalibrationState> = {
    */
   isResolved: state => state.status === 'answered',
 
+  /**
+   * 自聊 DM 的文本投影 —— 同 `invite.ts`：**P1 只出不进**，所以这里报信不提问。
+   *
+   * 归因四格在桌面上按。让 DM 也能答要的是通道分诊认得出私账 ref，而那条路
+   * 押 P5（§9 移动投影）；在它到来之前写「回复①」，是把一个做不到的动作摆在
+   * 人面前——而这张卡本来就是关于诚实的。
+   */
   renderText: (state) => {
     const anchor = state.factRef.source === 'org'
       ? `锚：${state.factRef.anchor.kind}:${state.factRef.anchor.id}`
@@ -117,14 +124,13 @@ export const calibrationCard: PledgerCardDefinition<CalibrationState> = {
         anchor,
         '',
         state.status === 'dismissed'
-          ? '已标注「配对错了」：这条事实与该裁决无关，判例未入账。回复「纠回」可以撤回这个标注。'
-          : '归因由你下，我不代下：回复 ①对了因判断 / ②对了因运气 / ③错了因判断 / ④错了因世界，'
-            + '或「配对错了」。',
+          ? '已标注「配对错了」：这条事实与该裁决无关，判例未入账。纠回在桌面工作台上。'
+          : '归因由你下，我不代下——四格（对了因判断 / 对了因运气 / 错了因判断 / 错了因世界）'
+            + '与「配对错了」都在桌面工作台的私语面上按。',
+        '未答不成欠账：不老化、不可催，这本账的债主是你自己。',
         `[calib#calibration:${state.calibrationId}]`,
       ].join('\n'),
-      replyHints: state.status === 'dismissed'
-        ? ['纠回']
-        : ['①', '②', '③', '④', '配对错了'],
+      replyHints: [],
     }
   },
 

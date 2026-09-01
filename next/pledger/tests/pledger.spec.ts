@@ -659,6 +659,23 @@ describe('⑮ 事实回流三分', () => {
     expect(vaultView(pledger).settled).toEqual([])
   })
 
+  it('补登也可以直接指认一次裁决（隐式预期路径）', async () => {
+    await deliverCommitment('c-15e')
+    await accept('c-15e')
+    // 没立预期。**回执照样会来**——裁决本身就是隐式预期。
+    await desk.note('线下听说这版被客户直接用了', {
+      kind: 'verdict',
+      verdictRef: { kind: 'commitment', id: 'c-15e' },
+    })
+    await settle()
+    const state = pledger.query('calibration')[0]?.state as {
+      expectationId?: string; thenText?: string; factRef?: { source?: string }
+    }
+    expect(state.factRef?.source).toBe('noted')
+    expect(state.expectationId).toBeUndefined()
+    expect(state.thenText).toContain('无显式预期')
+  })
+
   it('ambient 语义识别路径不存在（P1）', () => {
     const sources = pledger.query('calibration')
       .map(object => (object.state as { factRef?: { source?: string } }).factRef?.source)
@@ -704,3 +721,36 @@ async function walk(dir: string): Promise<string[]> {
   }
   return out
 }
+
+describe('自聊 DM 的文本投影：P1 只出不进，所以报信不提问', () => {
+  it('邀约与回执的字面里没有一句「回复…」，也不给回复提示', async () => {
+    await deliverCommitment('c-dm')
+    await accept('c-dm')
+    const invite = bus.renderText({ kind: 'invite', id: inviteOf('c-dm') })
+    expect(invite?.replyHints).toEqual([])
+    expect(invite?.body).not.toContain('回复「')
+    expect(invite?.body).toContain('桌面工作台')
+
+    await pledgeOn('c-dm', '一轮过')
+    await graph.append({
+      type: 'commitment/reopened',
+      data: { commitmentId: 'c-dm', cause: '返工' },
+      actor: OPERATOR,
+    })
+    await settle()
+    const receipt = bus.renderText({
+      kind: 'calibration', id: pledger.query('calibration')[0]?.id as string,
+    })
+    expect(receipt?.replyHints).toEqual([])
+    expect(receipt?.body).not.toContain('回复「')
+    expect(receipt?.body).toContain('未答不成欠账')
+  })
+
+  it('关键词状态机仍然是齐的 —— 缺的只是运输（押 P5 移动形态）', async () => {
+    await deliverCommitment('c-kw')
+    await accept('c-kw')
+    const ref = { kind: 'invite', id: inviteOf('c-kw') }
+    expect(bus.resolveKeyword(ref, '立约 评审能过')).toEqual({ actionId: 'pledge', input: '评审能过' })
+    expect(bus.resolveKeyword(ref, '不立')).toEqual({ actionId: 'decline' })
+  })
+})

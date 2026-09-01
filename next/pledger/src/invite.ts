@@ -130,6 +130,16 @@ export const inviteCard: PledgerCardDefinition<InviteState> = {
 
   isResolved: state => state.status !== 'open',
 
+  /**
+   * 自聊 DM 的文本投影 —— **P1 是只出不进** (§1 / §9 移动投影押 P5).
+   *
+   * 所以这段字面**不许写「回复…」**：私账卡的入站要通道的分诊认得出私账 ref，而
+   * `channel` 在 import 禁令名单里；那条路要走，得先有一个通用的回复解析器注册面，
+   * 那是 P5 的事。在它到来之前，这里说清答在哪儿——**一句做不到的邀请，比不邀请
+   * 更糟**：人回一句「立约 …」，什么都不会发生，而他会以为立上了。
+   *
+   * 下面 {@link inviteCard} 的 `keywords` 仍然在：状态机是齐的，缺的只是运输。
+   */
   renderText: state => ({
     body: [
       '【立约 · 一次性邀约，不追问】立个预期？',
@@ -139,10 +149,11 @@ export const inviteCard: PledgerCardDefinition<InviteState> = {
       '立了，结果回来就能对表。不立也不影响任何组织侧流程——回执照样会来（裁决本身即隐式预期）。',
       `想不出怎么说？只给维度不给句子：${PLEDGE_DIMENSIONS.join(' ')}`,
       '',
-      '回复「立约 <你的赌注>」立一个，回复「不立」按下不表。',
+      '这条只报信：立或不立在桌面工作台的私语面（🔒 我的判断）上按一下。',
       `[pledge#invite:${state.inviteId}]`,
     ].filter(line => line !== '').join('\n'),
-    replyHints: ['立约 ', '不立'],
+    // 报信不是提问：不给回复提示，因为回复此刻还到不了这本账上。
+    replyHints: [],
   }),
 
   onResolved: state => ({
