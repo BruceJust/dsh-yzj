@@ -27,8 +27,13 @@ export const PLEDGER_ENVELOPE_VERSION = 1
  * Same rule as the graph kernel's: **any change that affects a fold result
  * bumps this by one.** A snapshot whose `fv` does not match is treated as
  * absent — one full replay costs O(log); one lying cache has no upper bound.
+ *
+ * **2（v2.1）**：立此存照律的读时升级（`compat.ts`）住在折叠里，所以它对已经落盘
+ * 的快照**够不到**——不bump 的话，跑了一阵子的部署会一直读着旧形状折出来的状态，
+ * 而新代码在那些状态上只找得到「（这一段没有留下快照）」。这条实例上验到过：线上
+ * 那本账的三条判例正是这么读的，直到这个数字变成 2。
  */
-export const PLEDGER_FOLD_VERSION = 1
+export const PLEDGER_FOLD_VERSION = 2
 
 /**
  * Who is asking. **Single-state on purpose** (分册 §6 特有律②).

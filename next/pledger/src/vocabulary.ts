@@ -16,8 +16,22 @@
  *   查询。没有累积存储就没有档案可建——模式滚动律的机械保证 (§3 末).
  */
 
-import { z, type GraphFamily, type JsonValue } from '@yzj-next/graph'
+import { z, type GraphFamily, type GraphEvent, type JsonValue } from '@yzj-next/graph'
 import { asRecord, asString } from '@yzj-next/graph'
+import { upgradeLegacy } from './compat.ts'
+
+/**
+ * 读时升级 —— **立此存照律落地之前写下的行，读回来时折成照片**.
+ *
+ * 私账是追加日志：改写历史在这本账上是明拒的。所以旧行不迁移，**读的时候升级**
+ * ——而这一步的输入全部来自这本账自己（v1.x 本来就把标题、事实、证据都存了文本，
+ * 只是叫别的名字），**一次组织图读取都没有发生**。见 `compat.ts`。
+ */
+const foldWithUpgrade = (previous: JsonValue | undefined, event: GraphEvent): JsonValue => {
+  const base = asRecord(previous) ?? {}
+  const next = asRecord(event.data) ?? {}
+  return upgradeLegacy({ ...base, ...next }, event.time) ?? { ...base, ...next }
+}
 
 /**
  * 组织图锚 —— **它在这份 schema 里永远不单独出现**（立此存照律，v2.0 / PTD-16）。
@@ -121,6 +135,7 @@ export const expectationFamily: GraphFamily = {
     },
   },
   objectIdOf: idOf('expectationId'),
+  reduce: foldWithUpgrade,
 }
 
 /**
@@ -230,6 +245,7 @@ export const calibrationFamily: GraphFamily = {
     },
   },
   objectIdOf: idOf('calibrationId'),
+  reduce: foldWithUpgrade,
 }
 
 /**
@@ -318,6 +334,7 @@ export const inviteFamily: GraphFamily = {
       schema: z.object({ quota: z.number().int().min(0).max(3) }),
     },
   },
+  reduce: foldWithUpgrade,
   objectIdOf: (type, data) => (
     // 两条纯边：重开说的是一个**族**，配额说的是**整本账**——都不是某张卡的状态。
     type === 'invite/reopened' || type === 'invite/quota-set'

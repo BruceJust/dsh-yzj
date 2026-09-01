@@ -12,12 +12,12 @@
  * 顶掉存储的测试，恰恰会把这条唯一要测的东西 mock 掉。
  */
 
-import { cp, mkdtemp, readFile, readdir } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { YzjGraph, type GraphActor, type GraphViewer } from '@yzj-next/graph'
+import { YzjGraph, asRecord, type GraphActor, type GraphViewer } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import {
   assessmentCard, assessmentFamily, commitmentFamily, createCommitmentCard,
@@ -30,6 +30,7 @@ import {
   FAMILY_DELIVERY_ACCEPTANCE, FAMILY_GOAL_BREAKDOWN, expectationIdFor, inviteIdFor,
 } from '../src/families.ts'
 import { inviteCard } from '../src/invite.ts'
+import { upgradeLegacy } from '../src/compat.ts'
 import { casebookOf, readmeOf } from '../src/export.ts'
 import { inject as pledgerInject } from '../src/index.ts'
 import { PledgerLog } from '../src/log.ts'
@@ -43,7 +44,8 @@ import { YzjPledger } from '../src/service.ts'
 import { FORBIDDEN_VERBS, vaultView } from '../src/vault.ts'
 import { PLEDGER_KINDS, expectationFamily } from '../src/vocabulary.ts'
 import {
-  DEFAULT_PATTERN_WINDOW, FOLD_THRESHOLD, SETTLE_DAYS, anchoredJson, snapshot,
+  DEFAULT_PATTERN_WINDOW, FOLD_THRESHOLD, PLEDGER_FOLD_VERSION, SETTLE_DAYS,
+  anchoredJson, snapshot,
 } from '../src/types.ts'
 import { VERDICT_SPECTRUM, isPledgeable, type SeenVerdict } from '../src/verdicts.ts'
 
@@ -1535,5 +1537,113 @@ describe('㉗ 记忆隔离：两本复利账互不蒸馏', () => {
     const memories = JSON.stringify(graph.rawEvents(['memory/distilled', 'memory/forgotten']))
     expect(memories).not.toContain(canary)
     expect(JSON.stringify(graph.rawEvents([]))).not.toContain(canary)
+  })
+})
+
+/* ————— 读时升级：立此存照律之前写下的行，读回来仍然是一本完整的账 ————— */
+
+describe('v1.x 账本：不迁移，读时升级', () => {
+  /** 一行 v1.x 形态的日志。文本都在，只是叫别的名字。 */
+  const legacyLine = (seq: number, type: string, data: unknown): string => JSON.stringify({
+    // 时刻取「刚刚」：判例读的是滚动窗口，一条 2023 年的旧行本来就不该进近 90 天。
+    v: 1, sv: 1, seq, time: Date.now() - 60_000 + seq, type, data,
+    actor: { kind: 'operator', openId: 'op-1' },
+  })
+
+  it('折叠版本必须跟着形状走 —— 否则跑了一阵子的部署读的还是旧形状', () => {
+    /*
+      这一条是**实例上验到的**：读时升级住在折叠里，而落盘的快照是折叠的**结果**。
+      不 bump 这个数字，已经跑起来的部署会一直读着旧形状折出来的状态，新代码在那些
+      状态上只找得到「（这一段没有留下快照）」——账没丢，可屏幕上说它丢了。
+    */
+    expect(PLEDGER_FOLD_VERSION).toBeGreaterThanOrEqual(2)
+  })
+
+  it('纯函数：认得出的折成照片，认不出的原样不动', () => {
+    const upgraded = asRecord(upgradeLegacy({
+      calibrationId: 'cal-old',
+      verdictRef: { kind: 'commitment', id: 'c-old', label: '竞品对比表', graphSeq: 12 },
+      factRef: { source: 'noted', factId: 'fct-1' },
+      factText: '被追问定价',
+      evidence: ['人工补登：这条事实由你说出'],
+      thenText: '预期「评审能过」',
+    } as never, 1_700_000_000_000))
+
+    expect(asRecord(upgraded?.verdict)).toMatchObject({ text: '竞品对比表' })
+    expect(asRecord(asRecord(upgraded?.verdict)?.anchor)).toMatchObject({ kind: 'commitment', id: 'c-old', graphSeq: 12 })
+    expect(asRecord(upgraded?.fact)).toMatchObject({ text: '被追问定价' })
+    expect(asRecord(upgraded?.factSource)).toMatchObject({ kind: 'noted', factId: 'fct-1' })
+    expect(asRecord((upgraded?.evidence as never[])[0])).toMatchObject({ text: '人工补登：这条事实由你说出' })
+
+    // 已经是照片的**一个字都不动**——升级器最要紧的性质是不认识的东西不要碰。
+    const photo = { text: '原样', at: 'x' }
+    const kept = asRecord(upgradeLegacy({ calibrationId: 'c', verdict: photo } as never, 1))
+    expect(kept?.verdict).toEqual(photo)
+  })
+
+  it('一本 v1.x 的账整本读回来：金库、回执正文、判例册全部有字', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'yzj-pledger-v1-'))
+    const dir = join(root, 'op-1')
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, 'pledger.jsonl'), [
+      legacyLine(1, 'expectation/opened', {
+        expectationId: 'exp-old',
+        text: '这版评审能过，最多返一轮',
+        checkpoint: { text: '下一次这件事在图上有动静时' },
+        verdictRef: { kind: 'commitment', id: 'c-old', label: '私账层闭环探针 A' },
+        evidenceRefs: [{ kind: 'goal', id: 'https://yzj.example/g', label: 'https://yzj.example/g' }],
+        inviteId: 'inv-old',
+        family: FAMILY_DELIVERY_ACCEPTANCE,
+        status: 'testing',
+      }),
+      legacyLine(2, 'calibration/opened', {
+        calibrationId: 'cal-old',
+        verdictRef: { kind: 'commitment', id: 'c-old', label: '私账层闭环探针 A' },
+        factRef: { source: 'noted', factId: 'fct-old' },
+        expectationId: 'exp-old',
+        evidence: ['人工补登：这条事实由你在私语通道说出，系统没有猜过图外'],
+        thenText: '预期「这版评审能过，最多返一轮」',
+        factText: '线下评审过了，但定价策略那一段被追问了两轮。',
+        family: FAMILY_DELIVERY_ACCEPTANCE,
+        status: 'open',
+        idemKey: 'calibration:c-old|noted:fct-old',
+      }),
+      legacyLine(3, 'calibration/answered', { calibrationId: 'cal-old', attribution: 'q3', status: 'answered' }),
+      legacyLine(4, 'expectation/settled', {
+        expectationId: 'exp-old', calibrationRef: 'cal-old', status: 'settled',
+      }),
+      '',
+    ].join('\n'))
+
+    const bare = new Context()
+    const old = new YzjPledger(bare, { root })
+    await old.open('op-1')
+    const oldBus = new PledgerCards(bare)
+    oldBus.register(inviteCard)
+    oldBus.register(calibrationCard)
+    const oldDesk = createDesk(bare, oldBus)
+
+    const one = oldDesk.vault()?.settled[0]
+    expect(one?.verdict.text).toBe('私账层闭环探针 A')
+    expect(one?.fact.text).toBe('线下评审过了，但定价策略那一段被追问了两轮。')
+    expect(one?.attributionLabel).toBe('错了 · 因判断')
+
+    const body = oldBus.renderText({ kind: 'calibration', id: 'cal-old' })?.body
+    expect(body).toContain('线下评审过了')
+    expect(body).not.toContain('没有留下快照')
+
+    const casebook = casebookOf(old)
+    expect(casebook).toContain('私账层闭环探针 A')
+    expect(casebook).not.toContain('没有留下快照')
+
+    /*
+      **升级发生在读上，不在盘上**：这本账的日志一行没变。
+
+      改写历史在这本账上是明拒的——一本会自己改写过去的判断记录，正是它存在的
+      理由的反面。
+    */
+    const after = (await readFile(join(dir, 'pledger.jsonl'), 'utf8')).split('\n').filter(line => line !== '')
+    expect(after).toHaveLength(4)
+    expect(after[1]).toContain('verdictRef')
   })
 })
