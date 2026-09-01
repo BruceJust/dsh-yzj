@@ -178,6 +178,24 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   const back = backTarget()
 
   useEffect(() => { openDetails() }, [openDetails])
+  /*
+    进金库时**请求**宿主打开右栏 —— 证据面就是那一屏的用意（v2.2 账本律①）。
+
+    右栏从此是唯一的那一栏（金库自己不再长 aside），而它住在宿主可以收起的面板里。
+    收着的时候，「证据」那颗按钮按下去屏幕上什么都不会变——**一颗看起来没反应的
+    按钮，比没有这颗按钮更糟**（逐级兑付：够不到的能力等于没交付）。
+
+    **说「请求」不说「打开」**：`ctx.layout` 只给 open/close 两个动词，宽度是宿主的
+    抽屉；实测这台机器上宿主把那一栏的栅格宽度钉在 `0px`，这一次请求并不会把它撑开
+    （挂载时那一次既有的 `openDetails()` 同样不会）。所以这里能做的就是**如实地请求
+    一次**——宿主听不听是宿主的事，而写成「打开」就是替它许了一个它没给的承诺。
+
+    只在进来的那一下请求，不每次渲染都请求：这是一次导航意图，不是一条持续主张——
+    人随后自己把它收起来，是人的选择，不该被下一帧顶回去。
+  */
+  useEffect(() => {
+    if (frame.kind === 'vault') openDetails()
+  }, [frame.kind, openDetails])
   // A landing point belongs to the conversation it was chosen in.
   useEffect(() => { setReplyTo(undefined) }, [sessionId])
   /*

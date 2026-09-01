@@ -396,32 +396,79 @@ describe('㉚ D10 演示隐身：私账层整层不存在，而不是逐处判�
     applySurfaceRpc(new Context(), 20, false)
   })
 
-  it('隐身档下：后视镜条 / 条尾两读 / 档位生效面 / 金库入口全部不在', async () => {
+  it('隐身档下：后视镜条 / 档位生效面 / 金库入口全部不在 —— 而关着的时候它们在', async () => {
     await boot(true)
     await openCommitment('c-stealth')
-    await cards.act({ kind: 'commitment', id: 'c-stealth' }, 'accept', OPERATOR, 'desktop')
-    const desk = ctx.get('yzjPledgerDesk')
-    await desk?.mirror(FAMILY_DELIVERY_ACCEPTANCE, `${FAMILY_DELIVERY_ACCEPTANCE}:q3`, true)
+    /*
+      **先把它造出来**：两条同族判例 + 开镜，后视镜条才会挂上。
 
-    // 先证明**关着的时候它确实在**——否则这条断言只是在断言一个空屏。
+      初稿这一条是空转的——fixture 里根本没有后视镜条，于是「隐身档下没有它」
+      与「它从来没有过」在断言上无法区分。**一条能被空数据满足的断言不是断言。**
+    */
+    for (const [id, what] of [['cal-s1', '竞品对比表'], ['cal-s2', '价格页 v2']] as const) {
+      await pledger.append({
+        type: 'calibration/opened',
+        data: {
+          calibrationId: id,
+          verdict: { text: what, at: NOW, anchor: { kind: 'commitment', id: 'c-stealth' } },
+          fact: { text: '被打回了', at: NOW, anchor: { kind: 'commitment', id: 'c-stealth' } },
+          factSource: { kind: 'org', why: 'reopened' },
+          evidence: [],
+          thenText: `预期「${what} 一轮过」`,
+          family: FAMILY_DELIVERY_ACCEPTANCE,
+          idemKey: `calibration:${id}`,
+        },
+        actor: OPERATOR,
+      })
+      await pledger.append({
+        type: 'calibration/answered',
+        data: { calibrationId: id, attribution: 'q3' },
+        actor: OPERATOR,
+      })
+    }
+    await pledger.append({
+      type: 'mirror/toggled',
+      data: {
+        family: FAMILY_DELIVERY_ACCEPTANCE,
+        patternKey: `${FAMILY_DELIVERY_ACCEPTANCE}:q3`,
+        on: true,
+        entry: 'vault',
+        mirrorId: `${FAMILY_DELIVERY_ACCEPTANCE}:${FAMILY_DELIVERY_ACCEPTANCE}:q3`,
+      },
+      actor: OPERATOR,
+    })
+    // 换到负重档 —— **默认档不发生效面**（默认档下界面一个字都不该变），所以要换过去
+    // 才有第二样东西可以证明它消失了。
+    await pledger.append({
+      type: 'gear/shifted',
+      data: {
+        family: FAMILY_DELIVERY_ACCEPTANCE, gear: 'weight', entry: 'vault', evidenceSnapshot: [],
+      },
+      actor: OPERATOR,
+    })
+
+    // ① 关着的时候：镜子在、档位生效面在、入口在。
     applySurfaceRpc(new Context(), 20, false)
+    const lit = cardsFor(ctx, topic).find(card => card.id === 'c-stealth')
+    expect(lit?.strip?.cases.length).toBeGreaterThan(0)
+    expect(lit?.gearEffect).toBeDefined()
     expect(inboxView(ctx).pledger?.enabled).toBe(true)
 
+    // ② 开着的时候：同一张卡、同一份数据，**一样都不在**。
     applySurfaceRpc(new Context(), 20, true)
+    const dark = cardsFor(ctx, topic).find(card => card.id === 'c-stealth')
+    expect(dark).toBeDefined()
+    expect(dark?.strip).toBeUndefined()
+    expect(dark?.twoRead).toBeUndefined()
+    expect(dark?.gearEffect).toBeUndefined()
     /*
-      金库入口读的就是这个布尔（左栏那一行未启用时**不存在**，不是灰的）——
-      于是隐身档一开，入口、私语未读豁免、以及一切读 desk 的接缝一起消失。
+      金库入口读的就是这个布尔（未启用时那一行**不存在**，不是灰的）——于是隐身档
+      一开，入口、私语未读豁免、以及一切读 desk 的接缝一起消失。
     */
     expect(inboxView(ctx).pledger?.enabled).toBe(false)
-    const projected = cardsFor(ctx, topic, 'sess-1')
-    for (const card of projected) {
-      expect(card.strip).toBeUndefined()
-      expect(card.twoRead).toBeUndefined()
-      expect(card.gearEffect).toBeUndefined()
-    }
     // 全屏 canary：投影里一个私账字样都不许剩。
-    expect(JSON.stringify(projected)).not.toContain('仅你可见')
-    expect(JSON.stringify(projected)).not.toContain('后视镜')
+    expect(JSON.stringify(cardsFor(ctx, topic))).not.toContain('仅你可见')
+    expect(JSON.stringify(cardsFor(ctx, topic))).not.toContain('判断仍由你下')
   })
 
   it('关掉即恢复，且隐身态本身不落任何一条私账事件', async () => {
