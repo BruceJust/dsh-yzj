@@ -20,7 +20,7 @@ import type {} from '@yzj-next/channel'
 import { applySurfaceRpc } from './rpc.ts'
 
 export {
-  applySurfaceRpc, chipsFor, fusedWindow,
+  applySurfaceRpc, chipsFor, fusedWindow, objectPreviewOf,
   type FusedWindow, type TopicChip,
 } from './rpc.ts'
 
