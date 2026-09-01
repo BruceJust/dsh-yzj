@@ -1504,6 +1504,8 @@ const NOTES = {
        body: 'P′ 环行此前七分之六——模式浮现之后没有回到下一次裁决时刻的合法通道：金库靠人记得来查 = 自己的 Viva Goals（目的地 app 死法）；agent 临场提醒"你上次就是这么错的" = 说教剧场 + 持镜人违规。消解：<b>回喂是人预先签发的私账规则，不是 agent 临场的好意</b>——你在金库对某提案族开启后视镜，此后该族卡片旁（仅你可见的操作者层，条尾两读卡同层）显示你的相关判例 chip，一跳回金库；默认不开、随时可关。换挡台由此从"设置页"升格为<b>回路的合环阀</b>。' },
   36: { title: 'P′ 环行自检表（八环）+ #61 六收紧',
        body: '<b>裁决 →（立约·可选）→ 事实回流 → 对表归因 → 判例入账 → 模式浮现（滚动）→ 回喂（后视镜/换挡）→ 再裁决</b>——每环既可见又可动，缺一即割裂债；凡只能在金库获得的能力即违规。六收紧：①<b>预期不可改笔</b>（只可撤回，同一裁决不可再立——堵"临近检验点改口"的自欺通道）②<b>回执可驳回</b>「配对错了」+ 幂等锚 =（裁决边, 事实边）③<b>模式滚动律</b>（判例永续、模式滚动——金库不给你建档案）④<b>重签即对表</b>（租约重签卡携带期间证据摘要——换挡也是裁决、也有回执，租约不成为回路的出口）⑤<b>邀约出处限组织侧事实</b>（镜子等人来照，不追着人照）⑥"校准回执"恒带前缀。零散性终检：#60 全部构件在八环各有座位，无一悬空。' },
+  37: { title: '对表不出屏：金库的对象面（#61 澄清）',
+       body: '右栏的语义从未变过——<b>中栏是流、右栏是物</b>。金库的"物" = <b>判例的证据锚</b>：点判例/预期行的「证据 ›」，右栏归集当时的裁决卡、简报条目、事实消息、工件——只读预览、一跳可回真身，<b>边看证据边下归因</b>（"验收不出屏"的私账对偶）。默认态 = 待对表项的证据备料：打开金库 = <b>人发起的回看时刻</b>（持镜人条款"人发起"的消费时刻定义；备料不定案）。硬合同与持镜人条款不是右栏说明卡——它们住进<b>合同面板</b>（点会话头「判断力档案」chip，与场所合同同一语法）。<b>金库 ≠ 记忆</b>：记忆 tab 空态明标——记忆是 agent 的复利、金库是人的复利，两本账在右栏也不合流。（demo 初版曾把双螺旋/验收句等理论卡放进右栏——注解内容冒充产品面，已纠正：理论住 pin 层。）' },
   34: { title: '查看者样本律：成长回路人人有，账本互不可见',
        body: '金库视角切换：<b>张锐（执行者）有他自己的金库与回执</b>（返修数据估期偏后、行为回执兜底两次）——P′ 不是老板的特权；Bruce 的预期与回执在他的账里<b>不存在</b>（不是灰化，是不渲染）。王超（旁观）：他的金库是空账（空状态如实解释"预期不可回填"），且<b>没有任何入口</b>看到别人的对表——"找下属的对表"这个需求被明拒：误判史归组织，成长回路当场翻转为监控回路。每类空状态要有样本（样本纪律）。' },
 };
@@ -2253,7 +2255,24 @@ function renderBoard() {
    三不入：私账对象不进收件箱/决断条/徽标聚合——在场方式 = 私语通道未读（读即清）与金库本身 */
 const v5 = { offerReady: false, offer: 'pending', expectText: null, refused: false, tomorrow: false,
   attribution: null, zrAttr: null, gearWrite: 'default', gearDecomp: 'default', tailOpen: false, vaultAs: 'me',
-  mirror: false, receiptWrong: false };
+  mirror: false, receiptWrong: false, evid: null };
+
+/* #61 澄清：金库右栏 = 对表证据面（判例的证据锚归集——"对表不出屏" = 验收不出屏的私账对偶） */
+const V5EVID = {
+  hongtu: { t: '待对表 · 「8/15 前签回宏图续约」', note: '打开金库 = 人发起的回看时刻（持镜人条款的合法消费时刻）——备料不定案，结果你在私语通道亲口说。', items: [
+    { icon: '📄', t: '客户走访汇总 · 8月第2周', m: '宏图科技：续约意向确认，待发正式报价', pv: 'doc-visit' },
+    { icon: '▦', t: '走访记录表', m: '宏图行 · 8/12 · 续约意向', pv: 'sheet-visits' },
+  ]},
+  skip: { t: '判例 · 「带已知差距上会被追问」', note: '证据锚一跳可回真身——边看证据边下归因。', items: [
+    { icon: '⚖', t: '验收裁决 · 竞品对比表', m: '今天 10:30 · 跳过差距条目②', sess: 'competitor' },
+    { icon: '◐', t: '差距条目② · 目标评估', m: '「定价策略建议——部分达成」· 8/19 版基准', act: 'goto-eval' },
+    { icon: '📄', t: '竞品对比分析.md', m: '当时验收的工件 · 三态预览', fpv: 'md1' },
+  ]},
+  roadmap: { t: '预期 · 「例会上路线图定稿」的语境', note: '检验点到达后，事实（例会结论）回流即出校准回执。', items: [
+    { icon: '🧵', t: 'Q3 路线图整理', m: '关联会话 · 一跳', sess: 'roadmap' },
+    { icon: '📅', t: '产品例会 · 今天 14:00', m: '检验点 · 事件枢纽', evhub: 'ev-meeting' },
+  ]},
+};
 
 /* #61 回喂环：后视镜 = 负重档的显示形态——人签发的私账规则，agent 只执行显示（持镜人合规） */
 function v5MirrorStrip() {
@@ -2433,8 +2452,8 @@ function renderVault() {
   return `<div class="board">${head('')}
     <div class="res-sec">检验中的预期 <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">· 立约时刻出生，不可回填 ${pinInline(29)}</span></div>
     ${mainExpect}${emptyExpect}
-    <div class="cm-row"><span style="flex:none">🌱</span><span style="flex:1;font-size:12px">「例会上 Q3 路线图草稿能定稿」 · <b>检验中</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">检验点：今天 14:00 例会后 · 锚：委派裁决（Q3 路线图整理）· 出生：09:33 私语立约</span></span></div>
-    <div class="cm-row"><span style="flex:none">⏳</span><span style="flex:1;font-size:12px">「8/15 前签回宏图续约」 · <b>已过检验点，待对表</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">出生：8/12 私语立约 · agent 已在私语通道问你结果（问结果合法，索要预期非法）· 不老化不可催——这本账的债主是你自己</span></span></div>
+    <div class="cm-row"><span style="flex:none">🌱</span><span style="flex:1;font-size:12px">「例会上 Q3 路线图草稿能定稿」 · <b>检验中</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">检验点：今天 14:00 例会后 · 锚：委派裁决（Q3 路线图整理）· 出生：09:33 私语立约</span></span><button class="v5-door" data-v5evid="roadmap" style="flex:none">语境 ›</button></div>
+    <div class="cm-row"><span style="flex:none">⏳</span><span style="flex:1;font-size:12px">「8/15 前签回宏图续约」 · <b>已过检验点，待对表</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">出生：8/12 私语立约 · agent 已在私语通道问你结果（问结果合法，索要预期非法）· 不老化不可催——这本账的债主是你自己</span></span><button class="v5-door" data-v5evid="hongtu" style="flex:none">证据 ›</button></div>
     <div class="res-sec">已对表 <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">· 四格是判例标签，不是分数原料 ${pinInline(30)}</span></div>
     ${settledMain}
     <div class="cm-row"><span class="ex-tag human" style="flex:none">对了·因运气</span><span style="flex:1;font-size:12px">「Q2 复盘会一次收尾」——收了，但因议题临时砍半，非你判断的依据<span style="display:block;font-size:10.5px;color:var(--ink-3)">对表：8/12 · 防自欺①：结果好 ≠ 判断对</span></span></div>
@@ -2446,7 +2465,7 @@ function renderVault() {
     <div class="cm-row"><span style="flex:1;font-size:12px"><b>目标拆解提案</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">证据：近 2 轮提案你全盘通过、零改动——负重档 = "你先拆，agent 再补"（产婆术的可调节形态，生成侧温水的解）</span></span>${v5Gearset('gearDecomp')}</div>
     <div class="cm-row"><span style="flex:1;font-size:12px"><b>立约邀约频率</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">${inviteState} · 重新打开的主权在这里（邀约疲劳治理）</span></span></div>
     <div class="res-sec">模式 · 每个数字是门 · <b>滚动派生（近 90 天）非累积档案——金库照现在的你，不给你建档案（#61）</b>${pinInline(33)}</div>
-    <div class="cm-row"><span style="flex:none">⚠</span><span style="flex:1;font-size:12px">带已知差距上会被追问：<button class="v5-door" data-v5cases="skip">${skipN} 次</button><span style="display:block;font-size:10.5px;color:var(--ink-3)">派生自：你的验收留痕 × 后续事实——不是系统的意见，是你自己的判例${v5.mirror ? ' · <b>后视镜已开</b>：待验收卡旁将亮出此判例（仅你可见）' : ''}</span></span><button class="btn" data-v5act="mirror" style="font-size:10px;padding:1px 9px;flex:none${v5.mirror ? ';color:#6B5A36;border-color:var(--paper-line);background:var(--paper)' : ''}" title="回喂环（#61）：后视镜 = 负重档的显示形态——你签发的私账规则，默认不开、随时可关；agent 只执行显示（持镜人合规）">🪞 后视镜：${v5.mirror ? '开' : '关'}</button></div>
+    <div class="cm-row"><span style="flex:none">⚠</span><span style="flex:1;font-size:12px">带已知差距上会被追问：<button class="v5-door" data-v5cases="skip">${skipN} 次</button><span style="display:block;font-size:10.5px;color:var(--ink-3)">派生自：你的验收留痕 × 后续事实——不是系统的意见，是你自己的判例${v5.mirror ? ' · <b>后视镜已开</b>：待验收卡旁将亮出此判例（仅你可见）' : ''}</span></span><button class="v5-door" data-v5evid="skip" style="flex:none;margin-right:6px">证据 ›</button><button class="btn" data-v5act="mirror" style="font-size:10px;padding:1px 9px;flex:none${v5.mirror ? ';color:#6B5A36;border-color:var(--paper-line);background:var(--paper)' : ''}" title="回喂环（#61）：后视镜 = 负重档的显示形态——你签发的私账规则，默认不开、随时可关；agent 只执行显示（持镜人合规）">🪞 后视镜：${v5.mirror ? '开' : '关'}</button></div>
     <div class="cm-row"><span style="flex:none">📐</span><span style="flex:1;font-size:12px">对张锐工期的预估：近 3 次第 2 次偏后（<button class="v5-door" data-v5cases="zr">判例</button>）<span style="display:block;font-size:10.5px;color:var(--ink-3)">下次排期这是你自己的校准系数——用不用在你（agent 不会替你改排期：持镜人条款）</span></span></div>
     <div class="cm-row"><span style="flex:none">💪</span><span style="flex:1;font-size:12px">打回动词：Q2 全季 0 次 → 本季 2 次（返工轮次既有对象）<span style="display:block;font-size:10.5px;color:var(--ink-3)">检验标准⑥的证据形态：第六个月的人，敢裁第一天不敢裁的事</span></span></div>
     <div class="v5-refuse">${pinInline(33)}<b>金库五不做</b>：无分数 · 无排名 · 无画像 · 无建议倾向 · 无团队视图。<br>P′ 四资产里只有<b>判断</b>被机制化——表达归产婆术、品味归磨稿亲笔（工作夹「磨目标」会话）、志向归目标作者权、关系归社交摩擦不碰；品味与志向的量化<b>明拒</b>。金库只陈列判例与对表，结论你自己下。</div>
@@ -2541,8 +2560,9 @@ function renderHead() {
   const sidChip = sess.sid ? `<span class="chip mono">${sess.sid}</span>` : '';
   let agentChip;
   const AP = 'data-apanel="1" role="button" tabindex="0" title="查看 Agent 场所合同"';
-  if (sess.kind === 'board' || sess.kind === 'vault') agentChip = '';
-  else if (sess.kind === 'selfdm') agentChip = `<span class="chip agent-chip off" ${AP}>云小助 · 私语通道（持镜人——只备料举证，不代归因）</span>`;
+  if (sess.kind === 'board') agentChip = '';
+  else if (sess.kind === 'vault') agentChip = `<span class="chip agent-chip off" ${AP}>📜 判断力档案 · 硬合同（面板）</span>`;
+  else if (sess.kind === 'selfdm') agentChip = `<span class="chip agent-chip off" ${AP}>云小助 · 私语通道（持镜人——合同见面板）</span>`;
   else if (sess.agentState) agentChip = `<span class="chip agent-chip" ${AP}><span class="pulse"></span>云小助 · ${sess.agentState}</span>`;
   else if (sess.kind === 'groupview') agentChip = `<span class="chip agent-chip off" ${AP}>云小助 · 本群在岗（场所合同）</span>`;
   else if (sess.kind === 'cold') agentChip = `<span class="chip agent-chip off" ${AP}>未接入 Agent —— @云小助 即可开始</span>`;
@@ -3133,6 +3153,7 @@ function handleAccept(acId) {
 
 /* ---------- Agent 场所合同 ---------- */
 function contractFor(sess) {
+  if (sess.kind === 'selfdm' || sess.kind === 'vault') return { pvault: true };
   if (sess.kind === 'local' || sess.kind === 'board') return { local: true };
   if (sess.kind === 'cold') return { cold: true };
   if (sess.placeKey === '财务群') return {
@@ -3191,7 +3212,36 @@ function openAgentPanel() {
   const sess = sessions[state.current];
   const c = contractFor(sess);
   let body;
-  if (c.local) {
+  if (c.pvault) {
+    /* #61 澄清：判断力档案硬合同 = 合同面板同构——与场所合同同一语法；另一半签署人是你自己 */
+    const rows = [
+      ['可见域', '仅本人', 'guard 强制'],
+      ['真身', '个人域图数据（不入组织图 · host 内存非真身）', 'guard 强制'],
+      ['导出', '组织与他人不可导出 · <b>本人可整体取走与销毁</b>', 'guard 强制'],
+      ['绩效', '永不进入任何聚合与绩效', 'guard 强制'],
+      ['审计', '审计导出不可触及（对称保留律第二例外区）', 'guard 强制'],
+    ].map(([k, v, t]) => `<div class="ap-row"><span class="k">${k}</span><span class="v">${v}</span><span class="ap-inherit ovr">${t}</span></div>`).join('');
+    const mirror = [
+      ['消费时刻', '仅人发起（对表 / 回看 / 换挡）——邀约出处限组织侧事实'],
+      ['组织侧', '金库模式不得静默转化为组织侧行为变更（不加门、不挡裁决、不调提案策略）'],
+      ['行为事实', '本人停留时长等可入私账作镜子证据，永不进组织通道与模型调优'],
+    ].map(([k, v]) => `<div class="ap-row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+    body = `
+      <div class="ap-sec">
+        <div class="ap-sec-h">判断力档案 · 硬合同 <span class="ap-badge hard">guard 强制 · 对话不可改</span></div>
+        ${rows}
+        <div class="ap-note">与场所合同同一语法（硬项 guard 级、面板可检视）——特殊性只有一条：<b>这份合同的另一半签署人是你自己</b>。误判史归组织 = 成长回路翻转为监控回路（决策 #60）。</div>
+      </div>
+      <div class="ap-sec">
+        <div class="ap-sec-h">持镜人条款 <span class="ap-badge hard">guard 强制</span></div>
+        ${mirror}
+        <div class="ap-note">镜子只能被本人照——agent 是持镜人，不是整容师（后视镜等显示规则由你在金库签发，agent 只执行显示）。</div>
+      </div>
+      <div class="ap-sec">
+        <div class="ap-sec-h">部署 <span class="ap-badge soft">组织策略</span></div>
+        <div class="ap-note">二值开关：组织可整体不启用金库；<b>"启用且组织可见"的中间态明拒</b>——那是戴着成长面具的监控（v4.25r）。</div>
+      </div>`;
+  } else if (c.local) {
     body = `<div class="ap-sec"><div class="ap-note">本地会话不挂场所合同，走 <b>Web 语义</b>：全工具面 + 写操作确认卡。<br>语态即权限的另一半：能力 = f(场所, 语态)。</div></div>`;
   } else if (c.cold) {
     body = `<div class="ap-sec"><div class="ap-note">此会话尚未接入 Agent。首次 @云小助 焐热时按「<b>组织默认</b>」合同签约；之后可在此逐项覆盖（硬合同仅结构化编辑）。</div></div>`;
@@ -3227,9 +3277,9 @@ function openAgentPanel() {
   }
   $('apanel').innerHTML = `
     <div class="ap-head">
-      <span class="ap-ava">助</span>
-      <span><span class="ap-title">云小助 · ${sess.kind === 'local' ? '本地会话' : sess.placeKey}</span>
-      <span class="ap-sub" style="display:block">同一个 agent · 每个场所一份合同（组织默认 → 场所 → 会话快照）</span></span>
+      <span class="ap-ava">${c.pvault ? '🔒' : '助'}</span>
+      <span><span class="ap-title">${c.pvault ? '判断力档案（私账）' : `云小助 · ${sess.kind === 'local' ? '本地会话' : sess.placeKey}`}</span>
+      <span class="ap-sub" style="display:block">${c.pvault ? '仅本人 · 与场所合同同一语法——另一半签署人是你自己' : '同一个 agent · 每个场所一份合同（组织默认 → 场所 → 会话快照）'}</span></span>
       <button class="pin inline" data-note="10" aria-label="设计注解 10" style="margin-left:auto">10</button>
       <button class="ap-close" id="apClose" aria-label="关闭">×</button>
     </div>${body}`;
@@ -3374,30 +3424,50 @@ function renderRight() {
     return;
   }
 
-  /* v5 决策 #60：私语通道与金库的右栏 */
-  if (sessions[state.current].kind === 'selfdm') {
-    const counts = `检验中 ${v5.offer === 'born' && !(v5.tomorrow && v5.attribution) ? 2 : 1} · 待对表 1 · 已对表 ${v5.tomorrow && v5.attribution ? 3 : 2}`;
-    body.innerHTML = `
-      <div class="res-sec">金库速览 · 人的账（第二本账）</div>
-      <div class="pv-card" style="margin-bottom:6px">🔒 <b>我的判断</b><br><span style="font-size:11px;color:var(--ink-2)">${counts}</span><br>
-        <button class="btn" data-sess="vault" style="font-size:11px;padding:3px 12px;margin-top:6px">打开金库 →</button></div>
-      <div class="res-sec">硬合同（v4.25r）${pinInline(31)}</div>
-      <div class="pv-card" style="margin-bottom:6px;font-size:11px;line-height:1.7">仅你可见 · 不入组织图 · <b>组织不可导出、本人可取走</b> · 永不绩效 · 审计不可触及。<br>部署二值开关：组织可不启用金库，但"启用且组织可见"的中间态<b>明拒</b>。</div>
-      <div class="res-sec">持镜人条款</div>
-      <div class="pv-card" style="font-size:11px;line-height:1.7">agent 只在<b>你发起</b>的对表/回看/换挡时刻引用金库；不因你的误判史改组织侧任何行为。镜子只能被本人照。</div>`;
-    return;
-  }
-  if (sessions[state.current].kind === 'vault') {
-    body.innerHTML = `
-      <div class="res-sec">双螺旋 · 决策 #60 ${pinInline(25)}</div>
-      <div class="pv-card" style="margin-bottom:6px;font-size:11px;line-height:1.7"><b>两条链互喂，谁也不吞谁</b>：agent′ 的增量来自你的话语与裁决（记忆、判例、信任）；P′ 的增量来自被扛走损耗后<b>保留且回喂</b>的判断。逐环判据：同一次点击，反馈只流回系统是<b>萃取</b>，也流回人是<b>练习</b>。</div>
-      <div class="res-sec">温水剧场 ${pinInline(26)}</div>
-      <div class="pv-card" style="margin-bottom:6px;font-size:11px;line-height:1.7">提案越好 → 驳回率越低 → 裁决信息量越低 → 人越不细看 → 三主权时刻退化为三剧场时刻。P′ 是"可信地完成"的承重墙——换挡台与校准回执是它的守卫。</div>
-      <div class="res-sec">验收句（检验标准⑥）${pinInline(33)}</div>
-      <div class="pv-card" style="margin-bottom:6px;font-size:11px;line-height:1.7"><b>拿走系统的那一天，人比第一天更强。</b><br>杠铃与拐杖的分界——搬运的肌肉不值得保留（老茧）；判断/表达/关系的肌肉萎缩即圈养。</div>
-      <div class="res-sec">机制账单（近零新增）${pinInline(28)}</div>
-      <div class="pv-card" style="font-size:11px;line-height:1.7">校准回执 = 可应答对象落私语通道（单答家族复用）；预期 = 登记动词的私语形态；两读/三档位 = 条尾租约入口的语义扩员（零新入口）；唯一新增的"面" = 本金库，且它住在私语侧。</div>`;
-    return;
+  /* v5 #61 澄清：私语通道与金库的对象面——理论住注解层，产品面只住对象 */
+  if (sessions[state.current].kind === 'selfdm' || sessions[state.current].kind === 'vault') {
+    const isVault = sessions[state.current].kind === 'vault';
+    if (state.resTab === 'mem') {
+      body.innerHTML = `<div class="mem-scope">私账语境（${isVault ? '金库' : '私语通道'}）</div>
+        <div class="mem-empty"><b>金库 ≠ 记忆</b>${pinInline(37)}<br>记忆是 agent 的复利（场所记忆库），金库是人的复利（判断力档案）——两本账在右栏也不合流：金库内容<b>永不入记忆库</b>，agent 不据此调整组织侧行为（持镜人条款）。</div>`;
+      return;
+    }
+    if (state.resTab === 'cur') {
+      if (isVault) {
+        const ev = V5EVID[v5.evid || 'hongtu'];
+        const rows = ev.items.map(o => {
+          const attrs = o.sess ? `data-sess="${o.sess}"` : o.pv ? `data-preview="${o.pv}"` : o.fpv ? `data-fpv="${o.fpv}"` : o.evhub ? `data-evhub="${o.evhub}"` : o.act ? `data-v5act="${o.act}"` : '';
+          return `<button class="res-item" ${attrs}>
+            <span class="ri">${o.icon}</span>
+            <span class="rt"><span class="rt1">${o.t}</span><span class="rt2">${o.m}</span></span>
+            <span style="font-size:10px;color:var(--pub);flex:none">›</span>
+          </button>`;
+        }).join('');
+        body.innerHTML = `
+          <div class="res-sec">对表证据面 · ${ev.t} ${pinInline(37)}</div>
+          ${rows}
+          ${ev.note ? `<div class="mem-empty" style="text-align:left">${ev.note}</div>` : ''}
+          <div class="mem-empty" style="text-align:left">点金库任一判例/预期行的「证据 ›」→ 这里归集它的锚对象（只读预览 · 一跳可回真身）——<b>对表不出屏</b>（验收不出屏的私账对偶：边看证据边下归因）。<br>硬合同与持镜人条款：点会话头「判断力档案」chip 查看（与场所合同同构${pinInline(31)}）。</div>`;
+      } else {
+        const counts = `检验中 ${v5.offer === 'born' && !(v5.tomorrow && v5.attribution) ? 2 : 1} · 待对表 1 · 已对表 ${v5.tomorrow && v5.attribution ? 3 : 2}`;
+        const expectRow = v5.offer === 'born' ? `
+          <button class="res-item" data-sess="vault"><span class="ri">🌱</span>
+            <span class="rt"><span class="rt1">预期「${v5.expectText}」</span><span class="rt2">检验中 · 明早评审后 · 金库 ›</span></span></button>` : '';
+        const receiptRow = v5.tomorrow ? `
+          <button class="res-item" data-sess="vault"><span class="ri">📮</span>
+            <span class="rt"><span class="rt1">校准回执 · 竞品对比表</span><span class="rt2">${v5.attribution ? '已对表 · ' + V5Q[v5.attribution] : '未答——不老化不可催'} · 金库 ›</span></span></button>` : '';
+        body.innerHTML = `
+          <div class="res-sec">本通道的物 · 立约与对表</div>
+          ${expectRow}${receiptRow}
+          ${!expectRow && !receiptRow ? `<div class="mem-empty">暂无——预期与回执出生后沉淀在这里</div>` : ''}
+          <div class="res-sec">金库速览</div>
+          <div class="pv-card">🔒 <b>我的判断</b> · ${counts}<br>
+            <button class="btn" data-sess="vault" style="font-size:11px;padding:3px 12px;margin-top:6px">打开金库 →</button></div>
+          <div class="mem-empty" style="text-align:left">硬合同与持镜人条款：点会话头「云小助 · 私语通道」chip 查看合同面板（与场所合同同构${pinInline(31)}）。</div>`;
+      }
+      return;
+    }
+    /* resTab === 'res'：落到全局资源浏览器（金库不改资源面语义） */
   }
 
   if (state.resTab === 'cur') {
@@ -3759,6 +3829,15 @@ document.addEventListener('click', (e) => {
   }
   const v5vault = e.target.closest('[data-v5vault]');
   if (v5vault) { v5.vaultAs = v5vault.dataset.v5vault; renderTimeline(); return; }
+  const v5ev = e.target.closest('[data-v5evid]');
+  if (v5ev) {
+    v5.evid = v5ev.dataset.v5evid;
+    state.preview = null; state.resTab = 'cur';
+    document.querySelectorAll('.res-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'cur'));
+    renderRight();
+    toast('对表证据面：右栏归集该判例的证据锚——只读预览、一跳可回真身（对表不出屏）。');
+    return;
+  }
   const v5cs = e.target.closest('[data-v5cases]');
   if (v5cs) { v5ShowCases(v5cs.dataset.v5cases, v5cs.getBoundingClientRect()); return; }
 
