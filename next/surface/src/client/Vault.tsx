@@ -104,16 +104,13 @@ export function YzjVault(props: VaultProps): ReactNode {
   }, [reload])
 
   /*
-    只给**活着的锚**取预览。
+    要取预览的那些锚 —— **只取活着的，且只在这一集变了的时候取**。
 
-    锚死的那些不取——不是省一次请求，是**预览消失本身就是显形的一半**：那一行会
-    留下快照 + 一枚「真身已变/已亡」的徽记，而不是一个看起来还活着的标题。
-  */
-  /*
-    锚集变了才重取 —— **不是每五秒一次**。
+    锚死的不取：不是省一次请求，**预览消失本身就是显形的一半**——那一行留下快照
+    加一枚「真身已变/已亡」的徽记，而不是一个看起来还活着的标题。
 
-    金库主体五秒一刷是因为它是自己的账，随时可能有新回执落进来；预览是组织侧的
-    礼貌，把它挂上同一个节拍，就是拿一次「顺便看一眼」换成了对组织图的轮询。
+    不挂五秒节拍：金库主体那一刷是因为它是自己的账，随时可能有新回执落进来；预览是
+    组织侧的礼貌，把它挂上同一个节拍，就是拿一次「顺便看一眼」换成了对组织图的轮询。
     真要看最新的，那颗「回真身 ↗」就在旁边——那才是这一行的刷新路径。
   */
   const anchorKeys = (evidence?.rows ?? [])
@@ -530,7 +527,7 @@ export function YzjVault(props: VaultProps): ReactNode {
               未对表（已沉降）
               <span className={css.sectionNote}>
                 {' '}· 超过 {String(view.settleDays)} 天没对表就沉到这儿 ——
-                <b>不变红、不计数、不催</b>，但**每一行仍然可动**
+                <b>不变红、不计数、不催</b>，但<b>每一行仍然可动</b>
               </span>
             </div>
             {view.sunk.map(row => expectationRow(row, false))}
@@ -678,7 +675,7 @@ export function YzjVault(props: VaultProps): ReactNode {
           ? (
             <div className={css.empty}>
               近 {String(view.window.days)} 天没有重复出现的判例。
-              模式是**滚动派生**的：窗外的判例仍然在日志里，只是不参与这一次计数。
+              模式是<b>滚动派生</b>的：窗外的判例仍然在日志里，只是不参与这一次计数。
             </div>
           )
           : view.patterns.map(row => (
@@ -707,8 +704,8 @@ export function YzjVault(props: VaultProps): ReactNode {
         <div className={css.refuse}>
           <b>金库五不做</b>：{view.refusals.join(' · ')}。
           <br />
-          P′ 四资产里只有**判断**被机制化——表达归产婆术、品味归磨稿亲笔、志向归目标作者权、
-          关系归社交摩擦不碰；品味与志向的量化**明拒**。金库只陈列判例与对表，结论你自己下。
+          P′ 四资产里只有<b>判断</b>被机制化——表达归产婆术、品味归磨稿亲笔、志向归目标作者权、
+          关系归社交摩擦不碰；品味与志向的量化<b>明拒</b>。金库只陈列判例与对表，结论你自己下。
         </div>
 
         {/*
@@ -723,7 +720,7 @@ export function YzjVault(props: VaultProps): ReactNode {
             这本账在：<code>{view.directory ?? '（还没打开）'}</code>
             <br />
             <b>目录自包含</b>：没有外部索引、组织图里也没有任何指回来的引用——拷走这个目录
-            就是取走全账。组织与他人**不可导出**。
+            就是取走全账。组织与他人<b>不可导出</b>。
           </div>
           {/*
             **拷得走 ≠ 取得走**（v2.0 / #62-A2）。
@@ -749,7 +746,7 @@ export function YzjVault(props: VaultProps): ReactNode {
               取走：生成判例册
             </button>
             <span className={css.rowNote}>
-              判例册是**纯文本**：没有本系统、没有组织图的环境里也读得完整
+              判例册是<b>纯文本</b>：没有本系统、没有组织图的环境里也读得完整
             </span>
           </div>
           {takeout !== undefined && (
@@ -897,7 +894,7 @@ export function YzjVault(props: VaultProps): ReactNode {
           */}
           <div className={css.section}>记忆</div>
           <div className={css.empty}>
-            空，而且**永远为空**：金库内容永不入记忆库。
+            空，而且<b>永远为空</b>：金库内容永不入记忆库。
             <br />
             记忆是 agent 的复利、金库是人的复利——两本复利账不合流，也互不蒸馏。
           </div>

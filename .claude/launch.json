@@ -13,8 +13,13 @@
     },
     {
       "name": "yzj-next-3090",
-      "url": "http://localhost:3090",
-      "port": 3090
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "AGENT=\"$HOME/Library/LaunchAgents/com.bruce.yzj-next.plist\"; DSH=\"$(command -v dsh || echo \"$HOME/.npm-global/bin/dsh\")\"; if [ -f \"$AGENT\" ]; then launchctl unload \"$AGENT\" 2>/dev/null || true; trap 'launchctl load \"$AGENT\" 2>/dev/null || true' EXIT INT TERM; fi; DSH_HOME=\"${DSH_HOME:-$HOME/.dsh-next}\" \"$DSH\" web --port 3090 --no-open"
+      ],
+      "port": 3090,
+      "autoPort": false
     }
   ]
 }

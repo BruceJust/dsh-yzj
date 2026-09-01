@@ -16,7 +16,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asObjectRef, asRecord, asString } from '@yzj-next/graph'
+import { asObjectRef, asRecord, asString, type GraphObject } from '@yzj-next/graph'
 import { familyOfCardKind } from './families.ts'
 import type { OrgAnchor, PremiseState } from './types.ts'
 
@@ -137,11 +137,40 @@ export function anchorFor(ctx: Context, kind: string, id: string, graphSeq?: num
 export function isAlive(ctx: Context, anchor: OrgAnchor): PremiseState {
   const graph = ctx.get('yzjGraph')
   if (graph === undefined) return 'unknown'
-  const object = graph.rawObject(anchor.kind, anchor.id)
+  /*
+    **目标没有自己的对象族** —— 它是一条 `state.goalRef` 等于这个 URI 的承诺.
+
+    不认这一层，`rawObject('goal', uri)` 恒为 undefined，于是每一个目标锚都常年
+    挂着「真身已变 / 已亡」——**而那个目标好好的**。这比少一块预览严重得多：
+    少一块预览是没说话，一枚假徽记是**说了假话**，而它说的偏偏是这本账最要紧的
+    那一句「你当时押的前提还在不在」。
+
+    （surface 侧的只读预览里有一个同样的查找。两处各在各的层：这里只回状态，
+    那里才取内容——**分层的代价就是这一点重复**，合并它就等于把取内容的通道
+    递给了私账层。）
+  */
+  const object = anchor.kind === 'goal'
+    ? goalObjectOf(ctx, anchor.id)
+    : graph.rawObject(anchor.kind, anchor.id)
   if (object === undefined) return 'changed'
   const status = asString(asRecord(object.state)?.status)
   if (status === undefined) return 'live'
   return DEAD_STATUSES.has(status) ? 'changed' : 'live'
+}
+
+/** 一个目标 URI 背后的那条承诺。**事件收候选、状态定案**。 */
+function goalObjectOf(ctx: Context, goalRef: string): GraphObject | undefined {
+  const graph = ctx.get('yzjGraph')
+  if (graph === undefined) return undefined
+  for (const event of graph.rawEvents(['commitment/opened', 'commitment/amended'])) {
+    const data = asRecord(event.data)
+    if (asString(data?.goalRef) !== goalRef) continue
+    const id = asString(data?.commitmentId)
+    if (id === undefined) continue
+    const object = graph.rawObject('commitment', id)
+    if (asString(asRecord(object?.state)?.goalRef) === goalRef) return object
+  }
+  return undefined
 }
 
 /**

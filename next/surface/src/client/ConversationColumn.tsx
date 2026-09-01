@@ -983,7 +983,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
             <span className={css.goalChipTag}>为这场会准备</span>
             <span className={css.goalChipName}>{pendingEvent}</span>
             <span className={css.goalChipNote}>
-              只是一句提示：这个话题**不会**因此挂到这场会上，句子发出去也不会自动登记
+              只是一句提示：这个话题<b>不会</b>因此挂到这场会上，句子发出去也不会自动登记
             </span>
             <button
               type="button"

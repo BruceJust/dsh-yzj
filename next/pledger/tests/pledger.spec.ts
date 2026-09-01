@@ -1164,6 +1164,42 @@ describe('⑱ 锚死显形：显形，且只显形', () => {
     expect(await eventCount()).toBe(before)
   })
 
+  it('目标锚不是天生的死人 —— 它没有对象族，可它活得好好的', async () => {
+    /*
+      **这一条是在浏览器面板里看出来的**，不是想出来的。
+
+      目标没有 `kind: 'goal'` 的对象族（它是一条 `state.goalRef` 等于该 URI 的
+      承诺），于是 `rawObject('goal', uri)` 恒为 undefined —— 每一个目标锚都常年
+      挂着「真身已变 / 已亡」。**少一块预览是没说话，一枚假徽记是说了假话**，而
+      它说的偏偏是这本账最要紧的那一句：你当时押的前提还在不在。
+    */
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c-goal-alive',
+        what: '把宏图续约签回来',
+        executor: { kind: 'human', openId: 'op-1', name: '我', topicKey: TOPIC },
+        sourceAnchor: `session:${TOPIC}`,
+        topicKey: TOPIC,
+        goalRef: GOAL,
+      },
+      actor: OPERATOR,
+    })
+    const { isAlive } = await import('../src/verdicts.ts')
+    expect(isAlive(ctx, { kind: 'goal', id: GOAL })).toBe('live')
+
+    // 目标真的死了的时候，它照旧显形——修的是假阳，不是把这条探测关掉。
+    await graph.append({
+      type: 'commitment/voided',
+      data: { commitmentId: 'c-goal-alive', cause: '这个目标不做了' },
+      actor: OPERATOR,
+    })
+    await settle()
+    expect(isAlive(ctx, { kind: 'goal', id: GOAL })).toBe('changed')
+    // 从来没有过的那个 URI 仍然是 changed（找过了，确实不在）。
+    expect(isAlive(ctx, { kind: 'goal', id: 'https://yzj.example/doc/never' })).toBe('changed')
+  })
+
   it('组织图不可达时 premise=unknown 且不显形，内容照旧完整', async () => {
     await deliverCommitment('c-18b')
     await accept('c-18b')
