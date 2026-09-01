@@ -224,12 +224,15 @@ function decideAction(
   label: string,
   keywords: readonly string[],
   style: 'primary' | 'danger' | 'neutral',
+  /** 这一下是哪一种人签发的裁决终态。不给 = 它不是一个终态（如「按下不表」）。 */
+  verdict?: string,
 ): CardDefinition<ProposalState>['actions'][number] {
   return {
     id,
     label,
     style,
     keywords: [...keywords],
+    ...(verdict === undefined ? {} : { verdict }),
     needsInput: true,
     allowedActors: (actor, state) => isDecider(actor.openId, state),
     available: state => !proposalSettled(state),
@@ -256,7 +259,11 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
       misfire — that exposure is the text channel's, shared with 完成/验收, and
       it is now bounded to the one person the proposal was handed to.
     */
-    decideAction('confirmed', '确认', ['确认'], 'primary'),
+    /*
+      确认一条提案 = **委派签发**（拆解落库）：这一下之后，那件事真的挂到了人头上。
+      驳回与挂起不是终态——事情还在这张卡上，没有可对表的「后来」。
+    */
+    decideAction('confirmed', '确认', ['确认'], 'primary', 'delegation'),
     decideAction('rejected', '驳回', ['驳回'], 'danger'),
     decideAction('held', '挂起', ['挂起'], 'neutral'),
     {

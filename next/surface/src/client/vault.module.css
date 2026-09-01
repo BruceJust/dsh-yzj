@@ -31,7 +31,40 @@
   background: #F0E7D2; color: #6B5A36; border: 1px solid #E4DAC4;
 }
 
-.body { flex: 1; overflow-y: auto; padding: 12px 20px 24px; }
+/*
+  两栏 —— **中栏是流、右栏是物**，和会话面同一条语义（#61 澄清①）。
+
+  金库的「物」是判例的**证据**。两栏并列而不是分屏跳转，为的是**对表不出屏**：
+  边看证据边下归因。把证据摆进另一个页面，四格就得凭记忆答——那正是「验收不出屏」
+  当初要躲的那种失真，只不过换到了私账这一侧。
+*/
+.body { flex: 1; min-height: 0; display: flex; gap: 14px; }
+.stream { flex: 1; min-width: 0; overflow-y: auto; padding: 12px 0 24px 20px; }
+.aside {
+  flex: none; width: 268px; overflow-y: auto;
+  padding: 12px 20px 24px 0;
+}
+
+/* 检索框 —— **金库内**的检索。这个面上没有 viewer 参数，因为它只有一个读者。 */
+.searchRow { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.hit {
+  display: flex; gap: 8px; align-items: baseline;
+  padding: 6px 11px; margin-bottom: 4px;
+  border: 1px solid #E9E1CE; border-radius: 8px; background: #FFFDF8;
+  font-size: 11.5px; color: #3F3721;
+}
+
+/* 证据面：摘要为主、锚为辅、锚死显形。 */
+.evidenceRow {
+  padding: 8px 11px; margin-bottom: 5px;
+  border: 1px solid #E9E1CE; border-radius: 9px; background: #FFFDF8;
+  font-size: 11.5px; color: #3F3721; line-height: 1.55;
+}
+.evidenceDead { border-color: #E9C8BE; background: #FDF4F1; }
+.evidenceMeta { display: block; font-size: 10px; color: #A2946F; margin-top: 3px; }
+
+/* 取走：拷得走 ≠ 取得走。生成出来的东西要能当场看见。 */
+.take { white-space: pre-wrap; max-height: 220px; overflow-y: auto; }
 
 .section {
   font-size: 10.5px; font-weight: 700; letter-spacing: .06em;

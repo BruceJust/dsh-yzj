@@ -23,7 +23,11 @@ import type { PledgerCards } from './bus.ts'
 import {
   expectationIdemKeyFor, factIdFor, inviteIdFor, mirrorIdFor,
 } from './families.ts'
-import type { Attribution, Gear, OrgAnchor } from './types.ts'
+import { QUOTA_RANGE } from './ring.ts'
+import {
+  anchoredJson, snapshot,
+  type AnchoredText, type Attribution, type Gear, type GearEntry, type OrgAnchor,
+} from './types.ts'
 
 /** Why a write did not happen. Each reason names a different next step. */
 export type PledgeRefusal =
@@ -139,24 +143,26 @@ export async function noteFact(
   input: {
     readonly text: string
     readonly about:
-      | { readonly kind: 'verdict'; readonly verdictRef: OrgAnchor }
+      | { readonly kind: 'verdict'; readonly verdict: AnchoredText }
       | { readonly kind: 'expectation'; readonly expectationId: string }
     readonly anchor?: string
   },
 ): Promise<string> {
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined) throw new Error('私账层未启用')
+  const now = Date.now()
   const aboutKey = input.about.kind === 'verdict'
-    ? `${input.about.verdictRef.kind}:${input.about.verdictRef.id}`
+    ? `${input.about.verdict.anchor?.kind ?? ''}:${input.about.verdict.anchor?.id ?? ''}`
     : input.about.expectationId
-  const factId = factIdFor(aboutKey, input.text, Date.now())
+  const factId = factIdFor(aboutKey, input.text, now)
   await pledger.append({
     type: 'fact/noted',
     data: {
       factId,
-      text: input.text,
+      // 人的原话，一张照片 —— 图外事实本来就没有锚（立此存照律）。
+      fact: anchoredJson(snapshot(input.text, undefined, now)),
       about: input.about.kind === 'verdict'
-        ? { kind: 'verdict', verdictRef: { ...input.about.verdictRef } }
+        ? { kind: 'verdict', verdict: anchoredJson(input.about.verdict) }
         : { kind: 'expectation', expectationId: input.about.expectationId },
       ...(input.anchor === undefined ? {} : { anchor: input.anchor }),
     },
@@ -201,8 +207,9 @@ export async function shiftGear(
   input: {
     readonly family: string
     readonly gear: Gear
-    readonly entry: 'tail' | 'vault'
-    readonly evidenceSnapshot?: string
+    /** `'receipt'` = 就地合环那一个入口（入口不垄断律）。 */
+    readonly entry: GearEntry
+    readonly evidenceSnapshot?: readonly AnchoredText[]
   },
 ): Promise<void> {
   const pledger = ctx.get('yzjPledger')
@@ -213,16 +220,31 @@ export async function shiftGear(
       + '私账只记你换过挡，不代发授权——免确认是组织侧行为，它的审计必须留在组织侧。',
     )
   }
+  /*
+    **换挡的依据也要立此存照**（v2.0 由可空改必填）。
+
+    不存它，半年后回看只剩一个「我换过挡」的空记录——换挡也是裁决，而一次读不出
+    依据的裁决，和一条只有 id 的判例是同一种空壳。
+  */
+  const now = Date.now()
+  const evidence = input.evidenceSnapshot ?? [
+    snapshot(`换挡时这一族的档位是 ${gearNow(ctx, input.family)}`, undefined, now),
+  ]
   await pledger.append({
     type: 'gear/shifted',
     data: {
       family: input.family,
       gear: input.gear,
       entry: input.entry,
-      ...(input.evidenceSnapshot === undefined ? {} : { evidenceSnapshot: input.evidenceSnapshot }),
+      evidenceSnapshot: evidence.map(anchoredJson),
     },
     actor: operatorActor(ctx),
   })
+}
+
+/** 这一族此刻的档位。换挡留痕要说得出「从哪一档换过来的」。 */
+function gearNow(ctx: Context, family: string): string {
+  return asString(asRecord(ctx.get('yzjPledger')?.object('gear', family)?.state)?.gear) ?? 'default'
 }
 
 /**
@@ -233,14 +255,45 @@ export async function shiftGear(
  */
 export async function toggleMirror(
   ctx: Context, family: string, patternKey: string, on: boolean,
+  /** 在哪儿开的。就地合环记 `'receipt'`——入口不垄断律的留痕面。 */
+  entry: 'vault' | 'receipt' = 'vault',
 ): Promise<void> {
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined) throw new Error('私账层未启用')
   await pledger.append({
     type: 'mirror/toggled',
-    data: { family, patternKey, on, mirrorId: mirrorIdFor(family, patternKey) },
+    data: { family, patternKey, on, entry, mirrorId: mirrorIdFor(family, patternKey) },
     actor: operatorActor(ctx),
   })
+}
+
+/**
+ * 调全局日配额 —— **扩触发面的对偶**，也是软合同里唯一由人调的那几个数之一.
+ *
+ * `0` 是合法值：**全关邀约**。一个不能被关到零的「可调」，是假的可调。
+ */
+export async function setDailyQuota(ctx: Context, quota: number): Promise<void> {
+  const pledger = ctx.get('yzjPledger')
+  if (pledger === undefined) throw new Error('私账层未启用')
+  if (!Number.isInteger(quota) || quota < QUOTA_RANGE.min || quota > QUOTA_RANGE.max) {
+    throw new Error(`日配额只能是 ${String(QUOTA_RANGE.min)}-${String(QUOTA_RANGE.max)} 的整数。`)
+  }
+  await pledger.append({
+    type: 'invite/quota-set',
+    data: { quota },
+    actor: operatorActor(ctx),
+  })
+}
+
+/**
+ * 照旧对表 —— 锚死显形的**第二个出口** (v2.0 / #62-A3).
+ *
+ * 前提变了，可你仍然想对这次判断打一格：那也是完全正当的。给不出这个出口，显形
+ * 就变成了一句只能顺从的通知。**它什么都不写**：把这一行标成「照旧」是查看者的
+ * 选择，不是账上的事实——真正的落账在后来那张回执上。
+ */
+export function settleAnyway(): { readonly note: string } {
+  return { note: '前提变了，但你的判断照旧对表——事实回流来的时候，回执照样会出。' }
 }
 
 /** 重新打开这一族的邀约 —— 降频的唯一恢复动词，入口只在金库。 */

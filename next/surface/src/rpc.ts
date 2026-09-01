@@ -2704,7 +2704,14 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
           }
           case 'private-rows': {
             const desk = scoped.get('yzjPledgerDesk')
-            return { ok: true, value: { rows: desk?.privateRows() ?? [] } }
+            return {
+              ok: true,
+              value: {
+                rows: desk?.privateRows() ?? [],
+                // 折叠归并条**是门不是徽标**：一句话 + 一次跳转，没有数字角标。
+                fold: desk?.privateFold() ?? null,
+              },
+            }
           }
           case 'pledger-act': {
             const desk = scoped.get('yzjPledgerDesk')
@@ -2779,10 +2786,28 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             const verdictKind = stringField(payload, 'verdictKind')
             const verdictId = stringField(payload, 'verdictId')
             try {
+              /*
+                指认一次裁决时，**连同它当时的照片一起** (立此存照律).
+
+                组织侧是唯一知道标题的人，而这一刻它还知道——所以现在就拍下来。等到
+                半年后回看时再去解析那个锚，对象可能已经墓碑了，那时补拍就晚了：
+                **自包含的门槛在写入面，不在导出面。**
+              */
+              const title = verdictKind === undefined || verdictId === undefined
+                ? undefined
+                : asString(asRecord(scoped.yzjGraph.rawObject(verdictKind, verdictId)?.state)?.what)
+                  ?? asString(asRecord(scoped.yzjGraph.rawObject(verdictKind, verdictId)?.state)?.summary)
               const factId = expectationId !== undefined
                 ? await desk.note(text, { kind: 'expectation', expectationId })
                 : verdictKind !== undefined && verdictId !== undefined
-                  ? await desk.note(text, { kind: 'verdict', verdictRef: { kind: verdictKind, id: verdictId } })
+                  ? await desk.note(text, {
+                    kind: 'verdict',
+                    verdict: {
+                      text: title ?? `${verdictKind}:${verdictId}`,
+                      at: new Date().toISOString(),
+                      anchor: { kind: verdictKind, id: verdictId },
+                    },
+                  })
                   : undefined
               return factId === undefined
                 ? failure('补登要说清这条事实说的是哪一次裁决或哪一个预期')
@@ -2834,6 +2859,63 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             } catch (error) {
               return failure(error instanceof Error ? error.message : String(error))
             }
+          }
+          /**
+           * 全局日配额 —— **扩触发面的对偶**，软合同里由人调的那几个数之一。
+           * `0` 是合法值（全关邀约）：一个不能被关到零的「可调」是假的可调。
+           */
+          case 'pledger-quota': {
+            const desk = scoped.get('yzjPledgerDesk')
+            const quota = (payload as { quota?: unknown }).quota
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            if (typeof quota !== 'number') return failure('配额要给一个 0-3 的整数')
+            try {
+              await desk.setQuota(quota)
+              return { ok: true, value: { quota } }
+            } catch (error) {
+              return failure(error instanceof Error ? error.message : String(error))
+            }
+          }
+          /**
+           * 取走 —— **拷得走 ≠ 取得走**：给不出人能读的东西的「可取走」，是幽灵信号。
+           *
+           * **读操作**：这条路上一个事件都不写（读自己的账是自由）。
+           */
+          case 'pledger-export': {
+            const desk = scoped.get('yzjPledgerDesk')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            const exported = desk.exportVault()
+            return exported === undefined
+              ? failure('私账账本还没打开')
+              : { ok: true, value: exported }
+          }
+          /**
+           * 证据面 —— 金库右栏 (v2.1 接缝：中栏是流，右栏是物；金库的物 = 判例的证据).
+           *
+           * **摘要为主、锚为辅、锚死显形**。不给 id = 默认态（待对表首项备料）：
+           * 打开金库就是**人发起的回看时刻**，agent 此刻聚合证据合法——备料不定案。
+           */
+          case 'pledger-evidence': {
+            const desk = scoped.get('yzjPledgerDesk')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            const kind = stringField(payload, 'kind')
+            const id = stringField(payload, 'id')
+            const face = kind === undefined || id === undefined
+              ? desk.evidenceDefault()
+              : desk.evidenceFor(kind as 'calibration' | 'expectation', id)
+            return { ok: true, value: face ?? null }
+          }
+          /**
+           * 金库内检索 —— P1 的搜索面形态，**零组织侧接缝**。
+           *
+           * 主册 §7 目前没有跨会话的内容搜索面，所以这里不去注册一个并不存在的
+           * provider——**不把不存在的面写成已存在的接缝**。
+           */
+          case 'pledger-search': {
+            const desk = scoped.get('yzjPledgerDesk')
+            const query = stringField(payload, 'query')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            return { ok: true, value: { hits: query === undefined ? [] : desk.search(query) } }
           }
           case 'pledger-reopen-invites': {
             const desk = scoped.get('yzjPledgerDesk')

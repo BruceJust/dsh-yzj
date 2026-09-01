@@ -19,15 +19,31 @@ import { useState, type ReactNode } from 'react'
 import type { PrivateRowWire } from './rpc.ts'
 import css from './vault.module.css'
 
+/** 一张照片里的那句话。读不出就说实话，不给空串。 */
+function textOf(value: unknown): string {
+  const text = (value as { text?: unknown } | null | undefined)?.text
+  return typeof text === 'string' ? text : '（这一段没有留下快照）'
+}
+
 export interface PrivateCardProps {
   row: PrivateRowWire
   busy: boolean
   /** 返回宿主的原话；`undefined` = 成功。回执要原样带回来，不合成一句「失败了」。 */
   act(actionId: string, input?: string): Promise<void>
+  /**
+   * 就地合环 —— 开镜（给了 `patternKey`）或调档（没给）。
+   *
+   * 不给这个 prop，这张卡就不长那一行：私语流之外的地方（比如群视图里）本来就
+   * 不该有合环动词。
+   */
+  loopback?(
+    family: string, patternKey: string | undefined, on: boolean,
+    gear?: 'lease' | 'default' | 'weight',
+  ): Promise<void>
 }
 
 export function PrivateCard(props: PrivateCardProps): ReactNode {
-  const { row, busy, act } = props
+  const { row, busy, act, loopback } = props
   const [draft, setDraft] = useState<string | undefined>(undefined)
   const state = row.state
   const isInvite = row.kind === 'invite'
@@ -54,10 +70,16 @@ export function PrivateCard(props: PrivateCardProps): ReactNode {
           )
           : (
             <>
+              {/*
+                **正文三段全部渲染照片**（立此存照律）。
+
+                `fact.text` / `evidence[].text` 是写入那一刻定格的人可读快照——
+                这张卡因此在组织侧对象墓碑之后、在拷走的目录里，一个字都不会少。
+              */}
               <b>当时</b>：{String(state.thenText ?? '')}
-              {'\n'}<b>事实</b>：{String(state.factText ?? '')}
+              {'\n'}<b>事实</b>：{textOf(state.fact)}
               {Array.isArray(state.evidence) && state.evidence.length > 0
-                ? `\n证据：${(state.evidence as string[]).join('；')}`
+                ? `\n证据：${(state.evidence as { text?: string }[]).map(one => one.text ?? '').join('；')}`
                 : ''}
               {dismissed
                 ? '\n已标注「配对错了」：这条事实与该裁决无关，判例未入账（宁空勿错）。'
@@ -104,9 +126,51 @@ export function PrivateCard(props: PrivateCardProps): ReactNode {
           </button>
         ))}
       </div>
+      {/*
+        就地合环行 —— **`answered` 终态必带** (v2.0 / #62-B5 / 断言⑳).
+
+        判断刚出炉、动机最热的那一刻在这里，不在金库里。**金库是汇总处不是唯一
+        入口**：#61 那条「凡只能在金库获得的能力即违规」，对它自己也生效。
+      */}
+      {row.loopback !== undefined && loopback !== undefined && (
+        <div className={css.actions}>
+          <span className={css.privateFoot} style={{ marginTop: 0 }}>
+            {row.loopback.note}
+          </span>
+          <button
+            type="button"
+            className={`${css.verb} ${row.loopback.mirrorOn ? css.primary : ''}`}
+            disabled={busy || row.loopback.patternKey === undefined}
+            title={row.loopback.patternKey === undefined
+              ? '这一族还没有重复出现的判例——模式浮现之后才有镜子可开'
+              : '回喂环：给这一族的卡片开后视镜，此后它们旁边会亮出你自己的判例'}
+            onClick={() => {
+              const one = row.loopback
+              if (one?.patternKey === undefined) return
+              void loopback(one.family, one.patternKey, !one.mirrorOn)
+            }}
+          >
+            🪞 {row.loopback.mirrorOn ? '关镜' : '给这类卡开后视镜'}
+          </button>
+          <button
+            type="button"
+            className={css.verb}
+            disabled={busy}
+            title="负重：摆开证据、不预选、无一键通过——「你先拆，我再补」"
+            onClick={() => {
+              const one = row.loopback
+              if (one === undefined) return
+              void loopback(one.family, undefined, false, one.gear === 'weight' ? 'default' : 'weight')
+            }}
+          >
+            ⚖ 调档：{row.loopback.gear === 'weight' ? '回默认' : '负重'}
+          </button>
+        </div>
+      )}
       <div className={css.privateFoot}>
         私账对象 · 不进收件箱（左栏计数不会因这张卡变化——三不入）· 不老化 · 不可催
         —— 这本账的债主是你自己
+        {row.zone === 'settled' ? ' · 已沉降：不再打扰，但这一行仍然可动' : ''}
       </div>
     </div>
   )

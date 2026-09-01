@@ -13,16 +13,45 @@
  * 数字是一扇门，推开是判例本身。
  */
 
-import { asNumber, asRecord, asString } from '@yzj-next/graph'
+import { asRecord, asString, type JsonValue } from '@yzj-next/graph'
 import type { YzjPledger } from './service.ts'
 import { familySpec } from './families.ts'
-import { ATTRIBUTION_LABEL, type Attribution, type OrgAnchor, type PatternWindow } from './types.ts'
+import {
+  ATTRIBUTION_LABEL,
+  type AnchoredText, type Attribution, type PatternWindow, type RollingWindow,
+} from './types.ts'
 import type { Case } from './calibration.ts'
+
+/** 把一段落库的 JSON 读回成照片。读不出文本就给一句实话，绝不给空串。 */
+export function anchoredOf(value: JsonValue | undefined): AnchoredText {
+  const record = asRecord(value)
+  const inner = asRecord(record?.anchor)
+  const kind = asString(inner?.kind)
+  const id = asString(inner?.id)
+  const graphSeq = inner?.graphSeq
+  return {
+    text: asString(record?.text) ?? '（这一段没有留下快照）',
+    at: asString(record?.at) ?? '',
+    ...(kind === undefined || id === undefined
+      ? {}
+      : {
+        anchor: {
+          kind, id,
+          ...(typeof graphSeq === 'number' ? { graphSeq } : {}),
+        },
+      }),
+  }
+}
 
 /** A pattern only exists once it has happened more than once. */
 const MIN_OCCURRENCES = 2
 
-/** 判例 —— `calibration/answered` 的留痕本身，读回来的样子。 */
+/**
+ * 判例 —— `calibration/answered` 的留痕本身，读回来的样子.
+ *
+ * **全部读照片**：`verdict.text` / `fact.text` 是写入时定格的人可读快照，所以这个
+ * 函数（以及它下游的模式、分布镜、判例册）在**断开组织图之后**照样输出完整内容。
+ */
 export function casesIn(pledger: YzjPledger, window: PatternWindow, now = Date.now()): readonly Case[] {
   const since = now - window.days * 24 * 60 * 60 * 1000
   const out: Case[] = []
@@ -39,20 +68,14 @@ export function casesIn(pledger: YzjPledger, window: PatternWindow, now = Date.n
     if (object.updatedAt < since) continue
     const attribution = asString(state.attribution)
     if (attribution === undefined) continue
-    const verdict = asRecord(state.verdictRef)
     out.push({
       calibrationId: object.id,
       attribution: attribution as Attribution,
       at: object.updatedAt,
       family: asString(state.family) ?? '',
       thenText: asString(state.thenText) ?? '',
-      factText: asString(state.factText) ?? '',
-      verdictRef: {
-        kind: asString(verdict?.kind) ?? '',
-        id: asString(verdict?.id) ?? '',
-        ...(asNumber(verdict?.graphSeq) === undefined ? {} : { graphSeq: asNumber(verdict?.graphSeq) as number }),
-        ...(asString(verdict?.label) === undefined ? {} : { label: asString(verdict?.label) as string }),
-      } satisfies OrgAnchor,
+      fact: anchoredOf(state.fact),
+      verdict: anchoredOf(state.verdict),
     })
   }
   return out.sort((left, right) => right.at - left.at)
@@ -131,4 +154,39 @@ export function mirrorCases(
     pattern => pattern.family === family && pattern.mirror,
   )
   return on.flatMap(pattern => pattern.cases).slice(0, 3)
+}
+
+/**
+ * 归因分布镜 —— **返回类型里一个 string 都没有** (v2.0 / #62-C8 / PTD-23).
+ *
+ * 四格各自多少条，每个数字是门。**陈列是镜子，解读是教练**：单次归因防不住「永远
+ * 选 q4」，分布能；而一旦系统替你解读分布（「你在推卸责任」），它就从镜子变回教练。
+ *
+ * 无判词不靠措辞纪律，靠**类型**：这个签名回不出一句话——**能返回文本的接口迟早
+ * 会返回判词**。渲染文案取自静态常量表（{@link ATTRIBUTION_LABEL}），不经模型。
+ *
+ * 窗口同样强制（与断言⑤ 连通）：分布也没有「全史」这个取值。
+ */
+export interface AttributionDistribution {
+  readonly q1: number
+  readonly q2: number
+  readonly q3: number
+  readonly q4: number
+  readonly cases: Readonly<Record<Attribution, readonly string[]>>
+}
+
+export function attributionDistribution(
+  pledger: YzjPledger,
+  window: RollingWindow,
+  now = Date.now(),
+): AttributionDistribution {
+  const cases: Record<Attribution, string[]> = { q1: [], q2: [], q3: [], q4: [] }
+  for (const one of casesIn(pledger, window, now)) cases[one.attribution].push(one.calibrationId)
+  return {
+    q1: cases.q1.length,
+    q2: cases.q2.length,
+    q3: cases.q3.length,
+    q4: cases.q4.length,
+    cases,
+  }
 }

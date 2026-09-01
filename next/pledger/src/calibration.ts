@@ -23,21 +23,28 @@ import type { GraphActor } from '@yzj-next/graph'
 import type { PledgerCardDefinition } from './bus.ts'
 import {
   ATTRIBUTION_LABEL,
-  type Attribution, type FactRef, type OrgAnchor,
+  type AnchoredText, type Attribution, type FactSource,
 } from './types.ts'
 
 /** Materialized calibration state. */
 export interface CalibrationState {
   readonly calibrationId: string
   readonly status: 'open' | 'answered' | 'dismissed'
-  readonly verdictRef: OrgAnchor
-  readonly factRef: FactRef
+  /** **当时** —— 裁决快照。正文渲染只读它。 */
+  readonly verdict: AnchoredText
+  /** **后来** —— 事实快照。同上。 */
+  readonly fact: AnchoredText
+  readonly factSource: FactSource
   readonly expectationId?: string
-  readonly evidence: readonly string[]
-  /** 当时那句话：预期原文，或隐式预期的措辞。 */
+  readonly evidence: readonly AnchoredText[]
+  /**
+   * 「当时」那一栏的成文 —— 由 `renderWhen` 在出生时算好并定格.
+   *
+   * 它是**纯函数的产物**（两输入联合类型，第三种不可构造），存下来是因为渲染面
+   * 不该每次重算一遍人话；重算本身没害处，可一旦有人把它改成「渲染时问一次模型」，
+   * 这一栏就从陈列变成了推演。存成字面，那条路就没有入口。
+   */
   readonly thenText: string
-  /** 后来那件事：事实的一句话。 */
-  readonly factText: string
   readonly family: string
   readonly attribution?: Attribution
 }
@@ -112,16 +119,26 @@ export const calibrationCard: PledgerCardDefinition<CalibrationState> = {
    * 人面前——而这张卡本来就是关于诚实的。
    */
   renderText: (state) => {
-    const anchor = state.factRef.source === 'org'
-      ? `锚：${state.factRef.anchor.kind}:${state.factRef.anchor.id}`
-      : '锚：你补登的事实'
+    /*
+      **正文三段全部渲染照片** (立此存照律 / 断言⑯).
+
+      这个函数的入参里只有 `state`——没有组织图 service，没有 ctx。想在这里回图
+      解析一个锚，**连句柄都没有**。于是「拷走目录之后回执还读得出来」不是一句
+      承诺，是这个签名的推论。
+    */
+    const anchor = state.fact.anchor
+    const anchorLine = anchor === undefined
+      ? '锚：你补登的事实（图外，本来就没有锚）'
+      : `锚：${anchor.kind}:${anchor.id}`
     return {
       body: [
         '【校准回执】当时裁决 × 后来事实',
         `当时：${state.thenText}`,
-        `事实：${state.factText}`,
-        ...(state.evidence.length === 0 ? [] : ['证据：', ...state.evidence.map(line => `· ${line}`)]),
-        anchor,
+        `事实：${state.fact.text}`,
+        ...(state.evidence.length === 0
+          ? []
+          : ['证据：', ...state.evidence.map(line => `· ${line.text}`)]),
+        anchorLine,
         '',
         state.status === 'dismissed'
           ? '已标注「配对错了」：这条事实与该裁决无关，判例未入账。纠回在桌面工作台上。'
@@ -195,6 +212,8 @@ export interface Case {
   readonly at: number
   readonly family: string
   readonly thenText: string
-  readonly factText: string
-  readonly verdictRef: OrgAnchor
+  /** 后来那件事的**照片**——断了组织图也读得出来。 */
+  readonly fact: AnchoredText
+  /** 当时那次裁决的**照片**。同上。 */
+  readonly verdict: AnchoredText
 }

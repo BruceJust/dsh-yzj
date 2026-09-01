@@ -44,11 +44,11 @@ export const assessmentCard: CardDefinition<AssessmentState> = {
       style: 'primary',
       keywords: ['验收', '通过', '收了'],
       /*
-        简报验收是第二个**高信息裁决**：对着标准逐条看完，然后说这个目标成了。
+        简报验收：对着标准逐条看完，然后说这个目标成了。
 
-        「继续」不声明——它说的是「还没完」，事情仍在同一条上跑，没有可对表的后来。
+        「继续」不声明——它说的是「还没完」，事情仍在同一条上跑，不是一个终态。
       */
-      verdict: true,
+      verdict: 'assessment',
       // 人工验收 is the whole point of the family; an agent actor has no
       // openId here and therefore no way in. And it is ONE person's act: the
       // report is assembled for whoever asked, from evidence spanning places

@@ -13,7 +13,10 @@
  */
 
 import { createHash } from 'node:crypto'
-import { anchorKey, factKey, type FactRef, type FamilySpec, type OrgAnchor } from './types.ts'
+import {
+  anchorKey, factKey,
+  type AnchoredText, type FactSource, type FamilySpec, type OrgAnchor,
+} from './types.ts'
 
 /** Standard write confirmations — the highest-volume, lowest-information family. */
 export const FAMILY_WRITE_CONFIRM = 'write-confirm'
@@ -106,12 +109,16 @@ export function expectationIdFor(verdict: OrgAnchor): string {
 }
 
 /** 幂等锚 =（裁决边, 事实边）—— 同一事实多次回流不重复出执 (断言④). */
-export function calibrationIdemKeyFor(verdict: OrgAnchor, fact: FactRef): string {
-  return `calibration:${anchorKey(verdict)}|${factKey(fact)}`
+export function calibrationIdemKeyFor(
+  verdict: OrgAnchor, fact: AnchoredText, source: FactSource,
+): string {
+  return `calibration:${anchorKey(verdict)}|${factKey(fact, source)}`
 }
 
-export function calibrationIdFor(verdict: OrgAnchor, fact: FactRef): string {
-  return `cal-${digest('yzj-pledger-calibration-v1', anchorKey(verdict), factKey(fact))}`
+export function calibrationIdFor(
+  verdict: OrgAnchor, fact: AnchoredText, source: FactSource,
+): string {
+  return `cal-${digest('yzj-pledger-calibration-v1', anchorKey(verdict), factKey(fact, source))}`
 }
 
 /** One manually noted fact's id. Derived from its own text and target. */

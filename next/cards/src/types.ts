@@ -47,18 +47,19 @@ export interface CardAction<S = JsonValue> {
   /** Whether this action consumes the free text that came with the answer. */
   readonly needsInput?: boolean
   /**
-   * 这个动作是一次**裁决** —— 家族自己说，视图与总线都不猜。
+   * 这个动作是一次**人签发的裁决**，而这个字符串是它的**种类** —— 家族自己说。
    *
    * 声明它的家族会在这个动作落地时经动作总线发一条通用的
    * `yzj-cards/verdict-settled`。**总线不知道有谁在听**，也不需要知道：这是
-   * 「家族即接口」的又一次落点，和 {@link CardDefinition.demand} 同一条纪律——
-   * 判据由声明的人说出来，读它的人不认识任何具体类型。
+   * 「家族即接口」的又一次落点，和 {@link CardDefinition.demand} 同一条纪律。
    *
-   * 只有**高信息裁决**该声明它：验收、简报验收这一类「你真的下了一个判断」的
-   * 时刻。确认卡不声明——高频低信息，把它算成裁决，任何跟着这条事件走的东西都会
-   * 退化成 nag。
+   * **为什么是种类而不是布尔**：布尔逼着发射点自己判断「这一次值不值得下游关心」
+   * ——那就是把下游的判据搬进了组织侧。种类只是**用组织自己的话说清这是哪一种
+   * 裁决**（`acceptance` / `rework` / `assessment` / `delegation` / `write-confirm`
+   * …），值不值得关心由听的人自己决定。于是这里可以**如实声明全部人签发裁决终态**，
+   * 而组织侧代码里一个下游的判据分支都不出现。
    */
-  readonly verdict?: boolean
+  readonly verdict?: string
 }
 
 /**

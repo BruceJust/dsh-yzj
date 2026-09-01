@@ -45,8 +45,9 @@ import { applyPledgerTools } from './tools.ts'
 export { YzjPledger } from './service.ts'
 export { PledgerCards, type PledgerActResult, type PledgerCardDefinition } from './bus.ts'
 export {
-  createDesk,
-  type GearEffect, type MirrorStrip, type PledgerDesk, type PrivateRow, type TwoRead,
+  CAPABILITY_ENTRIES, createDesk, distributionFor, evidenceRowsOf, quotaStatus,
+  type EvidenceFace, type EvidenceRow, type GearEffect, type MirrorStrip, type PledgerDesk,
+  type PledgerLoopback, type PrivateFold, type PrivateRow, type TwoRead, type VaultHit,
 } from './desk.ts'
 export { DESTROY_PHRASE } from './destroy.ts'
 export { calibrationCard, ATTRIBUTION_NOTE, type CalibrationState, type Case } from './calibration.ts'
@@ -60,35 +61,46 @@ export {
   FAMILY_DELIVERY_ACCEPTANCE, FAMILY_GOAL_BREAKDOWN, FAMILY_WRITE_CONFIRM, PROPOSAL_FAMILIES,
 } from './families.ts'
 export { PledgerLog, decodePledgerEvent, type LoadedPledger } from './log.ts'
-export { casesIn, mirrorCases, mirrorIsOn, patternsIn, type Pattern } from './patterns.ts'
+export { casebookOf, readmeOf, vaultExport, type VaultExport } from './export.ts'
 export {
-  calibrationBirth, evidenceFor, structuralFactFor, thenTextFor, watchedVerdicts, WHY_LABEL,
-  type MatchedFact,
+  anchoredOf, attributionDistribution, casesIn, mirrorCases, mirrorIsOn, patternsIn,
+  type AttributionDistribution, type Pattern,
+} from './patterns.ts'
+export {
+  calibrationBirth, evidenceFor, renderWhen, structuralFactFor, verdictSnapshot,
+  watchedVerdicts, WHY_LABEL,
+  type MatchedFact, type WhenInput,
 } from './reflow.ts'
 export {
-  inviteOnVerdict, openCalibration, reflowOnGraphEvent, reflowOnNotedFact, sourceOf,
-  startClock, tickCheckpoints,
+  DEFAULT_DAILY_QUOTA, QUOTA_RANGE,
+  inviteGate, inviteOnVerdict, inviteRender, invitesToday, openCalibration, quotaOf,
+  reflowOnGraphEvent, reflowOnNotedFact, startClock, tickCheckpoints,
+  type GateRefusal,
 } from './ring.ts'
 export { PLEDGER_TOOLS, applyPledgerTools, isOperatorTurn, pledgerDenial } from './tools.ts'
 export {
-  ATTRIBUTION_LABEL, DEFAULT_PATTERN_WINDOW, PLEDGER_ENVELOPE_VERSION, PLEDGER_FOLD_VERSION,
-  anchorKey, factKey,
-  type Attribution, type FactRef, type FamilySpec, type Gear, type GearEntry, type OrgAnchor,
-  type PatternWindow, type PledgerViewer, type ProposalFamily, type StructuralWhy,
+  ATTRIBUTION_LABEL, DEFAULT_PATTERN_WINDOW, FOLD_THRESHOLD, SETTLE_DAYS,
+  PLEDGER_ENVELOPE_VERSION, PLEDGER_FOLD_VERSION,
+  anchorKey, anchoredJson, factKey, snapshot,
+  type AnchoredText, type Attribution, type CapabilityEntries, type FactSource,
+  type FamilySpec, type Gear, type GearEntry, type OrgAnchor, type PatternWindow,
+  type PledgerViewer, type PremiseState, type ProposalFamily, type RollingWindow,
+  type SettleZone, type StructuralWhy,
 } from './types.ts'
 export {
-  CONTRACT_CHIPS, VAULT_REFUSALS, gearRow, vaultView,
-  type VaultCaseRow, type VaultExpectationRow, type VaultGearRow, type VaultInviteRow,
-  type VaultPatternRow, type VaultView,
+  CONTRACT_CHIPS, FORBIDDEN_VERBS, VAULT_REFUSALS, gearRow, vaultView,
+  type VaultCaseRow, type VaultDistributionRow, type VaultExpectationRow, type VaultGearRow,
+  type VaultInviteRow, type VaultPatternRow, type VaultQuotaRow, type VaultView,
 } from './vault.ts'
 export {
-  declineInvite, noteFact, pledgeOnVerdict, reattribute, reopenInvites, shiftGear,
-  toggleMirror, withdrawExpectation,
+  declineInvite, noteFact, pledgeOnVerdict, reattribute, reopenInvites, setDailyQuota,
+  settleAnyway, shiftGear, toggleMirror, withdrawExpectation,
   type PledgeOutcome, type PledgeRefusal,
 } from './verbs.ts'
 export {
-  anchorFor, goalRefOf, isVerdictAction, labelOf, seenVerdicts, topicOf,
-  type SeenVerdict,
+  VERDICT_SPECTRUM, anchorFor, goalRefOf, isAlive, isPledgeable, labelOf, seenVerdicts,
+  topicOf, verdictKindOf,
+  type Pledgeability, type SeenVerdict, type VerdictKind,
 } from './verdicts.ts'
 export {
   PLEDGER_FAMILIES, PLEDGER_KINDS,
@@ -203,6 +215,13 @@ export function apply(ctx: Context, config: Config): void {
     */
     disposers.push(ctx.on('yzj-cards/verdict-settled', (payload) => {
       void (async () => {
+        /*
+          接缝① 现在携来**种类**与**标题原文**（v2.0）。
+
+          `kind` 让谱（纯函数）判得出这一种裁决值不值得开口；`titleText` 是立此存照律
+          的原料——组织侧是唯一知道标题的人，它不随事件走，下游就只能回头解析锚，而
+          那正是「判例是空壳」的成因。
+        */
         const inviteId = await inviteOnVerdict(ctx, payload)
         if (inviteId === undefined) return
         const rendered = bus.renderText({ kind: 'invite', id: inviteId })

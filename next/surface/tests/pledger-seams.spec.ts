@@ -23,6 +23,7 @@ const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const VIEWER: GraphViewer = { kind: 'operator', openId: 'op-1' }
 const TOPIC = 'yzj-topic-1'
 const GOAL = 'https://yzj.example/doc/goal-1'
+const NOW = new Date(1_700_000_000_000).toISOString()
 
 let ctx: Context
 let graph: YzjGraph
@@ -93,11 +94,12 @@ describe('接缝⑤④：两样各在各的时刻', () => {
       type: 'calibration/opened',
       data: {
         calibrationId: 'cal-1',
-        verdictRef: { kind: 'commitment', id: 'c-0' },
-        factRef: { source: 'org', anchor: { kind: 'commitment', id: 'c-0' }, why: 'reopened' },
+        // 立此存照律：每一段都是照片（文本必填、锚可空）。
+        verdict: { text: '竞品对比表', at: NOW, anchor: { kind: 'commitment', id: 'c-0' } },
+        fact: { text: '被追问定价', at: NOW, anchor: { kind: 'commitment', id: 'c-0' } },
+        factSource: { kind: 'org', why: 'reopened' },
         evidence: [],
         thenText: '预期「评审能过」',
-        factText: '被追问定价',
         family: FAMILY_DELIVERY_ACCEPTANCE,
         idemKey: 'calibration:c-0',
       },
@@ -112,11 +114,11 @@ describe('接缝⑤④：两样各在各的时刻', () => {
       type: 'calibration/opened',
       data: {
         calibrationId: 'cal-2',
-        verdictRef: { kind: 'commitment', id: 'c-00' },
-        factRef: { source: 'org', anchor: { kind: 'commitment', id: 'c-00' }, why: 'reopened' },
+        verdict: { text: '价格页 v2', at: NOW, anchor: { kind: 'commitment', id: 'c-00' } },
+        fact: { text: '返了两轮', at: NOW, anchor: { kind: 'commitment', id: 'c-00' } },
+        factSource: { kind: 'org', why: 'reopened' },
         evidence: [],
         thenText: '预期「一轮过」',
-        factText: '返了两轮',
         family: FAMILY_DELIVERY_ACCEPTANCE,
         idemKey: 'calibration:c-00',
       },
@@ -133,6 +135,7 @@ describe('接缝⑤④：两样各在各的时刻', () => {
         family: FAMILY_DELIVERY_ACCEPTANCE,
         patternKey: `${FAMILY_DELIVERY_ACCEPTANCE}:q3`,
         on: true,
+        entry: 'vault',
         mirrorId: `${FAMILY_DELIVERY_ACCEPTANCE}:${FAMILY_DELIVERY_ACCEPTANCE}:q3`,
       },
       actor: OPERATOR,
@@ -197,7 +200,7 @@ describe('接缝⑤④：两样各在各的时刻', () => {
 
     await pledger.append({
       type: 'gear/shifted',
-      data: { family: FAMILY_DELIVERY_ACCEPTANCE, gear: 'weight', entry: 'vault' },
+      data: { family: FAMILY_DELIVERY_ACCEPTANCE, gear: 'weight', entry: 'vault', evidenceSnapshot: [] },
       actor: OPERATOR,
     })
     const weighted = cardsFor(ctx, topic).find(one => one.id === 'c-3')
@@ -224,14 +227,22 @@ describe('接缝⑥：金库入口永无徽标', () => {
 })
 
 describe('接缝①：通用裁决事件，组织侧不知道有谁在听', () => {
-  it('只有声明了 verdict 的动作才广播；打回不广播', async () => {
+  it('如实广播全部人签发裁决终态，判据留给听的人（v2.0 扩触发面）', async () => {
     await boot(false)
-    const seen: { actionId: string }[] = []
-    ctx.on('yzj-cards/verdict-settled', (payload) => { seen.push({ actionId: payload.actionId }) })
+    const seen: { actionId: string; kind: string }[] = []
+    ctx.on('yzj-cards/verdict-settled', (payload) => {
+      seen.push({ actionId: payload.actionId, kind: payload.kind })
+    })
 
     await openCommitment('c-5')
+    /*
+      打回**也**是一次人签发的裁决终态 —— 这一版如实说出来。
+
+      「种类而不是布尔」买到的正是这个：组织侧不必判断「这一次值不值得下游关心」
+      （那是把下游的判据搬进组织侧），它只用自己的话说清这是哪一种。
+    */
     await cards.act({ kind: 'commitment', id: 'c-5' }, 'reject', OPERATOR, 'desktop', '再改改')
-    expect(seen).toEqual([])
+    expect(seen).toEqual([{ actionId: 'reject', kind: 'rework' }])
 
     await graph.append({
       type: 'commitment/delivered',
@@ -239,7 +250,23 @@ describe('接缝①：通用裁决事件，组织侧不知道有谁在听', () =
       actor: { kind: 'person', openId: 'zr-1' },
     })
     await cards.act({ kind: 'commitment', id: 'c-5' }, 'accept', OPERATOR, 'desktop')
-    expect(seen).toEqual([{ actionId: 'accept' }])
+    expect(seen.at(-1)).toEqual({ actionId: 'accept', kind: 'acceptance' })
+  })
+
+  it('组织侧的发射点不含任何立约判据分支——判据是 pledger 侧的纯函数（断言⑲）', async () => {
+    const { isPledgeable } = await import('@yzj-next/pledger')
+    // 谱：一个字符串进、一个布尔出。没有 ctx、没有 pgraph、没有 IO。
+    expect(isPledgeable.length).toBe(1)
+    expect(isPledgeable('acceptance')).toBe(true)
+    expect(isPledgeable('rework')).toBe(true)
+    expect(isPledgeable('assessment')).toBe(true)
+    expect(isPledgeable('delegation')).toBe(true)
+    expect(isPledgeable('lease-grant')).toBe(true)
+    // 信息量否决位：高频低信息的那一种，判据①②③ 全过也一律否决。
+    expect(isPledgeable('write-confirm')).toBe(false)
+    // 押证据门的两种：明标为 gated，不是遗漏。
+    expect(isPledgeable('goal-issuance')).toBe(false)
+    expect(isPledgeable('disposal')).toBe(false)
   })
 
   it('事件只携裁决锚，不携任何查询能力', async () => {
@@ -248,7 +275,14 @@ describe('接缝①：通用裁决事件，组织侧不知道有谁在听', () =
     ctx.on('yzj-cards/verdict-settled', (payload) => { payloads.push({ ...payload }) })
     await openCommitment('c-6')
     await cards.act({ kind: 'commitment', id: 'c-6' }, 'accept', OPERATOR, 'desktop')
-    expect(Object.keys(payloads[0] ?? {}).sort()).toEqual(['actionId', 'actor', 'at', 'cardRef'])
+    /*
+      payload = 锚 + 种类 + 标题原文。**没有查询能力**，也没有任何订阅者专属字段。
+
+      `titleText` 是立此存照律的原料——组织侧是唯一知道标题的人；它不随事件走，
+      下游就只能回头解析锚，而那正是「判例是空壳」的成因。
+    */
+    expect(Object.keys(payloads[0] ?? {}).sort())
+      .toEqual(['actionId', 'actor', 'at', 'cardRef', 'kind', 'titleText'])
   })
 })
 

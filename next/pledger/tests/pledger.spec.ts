@@ -1,5 +1,8 @@
 /**
- * 私账层验收断言 —— 分册 §10 的十五条，**全绿才并**.
+ * 私账层验收断言 —— 分册 §10 的**二十七条**，全绿才并.
+ *
+ * 十五条是 v1.1 的门槛；v2.0（#62 十条修法）补 ⑯–㉕，v2.1（#61 对象面澄清 ×
+ * #62-A 接缝）补 ㉖㉗。
  *
  * 每一个 `describe` 的名字就是那一条断言的编号，因为合并门槛要能被机械核对：一份
  * 「大概都测了」的测试文件，在下一次有人删掉一条的时候不会报警。
@@ -21,19 +24,41 @@ import {
 } from '@yzj-next/objects'
 import { PledgerCards } from '../src/bus.ts'
 import { calibrationCard } from '../src/calibration.ts'
-import { createDesk, type PledgerDesk } from '../src/desk.ts'
+import { CAPABILITY_ENTRIES, createDesk, evidenceRowsOf, type PledgerDesk } from '../src/desk.ts'
 import { DESTROY_PHRASE } from '../src/destroy.ts'
 import {
   FAMILY_DELIVERY_ACCEPTANCE, FAMILY_GOAL_BREAKDOWN, expectationIdFor, inviteIdFor,
 } from '../src/families.ts'
 import { inviteCard } from '../src/invite.ts'
+import { casebookOf, readmeOf } from '../src/export.ts'
+import { inject as pledgerInject } from '../src/index.ts'
 import { PledgerLog } from '../src/log.ts'
-import { patternsIn } from '../src/patterns.ts'
-import { inviteOnVerdict, openCalibration, reflowOnGraphEvent, reflowOnNotedFact, sourceOf, tickCheckpoints } from '../src/ring.ts'
-import { structuralFactFor, watchedVerdicts } from '../src/reflow.ts'
+import { attributionDistribution, patternsIn } from '../src/patterns.ts'
+import {
+  inviteGate, inviteOnVerdict, inviteRender, openCalibration, quotaOf,
+  reflowOnGraphEvent, reflowOnNotedFact, tickCheckpoints,
+} from '../src/ring.ts'
+import { renderWhen, structuralFactFor, watchedVerdicts } from '../src/reflow.ts'
 import { YzjPledger } from '../src/service.ts'
-import { vaultView } from '../src/vault.ts'
+import { FORBIDDEN_VERBS, vaultView } from '../src/vault.ts'
 import { PLEDGER_KINDS, expectationFamily } from '../src/vocabulary.ts'
+import {
+  DEFAULT_PATTERN_WINDOW, FOLD_THRESHOLD, SETTLE_DAYS, anchoredJson, snapshot,
+} from '../src/types.ts'
+import { VERDICT_SPECTRUM, isPledgeable, type SeenVerdict } from '../src/verdicts.ts'
+
+/** 一次裁决，测试里的最小形态。`titleText` 是立此存照律的原料。 */
+function verdictOn(id: string, family: string, at = Date.now()): SeenVerdict {
+  return {
+    anchor: { kind: 'commitment', id },
+    kind: 'acceptance',
+    actionId: 'accept',
+    family,
+    at,
+    seq: 0,
+    titleText: `探针 ${id}`,
+  }
+}
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const VIEWER: GraphViewer = { kind: 'operator', openId: 'op-1' }
@@ -242,33 +267,20 @@ describe('④ 回执幂等：同（裁决,事实）不出第二执', () => {
   it('二次回流不出第二执；dismissed 之后不再出；reopened 可再答', async () => {
     await deliverCommitment('c-3')
     await accept('c-3')
-    const verdict = { kind: 'commitment', id: 'c-3' } as const
+    const verdict = verdictOn('c-3', FAMILY_DELIVERY_ACCEPTANCE)
+    const shot = (text: string) => snapshot(text, { kind: 'commitment', id: 'c-3' })
+    const source = { kind: 'org', why: 'reopened' } as const
 
-    const first = await openCalibration(ctx, {
-      verdict,
-      family: FAMILY_DELIVERY_ACCEPTANCE,
-      fact: { source: 'org', anchor: { kind: 'commitment', id: 'c-3' }, why: 'reopened' },
-      factText: '被打回',
-    })
+    const first = await openCalibration(ctx, { verdict, fact: shot('被打回'), source })
     expect(first).toBeDefined()
-    const second = await openCalibration(ctx, {
-      verdict,
-      family: FAMILY_DELIVERY_ACCEPTANCE,
-      fact: { source: 'org', anchor: { kind: 'commitment', id: 'c-3' }, why: 'reopened' },
-      factText: '被打回（又来一次）',
-    })
+    const second = await openCalibration(ctx, { verdict, fact: shot('被打回（又来一次）'), source })
     expect(second).toBeUndefined()
     expect(pledger.query('calibration')).toHaveLength(1)
 
     const id = first as string
     expect((await desk.act('calibration', id, 'dismiss')).outcome).toBe('applied')
     await settle()
-    const third = await openCalibration(ctx, {
-      verdict,
-      family: FAMILY_DELIVERY_ACCEPTANCE,
-      fact: { source: 'org', anchor: { kind: 'commitment', id: 'c-3' }, why: 'reopened' },
-      factText: '第三次',
-    })
+    const third = await openCalibration(ctx, { verdict, fact: shot('第三次'), source })
     expect(third).toBeUndefined()
 
     expect((await desk.act('calibration', id, 'reopen')).outcome).toBe('applied')
@@ -288,10 +300,9 @@ describe('⑤ 滚动模式：窗口必填，窗外不入计数、日志仍在', 
       await deliverCommitment(id)
       await accept(id)
       const calibrationId = await openCalibration(ctx, {
-        verdict: { kind: 'commitment', id },
-        family: FAMILY_GOAL_BREAKDOWN,
-        fact: { source: 'org', anchor: { kind: 'commitment', id }, why: 'reopened' },
-        factText: '被打回',
+        verdict: verdictOn(id, FAMILY_GOAL_BREAKDOWN),
+        fact: snapshot('被打回', { kind: 'commitment', id }),
+        source: { kind: 'org', why: 'reopened' },
       })
       await desk.act('calibration', calibrationId as string, 'q3')
       await settle()
@@ -322,7 +333,7 @@ describe('⑥ 邀约输入面：生成器看不见镜子', () => {
     expect(signature).toContain('OrgAnchor')
   })
 
-  it('sourceOf 的调用栈里没有任何一次 pgraph 读取', async () => {
+  it('笔（inviteRender）的调用栈里没有任何一次 pgraph 读取——门可以读，笔不可以', async () => {
     await deliverCommitment('c-6')
     const reads: string[] = []
     for (const method of ['query', 'object', 'events', 'findByIdemKey'] as const) {
@@ -333,29 +344,51 @@ describe('⑥ 邀约输入面：生成器看不见镜子', () => {
         return original(...args)
       }
     }
-    sourceOf(ctx, { kind: 'commitment', id: 'c-6' })
+    inviteRender(ctx, {
+      anchor: { kind: 'commitment', id: 'c-6' },
+      kind: 'acceptance', actionId: 'accept', family: FAMILY_DELIVERY_ACCEPTANCE,
+      at: Date.now(), seq: 1,
+    })
     expect(reads).toEqual([])
   })
 })
 
 describe('⑦ 疲劳治理：连续三次不立就停问，重开在金库', () => {
   it('第四次触发点静默；invite/reopened 之后恢复', async () => {
+    /*
+      先把**全局日配额**开到最大 —— 这一层是 v2.0 新加的治理面（扩触发面的对偶）。
+
+      族级降频治的是「这一类你不想聊」，日配额治的是「今天已经够了」。这条用例测的
+      是前者，所以把后者让开；两层都在的时候，先撞上的是日配额——那本身就是设计要的
+      效果（五个入口各自克制、合起来仍是骚扰）。
+    */
+    await desk.setQuota(3)
+    await settle()
+    /*
+      **两层治理各测各的.**
+
+      日配额（3/日）会先于族级降频撞上——那本身就是设计要的效果，可它会盖住这条
+      用例要看的东西。所以族级那三次走 `inviteGate` 直接问判据（不消耗配额），
+      配额那一层由它自己的用例看着。
+    */
     for (const id of ['c-7a', 'c-7b', 'c-7c']) {
       await deliverCommitment(id)
       await accept(id)
+      const invite = pledger.object('invite', inviteOf(id))
+      expect(invite, `第 ${id} 次该开口`).toBeDefined()
       await desk.decline(inviteOf(id))
       await settle()
     }
-    await deliverCommitment('c-7d')
-    await accept('c-7d')
     // 人用脚投票就是应答：第四次这一族整体不再开口。
-    expect(pledger.object('invite', inviteOf('c-7d'))).toBeUndefined()
+    const quiet = inviteGate(ctx, verdictOn('c-7d', FAMILY_DELIVERY_ACCEPTANCE))
+    expect(quiet).toBe('family-quiet')
 
     await desk.reopenInvites(FAMILY_DELIVERY_ACCEPTANCE)
     await settle()
-    await deliverCommitment('c-7e')
-    await accept('c-7e')
-    expect(pledger.object('invite', inviteOf('c-7e'))).toBeDefined()
+    // 重开之后族级那一道让开了；剩下拦路的只有配额（今天已经开过三次口）。
+    expect(inviteGate(ctx, verdictOn('c-7e', FAMILY_DELIVERY_ACCEPTANCE))).toBe('quota-spent')
+    await desk.setQuota(3)
+    await settle()
   })
 })
 
@@ -529,10 +562,9 @@ describe('⑫ 八环走查：每一环既可见又可动', () => {
     await deliverCommitment('c-12b', '价格页 v2')
     await accept('c-12b')
     const second = await openCalibration(ctx, {
-      verdict: { kind: 'commitment', id: 'c-12b' },
-      family: FAMILY_DELIVERY_ACCEPTANCE,
-      fact: { source: 'org', anchor: { kind: 'commitment', id: 'c-12b' }, why: 'reopened' },
-      factText: '也被打回了',
+      verdict: verdictOn('c-12b', FAMILY_DELIVERY_ACCEPTANCE),
+      fact: snapshot('也被打回了', { kind: 'commitment', id: 'c-12b' }),
+      source: { kind: 'org', why: 'reopened' },
     })
     await desk.act('calibration', second as string, 'q3')
     await settle()
@@ -635,8 +667,8 @@ describe('⑮ 事实回流三分', () => {
       actor: OPERATOR,
     })
     await settle()
-    const state = pledger.query('calibration')[0]?.state as { factRef?: { why?: string } }
-    expect(state.factRef?.why).toBe('reopened')
+    const state = pledger.query('calibration')[0]?.state as { factSource?: { why?: string } }
+    expect(state.factSource?.why).toBe('reopened')
   })
 
   it('结构匹配②：同目标下回指本次裁决的血缘新边', async () => {
@@ -655,8 +687,8 @@ describe('⑮ 事实回流三分', () => {
       actor: OPERATOR,
     })
     await settle()
-    const state = pledger.query('calibration')[0]?.state as { factRef?: { why?: string } }
-    expect(state.factRef?.why).toBe('lineage')
+    const state = pledger.query('calibration')[0]?.state as { factSource?: { why?: string } }
+    expect(state.factSource?.why).toBe('lineage')
   })
 
   it('结构匹配②的时间边界：三周后同一段对话里的新活，不再算这次裁决的后来', async () => {
@@ -703,8 +735,8 @@ describe('⑮ 事实回流三分', () => {
       actor: { kind: 'agent' },
     })
     await settle()
-    const state = pledger.query('calibration')[0]?.state as { factRef?: { why?: string } }
-    expect(state.factRef?.why).toBe('assessed')
+    const state = pledger.query('calibration')[0]?.state as { factSource?: { why?: string } }
+    expect(state.factSource?.why).toBe('assessed')
   })
 
   it('人工补登：图外事实经一句话进来，指认错了可经第五出口消解', async () => {
@@ -715,9 +747,9 @@ describe('⑮ 事实回流三分', () => {
     await desk.note('线下评审过了，但被追问定价', { kind: 'expectation', expectationId })
     await settle()
     const receipt = pledger.query('calibration')[0]
-    const state = receipt?.state as { factRef?: { source?: string }; factText?: string }
-    expect(state.factRef?.source).toBe('noted')
-    expect(state.factText).toBe('线下评审过了，但被追问定价')
+    const state = receipt?.state as { factSource?: { kind?: string }; fact?: { text?: string } }
+    expect(state.factSource?.kind).toBe('noted')
+    expect(state.fact?.text).toBe('线下评审过了，但被追问定价')
 
     // 指认错了 → 第五出口（与断言④连通）
     expect((await desk.act('calibration', receipt?.id as string, 'dismiss')).outcome).toBe('applied')
@@ -731,20 +763,26 @@ describe('⑮ 事实回流三分', () => {
     // 没立预期。**回执照样会来**——裁决本身就是隐式预期。
     await desk.note('线下听说这版被客户直接用了', {
       kind: 'verdict',
-      verdictRef: { kind: 'commitment', id: 'c-15e' },
+      verdict: snapshot('二轮探针', { kind: 'commitment', id: 'c-15e' }),
     })
     await settle()
     const state = pledger.query('calibration')[0]?.state as {
-      expectationId?: string; thenText?: string; factRef?: { source?: string }
+      expectationId?: string; thenText?: string; factSource?: { kind?: string }
     }
-    expect(state.factRef?.source).toBe('noted')
+    expect(state.factSource?.kind).toBe('noted')
     expect(state.expectationId).toBeUndefined()
-    expect(state.thenText).toContain('无显式预期')
+    /*
+      **隐式预期不措辞化** (v2.0 / #62-C7)：没有显式预期时，「当时」栏只陈列裁决
+      事实本身，**不代人推演其含义**。v1.x 写的「隐式预期即『它已经够好』」是 agent
+      替你写好了你当时在想什么——和预填出处律、归因候选措辞是同一族违规。
+    */
+    expect(state.thenText ?? '').toContain('你在')
+    expect(state.thenText ?? '').not.toContain('已经够好')
   })
 
   it('ambient 语义识别路径不存在（P1）', () => {
     const sources = pledger.query('calibration')
-      .map(object => (object.state as { factRef?: { source?: string } }).factRef?.source)
+      .map(object => (object.state as { factSource?: { kind?: string } }).factSource?.kind)
     expect(sources.every(source => source === undefined || source === 'org' || source === 'noted')).toBe(true)
   })
 })
@@ -761,7 +799,7 @@ describe('时间轮：检验点到了问一次，不再追（PTD-14）', () => {
         expectationId,
         text: '周五前签回',
         checkpoint: { text: '2020-01-01', ts: Date.parse('2020-01-01') },
-        verdictRef: { kind: 'commitment', id: 'c-tick' },
+        verdict: anchoredJson(snapshot('周五前签回', { kind: 'commitment', id: 'c-tick' })),
         inviteId: inviteOf('c-tick'),
         family: FAMILY_DELIVERY_ACCEPTANCE,
         idemKey: `expectation:commitment:c-tick-clock`,
@@ -850,9 +888,10 @@ describe('自审补的四条：这些改坏了都不会报错，只会安静地�
     */
     const after = pledger.query('calibration')
     expect(after.length - before).toBe(1)
-    const born = after.find(one => (one.state as { factRef?: { anchor?: { id?: string } } })
-      .factRef?.anchor?.id === 'as-fan')
-    expect((born?.state as { verdictRef?: { id?: string } }).verdictRef?.id).toBe('c-fan-c')
+    const born = after.find(one => (one.state as { fact?: { anchor?: { id?: string } } })
+      .fact?.anchor?.id === 'as-fan')
+    expect((born?.state as { verdict?: { anchor?: { id?: string } } }).verdict?.anchor?.id)
+      .toBe('c-fan-c')
   })
 
   it('检验点必须在未来：交付期限早已过去时不拿它当检验点', async () => {
@@ -901,7 +940,7 @@ describe('自审补的四条：这些改坏了都不会报错，只会安静地�
         expectationId,
         text: '一轮过',
         checkpoint: { text: '2020-01-01', ts: Date.parse('2020-01-01') },
-        verdictRef: { kind: 'commitment', id: 'c-dup-ask' },
+        verdict: anchoredJson(snapshot('一轮过', { kind: 'commitment', id: 'c-dup-ask' })),
         inviteId: inviteOf('c-dup-ask'),
         family: FAMILY_DELIVERY_ACCEPTANCE,
         idemKey: 'expectation:commitment:c-dup-ask-clock',
@@ -926,5 +965,575 @@ describe('自审补的四条：这些改坏了都不会报错，只会安静地�
   it('销毁口令由服务端发，界面不写第二份字面', () => {
     expect(desk.destroyPhrase).toBe(DESTROY_PHRASE)
     expect(desk.vault()?.destroyPhrase).toBe(DESTROY_PHRASE)
+  })
+})
+
+/* ——————————— v2.0 十条（#62）× v2.1 两条（#61 对象面澄清 × #62-A 接缝） ——————————— */
+
+/** 事件条数 —— 「零事件写入」那几条断言的量尺。落盘之后数，不数内存。 */
+async function eventCount(): Promise<number> {
+  await pledger.flush()
+  return (await new PledgerLog(join(pledgerRoot, 'op-1')).load()).events.length
+}
+
+/**
+ * 一本**没有组织图**的账 —— 拷走目录，在另一个上下文里打开它。
+ *
+ * 这是「自包含」唯一诚实的测法：在同一个进程里 mock 掉 graph，测的是 mock；把
+ * 目录拷到一个连 `yzjGraph` 都没 provide 过的 Context 里打开，测的才是那句话。
+ */
+async function loneReader(): Promise<{
+  ctx: Context; pledger: YzjPledger; bus: PledgerCards; desk: PledgerDesk
+}> {
+  await pledger.flush()
+  const copy = await mkdtemp(join(tmpdir(), 'yzj-pledger-lone-'))
+  await cp(join(pledgerRoot, 'op-1'), join(copy, 'op-1'), { recursive: true })
+  const bare = new Context()
+  const lone = new YzjPledger(bare, { root: copy })
+  await lone.open('op-1')
+  const loneBus = new PledgerCards(bare)
+  loneBus.register(inviteCard)
+  loneBus.register(calibrationCard)
+  return { ctx: bare, pledger: lone, bus: loneBus, desk: createDesk(bare, loneBus) }
+}
+
+/** 走完一整环并把归因下了 —— 判例册与证据面都要有东西可摆。 */
+async function settledCase(id: string, bet: string, what = '竞品对比表'): Promise<string> {
+  await deliverCommitment(id, what)
+  await accept(id)
+  await pledgeOn(id, bet)
+  await graph.append({
+    type: 'commitment/reopened',
+    data: { commitmentId: id, cause: '定价策略被追问' },
+    actor: OPERATOR,
+  })
+  await settle()
+  const receipt = pledger.query('calibration').find(one => (
+    (one.state as { verdict?: { anchor?: { id?: string } } }).verdict?.anchor?.id === id
+  ))
+  expect(receipt).toBeDefined()
+  await desk.act('calibration', receipt?.id as string, 'q3')
+  await settle()
+  return receipt?.id as string
+}
+
+describe('⑯ 立此存照：schema 上没有裸锚的位置', () => {
+  it('词汇表里 orgAnchor 只出现两处：它自己，和 anchoredText 的那个可空字段', async () => {
+    const source = await readFile(new URL('../src/vocabulary.ts', import.meta.url), 'utf8')
+    /*
+      扫的是**代码**，不是注释——文档当然要提到这两个词。
+
+      这一条挡的不是笔误，是**下一个人的顺手**：给某个事件加一个 `verdictRef:
+      orgAnchor` 只要一行，而那一行会让判例在拷走的目录里退回成一串 id。
+    */
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    const uses = code.split('\n').map(line => line.trim()).filter(line => line.includes('orgAnchor'))
+    expect(uses).toEqual([
+      'const orgAnchor = z.object({',
+      'anchor: orgAnchor.optional(),',
+    ])
+  })
+
+  it('断开组织图之后：六区 / 回执正文 / 判例册全部零缺字', async () => {
+    const receiptId = await settledCase('c-16', '评审能过，不返工')
+    const lone = await loneReader()
+
+    // 这个上下文里**根本没有** yzjGraph——不是被 mock 掉，是没 provide 过。
+    expect(lone.ctx.get('yzjGraph')).toBeUndefined()
+
+    const view = lone.desk.vault()
+    const one = view?.settled[0]
+    expect(one?.thenText).toContain('评审能过，不返工')
+    expect(one?.verdict.text).toBe('竞品对比表')
+    expect(one?.fact.text.length).toBeGreaterThan(0)
+    expect(JSON.stringify(view)).not.toContain('undefined')
+
+    /*
+      回执正文：**当时 / 事实 / 证据**三段全是照片，所以在这里一个字都不少。
+
+      「当时」那一段渲染的是**你自己那句赌注**（有立约时）而不是裁决标题——裁决
+      标题的照片在金库行与判例册上。三处读的都是照片，没有一处回图。
+    */
+    const body = lone.bus.renderText({ kind: 'calibration', id: receiptId })?.body
+    expect(body).toContain('评审能过，不返工')
+    expect(body).not.toContain('undefined')
+
+    // 判例册同理——它本来就只读照片。
+    const casebook = casebookOf(lone.pledger)
+    expect(casebook).toContain('评审能过，不返工')
+    expect(casebook).toContain('竞品对比表')
+  })
+
+  it('正文渲染路径上没有 labelOf —— 取内容只发生在拍照那一刻', async () => {
+    /*
+      `labelOf` 是这个包里唯一一处读组织侧文本的函数。它只该出现在**写入**路径上
+      （拍照）。出现在任何投影/渲染文件里，就是「判例是空壳」在下一次重演。
+    */
+    const renderers = ['vault.ts', 'desk.ts', 'export.ts', 'calibration.ts', 'invite.ts', 'patterns.ts']
+    for (const file of renderers) {
+      const body = await readFile(new URL(`../src/${file}`, import.meta.url), 'utf8')
+      expect(body.includes('labelOf(')).toBe(false)
+    }
+  })
+})
+
+describe('⑰ 人可读取走：拷得走 ≠ 取得走', () => {
+  it('判例册是纯 markdown，每条三段，且没有 id-only 的悬挂引用', async () => {
+    await settledCase('c-17', '这一轮能过')
+    const casebook = casebookOf(pledger)
+
+    expect(casebook.startsWith('# ')).toBe(true)
+    expect(casebook).toContain('- **当时**：')
+    expect(casebook).toContain('- **事实**：')
+    /*
+      **悬挂引用扫描**：正文那三段里不许出现「只有坐标没有话」的行。
+
+      锚可以在，但只许出现在那一行明说自己是坐标的括注里——一份读者得回到本系统
+      才看得懂的「可取走」，等于没有取走。
+    */
+    for (const line of casebook.split('\n')) {
+      // 「证据：」是嵌套清单的表头，它的话在下面几行——不是空值。
+      if (!line.startsWith('- **') || line.trim().endsWith('**证据**：')) continue
+      const value = line.slice(line.indexOf('：') + 1).trim()
+      expect(value).not.toMatch(/^(commitment|goal|assessment|approval):[\w-]+$/)
+      expect(value.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('README 说清这本账是什么、格式是什么、不依赖谁', async () => {
+    const readme = readmeOf(pledger.owner)
+    expect(readme).toContain('不依赖任何外部系统')
+    for (const refusal of ['无分数', '无排名', '无画像']) expect(readme).toContain(refusal)
+  })
+
+  it('导出是**读**操作：前后事件流一行不增', async () => {
+    await settledCase('c-17b', '这次不返工')
+    const before = await eventCount()
+    const taken = desk.exportVault()
+    expect(taken?.casebook.length).toBeGreaterThan(0)
+    expect(taken?.readme.length).toBeGreaterThan(0)
+    // 读自己的账是自由——一次导出不该在账上留下「你看过了」。
+    expect(await eventCount()).toBe(before)
+  })
+})
+
+describe('⑱ 锚死显形：显形，且只显形', () => {
+  it('被锚的承诺作废 → 双出口出现，而事件流一行不增', async () => {
+    await deliverCommitment('c-18')
+    await accept('c-18')
+    await pledgeOn('c-18', '这条会签回来')
+    const before = await eventCount()
+
+    await graph.append({
+      type: 'commitment/voided',
+      data: { commitmentId: 'c-18', cause: '客户转观望' },
+      actor: OPERATOR,
+    })
+    await settle()
+
+    const row = desk.vault()?.testing.find(one => one.verdict.anchor?.id === 'c-18')
+    expect(row?.premise).toBe('changed')
+    /*
+      **双出口**，不是一个通知：撤回（诚实）或照旧对表（你说了算）。
+
+      系统**不自动写 withdrawn**——代撤即代产。一个替你宣布「你这条不算了」的
+      账本，记的就不再是你的判断了。
+    */
+    expect(row?.verbs).toContain('withdraw')
+    expect(row?.verbs).toContain('settle-anyway')
+    expect(await eventCount()).toBe(before)
+
+    // 第二个出口按下去也**什么都不写**：它只是一句话。
+    expect(desk.settleAnyway().note).toContain('照旧对表')
+    expect(await eventCount()).toBe(before)
+  })
+
+  it('组织图不可达时 premise=unknown 且不显形，内容照旧完整', async () => {
+    await deliverCommitment('c-18b')
+    await accept('c-18b')
+    await pledgeOn('c-18b', '拷走之后还认得出自己')
+    const lone = await loneReader()
+
+    const row = lone.desk.vault()?.testing.find(one => one.text === '拷走之后还认得出自己')
+    // 读不到组织图时说一句「前提已变」是**编造**。认识论诚实的同款落点。
+    expect(row?.premise).toBe('unknown')
+    expect(row?.verbs).not.toContain('settle-anyway')
+    expect(row?.verdict.text.length).toBeGreaterThan(0)
+  })
+})
+
+describe('⑲ 判据三段式：谱纯 / 门读账 / 笔不读账', () => {
+  it('谱是纯函数，且八类各自说得出为什么', () => {
+    // 一个字符串进、一个布尔出。没有 ctx、没有 pgraph、没有 IO。
+    expect(isPledgeable.length).toBe(1)
+
+    const spectrum = Object.entries(VERDICT_SPECTRUM)
+    expect(spectrum).toHaveLength(8)
+    const yes = spectrum.filter(([, spec]) => spec.verdict === 'yes').map(([kind]) => kind)
+    const no = spectrum.filter(([, spec]) => spec.verdict === 'no').map(([kind]) => kind)
+    const gated = spectrum.filter(([, spec]) => spec.verdict === 'gated').map(([kind]) => kind)
+
+    expect(yes.sort()).toEqual(['acceptance', 'assessment', 'delegation', 'lease-grant', 'rework'])
+    /*
+      **信息量否决位**：标准写确认每天几十次、每次都「有留痕、有下一步、有回流」，
+      判据①②③ 全过——而它承载的判断量近乎零。在那里问立约，邀约就退化成 nag，
+      **一个会 nag 的镜子没有人会再照第二次**。
+    */
+    expect(no).toEqual(['write-confirm'])
+    // 押证据门的两种是**明标**，不是遗漏：谱上写着为什么押。
+    expect(gated.sort()).toEqual(['disposal', 'goal-issuance'])
+    for (const [, spec] of spectrum) {
+      expect(spec.checkpoint.length).toBeGreaterThan(0)
+      expect(spec.reflow.length).toBeGreaterThan(0)
+    }
+    for (const kind of yes) expect(isPledgeable(kind)).toBe(true)
+    for (const kind of [...no, ...gated]) expect(isPledgeable(kind)).toBe(false)
+  })
+
+  it('门读账、笔不读账 —— 两个签名各在各的位置', async () => {
+    const source = await readFile(new URL('../src/ring.ts', import.meta.url), 'utf8')
+    const pen = source.slice(source.indexOf('export function inviteRender'))
+    const penBody = pen.slice(0, pen.indexOf('\n}\n') + 1)
+    // 笔只把话写出来：它的函数体里没有一次 pgraph 读取。
+    expect(penBody.includes('yzjPledger')).toBe(false)
+    expect(penBody.includes('pledger.query')).toBe(false)
+  })
+})
+
+describe('⑳ 就地合环 + 入口不垄断', () => {
+  it('answered 终态的回执行必带合环动词条', async () => {
+    await settledCase('c-20', '这次能一轮过')
+    const row = desk.privateRows().find(one => one.kind === 'calibration' && one.resolved)
+    expect(row?.loopback).toBeDefined()
+    expect(row?.loopback?.note).toContain('金库是汇总处')
+    // 就地开镜落 `entry: 'receipt'` —— 入口的出处本身要留痕。
+    await desk.mirror(FAMILY_DELIVERY_ACCEPTANCE, `${FAMILY_DELIVERY_ACCEPTANCE}:q3`, true, 'receipt')
+    await settle()
+    const events = pledger.events(['mirror/toggled'])
+    expect((events.at(-1)?.data as { entry?: string }).entry).toBe('receipt')
+    await desk.shift(FAMILY_DELIVERY_ACCEPTANCE, 'weight', 'receipt')
+    await settle()
+    expect((pledger.events(['gear/shifted']).at(-1)?.data as { entry?: string }).entry).toBe('receipt')
+  })
+
+  it('合环行只留在最近答完的那一张上 —— 否则它自己就成了 nag', async () => {
+    await settledCase('c-20b', '第一条')
+    await settledCase('c-20c', '第二条')
+    const withLoopback = desk.privateRows().filter(row => row.loopback !== undefined)
+    /*
+      二十次确认 = 二十行「要不要给这类卡开后视镜」，而它问的偏偏是「你被问烦了没有」
+      ——用重复二十遍的方式问这个问题，本身就是答案（与条尾两读同一条治理）。
+    */
+    expect(withLoopback).toHaveLength(1)
+    const answered = desk.privateRows().filter(row => row.resolved)
+    expect(withLoopback[0]?.seq).toBe(Math.max(...answered.map(row => row.seq)))
+  })
+
+  it('能力入口注册表：任一能力的入口 ≥ 2，且不许全落在金库', () => {
+    /*
+      #61 那条「凡只能在金库获得的能力即违规」此前只是一句文字。
+
+      **给自己立的法要有自己的执法机关**——这张表就是它，而这一条用例就是执法。
+    */
+    expect(CAPABILITY_ENTRIES.length).toBeGreaterThan(0)
+    for (const one of CAPABILITY_ENTRIES) {
+      expect(one.entries.length).toBeGreaterThanOrEqual(2)
+      // 同一个入口写两遍**不算两个入口**——凑数在这里凑不出来。
+      expect(new Set(one.entries).size).toBe(one.entries.length)
+    }
+
+    /*
+      「凡只能在金库获得的能力即违规」——而 P1 有**一处**还没做到，它在表上明标着。
+
+      这里断言的是那个集合**恰好**是已知的那一个：认下的欠账冻在原地，新长出来的
+      金库独占能力当场变红。一处不写下来的欠账，半年后就成了「本来就这样」。
+    */
+    const vaultOnly = CAPABILITY_ENTRIES.filter(one => (
+      one.entries.every(entry => entry.startsWith('vault:'))
+    ))
+    expect([...vaultOnly.map(one => one.capability)].sort()).toEqual(['撤回预期', '补登事实'])
+    for (const one of vaultOnly) expect(one.vaultOnly).toBe(true)
+    // 反过来也要对得上：标了 `vaultOnly` 却其实有别的入口，是另一种谎。
+    for (const one of CAPABILITY_ENTRIES) {
+      expect(one.vaultOnly === true).toBe(vaultOnly.includes(one))
+    }
+  })
+})
+
+describe('㉑ 静默沉降：不变红、不计数、不催', () => {
+  it('沉降与折叠是查询层产物 —— 零事件写入', async () => {
+    await deliverCommitment('c-21a')
+    await accept('c-21a')
+    await pledgeOn('c-21a', '一个月后回头看')
+    const before = await eventCount()
+
+    const future = Date.now() + (SETTLE_DAYS + 30) * 24 * 60 * 60 * 1000
+    const view = vaultView(pledger, { now: future })
+    // 沉降只是这一次查询的分区结果——它没有在账上写下任何一行。
+    expect(view.testing.length + view.awaiting.length + view.sunk.length).toBeGreaterThan(0)
+    expect(await eventCount()).toBe(before)
+  })
+
+  it('沉降之后组织侧一个计数都不动，而那一行仍然可动', async () => {
+    await deliverCommitment('c-21b')
+    await accept('c-21b')
+    await pledgeOn('c-21b', '这条会拖很久')
+    const pending = graph.pendingAnswerables(VIEWER).length
+    const demands = cards.demands(VIEWER).length
+
+    const future = Date.now() + (SETTLE_DAYS + 1) * 24 * 60 * 60 * 1000
+    const sunk = vaultView(pledger, { now: future }).sunk
+    for (const row of sunk) {
+      // 沉了不代表不可动：不再打扰 ≠ 不再可答。
+      expect(row.verbs.length).toBeGreaterThan(0)
+      expect(row.zone).toBe('settled')
+    }
+    expect(graph.pendingAnswerables(VIEWER).length).toBe(pending)
+    expect(cards.demands(VIEWER).length).toBe(demands)
+  })
+
+  it('折叠归并条是门不是徽标：一句话 + 一次跳转', async () => {
+    for (const id of ['c-21c', 'c-21d', 'c-21e']) {
+      await deliverCommitment(id)
+      await accept(id)
+    }
+    const open = desk.privateRows().filter(row => !row.resolved && row.zone === 'live')
+    expect(open.length).toBeLessThan(FOLD_THRESHOLD + 1)
+    const fold = desk.privateFold()
+    if (fold !== undefined) {
+      expect(fold.to).toBe('vault')
+      // 归并条自己说清门后是什么。数字在句子里，不在角标里。
+      expect(fold.label).toContain('一起看')
+    }
+  })
+})
+
+describe('㉒ 隐式预期不措辞化：第三种输入构造不出来', () => {
+  it('renderWhen 是纯函数，两输入，输出逐字节可推导', () => {
+    expect(renderWhen({ expectationText: '评审能过' })).toBe('预期「评审能过」')
+
+    const photo = snapshot('竞品对比表', { kind: 'commitment', id: 'c-22' }, 1_700_000_000_000)
+    const implicit = renderWhen({ verdictSnapshot: photo })
+    /*
+      **裁决本身即隐式预期**——可这句话不许被「措辞」。
+
+      模板拼装陈列事实：照片里的那句话原样出现，其余全是常量。一旦这里改成模型
+      生成，「当时」栏就成了系统替你回忆你当时在想什么。
+    */
+    expect(implicit).toContain('竞品对比表')
+    expect(implicit.startsWith('你在 ')).toBe(true)
+    expect(implicit).toBe(renderWhen({ verdictSnapshot: photo }))
+  })
+
+  it('这条路径的调用栈里没有任何一次模型调用', async () => {
+    const source = await readFile(new URL('../src/reflow.ts', import.meta.url), 'utf8')
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    for (const forbidden of ['agent', 'llm', 'chat(', 'complete(', 'prompt']) {
+      expect(code.includes(forbidden)).toBe(false)
+    }
+  })
+})
+
+describe('㉓ 分布镜无判词：陈列是镜子，解读是教练', () => {
+  it('返回值里没有一句话 —— 只有四个数和一串本账里的 id', async () => {
+    await settledCase('c-23', '这次能过')
+    const distribution = attributionDistribution(pledger, DEFAULT_PATTERN_WINDOW)
+
+    for (const cell of ['q1', 'q2', 'q3', 'q4'] as const) {
+      expect(typeof distribution[cell]).toBe('number')
+    }
+    /*
+      `cases` 里确实有字符串，可它们**只能是这本账里的 calibrationId**——
+      标识符，不是替你写好的结论。这一条就是这么验的：每一个字符串都必须在账上
+      找得到同名对象。**能返回文本的接口迟早会返回判词**，所以这里不留那个位置。
+    */
+    for (const ids of Object.values(distribution.cases)) {
+      for (const id of ids) expect(pledger.object('calibration', id)).toBeDefined()
+    }
+    // 界面上的四个名字取自静态常量表，不来自这个查询。
+    expect(JSON.stringify(distribution)).not.toContain('因判断')
+  })
+
+  it('分布查询同样强制滚动窗口 —— 没有「不限」这个取值', async () => {
+    await settledCase('c-23b', '窗外那一条')
+    const narrow = attributionDistribution(pledger, { days: 0 })
+    expect(narrow.q1 + narrow.q2 + narrow.q3 + narrow.q4).toBe(0)
+  })
+})
+
+describe('㉔ 动词族明拒：不给动词就不会误用', () => {
+  it('私账卡与金库行的动作集合 ∩ 转发族 = ∅', async () => {
+    await settledCase('c-24', '这条能过')
+    expect(FORBIDDEN_VERBS).toEqual(['forward', 'quote', 'share', 'cite', 'mention'])
+
+    for (const row of desk.privateRows()) {
+      for (const action of row.actions) expect(FORBIDDEN_VERBS).not.toContain(action.id)
+    }
+    const view = desk.vault()
+    const verbs = [
+      ...(view?.testing ?? []).flatMap(row => row.verbs),
+      ...(view?.settled ?? []).flatMap(row => row.verbs),
+      ...(view?.patterns ?? []).flatMap(row => row.verbs),
+      ...(view?.gears ?? []).flatMap(row => row.verbs),
+    ]
+    for (const verb of verbs) expect(FORBIDDEN_VERBS).not.toContain(verb)
+  })
+
+  it('转发/引用的取材面上没有 pgraph —— 组织侧的 source picker 不认识这个存储', async () => {
+    // 与断言② 同一条链接器保证：组织侧 src 里 `pledger` 出现零次。
+    const surface = new URL('../../surface/src/', import.meta.url)
+    const offenders: string[] = []
+    for (const file of await walk(surface.pathname)) {
+      const body = await readFile(file, 'utf8')
+      for (const verb of FORBIDDEN_VERBS) {
+        if (body.includes(`'${verb}'`) && body.includes('pledger')) offenders.push(`${file}:${verb}`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+})
+
+describe('㉕ 搜索面（两段：现在必绿 / 随全局搜索面解锁）', () => {
+  it('金库内检索：命中只落金库行，且这个面上没有 viewer 参数', async () => {
+    await settledCase('c-25', '搜得到这一句')
+    // **仅本人可构造**：签名上没有「以谁的身份搜」这一问。
+    expect(desk.search.length).toBe(1)
+
+    const hits = desk.search('搜得到')
+    expect(hits.length).toBeGreaterThan(0)
+    for (const hit of hits) expect(pledger.object('expectation', hit.id) ?? pledger.object('calibration', hit.id)).toBeDefined()
+    expect(desk.search('这本账里没有的一句话')).toEqual([])
+  })
+
+  it('组织侧的索引/检索构建栈里没有一次 pgraph 读取', async () => {
+    /*
+      **不需要过滤器**：组织侧的索引器根本不认识这个 store。
+
+      这一条现在就成立，而且是负向的——它断言的是一件**没有发生**的事。
+    */
+    const banned = ['objects', 'tools', 'channel', 'graph', 'cards']
+    const offenders: string[] = []
+    for (const pkg of banned) {
+      for (const file of await walk(new URL(`../../${pkg}/src/`, import.meta.url).pathname)) {
+        const body = await readFile(file, 'utf8')
+        if (/search|index/i.test(body) && /pledger/i.test(body)) offenders.push(file)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  /*
+    第二段**明标为 skip**，而不是假装断言了一个不存在的面。
+
+    主册 §7 目前没有跨会话的内容搜索面（`im group search` 是群名录搜索，不是内容
+    检索）。**不把不存在的面写成已存在的接缝**——这一行随全局搜索面落座解锁。
+  */
+  it.skip('（押全局搜索面落座）place viewer 下 pledger provider 未注册，而非返回空', () => {
+    expect(true).toBe(true)
+  })
+})
+
+describe('㉖ 证据面：摘要为主、锚为辅、锚死显形', () => {
+  it('渲染函数的入参里没有组织图 service —— 它连取内容的通道都没有', () => {
+    /*
+      两个参数：一串照片，和一个**只回状态不回内容**的探针。
+
+      于是「锚失效不蒸发内容」不是一条要记得遵守的纪律——这个函数**做不到**
+      去解析锚里的内容。
+    */
+    expect(evidenceRowsOf.length).toBe(2)
+
+    const at = new Date(1_700_000_000_000).toISOString()
+    const rows = evidenceRowsOf(
+      [
+        { text: '竞品对比表', at, anchor: { kind: 'commitment', id: 'dead' } },
+        { text: '当时在档：挂在目标下', at, anchor: { kind: 'goal', id: 'live' } },
+        { text: '人工补登：这条由你说出', at },
+      ],
+      anchor => (anchor.id === 'dead' ? 'changed' : anchor.id === 'live' ? 'live' : 'unknown'),
+    )
+    // 锚死：快照原样在场 + 一枚徽记。
+    expect(rows[0]).toMatchObject({ text: '竞品对比表', premise: 'changed', mark: '真身已变 / 已亡' })
+    expect(rows[1]?.mark).toBeUndefined()
+    // 无锚 → unknown，**不显形**：说一句「真身已变」是编造。
+    expect(rows[2]).toMatchObject({ premise: 'unknown' })
+    expect(rows[2]?.mark).toBeUndefined()
+    expect(rows[2]?.anchor).toBeUndefined()
+  })
+
+  it('断开组织图之后证据面零缺字，且 unknown 一枚徽记都不长', async () => {
+    const receiptId = await settledCase('c-26', '这次能一轮过')
+    const lone = await loneReader()
+    const face = lone.desk.evidenceFor('calibration', receiptId)
+
+    expect(face?.rows.length).toBeGreaterThan(0)
+    for (const row of face?.rows ?? []) {
+      expect(row.text.length).toBeGreaterThan(0)
+      // 组织图不可达 → 三态里的 unknown，而 unknown 不显形。
+      expect(row.premise).toBe('unknown')
+      expect(row.mark).toBeUndefined()
+    }
+    expect(face?.note).toContain('备料不定案')
+  })
+
+  it('默认态 = 待对表首项的备料；对表不出屏 —— 证据在场时四格仍在行上', async () => {
+    await deliverCommitment('c-26b')
+    await accept('c-26b')
+    await pledgeOn('c-26b', '默认态摆的就是它')
+
+    const face = desk.evidenceDefault()
+    expect(face?.title).toContain('出处')
+    expect(face?.rows.some(row => row.text.length > 0)).toBe(true)
+
+    // **对表不出屏**：证据面在场，而归因那一格仍然长在中栏那一行上。
+    const receiptId = await settledCase('c-26c', '边看边答')
+    expect(desk.evidenceFor('calibration', receiptId)?.rows.length).toBeGreaterThan(0)
+    const row = desk.vault()?.settled.find(one => one.calibrationId === receiptId)
+    expect(row?.verbs).toContain('reattribute')
+    expect(row?.verbs).toContain('loopback')
+  })
+})
+
+describe('㉗ 记忆隔离：两本复利账互不蒸馏', () => {
+  it('私账层的依赖面上没有 memory 服务 —— 金库写不进记忆库', () => {
+    /*
+      **免费于依赖方向铁律，但必须成文**。
+
+      顺手把金库判例蒸进记忆库只需要一行代码；禁令必须先于那一行存在。
+    */
+    expect(pledgerInject).toEqual(['yzjGraph', 'yzjCards', 'tools'])
+    expect(pledgerInject.some(one => /memory/i.test(one))).toBe(false)
+  })
+
+  it('私账层的源码里没有一行 import 碰记忆面 —— 反向同禁', async () => {
+    const offenders: string[] = []
+    for (const file of await walk(new URL('../src/', import.meta.url).pathname)) {
+      const body = await readFile(file, 'utf8')
+      for (const line of body.split('\n')) {
+        // 只看 import 与服务取用两处；硬合同 chip 上写着「金库 ≠ 记忆」，那是文案。
+        if (/^\s*import\b/.test(line) && /memory/i.test(line)) offenders.push(`${file}: ${line.trim()}`)
+        if (/get\(['\"]\w*[Mm]emory/.test(line)) offenders.push(`${file}: ${line.trim()}`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('蒸馏器的输入面上没有 pgraph，而金库的 canary 永不出现在记忆里', async () => {
+    const canary = '金库私账 canary：这句话只该活在第二本账上'
+    await deliverCommitment('c-27')
+    await accept('c-27')
+    await pledgeOn('c-27', canary)
+    await settle()
+
+    // 蒸馏器：组织侧的那一个，它的源码里 pledger 出现零次（与断言② 同法）。
+    const distiller = await readFile(
+      new URL('../../objects/src/memory/tools.ts', import.meta.url), 'utf8',
+    )
+    expect(/pledger/i.test(distiller)).toBe(false)
+
+    // canary 不在组织图的任何一条记忆事件里——也不在组织图的任何一条事件里。
+    const memories = JSON.stringify(graph.rawEvents(['memory/distilled', 'memory/forgotten']))
+    expect(memories).not.toContain(canary)
+    expect(JSON.stringify(graph.rawEvents([]))).not.toContain(canary)
   })
 })

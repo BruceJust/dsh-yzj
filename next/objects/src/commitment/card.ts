@@ -150,11 +150,11 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
       /*
         这一下是一次**裁决** —— 你说这份东西够好了 (家族即接口).
 
-        声明它，动作总线就会广播一条通用的 `verdict-settled`；这个家族既不知道
-        谁在听，也不该知道。打回不声明：打回说的是「还没做好」，那是一次**过程
-        判断**，它的后来还在同一条承诺上继续演——没有可对表的「后来」。
+        声明的是**种类**不是布尔：用组织自己的话说清这是哪一种裁决，值不值得下游
+        关心由听的人自己决定。于是这里可以如实声明**全部人签发裁决终态**，而这个
+        家族一个下游的判据分支都不长。
       */
-      verdict: true,
+      verdict: 'acceptance',
       allowedActors: (actor, state) => mayAccept(actor.openId, state),
       available: state => state.status === 'open' && state.delivery !== undefined,
     },
@@ -169,6 +169,13 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
       label: '打回',
       style: 'danger',
       keywords: ['打回', '拒收', '不行', '返工'],
+      /*
+        打回也是一次人签发的裁决 —— 你说它还不够好。
+
+        它当然也有「后来」：下一轮交付。上一版没声明它，理由是「过程判断」——可
+        判断得对不对，恰恰要等下一轮回来才知道，那正是可对表的形状。
+      */
+      verdict: 'rework',
       needsInput: true,
       allowedActors: (actor, state) => mayAccept(actor.openId, state),
       available: state => state.status === 'open' && state.delivery !== undefined,
@@ -221,6 +228,11 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
       label: '作废',
       style: 'danger',
       keywords: ['作废', '不做了', '取消这条'],
+      /*
+        作废也是人签发的终态 —— 如实声明，值不值得下游关心由听的人自己决定
+        （私账侧的谱把它记作「押证据门」：检验点模糊、回流弱）。
+      */
+      verdict: 'disposal',
       needsInput: true,
       allowedActors: actor => actor.openId !== undefined,
       available: state => state.status === 'open',

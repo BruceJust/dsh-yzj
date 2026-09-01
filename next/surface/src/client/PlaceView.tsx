@@ -181,7 +181,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const selfChat = view.selfChat === true
   const reloadPrivate = useCallback(async (): Promise<void> => {
     if (!selfChat) { setPrivateRows([]); return }
-    setPrivateRows(await inject.privateRows())
+    setPrivateRows((await inject.privateRows()).rows)
   }, [inject, selfChat])
 
   useEffect(() => {
@@ -189,6 +189,15 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     const timer = setInterval(() => { void reloadPrivate() }, 5_000)
     return () => { clearInterval(timer) }
   }, [reloadPrivate])
+
+  /*
+    私语流画哪些 —— 未答的，**加上刚答完的那一张**。
+
+    刚答完那一张留下来，是因为它带着合环行：判断刚出炉、动机最热的那一刻在这里
+    （断言⑳ 入口不垄断）。服务端只给最近答完的一张挂合环行，所以这里不会堆积——
+    这一刀在 desk 那一侧，两个客户端读的是同一个决定。
+  */
+  const privateStream = privateRows.filter(row => !row.resolved || row.loopback !== undefined)
 
   /**
    * Enter a topic, remembering where we were.
@@ -598,14 +607,33 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
 
           未答的静躺在这里：不老化、不可催、不成欠账。
         */}
-        {selfChat && privateRows.filter(row => !row.resolved).length > 0 && (
+        {selfChat && privateStream.length > 0 && (
           <div className={css.privateStream}>
             {privateNote !== undefined && <div className={css.privateNote}>{privateNote}</div>}
-            {privateRows.filter(row => !row.resolved).map(row => (
+            {privateStream.map(row => (
               <PrivateCard
                 key={`${row.kind}:${row.id}`}
                 row={row}
                 busy={privateBusy}
+                /*
+                  **就地合环** —— 判断刚出炉、动机最热的那一刻就在这里 (断言⑳).
+
+                  金库是汇总处不是唯一入口。少了这一行，「开后视镜 / 调档」就只在
+                  金库里够得着，而那正是 #61 那条「凡只能在金库获得的能力即违规」
+                  说的事——那条法对它自己也生效。
+                */
+                loopback={async (family, patternKey, on, gear) => {
+                  setPrivateBusy(true)
+                  try {
+                    const result = patternKey === undefined
+                      ? await inject.shiftGear(family, gear ?? 'weight', 'receipt')
+                      : await inject.toggleMirror(family, patternKey, on, 'receipt')
+                    setPrivateNote(result.error)
+                    await reloadPrivate()
+                  } finally {
+                    setPrivateBusy(false)
+                  }
+                }}
                 act={async (actionId, input) => {
                   setPrivateBusy(true)
                   try {

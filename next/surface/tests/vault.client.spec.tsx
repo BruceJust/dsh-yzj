@@ -28,6 +28,13 @@ function render(node: React.ReactNode): { text: string; root: HTMLElement } {
   return { text: container.textContent ?? '', root: container }
 }
 
+/** 一张照片。写入那一刻定格的人可读摘要——正文渲染只读 `text`（立此存照律）。 */
+const photo = (text: string, id?: string): { text: string; at: string; anchor?: { kind: string; id: string } } => ({
+  text,
+  at: new Date(1_700_000_000_000).toISOString(),
+  ...(id === undefined ? {} : { anchor: { kind: 'commitment', id } }),
+})
+
 const VAULT: VaultViewWire = {
   owner: 'op-1',
   destroyPhrase: '销毁我的金库',
@@ -38,26 +45,34 @@ const VAULT: VaultViewWire = {
   ],
   refusals: ['无分数', '无排名', '无画像', '无建议倾向', '无团队视图'],
   window: { days: 90 },
+  settleDays: 14,
+  foldThreshold: 2,
   testing: [
     {
       expectationId: 'exp-1',
       text: '评审能过，不返工',
       checkpointText: '明早评审后',
-      verdictRef: { kind: 'commitment', id: 'c-1', label: '竞品对比表' },
+      verdict: photo('竞品对比表', 'c-1'),
       bornAt: 1_700_000_000_000,
       due: false,
       asked: false,
+      premise: 'live',
+      zone: 'live',
       verbs: ['withdraw'],
     },
+  ],
+  awaiting: [
     {
       expectationId: 'exp-2',
       text: '8/15 前签回宏图续约',
       checkpointText: '2020-08-15',
       checkpointTs: 1_597_449_600_000,
-      verdictRef: { kind: 'commitment', id: 'c-2' },
+      verdict: photo('续约推进', 'c-2'),
       bornAt: 1_600_000_000_000,
       due: true,
       asked: true,
+      premise: 'live',
+      zone: 'live',
       verbs: ['note-fact', 'withdraw'],
     },
   ],
@@ -67,22 +82,26 @@ const VAULT: VaultViewWire = {
       attribution: 'q3',
       attributionLabel: '错了 · 因判断',
       thenText: '预期「评审能过」',
-      factText: '评审过了但被追问定价策略',
-      verdictRef: { kind: 'commitment', id: 'c-1' },
+      fact: photo('评审过了但被追问定价策略'),
+      verdict: photo('竞品对比表', 'c-1'),
+      family: 'delivery-acceptance',
       at: 1_700_000_100_000,
       verbs: ['reattribute'],
     },
   ],
+  sunk: [],
   withdrawn: [
     {
       expectationId: 'exp-3',
       text: '8 月内签下益丰',
       checkpointText: '8 月底',
-      verdictRef: { kind: 'commitment', id: 'c-3' },
+      verdict: photo('益丰推进', 'c-3'),
       bornAt: 1_600_000_000_000,
       due: false,
       asked: false,
       withdrawnReason: '客户转观望',
+      premise: 'live',
+      zone: 'live',
       // 撤回是终态：这一行一个动词都没有，而那是有理由的。
       verbs: [],
     },
@@ -98,13 +117,19 @@ const VAULT: VaultViewWire = {
       verbs: ['mirror'],
     },
   ],
+  distribution: {
+    q1: 0, q2: 0, q3: 1, q4: 0,
+    cases: { q1: [], q2: [], q3: ['cal-1'], q4: [] },
+    labels: { q1: '对了 · 因判断', q2: '对了 · 因运气', q3: '错了 · 因判断', q4: '错了 · 因世界' },
+    verbs: ['open-cell'],
+  },
   gears: [
     {
       family: 'delivery-acceptance',
       label: '交付验收',
       what: '交付被主张之前的一次自检',
       gear: 'default',
-      evidence: ['近 90 天这一族的判例：2 条'],
+      evidence: [photo('近 90 天这一族的判例：2 条')],
       entry: 'none',
       leaseAvailable: false,
       leaseNote: '租约本体在组织侧（授权租约族尚未开门）',
@@ -120,6 +145,12 @@ const VAULT: VaultViewWire = {
       verbs: ['invite-reopen'],
     },
   ],
+  quota: {
+    quota: 2,
+    usedToday: 1,
+    range: { min: 0, max: 3 },
+    verbs: ['set-quota'],
+  },
 }
 
 /** A stand-in inject: every call records what the screen asked the host to do. */
@@ -127,7 +158,26 @@ function fakeInject(calls: string[], vault: VaultViewWire | undefined = VAULT): 
   const ok = async (): Promise<{ error?: string }> => ({})
   return {
     vault: async () => vault,
-    privateRows: async () => [],
+    privateRows: async () => ({ rows: [] }),
+    vaultEvidence: async (kind, id) => {
+      calls.push(`evidence:${kind ?? ''}:${id ?? ''}`)
+      return {
+        title: '证据面 · 「评审能过，不返工」',
+        rows: [
+          { text: '竞品对比表', at: '2023-11-14T22:13:20.000Z', anchor: { kind: 'commitment', id: 'c-1' }, premise: 'live', mark: '当时裁决' },
+        ],
+        note: '摘要为主、锚为辅：正文来自写入时刻的快照，锚只是「回去看看」的一跳。',
+      }
+    },
+    vaultSearch: async (query) => {
+      calls.push(`search:${query}`)
+      return query === '评审' ? [{ zone: 'testing', id: 'exp-1', text: '评审能过，不返工' }] : []
+    },
+    vaultExport: async () => {
+      calls.push('export')
+      return { casebook: '# 判例册\n\n## 错了 · 因判断\n', readme: '# 这是什么\n' }
+    },
+    setQuota: async (quota) => { calls.push(`quota:${String(quota)}`); return {} },
     pledgerAct: async () => ({ receipt: '已记在你的账上。', outcome: 'applied' }),
     pledge: async () => ({}),
     declineInvite: ok,
@@ -135,7 +185,10 @@ function fakeInject(calls: string[], vault: VaultViewWire | undefined = VAULT): 
     noteFact: async (input) => { calls.push(`note:${input.expectationId ?? ''}:${input.text}`); return {} },
     reattribute: async (id, attribution) => { calls.push(`attr:${id}:${attribution}`); return {} },
     shiftGear: async (family, gear) => { calls.push(`gear:${family}:${gear}`); return {} },
-    toggleMirror: async (family, key, on) => { calls.push(`mirror:${family}:${key}:${String(on)}`); return {} },
+    toggleMirror: async (family, key, on, entry) => {
+      calls.push(`mirror:${family}:${key}:${String(on)}${entry === undefined ? '' : `:${entry}`}`)
+      return {}
+    },
     reopenInvites: async (family) => { calls.push(`reopen:${family}`); return {} },
     destroyVault: async (confirm) => { calls.push(`destroy:${confirm}`); return {} },
   } as unknown as SurfaceInject
@@ -147,7 +200,7 @@ function labels(root: HTMLElement): string[] {
 }
 
 describe('金库：每一行既可见又可动', () => {
-  it('四区各自长出自己的动词，已撤回区一个都没有', async () => {
+  it('六区各自长出自己的动词，已撤回区一个都没有', async () => {
     const { root, text } = render(<YzjVault inject={fakeInject([])} back={() => {}} />)
     await act(async () => { await Promise.resolve() })
 
@@ -157,7 +210,7 @@ describe('金库：每一行既可见又可动', () => {
     expect(root.textContent).toContain('不入组织图')
 
     const buttons = labels(root)
-    // 检验中 → 撤回；已过检验点 → 补登事实 + 撤回；已对表 → 改归因。
+    // 检验中 → 撤回；待对表 → 补登事实 + 撤回；已对表 → 改归因。
     expect(buttons.filter(one => one === '撤回')).toHaveLength(2)
     expect(buttons).toContain('补登事实')
     expect(buttons).toContain('改归因')
@@ -215,7 +268,7 @@ describe('金库：每一行既可见又可动', () => {
   it('空账如实解释自己为什么空 ——「还没有」和「不可能有」是两句话', async () => {
     const empty: VaultViewWire = {
       ...VAULT,
-      testing: [], settled: [], withdrawn: [], patterns: [],
+      testing: [], awaiting: [], settled: [], sunk: [], withdrawn: [], patterns: [],
       emptyBecause: '空。预期在裁决时刻出生，不可回填——这里永远不会出现事后补写的行。',
     }
     const { root } = render(<YzjVault inject={fakeInject([], empty)} back={() => {}} />)
@@ -237,6 +290,7 @@ describe('私语通道的两位住客', () => {
       status: 'open',
     },
     resolved: false,
+    zone: 'live',
     actions: [
       { id: 'pledge', label: '立个预期', style: 'primary', needsInput: true, available: true },
       { id: 'decline', label: '不立', needsInput: false, available: true },
@@ -253,6 +307,67 @@ describe('私语通道的两位住客', () => {
     expect(box.value).toBe('')
     expect(box.placeholder).toContain('过不过？')
     expect(box.placeholder).not.toContain('评审')
+  })
+
+  it('答完的回执带着合环行 —— 说明文字占位同罪，这里数的是按钮', async () => {
+    /*
+      这一条是补上来的：注册表上写着 `receipt:就地合环行` 是「开镜/换挡」的第二个
+      入口，可两个客户端都整片滤掉了 answered 行——**入口只存在于注册表上**。
+
+      入口不垄断律要能被看见才算数，所以这里数按钮，不数字段。
+    */
+    const answered: PrivateRowWire = {
+      kind: 'calibration',
+      id: 'cal-1',
+      at: 2,
+      seq: 2,
+      state: {
+        calibrationId: 'cal-1',
+        thenText: '预期「评审能过」',
+        fact: { text: '被追问定价', at: '2023-11-14T22:13:20.000Z' },
+        evidence: [],
+        status: 'answered',
+      },
+      resolved: true,
+      zone: 'live',
+      actions: [],
+      loopback: {
+        family: 'delivery-acceptance',
+        familyLabel: '交付验收',
+        patternKey: 'delivery-acceptance:q3',
+        mirrorOn: false,
+        gear: 'default',
+        note: '判断刚出炉，合环就在这一行上——金库是汇总处，不是唯一入口。',
+      },
+    }
+    const calls: string[] = []
+    const { root, text } = render(
+      <PrivateCard
+        row={answered}
+        busy={false}
+        act={async () => {}}
+        loopback={async (family, patternKey, on, gear) => {
+          calls.push(`${family}:${patternKey ?? '-'}:${String(on)}:${gear ?? '-'}`)
+        }}
+      />,
+    )
+    expect(text).toContain('金库是汇总处')
+    const mirror = [...root.querySelectorAll('button')]
+      .find(node => node.textContent?.includes('给这类卡开后视镜'))
+    expect(mirror).toBeDefined()
+    await act(async () => { (mirror as HTMLButtonElement).click() })
+    expect(calls).toEqual(['delivery-acceptance:delivery-acceptance:q3:true:-'])
+
+    // 调档是同一行上的第二个动词——换挡的入口也不该只有金库一个。
+    const gear = [...root.querySelectorAll('button')].find(node => node.textContent?.startsWith('⚖ 调档'))
+    await act(async () => { (gear as HTMLButtonElement).click() })
+    expect(calls.at(-1)).toBe('delivery-acceptance:-:false:weight')
+  })
+
+  it('没有 loopback 的卡不长那一行 —— 私语流之外没有合环动词', () => {
+    const { text } = render(<PrivateCard row={invite} busy={false} act={async () => {}} />)
+    expect(text).not.toContain('给这类卡开后视镜')
+    expect(text).not.toContain('调档')
   })
 
   it('卡自己说清三不入：左栏计数不会因为它变化', () => {

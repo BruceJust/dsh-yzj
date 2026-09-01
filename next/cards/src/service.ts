@@ -70,9 +70,19 @@ declare module '@deepseek-ai/cordis' {
      */
     'yzj-cards/verdict-settled'(payload: {
       cardRef: CardRef
+      /** 组织自己的话说的裁决种类，来自 {@link CardAction.verdict}。 */
+      kind: string
       actionId: string
       actor: GraphActor
       at: number
+      /**
+       * 这张卡此刻的标题原文.
+       *
+       * **组织侧是唯一知道标题的人**，所以它随事件一起走。下游要拿它做什么，这里
+       * 不知道也不该知道——但下游若拿不到，它就只能回头解析锚，而那正是「判例是
+       * 空壳」的成因。**携锚必携文**，从这条事件的 payload 就开始。
+       */
+      titleText?: string
     }): void
   }
 }
@@ -409,21 +419,33 @@ export class YzjCards extends Service {
     const transition = definition.apply(state, action, actor, input)
     for (const event of transition.events) await this.ctx.yzjGraph.append(event)
 
+    const next = this.ctx.yzjGraph.rawObject(cardRef.kind, cardRef.id)
+    const nextState = next?.state as never
+
     /*
       裁决落地的通用广播 —— 发完就算，谁也不等。
 
       发在状态事件**之后**：一个订阅者读到这条事件时，被裁决的那个对象必须已经是
       裁决之后的样子，否则它看见的是一个还没发生的裁决。发完不 await 任何东西——
       一条广播不该让答卡的人多等一次磁盘。
+
+      `titleText` 从**裁决之后**的状态取：那才是这次裁决盖章的那份东西的名字。
     */
-    if (action.verdict === true) {
+    if (action.verdict !== undefined) {
+      const settled = asRecord(next?.state)
+      const titleText = asString(settled?.what)
+        ?? asString(settled?.summary)
+        ?? asString(settled?.reason)
       this.ctx.emit('yzj-cards/verdict-settled', {
-        cardRef, actionId, actor, at: Date.now(),
+        cardRef,
+        kind: action.verdict,
+        actionId,
+        actor,
+        at: Date.now(),
+        ...(titleText === undefined ? {} : { titleText }),
       })
     }
 
-    const next = this.ctx.yzjGraph.rawObject(cardRef.kind, cardRef.id)
-    const nextState = next?.state as never
     if (next === undefined || !definition.isResolved(nextState)) {
       return { outcome: 'applied', receipt: '已记录。' }
     }

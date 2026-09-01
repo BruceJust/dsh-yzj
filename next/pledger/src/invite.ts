@@ -25,15 +25,16 @@ import type { CardAction, CardTransition } from '@yzj-next/cards'
 import type { GraphActor } from '@yzj-next/graph'
 import type { PledgerCardDefinition } from './bus.ts'
 import { expectationIdFor, expectationIdemKeyFor, inviteIdFor, inviteIdemKeyFor } from './families.ts'
-import type { OrgAnchor } from './types.ts'
+import { anchoredJson, type AnchoredText, type OrgAnchor } from './types.ts'
 
 /** Materialized invite state. */
 export interface InviteState {
   readonly inviteId: string
   readonly family: string
   readonly status: 'open' | 'declined' | 'pledged'
-  readonly verdictRef: OrgAnchor
-  readonly evidenceRefs: readonly OrgAnchor[]
+  /** 裁决的**照片**（立此存照律）——正文渲染只读它，永不回图解析。 */
+  readonly verdict: AnchoredText
+  readonly evidence: readonly AnchoredText[]
   readonly sourceLine: string
   /** 检验点的话语层，来自组织侧出处。人的赌注是人的话，检验点是图上的事实。 */
   readonly checkpointText: string
@@ -62,9 +63,12 @@ export const PLEDGE_DIMENSIONS: readonly string[] = [
  * 读金库」reads this line and is done.
  */
 export function inviteFor(input: {
-  readonly verdict: OrgAnchor
+  /** 裁决的照片（含锚）——**文本必填**，所以出卡文案不依赖组织图可解析。 */
+  readonly verdict: AnchoredText
+  /** 幂等锚只认锚那一半。 */
+  readonly verdictAnchor: OrgAnchor
   readonly family: string
-  readonly evidence: readonly OrgAnchor[]
+  readonly evidence: readonly AnchoredText[]
   /** 出处那一句话，说的是**组织侧的事实**：这份交付要用在哪儿。 */
   readonly sourceLine: string
   /** 检验点的话语，同样来自组织侧（那场会、那个期限）。 */
@@ -72,19 +76,19 @@ export function inviteFor(input: {
   /** 图上确实知道那个时刻时才给。**永不从话语里反解**。 */
   readonly checkpointTs?: number
 }): { inviteId: string; type: string; data: Record<string, unknown> } {
-  const inviteId = inviteIdFor(input.verdict)
+  const inviteId = inviteIdFor(input.verdictAnchor)
   return {
     inviteId,
     type: 'invite/opened',
     data: {
       inviteId,
       family: input.family,
-      verdictRef: input.verdict,
-      evidenceRefs: [...input.evidence],
+      verdict: anchoredJson(input.verdict),
+      evidence: input.evidence.map(anchoredJson),
       sourceLine: input.sourceLine,
       checkpointText: input.checkpointText,
       ...(input.checkpointTs === undefined ? {} : { checkpointTs: input.checkpointTs }),
-      idemKey: inviteIdemKeyFor(input.verdict),
+      idemKey: inviteIdemKeyFor(input.verdictAnchor),
     },
   }
 }
@@ -191,7 +195,9 @@ export const inviteCard: PledgerCardDefinition<InviteState> = {
     if (text === '') {
       throw new Error('预期得有内容——一句可证伪的赌注，由你说。')
     }
-    const expectationId = expectationIdFor(state.verdictRef)
+    const anchor = state.verdict.anchor
+    if (anchor === undefined) throw new Error('这张邀约没有裁决锚，立不了约。')
+    const expectationId = expectationIdFor(anchor)
     return {
       events: [
         {
@@ -200,11 +206,12 @@ export const inviteCard: PledgerCardDefinition<InviteState> = {
             expectationId,
             text,
             checkpoint: checkpointOf(state),
-            verdictRef: { ...state.verdictRef },
-            evidenceRefs: state.evidenceRefs.map(anchor => ({ ...anchor })),
+            // 照片整张搬过来：预期从此不依赖组织图也读得出「当时裁决的是什么」。
+            verdict: anchoredJson(state.verdict),
+            evidence: state.evidence.map(anchoredJson),
             inviteId: state.inviteId,
             family: state.family,
-            idemKey: expectationIdemKeyFor(state.verdictRef),
+            idemKey: expectationIdemKeyFor(anchor),
           },
           actor,
         },

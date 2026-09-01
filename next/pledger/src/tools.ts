@@ -124,7 +124,7 @@ export function applyPledgerTools(ctx: Context): () => void {
           content: view.settled.length === 0
             ? '（还没有已对表的判例。）'
             : view.settled.map(row => (
-              `[${row.attributionLabel}] ${row.thenText} → ${row.factText}`
+              `[${row.attributionLabel}] ${row.thenText} → ${row.fact.text}`
             )).join('\n'),
           count: view.settled.length,
         }
@@ -146,7 +146,9 @@ export function applyPledgerTools(ctx: Context): () => void {
       }
       return {
         content: [
-          `检验中 ${String(view.testing.length)} · 已对表 ${String(view.settled.length)} · 已撤回 ${String(view.withdrawn.length)}`,
+          `检验中 ${String(view.testing.length)} · 待对表 ${String(view.awaiting.length)}`
+          + ` · 已对表 ${String(view.settled.length)} · 未对表 ${String(view.sunk.length)}`
+          + ` · 已撤回 ${String(view.withdrawn.length)}`,
           `模式（近 ${String(window.days)} 天，滚动派生）：${view.patterns.length === 0 ? '无' : view.patterns.map(one => `${one.label} ${String(one.count)} 次`).join('；')}`,
           `档位：${view.gears.map(row => `${row.label}=${row.gear}`).join('，')}`,
           '这本账无分数、无排名、无画像、无建议倾向、无团队视图——结论由本人自己下。',

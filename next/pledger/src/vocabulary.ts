@@ -19,21 +19,35 @@
 import { z, type GraphFamily, type JsonValue } from '@yzj-next/graph'
 import { asRecord, asString } from '@yzj-next/graph'
 
+/**
+ * 组织图锚 —— **它在这份 schema 里永远不单独出现**（立此存照律，v2.0 / PTD-16）。
+ *
+ * 它只作为 {@link anchoredText} 的一个可空字段存在。断言⑯ 静态扫描这份文件：
+ * 出现任何一处 `: orgAnchor`（而不是 `anchor: orgAnchor` 在 anchoredText 里）
+ * 即 CI 红——**想只存锚都写不出来**。
+ */
 const orgAnchor = z.object({
   kind: z.string().min(1),
   id: z.string().min(1),
   graphSeq: z.number().int().optional(),
-  label: z.string().optional(),
+})
+
+/**
+ * 立此存照律的唯一携锚形态：**文本必填、时刻必填、锚可空**。
+ *
+ * 私账存的是照片，不是链接。拷走目录之后、组织侧墓碑之后，`text` 一个字都不会少
+ * ——只是不再显形、不再可跳。
+ */
+const anchoredText = z.object({
+  text: z.string().min(1),
+  at: z.string().min(1),
+  anchor: orgAnchor.optional(),
 })
 
 /** 事实源三分的 schema 形态 —— ambient 那一支**没有构造函数** (断言⑮). */
-const factRef = z.union([
-  z.object({
-    source: z.literal('org'),
-    anchor: orgAnchor,
-    why: z.enum(['reopened', 'lineage', 'assessed']),
-  }),
-  z.object({ source: z.literal('noted'), factId: z.string().min(1) }),
+const factSource = z.union([
+  z.object({ kind: z.literal('org'), why: z.enum(['reopened', 'lineage', 'assessed']) }),
+  z.object({ kind: z.literal('noted'), factId: z.string().min(1) }),
 ])
 
 const idOf = (key: string) => (_type: string, data: JsonValue): string | undefined => (
@@ -59,8 +73,10 @@ export const expectationFamily: GraphFamily = {
         expectationId: z.string().min(1),
         text: z.string().min(1),
         checkpoint: z.object({ text: z.string().min(1), ts: z.number().int().optional() }),
-        verdictRef: orgAnchor,
-        evidenceRefs: z.array(orgAnchor).default([]),
+        /** 裁决的**照片** —— 文本由接缝① 的 `titleText` 携来，锚在 `.anchor` 里。 */
+        verdict: anchoredText,
+        /** 出处的照片们。半年后回看，这里读得出当时挂在什么目标下。 */
+        evidence: z.array(anchoredText).default([]),
         /** The invite this bet was spoken into. 立约时窗的留痕 (PTD-13). */
         inviteId: z.string().min(1),
         family: z.string().min(1),
@@ -122,11 +138,13 @@ export const factFamily: GraphFamily = {
     'fact/noted': {
       schema: z.object({
         factId: z.string().min(1),
-        text: z.string().min(1),
+        /** 人的原话 —— 原话直存律；图外事实没有锚，`anchor` 恒空。 */
+        fact: anchoredText,
         /** 显式指认，零推断：这条事实说的是哪一次裁决 / 哪一个预期。 */
         about: z.object({
           kind: z.enum(['verdict', 'expectation']),
-          verdictRef: orgAnchor.optional(),
+          /** 指认一次裁决时，连同它当时的照片一起 —— 这里同样没有裸锚。 */
+          verdict: anchoredText.optional(),
           expectationId: z.string().optional(),
         }),
         /** 私语话语锚——这句话是在哪儿说的。 */
@@ -149,8 +167,12 @@ export const calibrationFamily: GraphFamily = {
     'calibration/opened': {
       schema: z.object({
         calibrationId: z.string().min(1),
-        verdictRef: orgAnchor,
-        factRef,
+        /** **当时** —— 裁决快照。正文渲染只读它，永不回图解析。 */
+        verdict: anchoredText,
+        /** **后来** —— 事实快照。同上。 */
+        fact: anchoredText,
+        /** 事实走的是三分里的哪一支。锚已在 `fact.anchor`，这里只剩「哪一支」。 */
+        factSource,
         /** 无则为隐式预期路径——裁决本身即预期。 */
         expectationId: z.string().optional(),
         /**
@@ -159,11 +181,16 @@ export const calibrationFamily: GraphFamily = {
          * 「差距条目②当时已在档」是证据；「没当回事」是替人写好的归因，违规。
          * 这是 prompt 纪律仅存的一处（原话直存律拿走了另外两处），配 review 断言。
          */
-        evidence: z.array(z.string()).default([]),
-        /** 当时那句话——预期原文，或隐式预期的措辞。回执正文的「当时」半边。 */
+        evidence: z.array(anchoredText).default([]),
+        /**
+         * 「当时」那一栏的成文 —— **纯函数 `renderWhen` 的产物，出生时定格**.
+         *
+         * 两输入联合类型：有显式预期直出人的原话；没有就只陈列裁决事实本身，
+         * **不代人推演其含义**（v2.0 / #62-C7）。存成字面而不是每次重算，是因为
+         * 重算的那条路一旦被人改成「渲染时问一次模型」，这一栏就从陈列变成了推演
+         * ——存下来，那条路就没有入口。
+         */
         thenText: z.string().default(''),
-        /** 后来那件事——事实的一句话。回执正文的「事实」半边。 */
-        factText: z.string().default(''),
         family: z.string().min(1),
         status: z.literal('open').default('open'),
         /** 幂等锚 =（裁决边, 事实边）——同一事实多次回流不重复出执（断言④）。 */
@@ -221,14 +248,14 @@ export const inviteFamily: GraphFamily = {
       schema: z.object({
         inviteId: z.string().min(1),
         family: z.string().min(1),
-        verdictRef: orgAnchor,
+        verdict: anchoredText,
         /**
          * 出处 —— **只能是组织侧事实** (#61 收紧⑤).
          *
          * 生成器的输入面只含本次裁决对象及其组织图锚，不含任何 pgraph 查询：
          * 「镜子等人来照」的实现形态是**生成器根本看不见镜子** (PTD-9)。
          */
-        evidenceRefs: z.array(orgAnchor).default([]),
+        evidence: z.array(anchoredText).default([]),
         /** 出处那一句话。agent 开口必有出处，无出处即无内容。 */
         sourceLine: z.string().default(''),
         /**
@@ -278,9 +305,24 @@ export const inviteFamily: GraphFamily = {
     'invite/reopened': {
       schema: z.object({ family: z.string().min(1) }),
     },
+    /**
+     * 全局日配额 —— **扩触发面的对偶** (v2.0 / #62-4 / PTD-20).
+     *
+     * 它落在**邀约族里**而不是新开一族：v2.0 明写「零新事件族」，而配额治的正是
+     * 邀约开口的频率——它本来就是这一族的事。同样是纯边（无 `objectIdOf`）：配额
+     * 说的是**这本账整体**今天还能被打扰几次，不是某一张卡的状态。
+     *
+     * 值域 0-3，`0` = 全关邀约——那也是一个合法的答案，而且必须给得出来。
+     */
+    'invite/quota-set': {
+      schema: z.object({ quota: z.number().int().min(0).max(3) }),
+    },
   },
   objectIdOf: (type, data) => (
-    type === 'invite/reopened' ? undefined : asString(asRecord(data)?.inviteId)
+    // 两条纯边：重开说的是一个**族**，配额说的是**整本账**——都不是某张卡的状态。
+    type === 'invite/reopened' || type === 'invite/quota-set'
+      ? undefined
+      : asString(asRecord(data)?.inviteId)
   ),
 }
 
@@ -298,9 +340,15 @@ export const gearFamily: GraphFamily = {
       schema: z.object({
         family: z.string().min(1),
         gear: z.enum(['lease', 'default', 'weight']),
-        entry: z.enum(['tail', 'vault']),
-        /** 换挡那一刻，证据行长什么样。环境快照律的私账形态。 */
-        evidenceSnapshot: z.string().optional(),
+        /** `receipt` = 就地合环那一个入口（v2.0 入口不垄断律）。 */
+        entry: z.enum(['tail', 'vault', 'receipt']),
+        /**
+         * 换挡那一刻，证据行长什么样 —— **v2.0 由可空改必填**。
+         *
+         * 不存它，半年后回看只剩一个「我换过挡」的空记录：换挡也是裁决，裁决的依据
+         * 也要立此存照。
+         */
+        evidenceSnapshot: z.array(anchoredText).default([]),
       }),
     },
   },
@@ -322,6 +370,8 @@ export const mirrorFamily: GraphFamily = {
         family: z.string().min(1),
         patternKey: z.string().min(1),
         on: z.boolean(),
+        /** 在哪儿开的镜。就地合环把它记成 `'receipt'`。 */
+        entry: z.enum(['vault', 'receipt']).default('vault'),
         /** `${family}:${patternKey}` — 幂等地址，最新生效。 */
         mirrorId: z.string().min(1),
       }),

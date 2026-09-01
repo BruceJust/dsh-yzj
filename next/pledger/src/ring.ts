@@ -10,14 +10,17 @@
  * 查询（`patterns.ts`），环7 是人签发的规则（`verbs.ts` 的后视镜与换挡）。**缺一环
  * 即割裂债**——所以每一环在代码里都要指得出它在哪。
  *
- * 三条纪律具体落在这里：
+ * **v2.0 的核心重构：出生三段式（谱／门／笔），三权分立** (#62-B4 / PTD-19).
  *
- * - **持镜人.** 这里的订阅只往一个方向读：组织图 → 私账。没有任何一条会因为你的
- *   误判史改变组织侧的行为——不加门、不挡裁决、不调提案策略 (§8).
- * - **自带时间轮** (PTD-14). 检验点到期是时间驱动的，而 `scheduler` 在 import 禁令
- *   名单里。定时器由这个插件自己的 effect 承担——依赖方向铁律对定时器同样成立。
- * - **一次性.** 检验点到了 agent 问**一次**结果（问结果合法，索要预期非法），
- *   问过就记在账上（`expectation/asked`），重启不会再问一遍。
+ * | 段 | 名 | 读 pgraph | 职责 |
+ * |---|---|---|---|
+ * | ① | 谱 {@link isPledgeable} | **否**（纯函数，在 `verdicts.ts`） | 这**种**裁决值不值得开口 |
+ * | ② | 门 {@link inviteGate} | **是** | 幂等 · 族级降频 · 全局日配额 · 时窗 |
+ * | ③ | 笔 {@link inviteRender} | **否**（签名不含 pgraph 能力） | 出卡文案，出处限组织侧事实 |
+ *
+ * **门与笔分立是本轮最重要的接口纪律**：疲劳治理**必须**读私账（否则治不了），而
+ * 「镜子等人来照」要求生成器**看不见**镜子。v1.x 把两件事都叫「编排层」，实现者
+ * 会顺手把 gate 的 pgraph 句柄传进 generator，那条戒律当场破功。断言⑥ 只约束笔。
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -25,78 +28,88 @@ import { asRecord, asString, type GraphEvent } from '@yzj-next/graph'
 import { expectationIdemKeyFor, familyOfCardKind, inviteIdemKeyFor } from './families.ts'
 import { inviteFor, isFamilyQuiet } from './invite.ts'
 import {
-  calibrationBirth, evidenceFor, structuralFactFor, thenTextFor, watchedVerdicts,
+  calibrationBirth, evidenceFor, renderWhen, structuralFactFor, verdictSnapshot, watchedVerdicts,
   type MatchedFact,
 } from './reflow.ts'
-import type { FactRef, OrgAnchor } from './types.ts'
-import { anchorFor, goalRefOf, isVerdictAction, type SeenVerdict } from './verdicts.ts'
+import { snapshot, type AnchoredText, type FactSource, type OrgAnchor } from './types.ts'
+import { anchorFor, goalRefOf, isPledgeable, verdictKindOf, type SeenVerdict } from './verdicts.ts'
 
 /** How often the ledger's own timer wheel looks at its checkpoints. */
 const TICK_MS = 5 * 60_000
 
 /**
+ * 全局日配额 —— **扩触发面必同扩治理面** (v2.0 / #62-4 / PTD-20).
+ *
+ * 触发面从两点扩到五类的**同一次提交**里加这一条。五个入口各自克制、合起来仍然
+ * 是骚扰；而扩员与疲劳是同一个动作的两面——**分两次做，中间就会有一个版本在烦人**。
+ *
+ * 族级降频治的是「这一类你不想聊」，日配额治的是「今天已经够了」。两层各管一件事：
+ * 少了族级，你得为每一类各拒三次；少了全局，五个族各问两次就是十次。
+ */
+export const DEFAULT_DAILY_QUOTA = 2
+/** 金库换挡台上可调的值域。0 = 全关邀约（那也是一个合法的答案）。 */
+export const QUOTA_RANGE = { min: 0, max: 3 } as const
+
+/**
  * 出处 —— **只能引用组织侧事实** (#61 收紧⑤).
  *
- * 整个函数的输入面就是这条规则的兑现：一个组织图锚，一个组织图服务。没有 pledger
- * 句柄，所以「读金库来决定要不要问你」在这里**做不到**，而不是被禁止 (PTD-9)。
+ * 这是**笔**（③）的输入面：一个组织图锚、一个组织图服务、一个标题原文。没有
+ * pledger 句柄，所以「读金库来决定说什么」在这里**做不到**，而不是被禁止 (PTD-9)。
  */
-export function sourceOf(ctx: Context, verdict: OrgAnchor, now = Date.now()): {
+export function inviteRender(ctx: Context, verdict: SeenVerdict): {
   sourceLine: string
   checkpointText: string
-  /**
-   * 检验点的**投影那一层**，只在图上确实知道那个时刻时才有 (两层规则).
-   *
-   * 它和 `checkpointText` 是并列的两样，不是从它解析出来的：图上挂着的那场会有一个
-   * 精确的开始时刻，而人读的那句话该是「明早的《管理层评审》之后」。把时刻从话语里
-   * 反解出来，等于逼着话语写成一个 ISO 串——**两层规则的意思正是不必如此**。
-   */
   checkpointTs?: number
-  evidence: readonly OrgAnchor[]
+  evidence: readonly AnchoredText[]
 } {
+  const anchor = verdict.anchor
+  const now = verdict.at
   const graph = ctx.get('yzjGraph')
-  const state = asRecord(graph?.rawObject(verdict.kind, verdict.id)?.state)
-  const what = verdict.label ?? asString(state?.what) ?? `${verdict.kind}:${verdict.id}`
-  const goal = goalRefOf(ctx, verdict.kind, verdict.id)
-  const evidence: OrgAnchor[] = []
+  const state = asRecord(graph?.rawObject(anchor.kind, anchor.id)?.state)
+  const what = verdict.titleText ?? asString(state?.what) ?? `${anchor.kind}:${anchor.id}`
+  const goal = goalRefOf(ctx, anchor.kind, anchor.id)
+  const evidence: AnchoredText[] = []
   if (goal !== undefined) {
-    /*
-      目标的那条承诺是这次裁决的**上文**：它说清了这份东西要用在哪儿。
-      引用的是组织图上的对象，一跳可回——出处必须是能核对的，不能是一句形容。
-    */
-    evidence.push({ kind: 'goal', id: goal, label: goal })
+    // 出处必须是能核对的，不能是一句形容 —— 而且它同样立此存照。
+    evidence.push(snapshot(`挂在目标 ${goal} 下`, { kind: 'goal', id: goal }, now))
   }
 
   /*
-    **检验点必须在未来**，而这一条不是排版讲究，是一个真的 bug 的修法。
+    **检验点必须在未来。**
 
-    第一版拿承诺的 `due` 当检验点。可 `due` 是**交付期限**，而验收发生在交付之后
-    ——到你下这个判断的时候，那个日子多半已经过去了。于是「立完约当场就被问『后来
-    怎么样了』」：一次性邀约刚变成一个赌注，时间轮立刻把它当成过期的来追。
-
-    正确的出处在图上本来就有：**这份交付要用在哪儿**——它挂着的那场会（事件枢纽的
-    服务边，§5.6 既有）。这也正是设计里那句「出处：这份交付的使用场合就是明早的
-    评审」。找不到会就退回未来的 `due`；两者都没有，就**不给戳**——无戳的预期不参与
-    时间轮，等结构性事实或你自己回来对表。宁可不问，不可乱问。
+    第一版拿承诺的 `due` 当检验点。可 `due` 是交付期限，而验收发生在交付之后——到
+    你下这个判断的时候那个日子多半已经过去了，于是「立完约当场被追问」。正确的出处
+    在图上本来就有：**这份交付要用在哪儿**——它挂着的那场会（事件枢纽的服务边）。
+    找不到会就退回未来的 `due`；两者都没有就**不给戳**——无戳的预期不参与时间轮。
   */
-  const meeting = upcomingMeetingFor(ctx, verdict, now)
+  const meeting = upcomingMeetingFor(ctx, anchor, now)
   const due = asString(state?.due)
   const dueTs = due === undefined ? Number.NaN : Date.parse(due)
   const futureDue = due !== undefined && Number.isFinite(dueTs) && dueTs > now
     ? { text: due, ts: dueTs }
     : undefined
-  if (meeting !== undefined) evidence.push(meeting.anchor)
+  if (meeting !== undefined) evidence.push(meeting.evidence)
   const checkpoint = meeting ?? futureDue
 
   return {
     sourceLine: meeting === undefined
       ? goal === undefined
-        ? `你刚刚验收了「${what}」`
-        : `你刚刚验收了「${what}」，它挂在目标 ${goal} 下`
-      : `你刚刚验收了「${what}」——这份交付的使用场合就是${meeting.label}`,
+        ? `${VERDICT_VERB[verdict.kind] ?? '你刚刚裁决了'}「${what}」`
+        : `${VERDICT_VERB[verdict.kind] ?? '你刚刚裁决了'}「${what}」，它挂在目标 ${goal} 下`
+      : `${VERDICT_VERB[verdict.kind] ?? '你刚刚裁决了'}「${what}」——这份交付的使用场合就是${meeting.label}`,
     checkpointText: checkpoint?.text ?? '下一次这件事在图上有动静时',
     ...(checkpoint === undefined ? {} : { checkpointTs: checkpoint.ts }),
     evidence,
   }
+}
+
+/** 出处那一句话的开头，按裁决种类说人话。谱里有的都要有一句。 */
+const VERDICT_VERB: Readonly<Record<string, string>> = {
+  acceptance: '你刚刚验收了',
+  rework: '你刚刚打回了',
+  assessment: '你刚刚验收了差距简报',
+  delegation: '你刚刚把这件事交出去了',
+  'lease-grant': '你刚刚签发了一份授权租约',
 }
 
 /**
@@ -107,10 +120,10 @@ export function sourceOf(ctx: Context, verdict: OrgAnchor, now = Date.now()): {
  */
 function upcomingMeetingFor(
   ctx: Context, verdict: OrgAnchor, now: number,
-): { text: string; ts: number; label: string; anchor: OrgAnchor } | undefined {
+): { text: string; ts: number; label: string; evidence: AnchoredText } | undefined {
   const graph = ctx.get('yzjGraph')
   if (graph === undefined || verdict.kind !== 'commitment') return undefined
-  let best: { text: string; ts: number; label: string; anchor: OrgAnchor } | undefined
+  let best: { text: string; ts: number; label: string; evidence: AnchoredText } | undefined
   for (const object of graph.query({ kind: 'operator', openId: '' }, { kind: 'event' })) {
     const state = asRecord(object.state)
     const prepares = state?.prepares
@@ -128,50 +141,102 @@ function upcomingMeetingFor(
       // 话语层是**人读的那句话**；时刻在 `ts` 里，不必从这句话里反解出来。
       text: `${when}「${title}」之后`,
       label: `「${title}」`,
-      anchor: { kind: 'event', id: object.id, label: title },
+      evidence: snapshot(`这份交付要用在 ${when} 的「${title}」上`, { kind: 'event', id: object.id }, now),
     }
   }
   return best
 }
 
+/** 门的三种拒因。说得清是哪一种，人才知道下一步做什么。 */
+export type GateRefusal = 'not-pledgeable' | 'duplicate' | 'family-quiet' | 'quota-spent'
+
+/**
+ * 门（②）—— **读账**，而且只读账.
+ *
+ * 幂等、族级降频、全局日配额，三道各管一件事。它读私账是**必须的**（疲劳治理不读账
+ * 就治不了），而这正是它必须和笔分开的理由：笔那一侧一个 pgraph 句柄都不该有。
+ */
+export function inviteGate(
+  ctx: Context, verdict: SeenVerdict, now = Date.now(),
+): GateRefusal | undefined {
+  const pledger = ctx.get('yzjPledger')
+  if (pledger === undefined || !pledger.ready) return 'not-pledgeable'
+  // 幂等锚：同一裁决至多一张邀约。重放、重启、第二个订阅者都收不出第二张。
+  if (pledger.findByIdemKey(inviteIdemKeyFor(verdict.anchor)) !== undefined) return 'duplicate'
+  const events = pledger.events(['invite/declined', 'invite/reopened', 'expectation/opened'])
+  if (isFamilyQuiet(events, verdict.family)) return 'family-quiet'
+  if (invitesToday(ctx, now) >= quotaOf(ctx)) return 'quota-spent'
+  return undefined
+}
+
+/** 今天已经开过几次口。日切按本地日历日——人过的是本地的一天。 */
+export function invitesToday(ctx: Context, now = Date.now()): number {
+  const pledger = ctx.get('yzjPledger')
+  if (pledger === undefined) return 0
+  const today = new Date(now).toDateString()
+  return pledger.events(['invite/opened'])
+    .filter(event => new Date(event.time).toDateString() === today).length
+}
+
+/**
+ * 当前日配额。人在金库换挡台上调过就用他调的，没调过用 P1 的 2。
+ *
+ * 纯派生：数最后一条 `invite/quota-set`。**能派生就不落状态**——和模式滚动律同源。
+ */
+export function quotaOf(ctx: Context): number {
+  const events = ctx.get('yzjPledger')?.events(['invite/quota-set']) ?? []
+  const last = events.at(-1)
+  const value = asRecord(last?.data)?.quota
+  return typeof value === 'number' ? value : DEFAULT_DAILY_QUOTA
+}
+
 /**
  * 环1 —— 裁决落地那一刻，可能开一次口。
  *
- * **触发点 P1 收窄明标** (§9): 只有验收卡 accept 与差距简报验收这两个高信息裁决。
- * 确认卡不触发——高频低信息，邀约在那里会退化成 nag，而一个会 nag 的镜子没有人
- * 会再照第二次。收窄由 {@link familyOfCardKind} 与家族自己的 `verdict` 声明共同
- * 决定，两处都在组织侧，私账只是读它们。
+ * 三段依次过：**谱**（这种裁决值不值得）→ **门**（今天/这一族还该不该问）→
+ * **笔**（说什么）。三者的输入面各自封闭，所以「组织侧不含判据」「生成器看不见
+ * 镜子」都是签名的推论，不是纪律。
  */
 export async function inviteOnVerdict(
   ctx: Context,
-  payload: { readonly cardRef: { kind: string; id: string }; readonly actionId: string },
+  payload: {
+    readonly cardRef: { kind: string; id: string }
+    readonly actionId: string
+    readonly kind?: string
+    readonly at?: number
+    readonly titleText?: string
+  },
 ): Promise<string | undefined> {
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined || !pledger.ready) return undefined
-  if (!isVerdictAction(ctx, payload.cardRef.kind, payload.actionId)) return undefined
+  const kind = payload.kind ?? verdictKindOf(ctx, payload.cardRef.kind, payload.actionId)
+  // ① 谱 —— 纯函数，一个字符串进、一个布尔出。
+  if (kind === undefined || !isPledgeable(kind)) return undefined
   const spec = familyOfCardKind(payload.cardRef.kind)
   if (spec === undefined) return undefined
-  /*
-    疲劳治理 —— 同族连续 3 次不立就停问 (§4).
-
-    **人用脚投票就是应答.** 这道门读的是 declined 计数，那是私账自己的事实；它决定
-    的也只是私账自己开不开口。组织侧不知道有这道门，也不会因为它改变任何行为。
-  */
-  if (isFamilyQuiet(pledger.events(['invite/declined', 'invite/reopened', 'expectation/opened']), spec.family)) {
-    return undefined
-  }
-  const verdict = anchorFor(ctx, payload.cardRef.kind, payload.cardRef.id)
-  const source = sourceOf(ctx, verdict)
-  const birth = inviteFor({
-    verdict,
+  const at = payload.at ?? Date.now()
+  const verdict: SeenVerdict = {
+    anchor: anchorFor(ctx, payload.cardRef.kind, payload.cardRef.id),
+    kind,
+    actionId: payload.actionId,
     family: spec.family,
-    evidence: source.evidence,
-    sourceLine: source.sourceLine,
-    checkpointText: source.checkpointText,
-    ...(source.checkpointTs === undefined ? {} : { checkpointTs: source.checkpointTs }),
+    at,
+    seq: 0,
+    ...(payload.titleText === undefined ? {} : { titleText: payload.titleText }),
+  }
+  // ② 门 —— 读账。
+  if (inviteGate(ctx, verdict, at) !== undefined) return undefined
+  // ③ 笔 —— 不读账。
+  const pen = inviteRender(ctx, verdict)
+  const birth = inviteFor({
+    verdict: verdictSnapshot(ctx, verdict),
+    verdictAnchor: verdict.anchor,
+    family: spec.family,
+    evidence: pen.evidence,
+    sourceLine: pen.sourceLine,
+    checkpointText: pen.checkpointText,
+    ...(pen.checkpointTs === undefined ? {} : { checkpointTs: pen.checkpointTs }),
   })
-  // 幂等锚：同一裁决至多一张邀约。重放、重启、第二个订阅者都收不出第二张。
-  if (pledger.findByIdemKey(inviteIdemKeyFor(verdict)) !== undefined) return undefined
   await pledger.append({ type: birth.type, data: birth.data as never, actor: { kind: 'agent' } })
   return birth.inviteId
 }
@@ -191,29 +256,21 @@ export async function reflowOnGraphEvent(ctx: Context, event: GraphEvent): Promi
     if (event.seq <= verdict.seq) continue
     const matched = structuralFactFor(ctx, verdict, event)
     if (matched === undefined) continue
-    // 最近的那一次裁决：见下。
     if (best === undefined || best.verdict.seq < verdict.seq) best = { verdict, matched }
   }
   if (best === undefined) return
   /*
-    **一份事实至多出一张执** —— 而这一条是修一个真的会伤人的行为。
+    **一份事实至多出一张执。**
 
-    第一版对每一个匹配上的裁决各出一张。看起来「更完整」，可想一想它在什么时候发生：
-    一个目标下你验收过十条活，某天一份差距简报落地——十张回执同时出现，十条 DM 同时
-    到手机上。其中至少九张，你打开就知道该按「配对错了」。
-
-    **第五出口存在是因为配对可能错，不是因为我们该批量制造错配。** 宁空勿错在这里的
-    形态就是这一句：拿不准是哪一次裁决的后来，就只配**最近的那一次**（`seq` 最大者，
-    时间上离这条事实最近、因果上最可能是它的后来）；剩下那些不是丢了——它们躺在金库
-    的「待对表」里，人可以在那一行上**补登事实**自己配对（环3 的人工那一支）。
-
-    少说一句可以补，批量说错话收不回来。
+    一个目标下你验收过十条活，某天一份差距简报落地——十张回执同时出现，十条 DM
+    同时到手机上，其中至少九张你打开就知道该按「配对错了」。**第五出口存在是因为
+    配对可能错，不是因为我们该批量制造错配。** 配最近的那一次（`seq` 最大者）；
+    剩下那些不是丢了——它们在金库待对表区，人可以自己补登事实来配对。
   */
   await openCalibration(ctx, {
-    verdict: best.verdict.anchor,
-    family: best.verdict.family,
+    verdict: best.verdict,
     fact: best.matched.fact,
-    factText: best.matched.factText,
+    source: best.matched.source,
   })
 }
 
@@ -229,82 +286,109 @@ export async function reflowOnNotedFact(ctx: Context, event: GraphEvent): Promis
   if (pledger === undefined || !pledger.ready) return
   const data = asRecord(event.data)
   const factId = asString(data?.factId)
-  const text = asString(data?.text)
+  const fact = asRecord(data?.fact)
+  const text = asString(fact?.text)
   const about = asRecord(data?.about)
   if (factId === undefined || text === undefined || about === undefined) return
 
-  let verdict: OrgAnchor | undefined
-  let family: string | undefined
+  let verdict: SeenVerdict | undefined
   let expectationId: string | undefined
   if (asString(about.kind) === 'expectation') {
     expectationId = asString(about.expectationId)
     if (expectationId === undefined) return
     const state = asRecord(pledger.object('expectation', expectationId)?.state)
-    const ref = asRecord(state?.verdictRef)
-    const kind = asString(ref?.kind)
-    const id = asString(ref?.id)
-    if (kind === undefined || id === undefined) return
-    verdict = anchorFor(ctx, kind, id)
-    family = asString(state?.family)
+    const shot = asRecord(state?.verdict)
+    const anchor = asRecord(shot?.anchor)
+    const kind = asString(anchor?.kind)
+    const id = asString(anchor?.id)
+    const family = asString(state?.family)
+    if (kind === undefined || id === undefined || family === undefined) return
+    verdict = {
+      anchor: { kind, id },
+      kind: 'acceptance',
+      actionId: '',
+      family,
+      at: event.time,
+      seq: 0,
+      ...(asString(shot?.text) === undefined ? {} : { titleText: asString(shot?.text) as string }),
+    }
   } else {
-    const ref = asRecord(about.verdictRef)
-    const kind = asString(ref?.kind)
-    const id = asString(ref?.id)
+    const shot = asRecord(about.verdict)
+    const anchor = asRecord(shot?.anchor)
+    const kind = asString(anchor?.kind)
+    const id = asString(anchor?.id)
     if (kind === undefined || id === undefined) return
-    verdict = anchorFor(ctx, kind, id)
-    family = familyOfCardKind(kind)?.family
+    const family = familyOfCardKind(kind)?.family
+    if (family === undefined) return
+    verdict = {
+      anchor: { kind, id },
+      kind: 'acceptance',
+      actionId: '',
+      family,
+      at: event.time,
+      seq: 0,
+      ...(asString(shot?.text) === undefined ? {} : { titleText: asString(shot?.text) as string }),
+    }
   }
-  if (verdict === undefined || family === undefined) return
   await openCalibration(ctx, {
     verdict,
-    family,
-    fact: { source: 'noted', factId },
-    factText: text,
+    // 人的原话，照片一张 —— 图外事实没有锚。
+    fact: snapshot(text, undefined, event.time),
+    source: { kind: 'noted', factId },
   })
 }
 
 /**
  * 出一张校准回执 —— 幂等锚 =（裁决边, 事实边）.
  *
- * `dismissed` 之后不再出执（吸收态）；同一事实多次回流不出第二张 (断言④)。两条
- * 都由同一个锚保证，而不是由两处各自的判断。
+ * 正文三段**全部是照片**：当时（裁决快照）× 后来（事实快照）× 证据行。断了组织图
+ * 之后这张执一个字都不会少（断言⑯ 集成半）。
  */
 export async function openCalibration(
   ctx: Context,
   input: {
-    readonly verdict: OrgAnchor
-    readonly family: string
-    readonly fact: FactRef
-    readonly factText: string
+    readonly verdict: SeenVerdict
+    readonly fact: AnchoredText
+    readonly source: FactSource
   },
 ): Promise<string | undefined> {
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined || !pledger.ready) return undefined
-  const expectation = pledger.findByIdemKey(expectationIdemKeyFor(input.verdict))
+  const anchor = input.verdict.anchor
+  const expectation = pledger.findByIdemKey(expectationIdemKeyFor(anchor))
   const expectationState = asRecord(expectation?.state)
   const expectationStatus = asString(expectationState?.status)
   /*
-    撤回过的预期不再对表.
+    撤回过的预期不再对表。
 
     撤回是**诚实退出**：前提没了，那个赌注就不再是一个赌注。为它出一张回执，等于
-    要人为一件他已经明说不算数的事再打一次分。隐式预期那条路仍然走得通——回执照样
-    会来，只是「当时」那半边写的是裁决本身。
+    要人为一件他已经明说不算数的事再打一次分。隐式预期那条路仍然走得通。
   */
   const expectationId = expectationStatus === 'testing' || expectationStatus === 'settled'
     ? expectation?.id
     : undefined
+  const expectationText = expectationId === undefined
+    ? undefined
+    : asString(expectationState?.text)
+  const verdictShot = verdictSnapshot(ctx, input.verdict)
   const birth = calibrationBirth({
-    verdict: input.verdict,
+    verdict: verdictShot,
+    verdictAnchor: anchor,
     fact: input.fact,
-    factText: input.factText,
-    family: input.family,
-    thenText: thenTextFor(
-      input.verdict,
-      expectationId === undefined ? undefined : asString(expectationState?.text),
-    ),
-    evidence: evidenceFor(ctx, input.verdict, input.fact),
+    source: input.source,
+    family: input.verdict.family,
+    evidence: evidenceFor(ctx, anchor, input.source, input.verdict.at),
     ...(expectationId === undefined ? {} : { expectationId }),
   })
+  /*
+    「当时」栏 —— **两输入联合类型，第三种不可构造** (#62-C7).
+
+    有显式预期就直出人的原话；没有就只陈列裁决事实本身。上一版在这里写
+    「隐式预期即『它已经够好』」——那是替人写好了他当时在想什么。
+  */
+  birth.data.thenText = renderWhen(
+    expectationText === undefined ? { verdictSnapshot: verdictShot } : { expectationText },
+  )
   const idemKey = asString(birth.data.idemKey as never)
   if (idemKey !== undefined && pledger.findByIdemKey(idemKey) !== undefined) return undefined
   await pledger.append({ type: birth.type, data: birth.data as never, actor: { kind: 'agent' } })
@@ -314,12 +398,8 @@ export async function openCalibration(
 /**
  * 时间轮的一次滴答 —— 检验点到了，问**一次**结果.
  *
- * 「问结果合法，索要预期非法」：到期的时候 agent 可以问「那件事后来怎么样了」，
- * 不可以问「你当初为什么不立个预期」。人的答复经 `fact/noted` 落账——**系统不猜
- * 图外**，这是环3 唯一的图外入口。
- *
- * 问过就记账（`expectation/asked`），因为 host 内存不是真身：不落库，重启之后这
- * 一问会再问一遍，而 P1 明标是**问一次不再追**。
+ * 「问结果合法，索要预期非法」。人的答复经 `fact/noted` 落账——**系统不猜图外**。
+ * 问过就记账（`expectation/asked`），因为 host 内存不是真身。
  */
 export async function tickCheckpoints(
   ctx: Context,
@@ -332,24 +412,25 @@ export async function tickCheckpoints(
   /*
     **已经有回执在等你了，就不该再问一遍** (§4「检验点到达**且图内无匹配事实**」).
 
-    第一版漏了后半句：结构性事实回流出了一张回执之后，预期仍然是 `testing`（它要等
-    你归因才归档），于是时间轮照样发一条「后来怎么样了」——而答案就摆在同一条私语流
-    里，是这条 agent 自己刚放上去的。一次问已经答过的问题，比不问更伤信任。
+    一次问已经答过的问题，比不问更伤信任——而答案就摆在同一条私语流里，是这条
+    agent 自己刚放上去的。
   */
   const hasReceipt = new Set<string>()
   for (const object of pledger.query('calibration')) {
-    const verdict = asRecord(asRecord(object.state)?.verdictRef)
-    const kind = asString(verdict?.kind)
-    const id = asString(verdict?.id)
+    const anchor = asRecord(asRecord(object.state)?.verdict)
+    const inner = asRecord(anchor?.anchor)
+    const kind = asString(inner?.kind)
+    const id = asString(inner?.id)
     if (kind !== undefined && id !== undefined) hasReceipt.add(`${kind}:${id}`)
   }
   for (const object of pledger.query('expectation')) {
     const state = asRecord(object.state)
     if (state === undefined) continue
     if (asString(state.status) !== 'testing' || state.asked === true) continue
-    const verdict = asRecord(state.verdictRef)
-    const verdictKey = `${asString(verdict?.kind) ?? ''}:${asString(verdict?.id) ?? ''}`
-    if (hasReceipt.has(verdictKey)) continue
+    const shot = asRecord(state.verdict)
+    const anchor = asRecord(shot?.anchor)
+    const key = `${asString(anchor?.kind) ?? ''}:${asString(anchor?.id) ?? ''}`
+    if (hasReceipt.has(key)) continue
     const checkpoint = asRecord(state.checkpoint)
     const ts = checkpoint?.ts
     if (typeof ts !== 'number' || ts > now) continue
@@ -365,13 +446,6 @@ export async function tickCheckpoints(
       `「${text}」`,
       `检验点：${asString(checkpoint?.text) ?? ''}`,
       '',
-      /*
-        「后来怎么样了」问得出口，「你当初为什么不立个预期」问不出口 —— 前者是问
-        结果，后者是索要预期。这条界线在这一句话里。
-
-        落点说在桌面而不是「在这里回一句」：P1 的自聊 DM 只出不进（§1），而一句
-        指向不存在的路的邀请，比不邀请更糟。
-      */
       '后来怎么样了？到桌面工作台的「🔒 我的判断」里，在这一行上补登一句——',
       '我不会去猜图外的事（线下评审、口头反馈、邮件结果，系统一概不猜）。',
       '（问一次，不再追。不想说也没关系，这本账的债主是你自己。）',

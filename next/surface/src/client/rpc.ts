@@ -735,8 +735,16 @@ export interface SurfaceInject {
 
   /** 金库四区 + 换挡台 + 模式。未启用 / 身份未就绪时是 undefined。 */
   vault(windowDays?: number): Promise<VaultViewWire | undefined>
-  /** 私语流：未答的立约邀约与校准回执。不老化、不可催、不成欠账。 */
-  privateRows(): Promise<readonly PrivateRowWire[]>
+  /** 私语流：未答的立约邀约与校准回执 + 折叠归并条。不老化、不可催、不成欠账。 */
+  privateRows(): Promise<{ rows: readonly PrivateRowWire[]; fold?: PrivateFoldWire }>
+  /** 证据面。不给 id = 默认态（待对表首项备料）。 */
+  vaultEvidence(kind?: 'calibration' | 'expectation', id?: string): Promise<EvidenceFaceWire | undefined>
+  /** 金库内检索（P1 搜索面，零组织侧接缝）。 */
+  vaultSearch(query: string): Promise<readonly { zone: string; id: string; text: string }[]>
+  /** 取走：判例册 + README。**读操作**，不写事件。 */
+  vaultExport(): Promise<{ casebook: string; readme: string } | undefined>
+  /** 调全局日配额（0-3；0 = 全关邀约）。 */
+  setQuota(quota: number): Promise<{ error?: string }>
   /** 答一张私账卡。走私账自己的动作总线——它读写的是第二本账。 */
   pledgerAct(
     kind: string, id: string, actionId: string, input?: string,
@@ -760,10 +768,10 @@ export interface SurfaceInject {
   }): Promise<{ error?: string }>
   /** 改归因 —— 更正即追加，最新生效，史不改。 */
   reattribute(calibrationId: string, attribution: 'q1' | 'q2' | 'q3' | 'q4'): Promise<{ error?: string }>
-  /** 换挡 —— 档位是你的私有设置，组织侧无人知晓。 */
-  shiftGear(family: string, gear: 'lease' | 'default' | 'weight', entry: 'tail' | 'vault'): Promise<{ error?: string }>
+  /** 换挡 —— 档位是你的私有设置，组织侧无人知晓。`receipt` = 就地合环入口。 */
+  shiftGear(family: string, gear: 'lease' | 'default' | 'weight', entry: 'tail' | 'vault' | 'receipt'): Promise<{ error?: string }>
   /** 后视镜开关 —— 你签发的私账规则，默认不开、随时可关。 */
-  toggleMirror(family: string, patternKey: string, on: boolean): Promise<{ error?: string }>
+  toggleMirror(family: string, patternKey: string, on: boolean, entry?: 'vault' | 'receipt'): Promise<{ error?: string }>
   /** 重新打开这一族的立约邀约 —— 降频的唯一恢复动词。 */
   reopenInvites(family: string): Promise<{ error?: string }>
   /** 销毁整本账 —— 两段式，第二段要把那句话原样打出来。 */
@@ -800,17 +808,28 @@ export interface GearEffectWire {
   spreadEvidence: boolean
 }
 
+/** 立此存照律的线上形状：**文本必填、锚可空**。正文渲染只读 `text`。 */
+export interface AnchoredTextWire {
+  text: string
+  at: string
+  anchor?: { kind: string; id: string; graphSeq?: number }
+}
+
 export interface VaultExpectationWire {
   expectationId: string
   text: string
   checkpointText: string
   checkpointTs?: number
-  verdictRef: { kind: string; id: string; label?: string }
+  /** 当时那次裁决的**照片**——断了组织图也读得出来。 */
+  verdict: AnchoredTextWire
   bornAt: number
   due: boolean
   asked: boolean
   withdrawnReason?: string
-  verbs: ('withdraw' | 'note-fact')[]
+  /** 前提还在不在。`unknown` **不显形**（认识论诚实）。 */
+  premise: 'live' | 'changed' | 'unknown'
+  zone: 'live' | 'settled'
+  verbs: ('withdraw' | 'note-fact' | 'settle-anyway')[]
 }
 
 export interface VaultCaseWire {
@@ -818,10 +837,12 @@ export interface VaultCaseWire {
   attribution: 'q1' | 'q2' | 'q3' | 'q4'
   attributionLabel: string
   thenText: string
-  factText: string
-  verdictRef: { kind: string; id: string; label?: string }
+  fact: AnchoredTextWire
+  verdict: AnchoredTextWire
+  family: string
   at: number
-  verbs: 'reattribute'[]
+  /** 改归因 + **就地合环**（开镜/调档就在这一行上——入口不垄断律）。 */
+  verbs: ('reattribute' | 'loopback')[]
 }
 
 export interface VaultPatternWire {
@@ -839,11 +860,46 @@ export interface VaultGearWire {
   label: string
   what: string
   gear: 'lease' | 'default' | 'weight'
-  evidence: string[]
-  entry: 'tail' | 'vault' | 'none'
+  /** 换挡依据也立此存照——否则半年后只剩一个「我换过挡」的空记录。 */
+  evidence: AnchoredTextWire[]
+  entry: 'tail' | 'vault' | 'receipt' | 'none'
   leaseAvailable: boolean
   leaseNote?: string
   verbs: 'shift'[]
+}
+
+/** 归因分布镜 —— **四个数字，零判词**（返回类型里没有一个 string）。 */
+export interface VaultDistributionWire {
+  q1: number
+  q2: number
+  q3: number
+  q4: number
+  cases: Record<'q1' | 'q2' | 'q3' | 'q4', string[]>
+  labels: Record<'q1' | 'q2' | 'q3' | 'q4', string>
+  verbs: 'open-cell'[]
+}
+
+/** 全局日配额行 —— 扩触发面的对偶。 */
+export interface VaultQuotaWire {
+  quota: number
+  usedToday: number
+  range: { min: number; max: number }
+  verbs: 'set-quota'[]
+}
+
+/** 证据面一行：摘要为主、锚为辅、锚死显形。 */
+export interface EvidenceRowWire {
+  text: string
+  at: string
+  anchor?: { kind: string; id: string; graphSeq?: number }
+  premise: 'live' | 'changed' | 'unknown'
+  mark?: string
+}
+
+export interface EvidenceFaceWire {
+  title: string
+  rows: EvidenceRowWire[]
+  note: string
 }
 
 export interface VaultInviteWire {
@@ -863,12 +919,20 @@ export interface VaultViewWire {
   contract: { label: string; how: string }[]
   refusals: string[]
   window: { days: number }
+  /** 六区（v2.0 由四区扩）。 */
   testing: VaultExpectationWire[]
+  awaiting: VaultExpectationWire[]
   settled: VaultCaseWire[]
+  /** 未对表（沉降）——沉了不代表不可动。 */
+  sunk: VaultExpectationWire[]
   withdrawn: VaultExpectationWire[]
   patterns: VaultPatternWire[]
+  distribution: VaultDistributionWire
   gears: VaultGearWire[]
   invites: VaultInviteWire[]
+  quota: VaultQuotaWire
+  settleDays: number
+  foldThreshold: number
   /** 空账要如实解释自己为什么空——「还没有」和「不可能有」是两句话。 */
   emptyBecause?: string
 }
@@ -880,7 +944,25 @@ export interface PrivateRowWire {
   seq: number
   state: Record<string, unknown>
   resolved: boolean
+  /** 静默沉降三态。**三不变**：不变红、不计数、不催。 */
+  zone: 'live' | 'folded' | 'settled'
   actions: { id: string; label: string; style?: string; needsInput: boolean; available: boolean }[]
+  /** 就地合环行 —— `answered` 终态必带（金库是汇总处，不是唯一入口）。 */
+  loopback?: {
+    family: string
+    familyLabel: string
+    patternKey?: string
+    mirrorOn: boolean
+    gear: 'lease' | 'default' | 'weight'
+    note: string
+  }
+}
+
+/** 折叠归并条 —— **是门不是徽标**。 */
+export interface PrivateFoldWire {
+  count: number
+  label: string
+  to: 'vault'
 }
 
 export function createSurfaceInject(connection: ConnectionHandle | undefined): SurfaceInject {
@@ -1044,7 +1126,30 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       'vault', windowDays === undefined ? {} : { windowDays },
     ),
     async privateRows() {
-      return (await call<{ rows: PrivateRowWire[] }>('private-rows', {}))?.rows ?? []
+      const value = await call<{ rows: PrivateRowWire[]; fold: PrivateFoldWire | null }>(
+        'private-rows', {},
+      )
+      return {
+        rows: value?.rows ?? [],
+        ...(value?.fold == null ? {} : { fold: value.fold }),
+      }
+    },
+    async vaultEvidence(kind, id) {
+      return await call<EvidenceFaceWire | null>(
+        'pledger-evidence', kind === undefined || id === undefined ? {} : { kind, id },
+      ) ?? undefined
+    },
+    async vaultSearch(query) {
+      return (await call<{ hits: { zone: string; id: string; text: string }[] }>(
+        'pledger-search', { query },
+      ))?.hits ?? []
+    },
+    async vaultExport() {
+      return await call<{ casebook: string; readme: string }>('pledger-export', {})
+    },
+    async setQuota(quota) {
+      const { error } = await write<unknown>('pledger-quota', { quota })
+      return error === undefined ? {} : { error }
     },
     async pledgerAct(kind, id, actionId, input) {
       const { value, error } = await write<{ receipt: string; outcome: string }>(
@@ -1087,8 +1192,10 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       const { error } = await write<unknown>('pledger-shift', { family, gear, entry })
       return error === undefined ? {} : { error }
     },
-    async toggleMirror(family, patternKey, on) {
-      const { error } = await write<unknown>('pledger-mirror', { family, patternKey, on })
+    async toggleMirror(family, patternKey, on, entry) {
+      const { error } = await write<unknown>('pledger-mirror', {
+        family, patternKey, on, ...(entry === undefined ? {} : { entry }),
+      })
       return error === undefined ? {} : { error }
     },
     async reopenInvites(family) {

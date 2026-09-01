@@ -66,6 +66,15 @@ export const approvalCard: CardDefinition<ApprovalState> = {
       label: '确认',
       style: 'primary',
       keywords: ['确认', '同意', '批准', '放行', 'ok', 'y', 'yes'],
+      /*
+        **如实声明，判据留给听的人** —— 这是「种类而不是布尔」买到的东西。
+
+        写确认确实是一次人签发的裁决终态，所以这里照实说。它高频低信息、不该触发
+        任何下游打扰，可那是**下游的判据**（私账侧谱表的信息量否决位），不是这个
+        家族该替谁做的判断。上一版这里什么都不写，等于把下游的判据藏在了组织侧的
+        一处沉默里——沉默是最难被 review 看见的耦合。
+      */
+      verdict: 'write-confirm',
       allowedActors: (actor, state) => isDecider(actor.openId, state),
       available: state => state.status === 'pending',
     },
