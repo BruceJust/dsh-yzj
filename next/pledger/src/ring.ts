@@ -23,7 +23,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString, type GraphEvent } from '@yzj-next/graph'
 import type { PledgerCards } from './bus.ts'
-import { familyOfCardKind } from './families.ts'
+import { expectationIdemKeyFor, familyOfCardKind, inviteIdemKeyFor } from './families.ts'
 import { inviteFor, isFamilyQuiet } from './invite.ts'
 import { calibrationBirth, evidenceFor, structuralFactFor, thenTextFor, watchedVerdicts } from './reflow.ts'
 import type { FactRef, OrgAnchor } from './types.ts'
@@ -106,7 +106,7 @@ export async function inviteOnVerdict(
     checkpointText: source.checkpointText,
   })
   // 幂等锚：同一裁决至多一张邀约。重放、重启、第二个订阅者都收不出第二张。
-  if (pledger.findByIdemKey(`invite:${verdict.kind}:${verdict.id}`) !== undefined) return undefined
+  if (pledger.findByIdemKey(inviteIdemKeyFor(verdict)) !== undefined) return undefined
   await pledger.append({ type: birth.type, data: birth.data as never, actor: { kind: 'agent' } })
   return birth.inviteId
 }
@@ -197,7 +197,7 @@ export async function openCalibration(
 ): Promise<string | undefined> {
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined || !pledger.ready) return undefined
-  const expectation = pledger.findByIdemKey(`expectation:${input.verdict.kind}:${input.verdict.id}`)
+  const expectation = pledger.findByIdemKey(expectationIdemKeyFor(input.verdict))
   const expectationState = asRecord(expectation?.state)
   const expectationStatus = asString(expectationState?.status)
   /*
