@@ -2328,8 +2328,19 @@ export function cardsFor(
         就是「什么都没有」，界面一个字不变（断言⑩）。
       */
       const desk = ctx.get('yzjPledgerDesk')
-      const strip = desk?.stripFor(kind)
-      const twoRead = desk?.twoReadFor(kind)
+      const resolved = definition.isResolved(object.state as never)
+      /*
+        **两样各在各的时刻，而时刻是它们各自的意思的一部分。**
+
+        后视镜长在**还没答**的卡上：它要帮的是下一次裁决，而一条挂在已经答完的卡
+        旁边的判例，只剩下「你看你又错了」——说教剧场，正是 #61 要躲开的那个死法。
+
+        条尾两读长在**答完**的卡上（§5-④「终态渲染的条尾」）：「这类确认还需要你吗」
+        是一个只有在你刚刚又答过一次之后才问得出口的问题；答之前问它，就是在你要
+        做判断的那一刻推销一个把判断关掉的开关。
+      */
+      const strip = resolved ? undefined : desk?.stripFor(kind)
+      const twoRead = resolved ? desk?.twoReadFor(kind) : undefined
       const gearEffect = desk?.gearEffectFor(kind)
       out.push({
         kind,
@@ -2337,7 +2348,7 @@ export function cardsFor(
         state: object.state,
         at: object.createdAt,
         seq: object.createdSeq,
-        resolved: definition.isResolved(object.state as never),
+        resolved,
         ...(demand === undefined ? {} : { demand }),
         ...(strip === undefined ? {} : { strip }),
         ...(twoRead === undefined ? {} : { twoRead }),
