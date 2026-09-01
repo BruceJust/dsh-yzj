@@ -15,7 +15,7 @@
  *   的东西不说出来，看起来就只是还没做。
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type {
   EvidenceFaceWire, ObjectPreviewWire, PrivateRowWire, SurfaceInject,
   VaultCaseWire, VaultExpectationWire, VaultViewWire,
@@ -68,6 +68,8 @@ export function YzjVault(props: VaultProps): ReactNode {
   const [selected, setSelected] = useState<{ kind: 'calibration' | 'expectation'; id: string } | undefined>(undefined)
   const [evidence, setEvidence] = useState<EvidenceFaceWire | undefined>(undefined)
   const [query, setQuery] = useState('')
+  /** 最后一次敲下去的那个词。回包晚于它的一律丢掉。 */
+  const latestQuery = useRef('')
   const [hits, setHits] = useState<readonly { zone: string; id: string; text: string }[]>([])
   /** 取走生成的两份文件。**读操作**：生成前后事件流一行不增。 */
   const [takeout, setTakeout] = useState<{ casebook: string; readme: string } | undefined>(undefined)
@@ -107,11 +109,24 @@ export function YzjVault(props: VaultProps): ReactNode {
     锚死的那些不取——不是省一次请求，是**预览消失本身就是显形的一半**：那一行会
     留下快照 + 一枚「真身已变/已亡」的徽记，而不是一个看起来还活着的标题。
   */
+  /*
+    锚集变了才重取 —— **不是每五秒一次**。
+
+    金库主体五秒一刷是因为它是自己的账，随时可能有新回执落进来；预览是组织侧的
+    礼貌，把它挂上同一个节拍，就是拿一次「顺便看一眼」换成了对组织图的轮询。
+    真要看最新的，那颗「回真身 ↗」就在旁边——那才是这一行的刷新路径。
+  */
+  const anchorKeys = (evidence?.rows ?? [])
+    .filter(row => row.premise === 'live' && row.anchor !== undefined)
+    .map(row => `${(row.anchor as { kind: string }).kind}:${(row.anchor as { id: string }).id}`)
+    .join('|')
+
   useEffect(() => {
-    const live = (evidence?.rows ?? [])
-      .filter(row => row.premise === 'live' && row.anchor !== undefined)
-      .map(row => row.anchor as { kind: string; id: string })
-    if (live.length === 0) return
+    const live = anchorKeys === '' ? [] : anchorKeys.split('|').map((one) => {
+      const cut = one.indexOf(':')
+      return { kind: one.slice(0, cut), id: one.slice(cut + 1) }
+    })
+    if (live.length === 0) { setPreviews({}); return }
     let dropped = false
     void Promise.all(live.map(async (anchor) => {
       const one = await inject.objectPreview(anchor.kind, anchor.id)
@@ -125,7 +140,7 @@ export function YzjVault(props: VaultProps): ReactNode {
       setPreviews(next)
     })
     return () => { dropped = true }
-  }, [evidence, inject])
+  }, [anchorKeys, inject])
 
   /** 每一个写动词的同一条路：带回宿主的原话，然后重读。 */
   const run = useCallback(async (
@@ -243,11 +258,17 @@ export function YzjVault(props: VaultProps): ReactNode {
           </span>
         </span>
         {/*
-          已撤回区**一个动词都没有**，而那是一个有理由的终态，不是遗漏。
-          所以这里不画一个灰按钮：灰按钮是「你不配」的展示，不渲染才是「这条路不存在」。
+          已撤回区**一个动作动词都没有**（`row.verbs` 是空的），而那是一个有理由的终态：
+          撤回是诚实，而诚实退出不悔棋。所以这里不画一个灰按钮——灰按钮是「你不配」的
+          展示，不渲染才是「这条路不存在」。
+
+          **「证据」不在这条禁令里，而这个分别要说清楚**：它改不了任何东西，它是这本账
+          从头到尾都在做的那件事——回头看。「我当时为什么押这个、后来为什么撤」恰恰是
+          已撤回那一行最值得看的一问；把它一起禁掉，就成了用一条保护诚实的规矩，去
+          惩罚诚实的人。
         */}
         <span className={css.verbs}>
-          {/* 右栏归集这一行的证据。**同一屏**——对表不出屏。 */}
+          {/* 右栏归集这一行的证据。**同一屏**——对表不出屏。读，不是动作。 */}
           {verbButton(
             '证据',
             '右栏摆开这一行的证据：摘要为主、锚为辅。边看边答，不必离开这一屏。',
@@ -399,7 +420,17 @@ export function YzjVault(props: VaultProps): ReactNode {
             onChange={(event) => {
               const text = event.target.value
               setQuery(text)
-              void inject.vaultSearch(text).then(setHits)
+              /*
+                **只认最后一次敲的那一下**。
+
+                每个按键发一次检索，回包顺序不保证；不认这一层，打字快的时候屏幕上
+                会是上一个词的结果——一个把「找不到」显示成「找到了别的」的搜索框，
+                比慢一点糟得多。
+              */
+              latestQuery.current = text
+              void inject.vaultSearch(text).then((found) => {
+                if (latestQuery.current === text) setHits(found)
+              })
             }}
           />
         </div>
@@ -433,6 +464,7 @@ export function YzjVault(props: VaultProps): ReactNode {
                 key={`${row.kind}:${row.id}`}
                 row={row}
                 busy={busy}
+                showEvidence={(id) => { setSelected({ kind: 'calibration', id }) }}
                 loopback={(family, patternKey, on, gear) => run(async () => (
                   patternKey === undefined
                     ? inject.shiftGear(family, gear ?? 'weight', 'receipt')
@@ -771,7 +803,16 @@ export function YzjVault(props: VaultProps): ReactNode {
           {evidence === undefined
             ? (
               <div className={css.empty}>
-                还没有可摆的证据。证据来自**写下判断的那一刻**——没有那一刻，这里就该是空的。
+                {/*
+                  **空态要有出生故事**：「还没有」和「你还没选」是两句话。
+
+                  默认态摆的是待对表首项的备料；一条都不待对表时这里本来就该空——
+                  可空着不说话，人会以为右栏坏了。所以它顺手指出下一步。
+                */}
+                没有待对表的预期，所以这里空着。
+                <br />
+                左边任意一行按「证据」，它的照片就摆到这儿——<b>对表不出屏</b>，
+                四格仍然在那一行上。
               </div>
             )
             : (
@@ -780,7 +821,19 @@ export function YzjVault(props: VaultProps): ReactNode {
                 {evidence.rows.map((one, index) => {
                   const key = one.anchor === undefined ? '' : `${one.anchor.kind}:${one.anchor.id}`
                   const preview = previews[key]
-                  const jumpTo = preview?.sessionId ?? preview?.goalRef
+                  /*
+                    **有门才画门**（#57 占位律）。
+
+                    落点要同时满足两件事：这个对象说得出自己躺在哪儿，**且**宿主给了
+                    过去的能力。少一样就不画——灰按钮是「你不配」的展示，不渲染才是
+                    「这条路在这个宿主里不存在」。上一版画的是灰按钮，而它的注释写的
+                    是不画：**注释与代码打架时，先信代码会骗人的那一半**。
+                  */
+                  const jump = preview?.sessionId !== undefined && openSession !== undefined
+                    ? () => { openSession(preview.sessionId as string) }
+                    : preview?.goalRef !== undefined && openGoal !== undefined
+                      ? () => { openGoal(preview.goalRef as string) }
+                      : undefined
                   return (
                     <div
                       key={`${one.at}:${String(index)}`}
@@ -816,23 +869,12 @@ export function YzjVault(props: VaultProps): ReactNode {
                         没有落点就不画这颗按钮：一颗点了没反应的「回真身」，比没有
                         更糟。宿主没给导航能力时同理（`openSession`/`openGoal` 缺席）。
                       */}
-                      {jumpTo !== undefined && (
+                      {jump !== undefined && (
                         <div className={css.actions}>
                           <button
                             type="button"
                             className={css.verb}
-                            onClick={() => {
-                              if (preview?.sessionId !== undefined && openSession !== undefined) {
-                                openSession(preview.sessionId)
-                                return
-                              }
-                              if (preview?.goalRef !== undefined && openGoal !== undefined) {
-                                openGoal(preview.goalRef)
-                              }
-                            }}
-                            disabled={preview?.sessionId === undefined
-                              ? openGoal === undefined
-                              : openSession === undefined}
+                            onClick={jump}
                             title="一跳回它躺着的地方。内容不来自这一跳——正文在上面那张照片里。"
                           >
                             回真身 ↗

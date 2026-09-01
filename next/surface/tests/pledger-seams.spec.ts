@@ -300,7 +300,14 @@ describe('三不入：组织图的可应答查询里永远没有私账 kind', ()
   })
 })
 
-describe('接缝⑧（v2.1）：证据锚的只读预览 —— 预览分层，快照仍是真身', () => {
+/*
+  **这一组不是第八条接缝** —— 名字要说准，否则封闭集就开始漂。
+
+  接缝 = 分支被允许触碰的**组织侧**代码。`objectPreviewOf` 住在 surface，读的是
+  surface 一直在读的组织图（board / objects / inbox 都这么读），组织侧包一行没动、
+  也照旧不知道 pledger 存在。**七接缝仍然是七条。**
+*/
+describe('证据面的预览分层（surface 内，不新增接缝）：快照仍是真身', () => {
   it('预览是 surface 对组织侧的独立调用：**私账层不在这条路上**', async () => {
     // 连 desk 都没有 provide 过，预览照样出得来——它读的是组织图，不是私账。
     await boot(false)
@@ -312,7 +319,44 @@ describe('接缝⑧（v2.1）：证据锚的只读预览 —— 预览分层，�
     expect(preview.title).toBe('竞品对比表')
     expect(preview.lines).toContain('负责：张锐')
     expect(preview.lines).toContain('交付：做完了')
-    // 一跳回真身要有落点：目标从图上读，会话由通道那张表翻译。
+    /*
+      **挂在哪个目标下是语境，不是落点。**
+
+      一颗写着「回真身」的按钮把人送到它的**父目标**去，标签说的和门后面的就不是
+      同一样东西——那是幽灵信号，宁可这一行没有门。所以父目标出现在正文里，而
+      `goalRef` 只在这个对象**自己就是一个目标**时才有值。
+    */
+    expect(preview.lines).toContain(`挂在目标：${GOAL}`)
+    expect(preview.goalRef).toBeUndefined()
+  })
+
+  it('目标锚认得出来 —— 它没有自己的对象族，但它就在一跳之外', async () => {
+    await boot(false)
+    /*
+      目标是**一条 `state.goalRef` 等于这个 URI 的承诺**，没有 `kind: 'goal'` 的族。
+
+      不认这一层，证据面里那行「当时在档：这次裁决挂在目标 X 下」就永远预览不出来、
+      永远跳不过去——而一个「读不到」如果其实是「没去找」，它就不是诚实，是 bug
+      穿着诚实的衣服。
+    */
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c-goal',
+        what: '把宏图续约签回来',
+        executor: { kind: 'human', openId: 'op-1', name: '我', topicKey: TOPIC },
+        sourceAnchor: `session:${TOPIC}`,
+        topicKey: TOPIC,
+        goalRef: GOAL,
+        criteria: '合同签回、款项确认',
+      },
+      actor: OPERATOR,
+    })
+    const preview = objectPreviewOf(ctx, 'goal', GOAL)
+    expect(preview.alive).toBe(true)
+    expect(preview.title).toBe('把宏图续约签回来')
+    expect(preview.lines).toContain('标准：合同签回、款项确认')
+    // 落点是**它自己那一页**。
     expect(preview.goalRef).toBe(GOAL)
   })
 

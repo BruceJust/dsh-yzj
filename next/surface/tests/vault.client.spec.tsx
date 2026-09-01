@@ -253,6 +253,35 @@ describe('金库：每一行既可见又可动', () => {
     expect(root.textContent).toContain('诚实退出不悔棋')
   })
 
+  it('已撤回那一行：没有一个动作动词，但「证据」在 —— 读不是动作', async () => {
+    const { root } = render(<YzjVault inject={fakeInject([])} back={() => {}} />)
+    await act(async () => { await Promise.resolve() })
+
+    /*
+      **这一条盯的是那个分别本身。**
+
+      `verbs: []` 保护的是「诚实退出不悔棋」——改不动那一行。而「我当时为什么押
+      这个、后来为什么撤」恰恰是已撤回那一行最值得看的一问；把读也一起禁掉，就成了
+      用一条保护诚实的规矩去惩罚诚实的人。
+
+      所以断言写成两半：**动作一个都不许有**（将来谁加一颗「重新立」当场变红），
+      **读必须在**。
+    */
+    // 取**最内层**那一个：外层容器当然也「包含」这行字，可它还包含整屏的按钮。
+    const row = [...root.querySelectorAll('div')]
+      .filter(node => node.textContent?.includes('8 月内签下益丰') === true
+        && node.querySelector('button') !== null)
+      .sort((left, right) => (
+        left.querySelectorAll('button').length - right.querySelectorAll('button').length
+      ))[0]
+    expect(row).toBeDefined()
+    const labels = [...(row as HTMLElement).querySelectorAll('button')].map(one => one.textContent)
+    expect(labels).toEqual(['证据'])
+    for (const forbidden of ['撤回', '补登事实', '照旧对表', '重新立']) {
+      expect(labels).not.toContain(forbidden)
+    }
+  })
+
   it('租约档不可达，而且说出理由，不是画一扇打不开的门', async () => {
     const { root } = render(<YzjVault inject={fakeInject([])} back={() => {}} />)
     await act(async () => { await Promise.resolve() })
@@ -320,12 +349,20 @@ describe('金库：每一行既可见又可动', () => {
     expect(jumped).toEqual(['ses-1'])
   })
 
-  it('宿主给不了落点时，「回真身」不渲染 —— 灰按钮是「你不配」的展示', async () => {
+  it('宿主给不了落点时，「回真身」整个不渲染 —— 灰按钮是「你不配」的展示', async () => {
+    /*
+      同一份数据、同一个对象**有**落点（fixture 里 c-1 带 sessionId），差别只在
+      这一次没给 `openSession`。所以这一条断的正是「宿主没有导航能力时不画门」——
+      不是「碰巧没数据所以没画」。
+
+      **不写成 `undefined || disabled` 的两可断言**：那种写法两种实现都能过，于是
+      注释说不画、代码画灰按钮，也没人会发现。（上一版就是这么过去的。）
+    */
     const { root } = render(<YzjVault inject={fakeInject([])} back={() => {}} />)
     await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(root.textContent).toContain('竞品对比表')
     const jump = [...root.querySelectorAll('button')].find(node => node.textContent?.startsWith('回真身'))
-    // 有落点但宿主没给导航能力：按钮在，但按不动——这一条盯的是它**说了实话**。
-    expect(jump === undefined || (jump as HTMLButtonElement).disabled).toBe(true)
+    expect(jump).toBeUndefined()
   })
 
   it('硬合同 chips 是入口不是终点：点开是一份与场所合同同语法的合同', async () => {
@@ -350,6 +387,18 @@ describe('金库：每一行既可见又可动', () => {
     // 这份合同和场所合同唯一的语法差别，也是它的全部特殊性。
     expect(root.textContent).toContain('agent 在这份合同上没有提议权')
     expect(root.textContent).toContain('另一半签署人')
+
+    /*
+      **「改在哪儿」是一扇门，不是一句说明**（信号即门）。
+
+      这份合同自己写着「说不出在哪儿改的可调，和不可调没有分别」——那么一句
+      点不开的「金库 · 配额行」，离那句话也就只差一步。
+    */
+    const door = [...root.querySelectorAll('button')].find(node => node.textContent?.startsWith('去改'))
+    expect(door).toBeDefined()
+    await act(async () => { (door as HTMLButtonElement).click() })
+    // 面板关掉，人就站在金库里，那一行就在眼前。
+    expect(root.textContent).not.toContain('agent 在这份合同上没有提议权')
   })
 
   it('空账如实解释自己为什么空 ——「还没有」和「不可能有」是两句话', async () => {
@@ -455,6 +504,52 @@ describe('私语通道的两位住客', () => {
     const { text } = render(<PrivateCard row={invite} busy={false} act={async () => {}} />)
     expect(text).not.toContain('给这类卡开后视镜')
     expect(text).not.toContain('调档')
+  })
+
+  it('回执卡上有「证据」，邀约卡上没有 —— 那一刻还没有事实可对', async () => {
+    const answered: PrivateRowWire = {
+      kind: 'calibration',
+      id: 'cal-9',
+      at: 3,
+      seq: 3,
+      state: {
+        calibrationId: 'cal-9',
+        thenText: '预期「评审能过」',
+        fact: { text: '被追问定价', at: '2023-11-14T22:13:20.000Z' },
+        evidence: [],
+        status: 'open',
+      },
+      resolved: false,
+      zone: 'live',
+      actions: [{ id: 'q3', label: '错了因判断', needsInput: false, available: true }],
+    }
+    const asked: string[] = []
+    const { root } = render(
+      <PrivateCard
+        row={answered}
+        busy={false}
+        act={async () => {}}
+        showEvidence={(id) => { asked.push(id) }}
+      />,
+    )
+    const evidence = [...root.querySelectorAll('button')].find(node => node.textContent === '证据')
+    expect(evidence).toBeDefined()
+    await act(async () => { (evidence as HTMLButtonElement).click() })
+    // **对表不出屏在这里最要紧**：四格真正被按下的地方，就是这张卡。
+    expect(asked).toEqual(['cal-9'])
+
+    /*
+      邀约卡上没有这一颗：它问的是「要不要立个预期」，那一刻还没有事实可对。
+      自聊里也没有——那儿没有右栏，一颗按了什么都不会发生的「证据」比没有更糟。
+    */
+    const onInvite = render(
+      <PrivateCard row={invite} busy={false} act={async () => {}} showEvidence={() => {}} />,
+    )
+    expect([...onInvite.root.querySelectorAll('button')].map(one => one.textContent))
+      .not.toContain('证据')
+    const noColumn = render(<PrivateCard row={answered} busy={false} act={async () => {}} />)
+    expect([...noColumn.root.querySelectorAll('button')].map(one => one.textContent))
+      .not.toContain('证据')
   })
 
   it('卡自己说清三不入：左栏计数不会因为它变化', () => {

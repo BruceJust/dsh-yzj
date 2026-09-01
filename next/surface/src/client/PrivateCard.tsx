@@ -40,10 +40,20 @@ export interface PrivateCardProps {
     family: string, patternKey: string | undefined, on: boolean,
     gear?: 'lease' | 'default' | 'weight',
   ): Promise<void>
+  /**
+   * 把这张回执的证据摆到右栏 —— **对表不出屏在这里最要紧**（#61 澄清①）.
+   *
+   * 设计点名的是「判例 / 预期 / **回执**」三种行。前两种长在金库的清单里；而
+   * 回执是**四格真正被按下的地方**——边看证据边下归因，说的就是这一张卡。
+   *
+   * 不给这个 prop 就不长那颗按钮：私语流也出现在自聊里，而那儿没有右栏——
+   * 一颗按了什么都不会发生的「证据」，比没有更糟。
+   */
+  showEvidence?(id: string): void
 }
 
 export function PrivateCard(props: PrivateCardProps): ReactNode {
-  const { row, busy, act, loopback } = props
+  const { row, busy, act, loopback, showEvidence } = props
   const [draft, setDraft] = useState<string | undefined>(undefined)
   const state = row.state
   const isInvite = row.kind === 'invite'
@@ -108,6 +118,23 @@ export function PrivateCard(props: PrivateCardProps): ReactNode {
       )}
 
       <div className={css.actions}>
+        {/*
+          证据面入口 —— **只在回执上，只在有右栏的地方**。
+
+          邀约卡问的是「要不要立个预期」，那一刻还没有事实可对；回执问的是
+          「当时 × 后来」，而那正是需要把证据摆在旁边的一问。
+        */}
+        {!isInvite && showEvidence !== undefined && (
+          <button
+            type="button"
+            className={css.verb}
+            disabled={busy}
+            title="右栏摆开这条回执的证据：当时的裁决、后来的事实、当时在档的那几条。边看边答。"
+            onClick={() => { showEvidence(row.id) }}
+          >
+            证据
+          </button>
+        )}
         {available.map(action => (
           <button
             key={action.id}

@@ -89,7 +89,25 @@ export function YzjVaultContract(props: VaultContractPanelProps): ReactNode {
                   <div className={css.row} key={term.label}>
                     <span className={css.key}>{term.label}</span>
                     <span className={css.value}>
-                      <b>{term.value}</b> · 改在 {term.where}
+                      <b>{term.value}</b>
+                      {' · '}
+                      {/*
+                        **「改在哪儿」要是一扇门，不是一句说明**（信号即门）。
+
+                        我在这份合同里写着「说不出在哪儿改的可调，和不可调没有分别」
+                        ——那么一句点不开的「金库 · 配额行」，离那句话也就只差一步。
+                        面板关掉，人就站在金库里，那一行就在眼前。
+
+                        P1 固定的那两条**不画门**：它们此刻真的没有入口，而画一扇
+                        推不开的门比不画更糟。
+                      */}
+                      {term.where.startsWith('金库')
+                        ? (
+                          <button type="button" className={css.serveBtn} onClick={close}>
+                            去改：{term.where} ›
+                          </button>
+                        )
+                        : <>改在 {term.where}</>}
                       <div className={css.note}>{term.cost}</div>
                     </span>
                   </div>

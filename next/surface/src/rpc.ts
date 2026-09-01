@@ -11,7 +11,10 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asNumber, asRecord, asString, type GraphViewer, type JsonValue } from '@yzj-next/graph'
+import {
+  asNumber, asRecord, asString,
+  type GraphObject, type GraphViewer, type JsonValue,
+} from '@yzj-next/graph'
 import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
 import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/channel'
 /*
@@ -1860,6 +1863,33 @@ function assessmentsByGoal(ctx: Context): Map<string, BoardAssessment> {
  * lesson that can be written and never read back.
  */
 /**
+ * 一个目标 URI 背后的那条承诺.
+ *
+ * **目标没有自己的对象族** —— 它是一条 `state.goalRef` 等于这个 URI 的承诺（同
+ * `BoardRow.isGoal` 的读法）。不认这一层，证据面里那行「当时在档：这次裁决挂在
+ * 目标 X 下」就**永远预览不出来、永远跳不过去**——而目标页明明就在一跳之外。
+ * 一个「读不到」如果其实是「没去找」，它就不是诚实，是 bug 穿着诚实的衣服。
+ *
+ * 先从**事件**上收候选（`goalRef` 只出现在这两型上），再拿**折叠后的状态**定案：
+ * 事件是线索、状态才是真身，而候选通常只有一条——全量 `rawObject` 一遍是把一次
+ * 查找写成一次扫描。
+ */
+function goalObjectOf(ctx: Context, goalRef: string): GraphObject | undefined {
+  const candidates = new Set<string>()
+  for (const event of ctx.yzjGraph.rawEvents(['commitment/opened', 'commitment/amended'])) {
+    const data = asRecord(event.data)
+    if (asString(data?.goalRef) !== goalRef) continue
+    const id = asString(data?.commitmentId)
+    if (id !== undefined) candidates.add(id)
+  }
+  for (const id of candidates) {
+    const object = ctx.yzjGraph.rawObject('commitment', id)
+    if (asString(asRecord(object?.state)?.goalRef) === goalRef) return object
+  }
+  return undefined
+}
+
+/**
  * 一个组织侧对象的**只读预览** —— 证据面右栏那一小块（v2.1 / PTD-26）.
  *
  * **这个函数住在 surface，而不是 pledger**，这不是文件摆放的问题，是分层本身：
@@ -1884,7 +1914,15 @@ export function objectPreviewOf(
   sessionId?: string
   goalRef?: string
 } {
-  const object = ctx.yzjGraph.rawObject(kind, id)
+  /*
+    **目标没有自己的对象族** —— 它是一条 `state.goalRef` 等于这个 URI 的承诺。
+
+    所以 `rawObject('goal', uri)` 恒为 undefined。不认这一层，证据面里那一行
+    「当时在档：这次裁决挂在目标 X 下」就**永远预览不出来、永远跳不过去**——而
+    目标页明明就在一跳之外。一个「读不到」如果其实是「没去找」，它就不是诚实，
+    是 bug 穿着诚实的衣服。
+  */
+  const object = kind === 'goal' ? goalObjectOf(ctx, id) : ctx.yzjGraph.rawObject(kind, id)
   // 墓碑之后：预览没有了，而金库那一栏的快照一个字都不会少。
   if (object === undefined) return { alive: false }
   const state = asRecord(object.state)
@@ -1898,13 +1936,22 @@ export function objectPreviewOf(
   say('交付', asString(asRecord(state?.delivery)?.claim))
   say('标准', asString(state?.criteria))
   say('结论', asString(state?.summary))
+  // 挂在哪个目标下是**语境**，不是落点：说出来，但不拿它当「回真身」的门。
+  say('挂在目标', asString(state?.parentGoalRef))
   const topicKey = asString(state?.topicKey)
   const sessionOfTopic = new Map<string, string>()
   for (const entry of ctx.get('yzjTopics')?.tree() ?? []) {
     for (const one of entry.topics) sessionOfTopic.set(one.topicKey, one.sessionId)
   }
   const sessionId = topicKey === undefined ? undefined : sessionOfTopic.get(topicKey)
-  const goalRef = asString(state?.parentGoalRef) ?? asString(state?.goalRef)
+  /*
+    落点只有一种：**这个锚指的那个东西自己**。
+
+    上一版在没有会话时退回 `parentGoalRef`——于是一颗写着「回真身」的按钮，会把人
+    送到它的**父目标**去。标签说的和门后面的不是同一样东西，就是幽灵信号；宁可
+    这一行没有门。
+  */
+  const goalRef = asString(state?.goalRef)
   return {
     alive: true,
     title: asString(state?.what) ?? asString(state?.summary)
