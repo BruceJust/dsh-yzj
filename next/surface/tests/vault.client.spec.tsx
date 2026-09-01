@@ -30,6 +30,7 @@ function render(node: React.ReactNode): { text: string; root: HTMLElement } {
 
 const VAULT: VaultViewWire = {
   owner: 'op-1',
+  destroyPhrase: '销毁我的金库',
   directory: '/tmp/pledger/op-1',
   contract: [
     { label: '仅你可见', how: 'viewer 单态' },
@@ -88,9 +89,9 @@ const VAULT: VaultViewWire = {
   ],
   patterns: [
     {
-      patternKey: 'delivery-selfcheck:q3',
-      family: 'delivery-selfcheck',
-      label: '交付前自检 · 错了 · 因判断',
+      patternKey: 'delivery-acceptance:q3',
+      family: 'delivery-acceptance',
+      label: '交付验收 · 错了 · 因判断',
       count: 2,
       mirror: false,
       cases: [{ calibrationId: 'cal-1', thenText: '预期「评审能过」', factText: '被追问定价', at: 1 }],
@@ -99,8 +100,8 @@ const VAULT: VaultViewWire = {
   ],
   gears: [
     {
-      family: 'delivery-selfcheck',
-      label: '交付前自检',
+      family: 'delivery-acceptance',
+      label: '交付验收',
       what: '交付被主张之前的一次自检',
       gear: 'default',
       evidence: ['近 90 天这一族的判例：2 条'],
@@ -112,8 +113,8 @@ const VAULT: VaultViewWire = {
   ],
   invites: [
     {
-      family: 'delivery-selfcheck',
-      label: '交付前自检',
+      family: 'delivery-acceptance',
+      label: '交付验收',
       quiet: false,
       declinedInARow: 0,
       verbs: ['invite-reopen'],
@@ -191,7 +192,7 @@ describe('金库：每一行既可见又可动', () => {
     const mirror = [...root.querySelectorAll('button')]
       .find(node => node.textContent?.startsWith('🪞 后视镜'))
     await act(async () => { (mirror as HTMLButtonElement).click(); await Promise.resolve() })
-    expect(calls).toContain('mirror:delivery-selfcheck:delivery-selfcheck:q3:true')
+    expect(calls).toContain('mirror:delivery-acceptance:delivery-acceptance:q3:true')
   })
 
   it('销毁是两段式：那句话没打对，按钮按不动', async () => {
@@ -284,8 +285,8 @@ describe('接缝④⑤：后视镜条与两读只长在桌面卡的渲染管道�
     const card: StreamCard = {
       ...base,
       strip: {
-        family: 'delivery-selfcheck',
-        patternLabel: '交付前自检',
+        family: 'delivery-acceptance',
+        patternLabel: '交付验收',
         cases: [{ calibrationId: 'cal-1', thenText: '预期「评审能过」', factText: '被追问定价' }],
         note: '仅你可见 · 你在金库签发的负重显示（回喂环）——判断仍由你下',
       },
@@ -300,8 +301,8 @@ describe('接缝④⑤：后视镜条与两读只长在桌面卡的渲染管道�
     const card: StreamCard = {
       ...base,
       twoRead: {
-        family: 'delivery-selfcheck',
-        label: '交付前自检',
+        family: 'delivery-acceptance',
+        label: '交付验收',
         gear: 'default',
         evidence: ['近 90 天这一族的判例：2 条'],
         leaseAvailable: false,
@@ -322,7 +323,7 @@ describe('接缝④⑤：后视镜条与两读只长在桌面卡的渲染管道�
     const card: StreamCard = {
       ...base,
       gearEffect: {
-        family: 'delivery-selfcheck',
+        family: 'delivery-acceptance',
         gear: 'weight',
         preselect: false,
         quickAccept: false,

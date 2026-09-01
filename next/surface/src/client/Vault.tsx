@@ -23,9 +23,6 @@ import { PrivateCard } from './PrivateCard.tsx'
 import tokens from './tokens.module.css'
 import css from './vault.module.css'
 
-/** 销毁要原样打出来的那句话。和服务端是同一个常量的两处字面——服务端说了算。 */
-const DESTROY_PHRASE = '销毁我的金库'
-
 export interface VaultProps {
   inject: SurfaceInject
   back(): void
@@ -427,13 +424,13 @@ export function YzjVault(props: VaultProps): ReactNode {
             <input
               className={css.input}
               value={confirm}
-              placeholder={`销毁不可逆：原样输入「${DESTROY_PHRASE}」以确认`}
+              placeholder={`销毁不可逆：原样输入「${view.destroyPhrase}」以确认`}
               onChange={(event) => { setConfirm(event.target.value); }}
             />
             <button
               type="button"
               className={css.danger}
-              disabled={busy || confirm !== DESTROY_PHRASE}
+              disabled={busy || confirm !== view.destroyPhrase}
               title="销毁 = 删掉整个目录。这是这本账唯一的删除路径——更正一律走追加。"
               onClick={() => {
                 void run(async () => {

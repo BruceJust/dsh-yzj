@@ -21,6 +21,15 @@ import { calibrationIdFor, calibrationIdemKeyFor } from './families.ts'
 import type { FactRef, OrgAnchor } from './types.ts'
 import { anchorFor, goalRefOf, seenVerdicts, topicOf, type SeenVerdict } from './verdicts.ts'
 
+/**
+ * 血缘新边还算不算「这次裁决的后来」的时间边界.
+ *
+ * 一周 = 工作周的量级。验收之后这一周里在同一段对话、同一目标下长出的下一步，多半
+ * 真是它的后续；再往后，因果就只剩下「碰巧在同一间屋子里」——而拿那个当证据，就是
+ * 在替人制造一次他一眼就知道该按「配对错了」的配对。
+ */
+const LINEAGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
 /** One matched fact: what it is, and the sentence that will sit on the receipt. */
 export interface MatchedFact {
   readonly fact: FactRef
@@ -62,27 +71,39 @@ export function structuralFactFor(
   if (goal === undefined) return undefined
 
   /*
-    ② 血缘新边 —— 同一目标下长出的新活，而且它的出处回指你裁决的那段对话。
+    ② 血缘新边 —— 你那次裁决**之后长出来的下一步**。
 
-    只看目标会太宽（一个目标下每天都有新活）；只看话题会太窄（后续常常另起一段）。
-    两条都要，才是「你那次裁决之后，这件事在你决定的那个地方长出了下一步」。
+    两条路，强弱分明：
+
+    - **强**：新边是被裁决那一条的转包子边（`parentCommitmentId`）。这是图上明写的
+      因果，不需要任何近似。
+    - **弱**：同一目标 + 同一段对话 + **一周之内**。前两条是设计的原文（「同 goalRef
+      且 sourceAnchor 回指」），第三条是自审时补的——没有它，一个忙碌的目标里**每一条
+      新登记**都会对着你上一次验收出一张回执，而三周后在同一段对话里登记的活，早已
+      不是那次验收的后来了。
+
+    一周是**工作周的量级**，不是一个精确阈值：验收之后这一周里长出的下一步，多半
+    真的是它的后续；再往后，因果就只剩下「碰巧在同一间屋子里」。这个数字写在这里
+    而不是散在判断里，因为下面那句 `factText` 说的和这里判的必须是同一个数。
   */
   if (event.type === 'commitment/opened') {
+    const child = asString(data.commitmentId)
+    const spunOff = asString(data.parentCommitmentId) === id
     const sameGoal = asString(data.parentGoalRef) === goal || asString(data.goalRef) === goal
     const source = asString(data.sourceAnchor) ?? ''
     const topic = topicOf(ctx, kind, id)
     const pointsBack = topic !== undefined && source.includes(topic)
-    if (sameGoal && pointsBack) {
-      const child = asString(data.commitmentId)
-      if (child !== undefined) {
-        return {
-          fact: {
-            source: 'org',
-            anchor: anchorFor(ctx, 'commitment', child, event.seq),
-            why: 'lineage',
-          },
-          factText: `这次裁决之后，同一目标下长出了新的一步：${asString(data.what) ?? child}`,
-        }
+    const soonAfter = event.time - verdict.at <= LINEAGE_WINDOW_MS
+    if (child !== undefined && (spunOff || (sameGoal && pointsBack && soonAfter))) {
+      return {
+        fact: {
+          source: 'org',
+          anchor: anchorFor(ctx, 'commitment', child, event.seq),
+          why: 'lineage',
+        },
+        factText: spunOff
+          ? `这次裁决之后，从这条活里拆出了下一步：${asString(data.what) ?? child}`
+          : `这次裁决之后一周内，同一目标下长出了新的一步：${asString(data.what) ?? child}`,
       }
     }
   }
@@ -112,7 +133,7 @@ export function structuralFactFor(
 /** Human-readable name of each structural rule. Shown on the receipt. */
 export const WHY_LABEL: Readonly<Record<'reopened' | 'lineage' | 'assessed', string>> = {
   reopened: '结构匹配：被裁决的对象被打回',
-  lineage: '结构匹配：同一目标下回指本次裁决的血缘新边',
+  lineage: '结构匹配：本次裁决之后长出的血缘新边（转包子边，或一周内同目标同对话）',
   assessed: '结构匹配：同一目标上后来的差距简报',
 }
 
@@ -148,9 +169,19 @@ export function evidenceFor(
   else lines.push('人工补登：这条事实由你在私语通道说出，系统没有猜过图外')
   const goal = goalRefOf(ctx, verdict.kind, verdict.id)
   if (goal !== undefined) lines.push(`当时在档：这次裁决挂在目标 ${goal} 下`)
-  const at = ctx.get('yzjGraph')?.rawObject(verdict.kind, verdict.id)?.updatedAt
-  if (at !== undefined) {
-    lines.push(`当时那个对象最后一次变动：${new Date(at).toLocaleString('zh-CN', { hour12: false })}`)
+  /*
+    **证据行只许写事实，而「当时」必须真的是当时。**
+
+    这里原来有一行「当时那个对象最后一次变动：…」，读的是 `updatedAt`——可那是**读
+    这一刻**的值，而事实刚刚才改过它。于是这一行写着「当时」，说的却是「现在」：一句
+    自称是证据的话，本身不成立。删掉，换成一条真的关于当时的：你下这个判断时，图上
+    这个对象在哪一步。
+
+    这条纪律比这一行重要：证据行是 prompt 纪律仅存的一处（原话直存律拿走了另外两处），
+    而它守的是「只许事实与假设措辞，禁心理判词」。一句时态错了的事实，已经不是事实。
+  */
+  if (verdict.graphSeq !== undefined) {
+    lines.push(`当时的裁决落在组织图第 ${String(verdict.graphSeq)} 条边上——一跳可回`)
   }
   return lines
 }

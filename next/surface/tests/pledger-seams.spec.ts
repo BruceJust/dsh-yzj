@@ -15,7 +15,7 @@ import { YzjGraph, type GraphActor, type GraphViewer } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import { commitmentFamily, createCommitmentCard } from '@yzj-next/objects'
 import {
-  FAMILY_DELIVERY_SELFCHECK, PledgerCards, YzjPledger, calibrationCard, createDesk, inviteCard,
+  FAMILY_DELIVERY_ACCEPTANCE, PledgerCards, YzjPledger, calibrationCard, createDesk, inviteCard,
 } from '@yzj-next/pledger'
 import { cardsFor, inboxView } from '../src/rpc.ts'
 
@@ -98,7 +98,7 @@ describe('接缝⑤④：两样各在各的时刻', () => {
         evidence: [],
         thenText: '预期「评审能过」',
         factText: '被追问定价',
-        family: FAMILY_DELIVERY_SELFCHECK,
+        family: FAMILY_DELIVERY_ACCEPTANCE,
         idemKey: 'calibration:c-0',
       },
       actor: OPERATOR,
@@ -117,7 +117,7 @@ describe('接缝⑤④：两样各在各的时刻', () => {
         evidence: [],
         thenText: '预期「一轮过」',
         factText: '返了两轮',
-        family: FAMILY_DELIVERY_SELFCHECK,
+        family: FAMILY_DELIVERY_ACCEPTANCE,
         idemKey: 'calibration:c-00',
       },
       actor: OPERATOR,
@@ -130,10 +130,10 @@ describe('接缝⑤④：两样各在各的时刻', () => {
     await pledger.append({
       type: 'mirror/toggled',
       data: {
-        family: FAMILY_DELIVERY_SELFCHECK,
-        patternKey: `${FAMILY_DELIVERY_SELFCHECK}:q3`,
+        family: FAMILY_DELIVERY_ACCEPTANCE,
+        patternKey: `${FAMILY_DELIVERY_ACCEPTANCE}:q3`,
         on: true,
-        mirrorId: `${FAMILY_DELIVERY_SELFCHECK}:${FAMILY_DELIVERY_SELFCHECK}:q3`,
+        mirrorId: `${FAMILY_DELIVERY_ACCEPTANCE}:${FAMILY_DELIVERY_ACCEPTANCE}:q3`,
       },
       actor: OPERATOR,
     })
@@ -152,7 +152,7 @@ describe('接缝⑤④：两样各在各的时刻', () => {
     const settled = cardsFor(ctx, topic).find(card => card.id === 'c-1')
     // **答完**：两读在，镜子不在。
     expect(settled?.resolved).toBe(true)
-    expect(settled?.twoRead?.label).toBe('交付前自检')
+    expect(settled?.twoRead?.label).toBe('交付验收')
     expect(settled?.strip).toBeUndefined()
   })
 
@@ -174,7 +174,7 @@ describe('接缝⑤④：两样各在各的时刻', () => {
 
     await pledger.append({
       type: 'gear/shifted',
-      data: { family: FAMILY_DELIVERY_SELFCHECK, gear: 'weight', entry: 'vault' },
+      data: { family: FAMILY_DELIVERY_ACCEPTANCE, gear: 'weight', entry: 'vault' },
       actor: OPERATOR,
     })
     const weighted = cardsFor(ctx, topic).find(one => one.id === 'c-3')

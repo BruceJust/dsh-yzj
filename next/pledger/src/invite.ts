@@ -37,6 +37,8 @@ export interface InviteState {
   readonly sourceLine: string
   /** 检验点的话语层，来自组织侧出处。人的赌注是人的话，检验点是图上的事实。 */
   readonly checkpointText: string
+  /** 检验点的投影层。缺席 = 图上说不出那个时刻，于是这条预期不参与时间轮。 */
+  readonly checkpointTs?: number
   readonly expectationId?: string
 }
 
@@ -67,6 +69,8 @@ export function inviteFor(input: {
   readonly sourceLine: string
   /** 检验点的话语，同样来自组织侧（那场会、那个期限）。 */
   readonly checkpointText: string
+  /** 图上确实知道那个时刻时才给。**永不从话语里反解**。 */
+  readonly checkpointTs?: number
 }): { inviteId: string; type: string; data: Record<string, unknown> } {
   const inviteId = inviteIdFor(input.verdict)
   return {
@@ -79,21 +83,25 @@ export function inviteFor(input: {
       evidenceRefs: [...input.evidence],
       sourceLine: input.sourceLine,
       checkpointText: input.checkpointText,
+      ...(input.checkpointTs === undefined ? {} : { checkpointTs: input.checkpointTs }),
       idemKey: inviteIdemKeyFor(input.verdict),
     },
   }
 }
 
 /**
- * 检验点两层 (与主册 due 同构): 话语真身 + 解析投影，可空可纠。
+ * 检验点两层 (与主册 due 同构): 话语真身 + 投影，可空可纠。
  *
- * 解析不出来就**没有** `ts`。把「明早评审后」硬解析成一个人没说过的时刻，是拿我们
- * 的解析冒充他的赌注；而没有 `ts` 的预期不会因此消失——它只是不参与时间轮，等人
- * 自己回来对表。
+ * **投影优先取图上带来的那个时刻**，其次才试着解析话语；两者都没有就没有 `ts`。
+ * 把「明早评审后」硬解析成一个人没说过的时刻，是拿我们的解析冒充他的赌注；而没有
+ * `ts` 的预期不会因此消失——它只是不参与时间轮，等结构性事实或人自己回来对表。
  */
-export function parseCheckpoint(text: string): { text: string; ts?: number } {
-  const parsed = Date.parse(text)
-  return Number.isFinite(parsed) ? { text, ts: parsed } : { text }
+export function checkpointOf(
+  state: Pick<InviteState, 'checkpointText' | 'checkpointTs'>,
+): { text: string; ts?: number } {
+  if (state.checkpointTs !== undefined) return { text: state.checkpointText, ts: state.checkpointTs }
+  const parsed = Date.parse(state.checkpointText)
+  return Number.isFinite(parsed) ? { text: state.checkpointText, ts: parsed } : { text: state.checkpointText }
 }
 
 const isOperator = (actor: GraphActor): boolean => actor.kind === 'operator'
@@ -191,7 +199,7 @@ export const inviteCard: PledgerCardDefinition<InviteState> = {
           data: {
             expectationId,
             text,
-            checkpoint: parseCheckpoint(state.checkpointText),
+            checkpoint: checkpointOf(state),
             verdictRef: { ...state.verdictRef },
             evidenceRefs: state.evidenceRefs.map(anchor => ({ ...anchor })),
             inviteId: state.inviteId,

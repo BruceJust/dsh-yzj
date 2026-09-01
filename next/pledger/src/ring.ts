@@ -22,12 +22,14 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString, type GraphEvent } from '@yzj-next/graph'
-import type { PledgerCards } from './bus.ts'
 import { expectationIdemKeyFor, familyOfCardKind, inviteIdemKeyFor } from './families.ts'
 import { inviteFor, isFamilyQuiet } from './invite.ts'
-import { calibrationBirth, evidenceFor, structuralFactFor, thenTextFor, watchedVerdicts } from './reflow.ts'
+import {
+  calibrationBirth, evidenceFor, structuralFactFor, thenTextFor, watchedVerdicts,
+  type MatchedFact,
+} from './reflow.ts'
 import type { FactRef, OrgAnchor } from './types.ts'
-import { anchorFor, goalRefOf, isVerdictAction } from './verdicts.ts'
+import { anchorFor, goalRefOf, isVerdictAction, type SeenVerdict } from './verdicts.ts'
 
 /** How often the ledger's own timer wheel looks at its checkpoints. */
 const TICK_MS = 5 * 60_000
@@ -38,15 +40,23 @@ const TICK_MS = 5 * 60_000
  * 整个函数的输入面就是这条规则的兑现：一个组织图锚，一个组织图服务。没有 pledger
  * 句柄，所以「读金库来决定要不要问你」在这里**做不到**，而不是被禁止 (PTD-9)。
  */
-export function sourceOf(ctx: Context, verdict: OrgAnchor): {
+export function sourceOf(ctx: Context, verdict: OrgAnchor, now = Date.now()): {
   sourceLine: string
   checkpointText: string
+  /**
+   * 检验点的**投影那一层**，只在图上确实知道那个时刻时才有 (两层规则).
+   *
+   * 它和 `checkpointText` 是并列的两样，不是从它解析出来的：图上挂着的那场会有一个
+   * 精确的开始时刻，而人读的那句话该是「明早的《管理层评审》之后」。把时刻从话语里
+   * 反解出来，等于逼着话语写成一个 ISO 串——**两层规则的意思正是不必如此**。
+   */
+  checkpointTs?: number
   evidence: readonly OrgAnchor[]
 } {
-  const state = asRecord(ctx.get('yzjGraph')?.rawObject(verdict.kind, verdict.id)?.state)
+  const graph = ctx.get('yzjGraph')
+  const state = asRecord(graph?.rawObject(verdict.kind, verdict.id)?.state)
   const what = verdict.label ?? asString(state?.what) ?? `${verdict.kind}:${verdict.id}`
   const goal = goalRefOf(ctx, verdict.kind, verdict.id)
-  const due = asString(state?.due)
   const evidence: OrgAnchor[] = []
   if (goal !== undefined) {
     /*
@@ -55,19 +65,73 @@ export function sourceOf(ctx: Context, verdict: OrgAnchor): {
     */
     evidence.push({ kind: 'goal', id: goal, label: goal })
   }
-  return {
-    sourceLine: goal === undefined
-      ? `你刚刚验收了「${what}」`
-      : `你刚刚验收了「${what}」，它挂在目标 ${goal} 下`,
-    /*
-      检验点两层：**解析不出来就不给戳**。
 
-      把「下周初」硬解析成一个人没承诺过的日期，是拿我们的解析冒充他的赌注。没有
-      戳的预期不会因此消失——它只是不参与时间轮，等结构性事实或你自己回来对表。
-    */
-    checkpointText: due ?? '下一次这件事在图上有动静时',
+  /*
+    **检验点必须在未来**，而这一条不是排版讲究，是一个真的 bug 的修法。
+
+    第一版拿承诺的 `due` 当检验点。可 `due` 是**交付期限**，而验收发生在交付之后
+    ——到你下这个判断的时候，那个日子多半已经过去了。于是「立完约当场就被问『后来
+    怎么样了』」：一次性邀约刚变成一个赌注，时间轮立刻把它当成过期的来追。
+
+    正确的出处在图上本来就有：**这份交付要用在哪儿**——它挂着的那场会（事件枢纽的
+    服务边，§5.6 既有）。这也正是设计里那句「出处：这份交付的使用场合就是明早的
+    评审」。找不到会就退回未来的 `due`；两者都没有，就**不给戳**——无戳的预期不参与
+    时间轮，等结构性事实或你自己回来对表。宁可不问，不可乱问。
+  */
+  const meeting = upcomingMeetingFor(ctx, verdict, now)
+  const due = asString(state?.due)
+  const dueTs = due === undefined ? Number.NaN : Date.parse(due)
+  const futureDue = due !== undefined && Number.isFinite(dueTs) && dueTs > now
+    ? { text: due, ts: dueTs }
+    : undefined
+  if (meeting !== undefined) evidence.push(meeting.anchor)
+  const checkpoint = meeting ?? futureDue
+
+  return {
+    sourceLine: meeting === undefined
+      ? goal === undefined
+        ? `你刚刚验收了「${what}」`
+        : `你刚刚验收了「${what}」，它挂在目标 ${goal} 下`
+      : `你刚刚验收了「${what}」——这份交付的使用场合就是${meeting.label}`,
+    checkpointText: checkpoint?.text ?? '下一次这件事在图上有动静时',
+    ...(checkpoint === undefined ? {} : { checkpointTs: checkpoint.ts }),
     evidence,
   }
+}
+
+/**
+ * 这次裁决的对象要用在哪一场**还没开**的会上 (§5.6 事件枢纽的服务边).
+ *
+ * 纯组织图读：`event` 对象的 `prepares` 里挂着这条承诺，而 `startAt` 还在未来。
+ * 一场已经开完的会不是检验点，它是历史。
+ */
+function upcomingMeetingFor(
+  ctx: Context, verdict: OrgAnchor, now: number,
+): { text: string; ts: number; label: string; anchor: OrgAnchor } | undefined {
+  const graph = ctx.get('yzjGraph')
+  if (graph === undefined || verdict.kind !== 'commitment') return undefined
+  let best: { text: string; ts: number; label: string; anchor: OrgAnchor } | undefined
+  for (const object of graph.query({ kind: 'operator', openId: '' }, { kind: 'event' })) {
+    const state = asRecord(object.state)
+    const prepares = state?.prepares
+    if (!Array.isArray(prepares) || !prepares.includes(verdict.id)) continue
+    const startAt = state?.startAt
+    if (typeof startAt !== 'number' || startAt <= now) continue
+    // 最近的那一场：检验点是**下一个**见分晓的时刻，不是最远的那个。
+    if (best !== undefined && best.ts <= startAt) continue
+    const title = asString(state?.title) ?? '那场会'
+    const when = new Date(startAt).toLocaleString('zh-CN', {
+      month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+    })
+    best = {
+      ts: startAt,
+      // 话语层是**人读的那句话**；时刻在 `ts` 里，不必从这句话里反解出来。
+      text: `${when}「${title}」之后`,
+      label: `「${title}」`,
+      anchor: { kind: 'event', id: object.id, label: title },
+    }
+  }
+  return best
 }
 
 /**
@@ -104,6 +168,7 @@ export async function inviteOnVerdict(
     evidence: source.evidence,
     sourceLine: source.sourceLine,
     checkpointText: source.checkpointText,
+    ...(source.checkpointTs === undefined ? {} : { checkpointTs: source.checkpointTs }),
   })
   // 幂等锚：同一裁决至多一张邀约。重放、重启、第二个订阅者都收不出第二张。
   if (pledger.findByIdemKey(inviteIdemKeyFor(verdict)) !== undefined) return undefined
@@ -120,18 +185,36 @@ export async function inviteOnVerdict(
 export async function reflowOnGraphEvent(ctx: Context, event: GraphEvent): Promise<void> {
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined || !pledger.ready) return
+  let best: { verdict: SeenVerdict; matched: MatchedFact } | undefined
   for (const verdict of watchedVerdicts(ctx)) {
     // 事实必须**后于**裁决。一条早于裁决的边不是「后来」，是「当时」。
     if (event.seq <= verdict.seq) continue
     const matched = structuralFactFor(ctx, verdict, event)
     if (matched === undefined) continue
-    await openCalibration(ctx, {
-      verdict: verdict.anchor,
-      family: verdict.family,
-      fact: matched.fact,
-      factText: matched.factText,
-    })
+    // 最近的那一次裁决：见下。
+    if (best === undefined || best.verdict.seq < verdict.seq) best = { verdict, matched }
   }
+  if (best === undefined) return
+  /*
+    **一份事实至多出一张执** —— 而这一条是修一个真的会伤人的行为。
+
+    第一版对每一个匹配上的裁决各出一张。看起来「更完整」，可想一想它在什么时候发生：
+    一个目标下你验收过十条活，某天一份差距简报落地——十张回执同时出现，十条 DM 同时
+    到手机上。其中至少九张，你打开就知道该按「配对错了」。
+
+    **第五出口存在是因为配对可能错，不是因为我们该批量制造错配。** 宁空勿错在这里的
+    形态就是这一句：拿不准是哪一次裁决的后来，就只配**最近的那一次**（`seq` 最大者，
+    时间上离这条事实最近、因果上最可能是它的后来）；剩下那些不是丢了——它们躺在金库
+    的「待对表」里，人可以在那一行上**补登事实**自己配对（环3 的人工那一支）。
+
+    少说一句可以补，批量说错话收不回来。
+  */
+  await openCalibration(ctx, {
+    verdict: best.verdict.anchor,
+    family: best.verdict.family,
+    fact: best.matched.fact,
+    factText: best.matched.factText,
+  })
 }
 
 /**
@@ -246,10 +329,27 @@ export async function tickCheckpoints(
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined || !pledger.ready) return []
   const asked: string[] = []
+  /*
+    **已经有回执在等你了，就不该再问一遍** (§4「检验点到达**且图内无匹配事实**」).
+
+    第一版漏了后半句：结构性事实回流出了一张回执之后，预期仍然是 `testing`（它要等
+    你归因才归档），于是时间轮照样发一条「后来怎么样了」——而答案就摆在同一条私语流
+    里，是这条 agent 自己刚放上去的。一次问已经答过的问题，比不问更伤信任。
+  */
+  const hasReceipt = new Set<string>()
+  for (const object of pledger.query('calibration')) {
+    const verdict = asRecord(asRecord(object.state)?.verdictRef)
+    const kind = asString(verdict?.kind)
+    const id = asString(verdict?.id)
+    if (kind !== undefined && id !== undefined) hasReceipt.add(`${kind}:${id}`)
+  }
   for (const object of pledger.query('expectation')) {
     const state = asRecord(object.state)
     if (state === undefined) continue
     if (asString(state.status) !== 'testing' || state.asked === true) continue
+    const verdict = asRecord(state.verdictRef)
+    const verdictKey = `${asString(verdict?.kind) ?? ''}:${asString(verdict?.id) ?? ''}`
+    if (hasReceipt.has(verdictKey)) continue
     const checkpoint = asRecord(state.checkpoint)
     const ts = checkpoint?.ts
     if (typeof ts !== 'number' || ts > now) continue
@@ -294,6 +394,3 @@ export function startClock(
   timer.unref?.()
   return () => { clearInterval(timer) }
 }
-
-/** Unused import guard: the bus type travels with the ring's wiring in `index.ts`. */
-export type RingBus = PledgerCards

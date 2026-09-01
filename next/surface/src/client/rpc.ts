@@ -856,6 +856,8 @@ export interface VaultInviteWire {
 
 export interface VaultViewWire {
   owner?: string
+  /** 销毁口令 —— **服务端说了算**，界面不写第二份字面。 */
+  destroyPhrase: string
   /** 取走的落点。说不出在哪儿的「可取走」不是可取走。 */
   directory?: string
   contract: { label: string; how: string }[]

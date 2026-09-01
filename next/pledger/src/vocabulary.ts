@@ -239,6 +239,14 @@ export const inviteFamily: GraphFamily = {
          * （可空）一起进 `expectation.checkpoint`——两层，与主册 due 同构。
          */
         checkpointText: z.string().default(''),
+        /**
+         * 检验点的**投影层**，只在图上确实知道那个时刻时才有。
+         *
+         * 和 `checkpointText` **并列**，不是从它解析出来的：挂着的那场会有一个精确
+         * 的开始时刻，而人读的那句话该是「9/2 09:30「管理层评审」之后」。要把时刻从
+         * 话语里反解出来，就得逼话语写成一个 ISO 串——两层规则的意思正是不必如此。
+         */
+        checkpointTs: z.number().int().optional(),
         status: z.literal('open').default('open'),
         /** 幂等锚 = verdictRef：一次裁决至多一张邀约。 */
         idemKey: z.string().min(1),

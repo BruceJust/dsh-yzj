@@ -19,8 +19,16 @@ import { anchorKey, factKey, type FactRef, type FamilySpec, type OrgAnchor } fro
 export const FAMILY_WRITE_CONFIRM = 'write-confirm'
 /** Goal breakdown proposals — where 生成侧萎缩 bites hardest. */
 export const FAMILY_GOAL_BREAKDOWN = 'goal-breakdown'
-/** Pre-delivery self-check — the executor's side, meaningful once there are two. */
-export const FAMILY_DELIVERY_SELFCHECK = 'delivery-selfcheck'
+/**
+ * 交付验收 —— agent 把一份被主张的交付摆到你面前，请你判它行不行.
+ *
+ * **分册 §9 把这一族叫「交付前自检【多操作者期执行者侧】」**，而 P1 只有操作者一端：
+ * 同一个时刻的两头——执行者那头是交付前自己看一遍，验收者这头是判它够不够好。名字
+ * 取的是**这个部署里真的会发生的那一头**，因为换挡台上这一行的证据说的全是你的验收
+ * 裁决；挂一个「交付前自检」的标题在上面，屏幕就在说一句不成立的话。多操作者期
+ * 执行者侧的自检是同一族的第二个入口，那时这个名字仍然对。
+ */
+export const FAMILY_DELIVERY_ACCEPTANCE = 'delivery-acceptance'
 
 /**
  * P1 的三族 (§9 提案族三族起步).
@@ -43,9 +51,9 @@ export const PROPOSAL_FAMILIES: readonly FamilySpec[] = [
     cardKinds: ['proposal', 'assessment'],
   },
   {
-    family: FAMILY_DELIVERY_SELFCHECK,
-    label: '交付前自检',
-    what: '交付被主张之前，执行者侧的一次自检',
+    family: FAMILY_DELIVERY_ACCEPTANCE,
+    label: '交付验收',
+    what: '别人主张交付了，请你判它行不行',
     cardKinds: ['commitment'],
   },
 ]

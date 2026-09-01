@@ -16,7 +16,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asNumber, asObjectRef, asRecord, asString } from '@yzj-next/graph'
+import { asObjectRef, asRecord, asString } from '@yzj-next/graph'
 import { familyOfCardKind } from './families.ts'
 import type { OrgAnchor } from './types.ts'
 
@@ -109,9 +109,4 @@ export function goalRefOf(ctx: Context, kind: string, id: string): string | unde
 export function topicOf(ctx: Context, kind: string, id: string): string | undefined {
   const state = asRecord(ctx.get('yzjGraph')?.rawObject(kind, id)?.state)
   return asString(state?.topicKey) ?? asString(asRecord(state?.executor)?.topicKey)
-}
-
-/** When one organization object last changed. Used to describe a fact in words. */
-export function updatedAtOf(ctx: Context, kind: string, id: string): number | undefined {
-  return asNumber(ctx.get('yzjGraph')?.rawObject(kind, id)?.updatedAt)
 }

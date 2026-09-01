@@ -23,6 +23,7 @@
 import { asNumber, asRecord, asString } from '@yzj-next/graph'
 import type { YzjPledger } from './service.ts'
 import { PROPOSAL_FAMILIES, familySpec } from './families.ts'
+import { DESTROY_PHRASE } from './destroy.ts'
 import { isFamilyQuiet } from './invite.ts'
 import { casesIn, patternsIn } from './patterns.ts'
 import { ATTRIBUTION_LABEL, DEFAULT_PATTERN_WINDOW, type Attribution, type Gear, type OrgAnchor, type PatternWindow } from './types.ts'
@@ -126,6 +127,8 @@ export interface VaultInviteRow {
 
 export interface VaultView {
   readonly owner?: string
+  /** 销毁口令 —— 界面不自己写一份，见 `PledgerDesk.destroyPhrase`。 */
+  readonly destroyPhrase: string
   /** 取走的落点。说不出在哪儿的「可取走」不是可取走。 */
   readonly directory?: string
   readonly contract: typeof CONTRACT_CHIPS
@@ -232,6 +235,7 @@ export function vaultView(
   return {
     ...(pledger.owner === undefined ? {} : { owner: pledger.owner }),
     ...(pledger.directory === undefined ? {} : { directory: pledger.directory }),
+    destroyPhrase: DESTROY_PHRASE,
     contract: CONTRACT_CHIPS,
     refusals: VAULT_REFUSALS,
     window,

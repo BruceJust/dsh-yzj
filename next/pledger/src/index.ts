@@ -45,18 +45,19 @@ import { applyPledgerTools } from './tools.ts'
 export { YzjPledger } from './service.ts'
 export { PledgerCards, type PledgerActResult, type PledgerCardDefinition } from './bus.ts'
 export {
-  createDesk, DESTROY_PHRASE,
+  createDesk,
   type GearEffect, type MirrorStrip, type PledgerDesk, type PrivateRow, type TwoRead,
 } from './desk.ts'
+export { DESTROY_PHRASE } from './destroy.ts'
 export { calibrationCard, ATTRIBUTION_NOTE, type CalibrationState, type Case } from './calibration.ts'
 export {
-  FATIGUE_LIMIT, inviteCard, inviteFor, isFamilyQuiet, parseCheckpoint, PLEDGE_DIMENSIONS,
+  FATIGUE_LIMIT, checkpointOf, inviteCard, inviteFor, isFamilyQuiet, PLEDGE_DIMENSIONS,
   type InviteState,
 } from './invite.ts'
 export {
   calibrationIdFor, calibrationIdemKeyFor, expectationIdFor, expectationIdemKeyFor,
   factIdFor, familyOfCardKind, familySpec, inviteIdFor, inviteIdemKeyFor, mirrorIdFor,
-  FAMILY_DELIVERY_SELFCHECK, FAMILY_GOAL_BREAKDOWN, FAMILY_WRITE_CONFIRM, PROPOSAL_FAMILIES,
+  FAMILY_DELIVERY_ACCEPTANCE, FAMILY_GOAL_BREAKDOWN, FAMILY_WRITE_CONFIRM, PROPOSAL_FAMILIES,
 } from './families.ts'
 export { PledgerLog, decodePledgerEvent, type LoadedPledger } from './log.ts'
 export { casesIn, mirrorCases, mirrorIsOn, patternsIn, type Pattern } from './patterns.ts'

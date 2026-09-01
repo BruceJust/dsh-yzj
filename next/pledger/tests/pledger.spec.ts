@@ -21,14 +21,16 @@ import {
 } from '@yzj-next/objects'
 import { PledgerCards } from '../src/bus.ts'
 import { calibrationCard } from '../src/calibration.ts'
-import { createDesk, DESTROY_PHRASE, type PledgerDesk } from '../src/desk.ts'
+import { createDesk, type PledgerDesk } from '../src/desk.ts'
+import { DESTROY_PHRASE } from '../src/destroy.ts'
 import {
-  FAMILY_DELIVERY_SELFCHECK, FAMILY_GOAL_BREAKDOWN, expectationIdFor, inviteIdFor,
+  FAMILY_DELIVERY_ACCEPTANCE, FAMILY_GOAL_BREAKDOWN, expectationIdFor, inviteIdFor,
 } from '../src/families.ts'
 import { inviteCard } from '../src/invite.ts'
 import { PledgerLog } from '../src/log.ts'
 import { patternsIn } from '../src/patterns.ts'
 import { inviteOnVerdict, openCalibration, reflowOnGraphEvent, reflowOnNotedFact, sourceOf, tickCheckpoints } from '../src/ring.ts'
+import { structuralFactFor, watchedVerdicts } from '../src/reflow.ts'
 import { YzjPledger } from '../src/service.ts'
 import { vaultView } from '../src/vault.ts'
 import { PLEDGER_KINDS, expectationFamily } from '../src/vocabulary.ts'
@@ -244,14 +246,14 @@ describe('④ 回执幂等：同（裁决,事实）不出第二执', () => {
 
     const first = await openCalibration(ctx, {
       verdict,
-      family: FAMILY_DELIVERY_SELFCHECK,
+      family: FAMILY_DELIVERY_ACCEPTANCE,
       fact: { source: 'org', anchor: { kind: 'commitment', id: 'c-3' }, why: 'reopened' },
       factText: '被打回',
     })
     expect(first).toBeDefined()
     const second = await openCalibration(ctx, {
       verdict,
-      family: FAMILY_DELIVERY_SELFCHECK,
+      family: FAMILY_DELIVERY_ACCEPTANCE,
       fact: { source: 'org', anchor: { kind: 'commitment', id: 'c-3' }, why: 'reopened' },
       factText: '被打回（又来一次）',
     })
@@ -263,7 +265,7 @@ describe('④ 回执幂等：同（裁决,事实）不出第二执', () => {
     await settle()
     const third = await openCalibration(ctx, {
       verdict,
-      family: FAMILY_DELIVERY_SELFCHECK,
+      family: FAMILY_DELIVERY_ACCEPTANCE,
       fact: { source: 'org', anchor: { kind: 'commitment', id: 'c-3' }, why: 'reopened' },
       factText: '第三次',
     })
@@ -349,7 +351,7 @@ describe('⑦ 疲劳治理：连续三次不立就停问，重开在金库', () 
     // 人用脚投票就是应答：第四次这一族整体不再开口。
     expect(pledger.object('invite', inviteOf('c-7d'))).toBeUndefined()
 
-    await desk.reopenInvites(FAMILY_DELIVERY_SELFCHECK)
+    await desk.reopenInvites(FAMILY_DELIVERY_ACCEPTANCE)
     await settle()
     await deliverCommitment('c-7e')
     await accept('c-7e')
@@ -528,7 +530,7 @@ describe('⑫ 八环走查：每一环既可见又可动', () => {
     await accept('c-12b')
     const second = await openCalibration(ctx, {
       verdict: { kind: 'commitment', id: 'c-12b' },
-      family: FAMILY_DELIVERY_SELFCHECK,
+      family: FAMILY_DELIVERY_ACCEPTANCE,
       fact: { source: 'org', anchor: { kind: 'commitment', id: 'c-12b' }, why: 'reopened' },
       factText: '也被打回了',
     })
@@ -540,7 +542,7 @@ describe('⑫ 八环走查：每一环既可见又可动', () => {
 
     // 环7 回喂：人签发后视镜
     expect(desk.stripFor('commitment')).toBeUndefined()
-    await desk.mirror(FAMILY_DELIVERY_SELFCHECK, patterns[0]?.patternKey as string, true)
+    await desk.mirror(FAMILY_DELIVERY_ACCEPTANCE, patterns[0]?.patternKey as string, true)
     await settle()
     const strip = desk.stripFor('commitment')
     expect(strip?.cases.length).toBeGreaterThan(0)
@@ -551,7 +553,7 @@ describe('⑫ 八环走查：每一环既可见又可动', () => {
     expect(desk.stripFor('commitment')?.cases.length).toBeGreaterThan(0)
 
     // 合环阀：换挡台就在同一屏上，而且真的动得了
-    await desk.shift(FAMILY_DELIVERY_SELFCHECK, 'weight', 'vault')
+    await desk.shift(FAMILY_DELIVERY_ACCEPTANCE, 'weight', 'vault')
     await settle()
     expect(desk.gearEffectFor('commitment')).toMatchObject({
       gear: 'weight', preselect: false, quickAccept: false, spreadEvidence: true,
@@ -657,6 +659,35 @@ describe('⑮ 事实回流三分', () => {
     expect(state.factRef?.why).toBe('lineage')
   })
 
+  it('结构匹配②的时间边界：三周后同一段对话里的新活，不再算这次裁决的后来', async () => {
+    await deliverCommitment('c-15b-old')
+    await accept('c-15b-old')
+    const before = pledger.query('calibration').length
+    /*
+      时间由 `structuralFactFor` 直接读事件的 `time`，而测试造不出一条三周后的
+      事件——所以这里直接问那个纯函数，用一条**时间戳在三周后**的事件。
+      这一条守的是：忙碌的目标里，每一次新登记都不该对着你上一次验收出一张回执。
+    */
+    const verdict = watchedVerdicts(ctx).find(one => one.anchor.id === 'c-15b-old')
+    expect(verdict).toBeDefined()
+    const late = {
+      v: 1 as const,
+      sv: 1,
+      seq: 9_999,
+      time: (verdict?.at ?? 0) + 21 * 24 * 60 * 60 * 1000,
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c-15b-late',
+        what: '三周后的另一件事',
+        parentGoalRef: GOAL,
+        sourceAnchor: `session:${TOPIC}`,
+      },
+      actor: { kind: 'operator' as const, openId: 'op-1' },
+    }
+    expect(structuralFactFor(ctx, verdict as never, late)).toBeUndefined()
+    expect(pledger.query('calibration').length).toBe(before)
+  })
+
   it('结构匹配③：同一目标上后来的差距简报', async () => {
     await deliverCommitment('c-15c')
     await accept('c-15c')
@@ -732,7 +763,7 @@ describe('时间轮：检验点到了问一次，不再追（PTD-14）', () => {
         checkpoint: { text: '2020-01-01', ts: Date.parse('2020-01-01') },
         verdictRef: { kind: 'commitment', id: 'c-tick' },
         inviteId: inviteOf('c-tick'),
-        family: FAMILY_DELIVERY_SELFCHECK,
+        family: FAMILY_DELIVERY_ACCEPTANCE,
         idemKey: `expectation:commitment:c-tick-clock`,
       },
       actor: OPERATOR,
@@ -787,5 +818,113 @@ describe('自聊 DM 的文本投影：P1 只出不进，所以报信不提问', 
     const ref = { kind: 'invite', id: inviteOf('c-kw') }
     expect(bus.resolveKeyword(ref, '立约 评审能过')).toEqual({ actionId: 'pledge', input: '评审能过' })
     expect(bus.resolveKeyword(ref, '不立')).toEqual({ actionId: 'decline' })
+  })
+})
+
+describe('自审补的四条：这些改坏了都不会报错，只会安静地伤人', () => {
+  it('一份事实至多出一张执 —— 一份简报不该同时配十次裁决', async () => {
+    for (const id of ['c-fan-a', 'c-fan-b', 'c-fan-c']) {
+      await deliverCommitment(id)
+      await accept(id)
+    }
+    const before = pledger.query('calibration').length
+    // 一份差距简报落在同一个目标上：三条裁决在结构上都「匹配」得到它。
+    await graph.append({
+      type: 'assessment/reported',
+      data: {
+        assessmentId: 'as-fan',
+        goalRef: GOAL,
+        summary: '两条达成，一条有差距',
+        sourceAnchor: `session:${TOPIC}`,
+        decider: 'op-1',
+      },
+      actor: { kind: 'agent' },
+    })
+    await settle()
+    /*
+      只出一张，而且是配**最近那一次**裁决的。
+
+      三张回执里至少两张，人打开就知道该按「配对错了」——第五出口存在是因为配对可能
+      错，不是因为我们该批量制造错配。剩下那两次裁决没有丢：它们在金库的待对表里，
+      人可以自己补登事实来配对。
+    */
+    const after = pledger.query('calibration')
+    expect(after.length - before).toBe(1)
+    const born = after.find(one => (one.state as { factRef?: { anchor?: { id?: string } } })
+      .factRef?.anchor?.id === 'as-fan')
+    expect((born?.state as { verdictRef?: { id?: string } }).verdictRef?.id).toBe('c-fan-c')
+  })
+
+  it('检验点必须在未来：交付期限早已过去时不拿它当检验点', async () => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'c-past',
+        what: '早就该交的活',
+        executor: { kind: 'human', openId: 'zr-1', name: '张锐', topicKey: TOPIC },
+        sourceAnchor: `session:${TOPIC}`,
+        topicKey: TOPIC,
+        parentGoalRef: GOAL,
+        delegatedBy: 'op-1',
+        // 验收发生在交付之后，所以到你下判断的时候这个日子早过了。
+        due: '2020-01-01',
+      },
+      actor: OPERATOR,
+    })
+    await graph.append({
+      type: 'commitment/delivered',
+      data: { commitmentId: 'c-past', delivery: { claim: '补上了', at: Date.now() } },
+      actor: { kind: 'person', openId: 'zr-1' },
+    })
+    await accept('c-past')
+    const invite = pledger.object('invite', inviteOf('c-past'))?.state as {
+      checkpointText?: string; checkpointTs?: number
+    }
+    // 不给戳：无戳的预期不参与时间轮，等结构性事实或人自己回来对表。
+    expect(invite.checkpointTs).toBeUndefined()
+    expect(invite.checkpointText).toBe('下一次这件事在图上有动静时')
+
+    await pledgeOn('c-past', '这次不会再返工')
+    const asked: string[] = []
+    await tickCheckpoints(ctx, async (text) => { asked.push(text) })
+    // 立完约当场被追问「后来怎么样了」，是这条修法要防的那一幕。
+    expect(asked).toEqual([])
+  })
+
+  it('检验点到了但回执已经在等你了，就不该再问一遍', async () => {
+    await deliverCommitment('c-dup-ask')
+    await accept('c-dup-ask')
+    const expectationId = expectationIdFor({ kind: 'commitment', id: 'c-dup-ask' })
+    await pledger.append({
+      type: 'expectation/opened',
+      data: {
+        expectationId,
+        text: '一轮过',
+        checkpoint: { text: '2020-01-01', ts: Date.parse('2020-01-01') },
+        verdictRef: { kind: 'commitment', id: 'c-dup-ask' },
+        inviteId: inviteOf('c-dup-ask'),
+        family: FAMILY_DELIVERY_ACCEPTANCE,
+        idemKey: 'expectation:commitment:c-dup-ask-clock',
+      },
+      actor: OPERATOR,
+    })
+    // 结构性事实先到：回执已经躺在私语流里了。
+    await graph.append({
+      type: 'commitment/reopened',
+      data: { commitmentId: 'c-dup-ask', cause: '返工' },
+      actor: OPERATOR,
+    })
+    await settle()
+    expect(pledger.query('calibration')).toHaveLength(1)
+
+    const asked: string[] = []
+    await tickCheckpoints(ctx, async (text) => { asked.push(text) })
+    // 问一个自己刚刚答过的问题，比不问更伤信任。
+    expect(asked).toEqual([])
+  })
+
+  it('销毁口令由服务端发，界面不写第二份字面', () => {
+    expect(desk.destroyPhrase).toBe(DESTROY_PHRASE)
+    expect(desk.vault()?.destroyPhrase).toBe(DESTROY_PHRASE)
   })
 })

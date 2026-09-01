@@ -16,9 +16,10 @@ import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString } from '@yzj-next/graph'
 import { PledgerCards } from './bus.ts'
 import { calibrationCard, type CalibrationState } from './calibration.ts'
-import { familyOfCardKind, mirrorIdFor } from './families.ts'
+import { DESTROY_PHRASE } from './destroy.ts'
+import { familyOfCardKind } from './families.ts'
 import { inviteCard, type InviteState } from './invite.ts'
-import { mirrorCases } from './patterns.ts'
+import { mirrorCases, patternsIn } from './patterns.ts'
 import { vaultView, type VaultView } from './vault.ts'
 import {
   declineInvite, noteFact, pledgeOnVerdict, reattribute, reopenInvites,
@@ -113,6 +114,13 @@ export interface PledgerDesk {
   shift(family: string, gear: Gear, entry: 'tail' | 'vault'): Promise<void>
   mirror(family: string, patternKey: string, on: boolean): Promise<void>
   reopenInvites(family: string): Promise<void>
+  /**
+   * 销毁要原样打出来的那句话 —— **服务端说了算，界面只是转述**.
+   *
+   * 两处各写一份字面，就是两份要一起维护的口令：它们一旦对不上，按钮是亮的而服务端
+   * 拒绝，人会以为销毁坏了。发出来，客户端就没有第二个真相。
+   */
+  readonly destroyPhrase: string
   /** 销毁 —— 两段式的第二段。第一段（确认）在界面上，不在这里。 */
   destroy(confirm: string): Promise<void>
 }
@@ -124,9 +132,6 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** The literal a person has to type to destroy their ledger. */
-export const DESTROY_PHRASE = '销毁我的金库'
-
 export function createDesk(ctx: Context, bus: PledgerCards): PledgerDesk {
   const window = DEFAULT_PATTERN_WINDOW
   const operatorActor = (): { kind: 'operator'; openId?: string } => {
@@ -137,6 +142,8 @@ export function createDesk(ctx: Context, bus: PledgerCards): PledgerDesk {
     get enabled() {
       return ctx.get('yzjPledger')?.ready === true
     },
+
+    destroyPhrase: DESTROY_PHRASE,
 
     vault(requested?: PatternWindow): VaultView | undefined {
       const pledger = ctx.get('yzjPledger')
@@ -176,13 +183,19 @@ export function createDesk(ctx: Context, bus: PledgerCards): PledgerDesk {
       const pledger = ctx.get('yzjPledger')
       const family = familyOfCardKind(cardKind)?.family
       if (pledger === undefined || !pledger.ready || family === undefined) return undefined
+      /*
+        条上写的是**那个模式自己的名字**，不是一个拼出来的 id。
+
+        上一版这里是 `mirrorIdFor(family, ...)`——一个内部地址，渲染出来是
+        「delivery-acceptance:delivery-acceptance:q3」。条是一扇门，门上得写着门后
+        是什么；写一个人读不懂的键，等于把门画成了墙。
+      */
+      const on = patternsIn(pledger, window).filter(one => one.family === family && one.mirror)
       const cases = mirrorCases(pledger, family, window)
-      if (cases.length === 0) return undefined
-      const first = cases[0]
-      if (first === undefined) return undefined
+      if (cases.length === 0 || on.length === 0) return undefined
       return {
         family,
-        patternLabel: mirrorIdFor(family, `${family}:${first.attribution}`),
+        patternLabel: on.map(one => one.label).join(' · '),
         cases: cases.map(one => ({
           calibrationId: one.calibrationId,
           thenText: one.thenText,
