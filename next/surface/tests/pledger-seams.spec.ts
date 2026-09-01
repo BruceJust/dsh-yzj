@@ -150,10 +150,33 @@ describe('接缝⑤④：两样各在各的时刻', () => {
 
     await cards.act({ kind: 'commitment', id: 'c-1' }, 'accept', OPERATOR, 'desktop')
     const settled = cardsFor(ctx, topic).find(card => card.id === 'c-1')
-    // **答完**：两读在，镜子不在。
+    // **答完**：镜子不在了。两读还没到该问的时候（见下一条）。
     expect(settled?.resolved).toBe(true)
-    expect(settled?.twoRead?.label).toBe('交付验收')
     expect(settled?.strip).toBeUndefined()
+  })
+
+  it('条尾两读要等这一族攒够裁决才问 —— 条长即治理信号', async () => {
+    await boot(true)
+    for (let index = 0; index < 4; index += 1) {
+      await openCommitment(`c-warm-${String(index)}`)
+      await cards.act({ kind: 'commitment', id: `c-warm-${String(index)}` }, 'accept', OPERATOR, 'desktop')
+    }
+    // 四次：还不到该问的时候。「你是不是被问烦了」这一问，本身不能问得太勤。
+    expect(cardsFor(ctx, topic).some(card => card.twoRead !== undefined)).toBe(false)
+
+    await openCommitment('c-warm-4')
+    await cards.act({ kind: 'commitment', id: 'c-warm-4' }, 'accept', OPERATOR, 'desktop')
+    const withTwoRead = cardsFor(ctx, topic).filter(card => card.twoRead !== undefined)
+    /*
+      **一族只挂一张，而且是最新的那张。**
+
+      五张答完的卡各挂一块「这类确认还需要你吗」，就是用重复五遍的方式问「你被问烦了
+      没有」——那本身就是答案。零新入口的意思也在这儿：既有的条尾租约入口从来只有
+      一个位置。
+    */
+    expect(withTwoRead).toHaveLength(1)
+    expect(withTwoRead[0]?.id).toBe('c-warm-4')
+    expect(withTwoRead[0]?.twoRead?.label).toBe('交付验收')
   })
 
   it('未启用私账：三样一个都不发，卡一个字节不变', async () => {

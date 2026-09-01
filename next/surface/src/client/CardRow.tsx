@@ -61,11 +61,21 @@ function record(value: unknown): Record<string, unknown> {
     : {}
 }
 
-function flatten(value: unknown): string {
+/**
+ * 一个参数值，摊平成一行.
+ *
+ * `limit` 是**负重档的落点**：默认档把长参数截到 200 字（卡是入口不是全文），
+ * 负重档把它整个摆开——「摆开证据」不是多画一句说明，是真的把你要看的东西放出来。
+ * 一个写着「证据已摆开」却仍然截断的卡，正是「说明文字占位同罪」要禁的那种。
+ */
+function flatten(value: unknown, limit = ARG_LIMIT): string {
   const rendered = typeof value === 'string' ? value : JSON.stringify(value) ?? ''
   const flat = rendered.replace(/\s+/gu, ' ').trim()
-  return flat.length > ARG_LIMIT ? `${flat.slice(0, ARG_LIMIT)}…` : flat
+  return flat.length > limit ? `${flat.slice(0, limit)}…` : flat
 }
+
+/** 负重档下不截断：证据摆开的意思就是你能看见全部。 */
+const SPREAD_LIMIT = 4_000
 
 /** `HH:mm`, for a deadline the reader has to be able to act before. */
 function clock(value: unknown): string | undefined {
@@ -228,7 +238,9 @@ function CardBody(props: CardRowProps): ReactNode {
           {args.map(([key, value]) => (
             <Fragment key={key}>
               <span className={css.fieldKey}>{key}</span>
-              <span className={css.fieldValue}>{flatten(value)}</span>
+              <span className={css.fieldValue}>
+                {flatten(value, weight ? SPREAD_LIMIT : ARG_LIMIT)}
+              </span>
             </Fragment>
           ))}
           {deadline !== undefined && status === 'pending' && (
@@ -285,6 +297,28 @@ function CardBody(props: CardRowProps): ReactNode {
               <span className={css.fieldValue}>
                 {text(state.parentGoalRef)}
                 {text(state.attachedVia) === 'inferred' && ' · 推断待核，可回复「改挂 <目标>」'}
+              </span>
+            </>
+          )}
+          {/*
+            负重档：**把已经在图上的证据摆出来** —— 交付主张的原话与返工轮次。
+
+            默认档下它们不占位（卡是入口不是全文），而负重档的整个意思就是「你先看，
+            我再补」。摆的是同一份数据，不是新造的一段话：证据只能来自图。
+          */}
+          {weight && text(record(state.delivery).claim) !== '' && (
+            <>
+              <span className={css.fieldKey}>交付主张</span>
+              <span className={css.fieldValue}>
+                {flatten(record(state.delivery).claim, SPREAD_LIMIT)}
+              </span>
+            </>
+          )}
+          {weight && typeof state.round === 'number' && state.round > 0 && (
+            <>
+              <span className={css.fieldKey}>已返工</span>
+              <span className={css.fieldValue}>
+                {String(state.round)} 轮{text(state.reason) === '' ? '' : `：${text(state.reason)}`}
               </span>
             </>
           )}

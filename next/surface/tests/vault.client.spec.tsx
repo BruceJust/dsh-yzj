@@ -318,6 +318,40 @@ describe('接缝④⑤：后视镜条与两读只长在桌面卡的渲染管道�
     expect(text).toContain('仅你可见 · 非消息')
   })
 
+  it('负重档真的把证据摆开了 —— 说明文字占位同罪', () => {
+    const long = 'x'.repeat(600)
+    const approval: StreamCard = {
+      kind: 'approval',
+      id: 'a-1',
+      state: {
+        status: 'pending', reason: '新建知识库文档', toolName: 'yzj_doc_create',
+        level: 'standard', args: { body: long }, deadline: Date.now() + 60_000,
+      },
+      at: 1, seq: 1, resolved: false,
+      actions: [{ id: 'approve', label: '确认', style: 'primary', needsInput: false, available: true }],
+    }
+    // 默认档：卡是入口不是全文，长参数截断。
+    const plain = render(<CardRow card={approval} busy={false} act={() => {}} />)
+    expect(plain.text).toContain('…')
+    expect(plain.text).not.toContain(long)
+
+    // 负重档：**同一份数据，整个摆开**。一个写着「证据已摆开」却仍然截断的卡是假话。
+    const weighted = render(
+      <CardRow
+        card={{
+          ...approval,
+          gearEffect: {
+            family: 'write-confirm', gear: 'weight',
+            preselect: false, quickAccept: false, spreadEvidence: true,
+          },
+        }}
+        busy={false}
+        act={() => {}}
+      />,
+    )
+    expect(weighted.text).toContain(long)
+  })
+
   it('负重档：不预选、无一键通过 —— 主动作要按两下', async () => {
     const pressed: string[] = []
     const card: StreamCard = {

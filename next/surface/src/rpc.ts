@@ -2330,17 +2330,16 @@ export function cardsFor(
       const desk = ctx.get('yzjPledgerDesk')
       const resolved = definition.isResolved(object.state as never)
       /*
-        **两样各在各的时刻，而时刻是它们各自的意思的一部分。**
+        **后视镜长在还没答的卡上，条尾两读长在答完的卡上。**
 
-        后视镜长在**还没答**的卡上：它要帮的是下一次裁决，而一条挂在已经答完的卡
-        旁边的判例，只剩下「你看你又错了」——说教剧场，正是 #61 要躲开的那个死法。
+        时刻是它们各自的意思的一部分。一条挂在已经答完的卡旁边的判例，只剩下「你看
+        你又错了」——说教剧场，正是 #61 要躲开的死法。而「这类确认还需要你吗」是一个
+        只有在你刚刚又答过一次之后才问得出口的问题：答之前问它，等于在你要做判断的
+        那一刻推销一个把判断关掉的开关。
 
-        条尾两读长在**答完**的卡上（§5-④「终态渲染的条尾」）：「这类确认还需要你吗」
-        是一个只有在你刚刚又答过一次之后才问得出口的问题；答之前问它，就是在你要
-        做判断的那一刻推销一个把判断关掉的开关。
+        两读还要**每一族只挂一次**，见下面那一段。
       */
       const strip = resolved ? undefined : desk?.stripFor(kind)
-      const twoRead = resolved ? desk?.twoReadFor(kind) : undefined
       const gearEffect = desk?.gearEffectFor(kind)
       out.push({
         kind,
@@ -2351,7 +2350,6 @@ export function cardsFor(
         resolved,
         ...(demand === undefined ? {} : { demand }),
         ...(strip === undefined ? {} : { strip }),
-        ...(twoRead === undefined ? {} : { twoRead }),
         ...(gearEffect === undefined || gearEffect.gear === 'default' ? {} : { gearEffect }),
         actions: definition.actions.map(action => ({
           id: action.id,
@@ -2363,6 +2361,31 @@ export function cardsFor(
             : action.available(object.state as never),
         })),
       })
+    }
+  }
+
+  /*
+    条尾两读：**这一族在这一屏上只挂最新的那一张** (接缝④).
+
+    上一版给这一族每一张答完的卡都挂了一块。一段长会话里二十次确认，就是二十块
+    「这类确认还需要你吗」——而它问的偏偏是「你是不是被问烦了」。用重复二十遍的方式
+    问这个问题，本身就是答案，而且是最难看的那种。
+
+    「零新入口」的意思也在这儿：既有的条尾租约入口从来只有一个位置，扩成两读不该把
+    一个位置扩成二十个。挂在最新那一张上，因为那是你刚刚答完的、还看得见的那一次。
+  */
+  const desk = ctx.get('yzjPledgerDesk')
+  if (desk !== undefined) {
+    const newest = new Map<string, StreamCard>()
+    for (const card of out) {
+      if (!card.resolved) continue
+      const current = newest.get(card.kind)
+      if (current === undefined || current.seq < card.seq) newest.set(card.kind, card)
+    }
+    for (const [kind, card] of newest) {
+      const twoRead = desk.twoReadFor(kind)
+      if (twoRead === undefined) continue
+      out[out.indexOf(card)] = { ...card, twoRead }
     }
   }
   return out

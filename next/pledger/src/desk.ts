@@ -21,12 +21,22 @@ import { familyOfCardKind } from './families.ts'
 import { inviteCard, type InviteState } from './invite.ts'
 import { mirrorCases, patternsIn } from './patterns.ts'
 import { vaultView, type VaultView } from './vault.ts'
+import { seenVerdicts } from './verdicts.ts'
 import {
   declineInvite, noteFact, pledgeOnVerdict, reattribute, reopenInvites,
   shiftGear, toggleMirror, withdrawExpectation,
   type PledgeOutcome,
 } from './verbs.ts'
 import { DEFAULT_PATTERN_WINDOW, type Attribution, type Gear, type OrgAnchor, type PatternWindow } from './types.ts'
+
+/**
+ * 这一族攒到多少次裁决，「还需要你吗」才值得问一次.
+ *
+ * 五 —— 和会话决断条那条**条长即治理信号**的阈值同一个数（`DecisionBar` 的
+ * `FATIGUE`）。两处问的是同一件事的两个面：那里是「同时挂着五件待答」，这里是
+ * 「这一类你已经答过五次」。数字相同不是巧合，是同一条规矩。
+ */
+const TWO_READ_MIN_VERDICTS = 5
 
 /** One row of the private stream — 私语通道的两位新住客。 */
 export interface PrivateRow {
@@ -209,6 +219,20 @@ export function createDesk(ctx: Context, bus: PledgerCards): PledgerDesk {
       const pledger = ctx.get('yzjPledger')
       const spec = familyOfCardKind(cardKind)
       if (pledger === undefined || !pledger.ready || spec === undefined) return undefined
+      /*
+        **条长即治理信号** —— 这一问要等它值得问的时候才问 (§7.1).
+
+        上一版对这一族**每一张**答完的卡都挂一块两读。一段长会话里二十次确认，就是
+        二十块「这类确认还需要你吗」——而它问的偏偏是「你是不是被问烦了」。用重复
+        二十遍的方式问这个问题，本身就是答案，而且是最难看的那种答案。
+
+        既有的条尾租约入口从来不是每次都出现：它等到条上挂了五件待答才长出来，因为
+        那时它说的是一句真话（你确实在这类事上答得太多了）。这里用同一个判据、同一个
+        数——只是把「五件同时待答」换成这一族**已经攒下的裁决次数**：demo 里那句
+        「连续 19 次通过、中位停留 1.6 秒」，说的正是这种攒法。
+      */
+      const verdicts = seenVerdicts(ctx).filter(one => one.family === spec.family)
+      if (verdicts.length < TWO_READ_MIN_VERDICTS) return undefined
       const view = vaultView(pledger, { window })
       const row = view.gears.find(one => one.family === spec.family)
       if (row === undefined) return undefined
