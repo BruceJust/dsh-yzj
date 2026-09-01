@@ -11,9 +11,20 @@
     "src"
   ],
   "references": [
-    { "path": "../graph" },
-    { "path": "../cards" },
-    { "path": "../channel" },
-    { "path": "../objects" }
+    {
+      "path": "../graph"
+    },
+    {
+      "path": "../cards"
+    },
+    {
+      "path": "../channel"
+    },
+    {
+      "path": "../objects"
+    },
+    {
+      "path": "../pledger"
+    }
   ]
 }

@@ -455,9 +455,19 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
           )}
       </span>
     )
-    // 自聊 is the approval and private channel; its answerable traffic is
-    // already counted in the attention chips above.
-    const unread = stealth || row.selfChat ? 0 : row.unread
+    /*
+      自聊行未读豁免 —— **收窄为限组织侧可应答流量** (私账层 接缝②).
+
+      这条豁免原本的理由是「自聊里的可应答流量已经在上面那三枚 chip 里数过了」。
+      私账消息（立约邀约、校准回执）**不在任何 chip 里**——它们不进收件箱、不进
+      决断条、不进任何可应答聚合（三不入），所以那句理由对它们不成立：豁免掉，
+      它们就一个提示都没有了。
+
+      于是私账开着的时候，自聊行照常显示消息层未读，**读即清**——它数的是「有几条
+      新消息」，永远不是「有几件事没答」。未答的邀约与回执不老化、不可催、不成欠账，
+      它们静躺在私语流里等你有空。
+    */
+    const unread = stealth || (row.selfChat && inbox.pledger?.enabled !== true) ? 0 : row.unread
     const note = row.selfChat ? '审批与私语通道' : stealth ? '' : row.preview
 
     if (place !== undefined && row.onDuty) {
@@ -842,6 +852,18 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
         >
           ◫
         </button>
+        {/* 收起态里金库同样在座，同样**没有徽标**——窄不是把它藏起来的理由。 */}
+        {inbox.pledger?.enabled === true && (
+          <button
+            type="button"
+            className={`${css.railBoard} ${frame.kind === 'vault' ? css.boardOn : ''}`}
+            title="我的判断（金库）· 仅你可见"
+            aria-label="我的判断"
+            onClick={() => { setFrame({ kind: frame.kind === 'vault' ? 'session' : 'vault' }) }}
+          >
+            🔒
+          </button>
+        )}
       </nav>
     )
   }
@@ -909,6 +931,28 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
             </span>
           )}
       </button>
+
+      {/*
+        我的判断（金库）—— 私账的入口，**永远没有徽标** (私账层 接缝⑥).
+
+        它紧挨着承诺板，因为它们是同一句话的两半：组织的图记承诺的一生，金库记你的
+        判断的一生。可它和承诺板有一处**故意的不对称**——那一行右边有计数，这一行
+        右边永远什么都没有。三不入的意思就是它永远不在「有几件事等你」那套语法里：
+        未答的邀约与回执不老化、不可催、不成欠账，这本账的债主是你自己。
+
+        未启用私账层时这一行**不存在**（不是灰的，是不画）。
+      */}
+      {inbox.pledger?.enabled === true && (
+        <button
+          type="button"
+          className={`${css.board} ${frame.kind === 'vault' ? css.boardOn : ''}`}
+          title={'私账：仅你可见 · 不入组织图 · 组织不可导出、本人可取走 · 永不绩效 · 审计不可触及\n'
+            + '注意它永远没有徽标——私账不进任何可应答聚合'}
+          onClick={() => { setFrame({ kind: frame.kind === 'vault' ? 'session' : 'vault' }) }}
+        >
+          <span>🔒 我的判断 · 私账</span>
+        </button>
+      )}
 
       <div className={css.tree}>
         {/*

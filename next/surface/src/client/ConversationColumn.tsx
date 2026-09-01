@@ -33,6 +33,7 @@ import { YzjDecisionBar } from './DecisionBar.tsx'
 import { YzjBoard } from './Board.tsx'
 import { YzjGoalPage } from './GoalPage.tsx'
 import { YzjPlaceView } from './PlaceView.tsx'
+import { YzjVault } from './Vault.tsx'
 import { YzjContractPanel } from './ContractPanel.tsx'
 import { YzjTracePanel } from './TracePanel.tsx'
 import { CopyButton, EmojiButton, ForwardPicker, MentionPicker } from './Compose.tsx'
@@ -654,6 +655,16 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         back={() => { setFrame({ kind: 'session' }) }}
       />
     )
+  }
+
+  /*
+    金库 —— 私账的对表面 (私账层 接缝⑥).
+
+    和承诺板同一级：一个 FRAME，不是一个 session。那里没有东西在跑、没有东西可 steer
+    ——立约与对表的**话语**在私语通道里说，这里只陈列判例与对表。
+  */
+  if (frame.kind === 'vault') {
+    return <YzjVault inject={inject} back={() => { setFrame({ kind: 'session' }) }} />
   }
 
   /*

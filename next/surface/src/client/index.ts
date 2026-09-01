@@ -30,6 +30,7 @@ export { YzjConversationColumn, type ConversationColumnProps } from './Conversat
 export { YzjSidebar, type SidebarProps } from './Sidebar.tsx'
 export { YzjObjectFace, type ObjectFaceProps } from './ObjectFace.tsx'
 export { YzjBoard, type BoardProps } from './Board.tsx'
+export { YzjVault, type VaultProps } from './Vault.tsx'
 export { YzjGoalPage, type GoalPageProps } from './GoalPage.tsx'
 export { ArtifactCard, type ArtifactCardProps } from './ArtifactCard.tsx'
 export { ArtifactPreview, type ArtifactPreviewProps } from './PreviewPanel.tsx'

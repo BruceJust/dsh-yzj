@@ -28,6 +28,7 @@ export default defineConfig({
       '@yzj-next/objects': nextSource('objects'),
       '@yzj-next/tools': nextSource('tools'),
       '@yzj-next/channel': nextSource('channel'),
+      '@yzj-next/pledger': nextSource('pledger'),
     },
   },
   test: {

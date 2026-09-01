@@ -33,6 +33,8 @@ import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
 import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
 import type { PlaceViewWire, SurfaceInject, TopicMessageWire } from './rpc.ts'
 import tokens from './tokens.module.css'
+import { PrivateCard } from './PrivateCard.tsx'
+import type { PrivateRowWire } from './rpc.ts'
 import css from './place.module.css'
 
 export interface PlaceViewProps {
@@ -63,6 +65,16 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const [earlierOpen, setEarlierOpen] = useState(false)
   /** Topic cards the reader asked to peek into (D13③: 展开是手势不是默认). */
   const [peeked, setPeeked] = useState<Record<string, string[]>>({})
+  /**
+   * 私语通道的两位新住客 —— 立约邀约与校准回执 (私账层 §7).
+   *
+   * **只在自聊里读，也只在自聊里画.** 私账内容离开桌面通道即事故，而离开自聊进入
+   * 任何一间有第二个人的屋子，是同一类事故的更糟版本。所以这一份既不在群视图里
+   * 取，也不会被取到——`selfChat` 为假时这个数组永远是空的。
+   */
+  const [privateRows, setPrivateRows] = useState<readonly PrivateRowWire[]>([])
+  const [privateBusy, setPrivateBusy] = useState(false)
+  const [privateNote, setPrivateNote] = useState<string | undefined>(undefined)
   const bodyRef = useRef<HTMLDivElement | null>(null)
   const boxRef = useRef<HTMLTextAreaElement | null>(null)
   /** Whether this room has already been scrolled to its newest message. */
@@ -159,6 +171,24 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     const timer = setTimeout(() => { setToast('') }, 6_000)
     return () => { clearTimeout(timer) }
   }, [toast])
+
+  /*
+    私语通道的两位住客，只在自聊里读 (私账层 §7).
+
+    条件写在**取数**这一侧而不是渲染那一侧：一个「取回来了但不画」的实现，只要有人
+    改一次渲染分支就漏了；一个「群视图里根本没取」的实现，改渲染也漏不出去。
+  */
+  const selfChat = view.selfChat === true
+  const reloadPrivate = useCallback(async (): Promise<void> => {
+    if (!selfChat) { setPrivateRows([]); return }
+    setPrivateRows(await inject.privateRows())
+  }, [inject, selfChat])
+
+  useEffect(() => {
+    void reloadPrivate()
+    const timer = setInterval(() => { void reloadPrivate() }, 5_000)
+    return () => { clearInterval(timer) }
+  }, [reloadPrivate])
 
   /**
    * Enter a topic, remembering where we were.
@@ -559,6 +589,38 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
       )}
 
       <div className={css.body} ref={bodyRef}>
+        {/*
+          私语通道的两位新住客 —— 立约邀约与校准回执 (私账层 §7).
+
+          **零新 surface**：磨稿在工作夹、轻问在各会话、立约与对表在这儿，同为私语侧。
+          它们排在消息之上，因为它们等的是一个判断而不是一次阅读——但它们**不进任何
+          聚合**：左栏的计数不会因为它们变化，现在就可以核对。
+
+          未答的静躺在这里：不老化、不可催、不成欠账。
+        */}
+        {selfChat && privateRows.filter(row => !row.resolved).length > 0 && (
+          <div className={css.privateStream}>
+            {privateNote !== undefined && <div className={css.privateNote}>{privateNote}</div>}
+            {privateRows.filter(row => !row.resolved).map(row => (
+              <PrivateCard
+                key={`${row.kind}:${row.id}`}
+                row={row}
+                busy={privateBusy}
+                act={async (actionId, input) => {
+                  setPrivateBusy(true)
+                  try {
+                    const result = await inject.pledgerAct(row.kind, row.id, actionId, input)
+                    // 回执原样带回来：每一句都指向不同的下一步，压成一句就得靠猜。
+                    setPrivateNote(result?.outcome === 'applied' ? undefined : result?.receipt)
+                    await reloadPrivate()
+                  } finally {
+                    setPrivateBusy(false)
+                  }
+                }}
+              />
+            ))}
+          </div>
+        )}
         {earlier.length > 0 && (
           <div className={css.earlier}>
             <button

@@ -57,6 +57,23 @@ declare module '@deepseek-ai/cordis' {
       echoText: string
       projections: readonly CardProjection[]
     }): void
+    /**
+     * 一次**裁决**落地了 —— 通用事件，**总线不知道有谁在听**。
+     *
+     * 它带的只有**这次裁决的锚**：卡的 ref、动作 id、谁下的、什么时候。没有查询
+     * 能力、没有任何订阅者专属的字段。一个专用钩子会让这里的代码知道下游是谁；
+     * 一条通用事件不会，而「组织侧代码里不出现下游的名字」是一条**架构事实**比
+     * 一条 lint 规则值钱的地方。
+     *
+     * 哪些动作算裁决由**家族自己**声明（{@link CardAction.verdict}）：这里既不
+     * 枚举类型，也不判断轻重。
+     */
+    'yzj-cards/verdict-settled'(payload: {
+      cardRef: CardRef
+      actionId: string
+      actor: GraphActor
+      at: number
+    }): void
   }
 }
 
@@ -391,6 +408,19 @@ export class YzjCards extends Service {
     await this.recordAnswer(cardRef, actionId, actor, via, 'applied')
     const transition = definition.apply(state, action, actor, input)
     for (const event of transition.events) await this.ctx.yzjGraph.append(event)
+
+    /*
+      裁决落地的通用广播 —— 发完就算，谁也不等。
+
+      发在状态事件**之后**：一个订阅者读到这条事件时，被裁决的那个对象必须已经是
+      裁决之后的样子，否则它看见的是一个还没发生的裁决。发完不 await 任何东西——
+      一条广播不该让答卡的人多等一次磁盘。
+    */
+    if (action.verdict === true) {
+      this.ctx.emit('yzj-cards/verdict-settled', {
+        cardRef, actionId, actor, at: Date.now(),
+      })
+    }
 
     const next = this.ctx.yzjGraph.rawObject(cardRef.kind, cardRef.id)
     const nextState = next?.state as never

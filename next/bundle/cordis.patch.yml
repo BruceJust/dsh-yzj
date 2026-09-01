@@ -59,6 +59,27 @@
           # 在这里、@next 会在这里应答，登记的承诺卡也会投到这里。
           - 6a605c7ce4b0772a6279295e
 
+    # 私账层（金库）—— the SECOND store domain: the operator's own judgement
+    # ledger. Two accounts, two visibilities, never merged.
+    #
+    # 部署二值开关. `enabled: false` (the default) builds no directory,
+    # registers no tool, subscribes to nothing and provides no service — and
+    # there is deliberately NO "enabled and organization-visible" middle
+    # setting: 明拒要造得出来才算数. Turning it off later deletes nothing; the
+    # two-step destroy inside the vault is the only deletion path there is.
+    #
+    # It mounts AFTER the object families and BEFORE the surface: it reads the
+    # families' `verdict` declaration, and the surface reads it back for the
+    # vault view, the rear-view mirror strip and the tail's second reading.
+    # Nothing organization-side may import it (import-ban lint) — 「agent 不因
+    # 你的误判史改组织侧行为」由链接器保证，不靠自律。
+    #
+    # 3090 试运行先行 (dogfood); 3080 旧系统永不接入——账随人不随实例。
+    - id: yzj-next-pledger
+      name: '@yzj-next/pledger'
+      config:
+        enabled: true
+
     # Desktop workbench: the fused topic view (trajectory × Yunzhijia messages
     # on one timeline), the dual-voice composer, and the topic head chips. Node
     # half serves /yzj-next-surface; the browser half is a `dsh.client` row the

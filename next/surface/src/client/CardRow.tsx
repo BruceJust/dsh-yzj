@@ -89,32 +89,71 @@ interface Action {
   available: boolean
 }
 
+/**
+ * 卡 + 私账在它旁边的那三样 (私账层 接缝④⑤).
+ *
+ * **卡组件本体零改动**是这条接缝的形状：后视镜条与两读卡由渲染管道**组合**在卡的
+ * 后面，而不是长进卡的定义里。这不只是整洁——文本投影走的是另一条路（`renderText`），
+ * 那条路上根本没有这些字段，于是「私账内容离开桌面通道即事故」成了一件结构上做不到
+ * 的事，而不是一条要靠人记得的纪律。
+ */
 export function CardRow(props: CardRowProps): ReactNode {
+  return (
+    <>
+      <CardBody {...props} />
+      <PledgerTail {...props} />
+    </>
+  )
+}
+
+function CardBody(props: CardRowProps): ReactNode {
   const { card, busy, act } = props
   const [input, setInput] = useState('')
+  /**
+   * 负重档的**无一键通过**：主动作要按两下 (档位生效面).
+   *
+   * 这不是防误触。「你先拆，我再补」的意思是**把手从自动驾驶上拿回来**——而一颗
+   * 按一下就过的绿色按钮，正是三主权时刻退化成三剧场时刻的那个手势。第二下不是
+   * 摩擦，它就是那次裁决本身。
+   */
+  const [arming, setArming] = useState<string | undefined>(undefined)
   const state = record(card.state)
   const status = text(state.status)
   const actions = card.actions.filter(action => action.available)
+  const weight = card.gearEffect?.gear === 'weight'
 
   const run = (action: Action): void => {
     act(card.kind, card.id, action.id, action.needsInput && input !== '' ? input : undefined)
     setInput('')
+    setArming(undefined)
   }
 
   const buttons = (needsInputPlaceholder: string): ReactNode => (
     actions.length === 0 ? null : (
       <>
-        {actions.map(action => (
-          <button
-            type="button"
-            key={action.id}
-            className={`${css.button} ${action.style === 'primary' ? css.primary : ''} ${action.style === 'danger' ? css.danger : ''}`}
-            disabled={busy}
-            onClick={() => { run(action) }}
-          >
-            {action.label}
-          </button>
-        ))}
+        {actions.map((action) => {
+          // 不预选：负重档下没有哪一颗按钮被画成「就按这个」。
+          const emphasis = weight
+            ? ''
+            : `${action.style === 'primary' ? css.primary : ''} ${action.style === 'danger' ? css.danger : ''}`
+          const armed = arming === action.id
+          const twoStep = weight && action.style === 'primary'
+          return (
+            <button
+              type="button"
+              key={action.id}
+              className={`${css.button} ${emphasis} ${armed ? css.primary : ''}`}
+              disabled={busy}
+              title={twoStep && !armed ? '负重档：这一下只是拿起来，再按一下才算数' : undefined}
+              onClick={() => {
+                if (twoStep && !armed) { setArming(action.id); return }
+                run(action)
+              }}
+            >
+              {armed ? `再按一次：${action.label}` : action.label}
+            </button>
+          )
+        })}
         {actions.some(action => action.needsInput) && (
           <input
             className={css.input}
@@ -530,6 +569,68 @@ export function CardRow(props: CardRowProps): ReactNode {
       {actions.length > 0
         ? <div className={css.actions}>{buttons('说明（可选）')}</div>
         : <div className={css.foot}>也可在云之家回复这张卡作答。</div>}
+    </div>
+  )
+}
+
+/**
+ * 私账长在这张卡旁边的那三样 —— **全部仅操作者可见，全部只在桌面** (接缝④⑤).
+ *
+ * - **后视镜条**（#61 回喂环的合环）：你在金库对这一族开了镜，此后该族卡片旁亮出
+ *   你自己的判例。它是**你预先签发的私账规则**，不是 agent 临场的好意——所以文案
+ *   里那句「判断仍由你下」跟着条走，而不是一句可选的礼貌。
+ * - **条尾两读**（§7.1 语义扩员，**零新入口**）：既有的「设为租约›」那一位，分岔
+ *   从一个出口扩成两个——这类裁决**不再需要你**（租约），或它**需要你更多**（负重）。
+ * - **负重档提示**：档位生效了，说出来。一个悄悄变了行为的界面比一个没变的更糟。
+ *
+ * 三样在私账未启用、未开镜、族不认识时全部不渲染——不是灰，是不画。
+ */
+function PledgerTail(props: CardRowProps): ReactNode {
+  const { card } = props
+  const strip = card.strip
+  const twoRead = card.twoRead
+  const weight = card.gearEffect?.gear === 'weight'
+  if (strip === undefined && twoRead === undefined && !weight) return null
+  return (
+    <div className={css.pledgerTail}>
+      {strip !== undefined && (
+        <div className={css.mirror}>
+          <span className={css.mirrorMark}>🪞</span>
+          <span className={css.mirrorBody}>
+            后视镜（仅你可见）：
+            {strip.cases.map(one => (
+              <span key={one.calibrationId} className={css.mirrorCase}>
+                「{one.thenText}」→ {one.factText}
+              </span>
+            ))}
+            <span className={css.mirrorNote}>{strip.note}</span>
+          </span>
+        </div>
+      )}
+      {weight && (
+        <div className={css.gearNote}>
+          负重档 · <b>{card.gearEffect?.family}</b> —— 证据摆开、不预选、无一键通过。
+          这是你在金库签发的档位，组织侧无人知晓。
+        </div>
+      )}
+      {twoRead !== undefined && (
+        <div className={css.twoRead}>
+          <span className={css.twoReadHead}>这类确认还需要你吗？</span>
+          <span className={css.twoReadBody}>
+            {twoRead.evidence.map(line => <span key={line} className={css.twoReadLine}>{line}</span>)}
+            <span className={css.twoReadLine}>
+              两种可能：这类裁决<b>不再需要你</b>（→ 租约，全自动），
+              或它<b>需要你更多</b>（→ 负重：摆开证据、不预选、无一键通过）。
+            </span>
+            {!twoRead.leaseAvailable && twoRead.leaseNote !== undefined && (
+              <span className={css.twoReadLine}>{twoRead.leaseNote}</span>
+            )}
+            <span className={css.twoReadNote}>
+              {twoRead.note} · 换挡在金库（🔒 我的判断）——档位是你的私有设置
+            </span>
+          </span>
+        </div>
+      )}
     </div>
   )
 }

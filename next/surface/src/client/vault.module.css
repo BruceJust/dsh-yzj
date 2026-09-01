@@ -1,0 +1,120 @@
+/*
+  金库 —— 私账的对表面.
+
+  它长得**和别的面不一样，而且是故意的**：纸色底、暗金的线。这是这套系统里唯一一个
+  「组织看不见」的面，而一个和组织侧长得一模一样的私人账本，会让人在开会投屏的时候
+  忘了自己开着的是哪一本。颜色在这里承担的是一句话：**你现在看的这一屏，只有你看得见。**
+*/
+
+.vault {
+  display: flex; flex-direction: column; height: 100%; min-height: 0;
+  background: #FBF8F1;
+}
+
+.head {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 12px 20px 10px; border-bottom: 1px solid #E4DAC4;
+}
+.title { font-size: 15px; font-weight: 700; color: #4A3E22; }
+.sub { font-size: 11.5px; color: #8A7A55; }
+.back {
+  margin-left: auto; padding: 4px 11px;
+  border: 1px solid #E4DAC4; border-radius: 8px; background: #FFFDF8;
+  font: inherit; font-size: 12px; color: #6B5A36; cursor: pointer;
+}
+.back:hover { box-shadow: 0 1px 4px rgb(74 62 34 / 12%); }
+
+/* 硬合同 chips —— 一份人看不见的合同不是合同，所以它在最上面一行。 */
+.contract { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 20px 0; }
+.chip {
+  font-size: 10px; padding: 2px 8px; border-radius: 5px;
+  background: #F0E7D2; color: #6B5A36; border: 1px solid #E4DAC4;
+}
+
+.body { flex: 1; overflow-y: auto; padding: 12px 20px 24px; }
+
+.section {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+  color: #8A7A55; margin: 16px 0 6px; text-transform: none;
+}
+.sectionNote { font-weight: 400; letter-spacing: 0; color: #A2946F; }
+
+.row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 13px; margin-bottom: 6px;
+  border: 1px solid #E9E1CE; border-radius: 10px; background: #FFFDF8;
+}
+.rowMain { flex: 1; min-width: 0; font-size: 12px; color: #3F3721; line-height: 1.55; }
+.rowNote { display: block; font-size: 10.5px; color: #A2946F; margin-top: 3px; }
+.mark { flex: none; font-size: 13px; }
+
+/* 四格标签：判例的标签，不是分数的原料。 */
+.tag {
+  flex: none; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 5px;
+  background: #F0E7D2; color: #6B5A36; border: 1px solid #E4DAC4; white-space: nowrap;
+}
+
+/* 行内动词 —— 每一行既可见又可动。说明文字占位同罪。 */
+.verbs { display: flex; gap: 5px; flex: none; align-items: center; flex-wrap: wrap; }
+.verb {
+  font: inherit; font-size: 10.5px; padding: 2px 9px; border-radius: 7px;
+  border: 1px solid #E4DAC4; background: #FFFDF8; color: #6B5A36; cursor: pointer;
+}
+.verb:hover { background: #F5EFE2; }
+.verbOn { background: #6B5A36; color: #FFFDF8; border-color: #6B5A36; }
+.verb:disabled { opacity: .45; cursor: default; }
+
+.door {
+  font: inherit; font-size: inherit; padding: 0; border: 0; background: none;
+  color: #6B5A36; text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+}
+
+.empty {
+  padding: 10px 13px; border: 1px dashed #E4DAC4; border-radius: 10px;
+  background: #F7F1E4; font-size: 11.5px; color: #8A7A55; line-height: 1.65;
+}
+
+/* 明拒 —— 故意没有的东西，不说出来就只是还没做。 */
+.refuse {
+  margin-top: 18px; padding: 10px 13px;
+  border: 1px solid #E4DAC4; border-radius: 10px; background: #F7F1E4;
+  font-size: 11px; color: #6B5A36; line-height: 1.7;
+}
+
+.input {
+  flex: 1; min-width: 0; font: inherit; font-size: 12px;
+  padding: 5px 9px; border: 1px solid #E4DAC4; border-radius: 8px;
+  background: #FFFDF8; color: #3F3721; resize: vertical;
+}
+
+.error {
+  margin: 6px 0 0; padding: 7px 11px; border-radius: 8px;
+  background: #FBEDE9; border: 1px solid #E9C8BE; color: #8A3B22;
+  font-size: 11px; line-height: 1.6;
+}
+
+/* 销毁：不可逆终态的门。它得看起来像一扇不该随手推的门。 */
+.destroy { margin-top: 20px; padding-top: 14px; border-top: 1px dashed #E4DAC4; }
+.destroyRow { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.danger {
+  font: inherit; font-size: 10.5px; padding: 3px 10px; border-radius: 7px;
+  border: 1px solid #E9C8BE; background: #FBEDE9; color: #8A3B22; cursor: pointer;
+}
+.danger:disabled { opacity: .45; cursor: default; }
+
+/* 私语流：未答的邀约与回执，静躺在这里。 */
+.private { margin-bottom: 4px; }
+.privateCard {
+  padding: 10px 13px; margin-bottom: 6px;
+  border: 1px solid #E4DAC4; border-radius: 10px; background: #FFFDF8;
+}
+.privateHead { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+.domain {
+  font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px;
+  background: #EFE6D0; color: #6B5A36; border: 1px solid #E4DAC4;
+}
+.privateTitle { font-size: 12px; font-weight: 600; color: #3F3721; }
+.privateBody { font-size: 11.5px; color: #5B5033; line-height: 1.65; white-space: pre-wrap; }
+.privateFoot { font-size: 10px; color: #A2946F; margin-top: 5px; }
+.actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+.primary { background: #6B5A36; color: #FFFDF8; border-color: #6B5A36; }

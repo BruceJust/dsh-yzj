@@ -77,6 +77,17 @@ export interface StreamCard {
   resolved: boolean
   /** 它此刻在等什么。决断条读的就是它——和流内卡同一个数组，同源不靠纪律。 */
   demand?: AnswerableDemandWire
+  /**
+   * 后视镜条 —— 仅你可见，**永不进文本通道** (私账层 接缝⑤).
+   *
+   * 它由服务端的**桌面渲染管道**组合上来；文本投影那条路上没有这个字段。默认不开、
+   * 随时可关——它是你在金库签发的规则，agent 只执行显示。
+   */
+  strip?: MirrorStripWire
+  /** 条尾两读 —— 「这类确认还需要你吗›」，租约入口的语义扩员 (接缝④)。 */
+  twoRead?: TwoReadWire
+  /** 档位生效面。默认档不发——默认档下界面一个字都不该变。 */
+  gearEffect?: GearEffectWire
   actions: { id: string; label: string; style?: string; needsInput: boolean; available: boolean }[]
 }
 
@@ -123,6 +134,13 @@ export interface PlaceViewWire {
   onDuty?: boolean
   /** 助手/系统号是订阅，不是对话——那里没有 composer。 */
   kind?: 'group' | 'direct' | 'assistant'
+  /**
+   * 操作者自己和自己的那间屋子 —— **私语通道** (私账层 §7).
+   *
+   * 立约邀约与校准回执落在这里。它不是新 surface：磨稿在工作夹、轻问在各会话、
+   * 立约与对表在这儿，同为私语侧的三个住客，零新 surface。
+   */
+  selfChat?: boolean
   /** The words that address the agent, from the channel's config. */
   aliases?: string[]
   staleReason?: string
@@ -312,6 +330,14 @@ export interface InboxView {
     /** 子承诺全部终态的目标数——「该评估了」，评估触发的推那一半。 */
     toAssess?: number
   }
+  /**
+   * 私账层在不在 —— **一个布尔，永远没有计数** (私账层 接缝⑥).
+   *
+   * 「我的判断（金库）」那一行读它决定画不画；自聊行的未读收窄读它决定豁不豁免。
+   * 两处都不需要知道里面有几条：**金库入口永无徽标**，那就是三不入在这一列上的
+   * 样子——未答的邀约与回执不老化、不可催、不成欠账。
+   */
+  pledger?: { enabled: boolean }
 }
 
 export interface BoardRowWire {
@@ -704,6 +730,155 @@ export interface SurfaceInject {
   cardAct(
     kind: string, id: string, actionId: string, input?: string,
   ): Promise<{ receipt: string; outcome: string } | undefined>
+
+  /* ——— 私账层（金库）· 只在 `inbox.pledger.enabled` 时用得上 ——— */
+
+  /** 金库四区 + 换挡台 + 模式。未启用 / 身份未就绪时是 undefined。 */
+  vault(windowDays?: number): Promise<VaultViewWire | undefined>
+  /** 私语流：未答的立约邀约与校准回执。不老化、不可催、不成欠账。 */
+  privateRows(): Promise<readonly PrivateRowWire[]>
+  /** 答一张私账卡。走私账自己的动作总线——它读写的是第二本账。 */
+  pledgerAct(
+    kind: string, id: string, actionId: string, input?: string,
+  ): Promise<{ receipt: string; outcome: string } | undefined>
+  /**
+   * 立约 —— 你的那一句赌注，一个字节不改地落账（原话直存律）。
+   *
+   * 三种拒绝各说各的：重复（先撤回）/ 越窗（等下一次裁决）/ 无邀约（这次裁决
+   * 没开过口）。界面把原话带回来，不合成一句「不行」。
+   */
+  pledge(verdictKind: string, verdictId: string, text: string): Promise<{ error?: string }>
+  declineInvite(inviteId: string): Promise<{ error?: string }>
+  /** 撤回 —— 唯一退出动词。前提消失时撤回是诚实，不是失败。 */
+  withdrawExpectation(expectationId: string, reason?: string): Promise<{ error?: string }>
+  /** 补登事实 —— 图外事实的唯一入口。系统不猜图外。 */
+  noteFact(input: {
+    text: string
+    expectationId?: string
+    verdictKind?: string
+    verdictId?: string
+  }): Promise<{ error?: string }>
+  /** 改归因 —— 更正即追加，最新生效，史不改。 */
+  reattribute(calibrationId: string, attribution: 'q1' | 'q2' | 'q3' | 'q4'): Promise<{ error?: string }>
+  /** 换挡 —— 档位是你的私有设置，组织侧无人知晓。 */
+  shiftGear(family: string, gear: 'lease' | 'default' | 'weight', entry: 'tail' | 'vault'): Promise<{ error?: string }>
+  /** 后视镜开关 —— 你签发的私账规则，默认不开、随时可关。 */
+  toggleMirror(family: string, patternKey: string, on: boolean): Promise<{ error?: string }>
+  /** 重新打开这一族的立约邀约 —— 降频的唯一恢复动词。 */
+  reopenInvites(family: string): Promise<{ error?: string }>
+  /** 销毁整本账 —— 两段式，第二段要把那句话原样打出来。 */
+  destroyVault(confirm: string): Promise<{ error?: string }>
+}
+
+/* ——— 私账层的线上形状。**只在桌面这条通道上存在**（接缝④⑤⑥）。 ——— */
+
+/** 后视镜条：这张组织侧卡片旁边、仅你可见的那几条判例。 */
+export interface MirrorStripWire {
+  family: string
+  patternLabel: string
+  cases: { calibrationId: string; thenText: string; factText: string }[]
+  note: string
+}
+
+/** 条尾两读：这类裁决还需要你吗——一个出口扩成两个，零新入口。 */
+export interface TwoReadWire {
+  family: string
+  label: string
+  gear: 'lease' | 'default' | 'weight'
+  evidence: string[]
+  leaseAvailable: boolean
+  leaseNote?: string
+  note: string
+}
+
+/** 档位生效面：负重档要摆开证据、不预选、无一键通过。 */
+export interface GearEffectWire {
+  family: string
+  gear: 'lease' | 'default' | 'weight'
+  preselect: boolean
+  quickAccept: boolean
+  spreadEvidence: boolean
+}
+
+export interface VaultExpectationWire {
+  expectationId: string
+  text: string
+  checkpointText: string
+  checkpointTs?: number
+  verdictRef: { kind: string; id: string; label?: string }
+  bornAt: number
+  due: boolean
+  asked: boolean
+  withdrawnReason?: string
+  verbs: ('withdraw' | 'note-fact')[]
+}
+
+export interface VaultCaseWire {
+  calibrationId: string
+  attribution: 'q1' | 'q2' | 'q3' | 'q4'
+  attributionLabel: string
+  thenText: string
+  factText: string
+  verdictRef: { kind: string; id: string; label?: string }
+  at: number
+  verbs: 'reattribute'[]
+}
+
+export interface VaultPatternWire {
+  patternKey: string
+  family: string
+  label: string
+  count: number
+  mirror: boolean
+  cases: { calibrationId: string; thenText: string; factText: string; at: number }[]
+  verbs: 'mirror'[]
+}
+
+export interface VaultGearWire {
+  family: string
+  label: string
+  what: string
+  gear: 'lease' | 'default' | 'weight'
+  evidence: string[]
+  entry: 'tail' | 'vault' | 'none'
+  leaseAvailable: boolean
+  leaseNote?: string
+  verbs: 'shift'[]
+}
+
+export interface VaultInviteWire {
+  family: string
+  label: string
+  quiet: boolean
+  declinedInARow: number
+  verbs: 'invite-reopen'[]
+}
+
+export interface VaultViewWire {
+  owner?: string
+  /** 取走的落点。说不出在哪儿的「可取走」不是可取走。 */
+  directory?: string
+  contract: { label: string; how: string }[]
+  refusals: string[]
+  window: { days: number }
+  testing: VaultExpectationWire[]
+  settled: VaultCaseWire[]
+  withdrawn: VaultExpectationWire[]
+  patterns: VaultPatternWire[]
+  gears: VaultGearWire[]
+  invites: VaultInviteWire[]
+  /** 空账要如实解释自己为什么空——「还没有」和「不可能有」是两句话。 */
+  emptyBecause?: string
+}
+
+export interface PrivateRowWire {
+  kind: 'invite' | 'calibration'
+  id: string
+  at: number
+  seq: number
+  state: Record<string, unknown>
+  resolved: boolean
+  actions: { id: string; label: string; style?: string; needsInput: boolean; available: boolean }[]
 }
 
 export function createSurfaceInject(connection: ConnectionHandle | undefined): SurfaceInject {
@@ -859,6 +1034,68 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     async setServed(placeKey, on) {
       const { value, error } = await write<{ served: boolean }>('set-served', { placeKey, on })
       return error === undefined ? { served: value?.served ?? on } : { error }
+    },
+
+    /* ——— 私账层（金库）. 每一个写动词都走 `write`：拒绝的原话必须原样带回来。 ——— */
+
+    vault: windowDays => call<VaultViewWire>(
+      'vault', windowDays === undefined ? {} : { windowDays },
+    ),
+    async privateRows() {
+      return (await call<{ rows: PrivateRowWire[] }>('private-rows', {}))?.rows ?? []
+    },
+    async pledgerAct(kind, id, actionId, input) {
+      const { value, error } = await write<{ receipt: string; outcome: string }>(
+        'pledger-act', { kind, id, actionId, ...(input === undefined ? {} : { input }) },
+      )
+      return value ?? { receipt: error ?? '这张卡没有回应。', outcome: 'failed' }
+    },
+    async pledge(verdictKind, verdictId, text) {
+      /*
+        拒绝的**原话**要带回来 (断言⑭).
+
+        「[window-closed] 那次裁决的立约邀约已经关上了…」和「[duplicate] 这次裁决
+        已经立过预期了…」是两句不同的话，各自指向不同的下一步。合成一句「立不了」，
+        人只能猜——而猜错的代价是白等一个检验点。
+      */
+      const { error } = await write<{ expectationId: string }>(
+        'pledger-pledge', { verdictKind, verdictId, text },
+      )
+      return error === undefined ? {} : { error }
+    },
+    async declineInvite(inviteId) {
+      const { error } = await write<{ receipt: string }>('pledger-decline', { inviteId })
+      return error === undefined ? {} : { error }
+    },
+    async withdrawExpectation(expectationId, reason) {
+      const { error } = await write<{ expectationId: string }>('pledger-withdraw', {
+        expectationId, ...(reason === undefined ? {} : { reason }),
+      })
+      return error === undefined ? {} : { error }
+    },
+    async noteFact(input) {
+      const { error } = await write<{ factId: string }>('pledger-note', { ...input })
+      return error === undefined ? {} : { error }
+    },
+    async reattribute(calibrationId, attribution) {
+      const { error } = await write<unknown>('pledger-reattribute', { calibrationId, attribution })
+      return error === undefined ? {} : { error }
+    },
+    async shiftGear(family, gear, entry) {
+      const { error } = await write<unknown>('pledger-shift', { family, gear, entry })
+      return error === undefined ? {} : { error }
+    },
+    async toggleMirror(family, patternKey, on) {
+      const { error } = await write<unknown>('pledger-mirror', { family, patternKey, on })
+      return error === undefined ? {} : { error }
+    },
+    async reopenInvites(family) {
+      const { error } = await write<unknown>('pledger-reopen-invites', { family })
+      return error === undefined ? {} : { error }
+    },
+    async destroyVault(confirm) {
+      const { error } = await write<unknown>('pledger-destroy', { confirm })
+      return error === undefined ? {} : { error }
     },
     attachment: (fileId, name) => call<AttachmentBodyWire>(
       'attachment', { fileId, ...(name === undefined ? {} : { name }) },

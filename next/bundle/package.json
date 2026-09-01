@@ -33,6 +33,7 @@
     "@yzj-next/graph": "workspace:^",
     "@yzj-next/objects": "workspace:^",
     "@yzj-next/tools": "workspace:^",
-    "@yzj-next/surface": "workspace:^"
+    "@yzj-next/surface": "workspace:^",
+    "@yzj-next/pledger": "workspace:^"
   }
 }

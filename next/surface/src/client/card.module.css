@@ -172,3 +172,37 @@
 .signHint { flex-basis: 100%; font-size: 10.5px; line-height: 1.6; color: #A5590E; }
 /* 中断：不是死了,是等着被继续 */
 .acceptBroken { background: #FFF7ED; border-color: #F0D8B4; }
+
+/*
+  私账长在卡旁边的那三样 (私账层 接缝④⑤).
+
+  纸色，和金库同一套颜色——**颜色在这里承担一句话**：这一块只有你看得见。它和卡
+  本体的冷灰蓝并排，读起来就是两本账并排，而那正是它想说的事。
+
+  它们由渲染管道组合在卡后面，卡组件本体零改动；文本投影那条路上没有这些字段。
+*/
+.pledgerTail { display: flex; flex-direction: column; gap: 6px; margin: -2px 0 10px; }
+
+.mirror {
+  display: flex; gap: 7px; align-items: flex-start;
+  padding: 6px 10px; border: 1px dashed #E4DAC4; border-radius: 8px; background: #FBF8F1;
+  font-size: 10.5px; color: #6B5A36; line-height: 1.6;
+}
+.mirrorMark { flex: none; }
+.mirrorBody { flex: 1; min-width: 0; }
+.mirrorCase { display: block; color: #5B5033; }
+.mirrorNote { display: block; color: #A2946F; margin-top: 2px; }
+
+.gearNote {
+  padding: 6px 10px; border: 1px solid #E4DAC4; border-radius: 8px; background: #F7F1E4;
+  font-size: 10.5px; color: #6B5A36; line-height: 1.6;
+}
+
+.twoRead {
+  padding: 7px 10px; border: 1px solid #E4DAC4; border-radius: 8px; background: #FBF8F1;
+  font-size: 10.5px; color: #6B5A36; line-height: 1.65;
+}
+.twoReadHead { display: block; font-weight: 700; color: #4A3E22; margin-bottom: 3px; }
+.twoReadBody { display: block; }
+.twoReadLine { display: block; color: #5B5033; }
+.twoReadNote { display: block; color: #A2946F; margin-top: 3px; }

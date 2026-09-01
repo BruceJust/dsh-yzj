@@ -312,3 +312,16 @@
 .contractOff {
   border-color: #F0D8B4 !important; background: #FFF7ED !important; color: #A5590E !important;
 }
+
+/*
+  私语通道里那一段 —— 立约邀约与校准回执 (私账层 §7).
+
+  纸色，和金库同一套颜色。**颜色在这里说一句话**：这一段只有你看得见，而它就长在
+  一间和别人共用的语法（群视图）里——所以它必须一眼看出来不一样。
+*/
+.privateStream { margin-bottom: 10px; }
+.privateNote {
+  margin-bottom: 6px; padding: 7px 11px; border-radius: 8px;
+  background: #FBEDE9; border: 1px solid #E9C8BE; color: #8A3B22;
+  font-size: 11px; line-height: 1.6;
+}

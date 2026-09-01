@@ -46,6 +46,19 @@ export interface CardAction<S = JsonValue> {
   available?(state: S): boolean
   /** Whether this action consumes the free text that came with the answer. */
   readonly needsInput?: boolean
+  /**
+   * 这个动作是一次**裁决** —— 家族自己说，视图与总线都不猜。
+   *
+   * 声明它的家族会在这个动作落地时经动作总线发一条通用的
+   * `yzj-cards/verdict-settled`。**总线不知道有谁在听**，也不需要知道：这是
+   * 「家族即接口」的又一次落点，和 {@link CardDefinition.demand} 同一条纪律——
+   * 判据由声明的人说出来，读它的人不认识任何具体类型。
+   *
+   * 只有**高信息裁决**该声明它：验收、简报验收这一类「你真的下了一个判断」的
+   * 时刻。确认卡不声明——高频低信息，把它算成裁决，任何跟着这条事件走的东西都会
+   * 退化成 nag。
+   */
+  readonly verdict?: boolean
 }
 
 /**

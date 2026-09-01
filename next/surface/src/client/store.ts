@@ -51,6 +51,14 @@ export type Frame =
    * 竞品那种「另一个要打开的 app」。
    */
   | { readonly kind: 'goal'; readonly goalRef: string; readonly goalName: string }
+  /**
+   * 金库 —— 私账的对表面，**这个设计唯一新增的「面」**，而且它住在私语侧.
+   *
+   * 和 `board` / `place` 同一种东西：一个 FRAME，不是一个 session。那里没有东西在
+   * 跑、没有东西可 steer——它是**你自己的账本的对账面**，不是一段和 agent 的对话。
+   * 立约与对表的**话语**在私语通道里说；这里只陈列判例与对表，结论你自己下。
+   */
+  | { readonly kind: 'vault' }
 
 let frame: Frame = { kind: 'session' }
 const listeners = new Set<() => void>()

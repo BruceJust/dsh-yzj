@@ -147,6 +147,14 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
       label: '验收',
       style: 'primary',
       keywords: ['验收', '收下了', '可以', 'accept'],
+      /*
+        这一下是一次**裁决** —— 你说这份东西够好了 (家族即接口).
+
+        声明它，动作总线就会广播一条通用的 `verdict-settled`；这个家族既不知道
+        谁在听，也不该知道。打回不声明：打回说的是「还没做好」，那是一次**过程
+        判断**，它的后来还在同一条承诺上继续演——没有可对表的「后来」。
+      */
+      verdict: true,
       allowedActors: (actor, state) => mayAccept(actor.openId, state),
       available: state => state.status === 'open' && state.delivery !== undefined,
     },

@@ -14,6 +14,15 @@ import type { Context } from '@deepseek-ai/cordis'
 import { asNumber, asRecord, asString, type GraphViewer, type JsonValue } from '@yzj-next/graph'
 import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
 import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/channel'
+/*
+  **surface ──依赖──▶ pledger，单向** (私账层 §1 依赖方向铁律).
+
+  渲染消费，仅此而已：金库视图、私语流、后视镜条、两读卡、档位生效面。反过来的那条
+  边不存在，也不可能存在——`pledger` 的 package.json 里没有 `@yzj-next/surface`。
+*/
+import type {
+  Attribution, GearEffect, MirrorStrip, PledgeRefusal, TwoRead,
+} from '@yzj-next/pledger'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
 import {
   commitmentIdFor, createGoalBody, eventHub, executorName, failureOf, goalCommitmentIdFor,
@@ -66,6 +75,22 @@ export interface StreamCard {
    * 碰巧一致。「同源条款」于是不必靠纪律维持——想让它们说不同的话都做不到。
    */
   readonly demand?: AnswerableDemand
+  /**
+   * 后视镜条 —— 仅操作者桌面渲染层，**永不进文本通道** (私账层 接缝⑤ / #61 回喂环).
+   *
+   * 它在这里而不在卡的定义里，是因为「私账内容不许离开桌面通道」这条纪律必须是
+   * **结构性**的：`renderText` 走的是另一条路，那条路上根本没有这个字段。
+   */
+  readonly strip?: MirrorStrip
+  /**
+   * 条尾两读 —— 「这类确认还需要你吗›」的第二个出口 (私账层 接缝④).
+   *
+   * §7.1 既有的条尾租约入口在语义上扩员，**零新入口**：分岔从一个出口变成两个
+   * （租约 / 负重）。未启用私账时它不在，条尾回落为原来那一个租约出口。
+   */
+  readonly twoRead?: TwoRead
+  /** 档位对这张卡的渲染指令。默认档不发——默认档下界面一个字都不该变。 */
+  readonly gearEffect?: GearEffect
   readonly actions: readonly {
     readonly id: string
     readonly label: string
@@ -391,6 +416,13 @@ export interface PlaceView {
    * reply. The composer is closed there rather than left open over a hole.
    */
   readonly kind: 'group' | 'direct' | 'assistant'
+  /**
+   * 操作者自己和自己的那间屋子 —— **私语通道** (私账层 §7).
+   *
+   * 立约邀约与校准回执住在这里。它不是一个新 surface：磨稿在工作夹、轻问在各会话、
+   * 立约与对表在这儿，同为私语侧的三个住客。
+   */
+  readonly selfChat: boolean
   /** The words that address the agent, from the channel's config. */
   readonly aliases: readonly string[]
   readonly staleReason?: string
@@ -415,6 +447,8 @@ export async function placeView(
   const groupName = entry?.place.groupName ?? listed?.name ?? placeKey
   const onDuty = listed?.onDuty ?? entry !== undefined
   const kind = listed?.kind ?? (placeKey.startsWith('yzj-dm-') ? 'direct' as const : 'group' as const)
+  // 私语通道认的是「这间屋子里只有我自己」，通道那一侧已经算过一次，这里不重算。
+  const selfChat = listed?.selfChat ?? false
   const viewer: GraphViewer = { kind: 'place', placeKey }
   /**
    * topicKey → 这个话题还在办。
@@ -468,7 +502,7 @@ export async function placeView(
   })
   const aliases = topics?.aliases() ?? []
   if (topics === undefined) {
-    return { placeKey, groupName, messages: [], topics: cards, onDuty, kind, aliases }
+    return { placeKey, groupName, messages: [], topics: cards, onDuty, kind, selfChat, aliases }
   }
   try {
     const messages = await topics.messagesInPlace(placeKey, windowSize)
@@ -476,7 +510,7 @@ export async function placeView(
     // that failed destroys the unread signal and puts nothing in its place —
     // the one pairing worse than either failure alone.
     topics.markRead(placeKey)
-    return { placeKey, groupName, topics: cards, onDuty, kind, aliases, messages }
+    return { placeKey, groupName, topics: cards, onDuty, kind, selfChat, aliases, messages }
   } catch (error) {
     return {
       placeKey,
@@ -484,6 +518,7 @@ export async function placeView(
       topics: cards,
       onDuty,
       kind,
+      selfChat,
       aliases,
       messages: [],
       staleReason: error instanceof Error ? error.message : String(error),
@@ -661,6 +696,13 @@ export interface InboxView {
     /** Goals whose children have ALL settled — the moment to write a gap report. */
     readonly toAssess: number
   }
+  /**
+   * 私账层在不在 —— **一个布尔，永远没有计数** (私账层 接缝⑥).
+   *
+   * 左栏的「我的判断（金库）」行读它决定画不画，自聊行的未读收窄读它决定豁不豁免。
+   * 两处都不需要知道里面有几条：金库入口**永无徽标**，那是三不入在这一列上的样子。
+   */
+  readonly pledger?: { readonly enabled: boolean }
 }
 
 /**
@@ -2174,6 +2216,14 @@ export function inboxView(ctx: Context): InboxView {
     })),
     topicSessionIds: tree.flatMap(entry => entry.topics.map(topic => topic.sessionId)),
     commitments: { open, overdue, toAssess },
+    /*
+      金库入口的**唯一**一句话：它在不在 (接缝⑥).
+
+      **永无徽标.** 这里刻意只发一个布尔，不发任何计数：一个带数字的金库入口，就是
+      把私账塞回了「有几件事等你」的语法里，而三不入的全部意思是它永远不在那套语法
+      里。未答的邀约与回执不老化、不可催、不成欠账——这本账的债主是你自己。
+    */
+    pledger: { enabled: ctx.get('yzjPledgerDesk')?.enabled === true },
   }
 }
 
@@ -2267,6 +2317,20 @@ export function cardsFor(
       const definition = ctx.yzjCards.definitionOf(kind)
       if (definition === undefined) continue
       const demand = ctx.yzjCards.demandOf(object)
+      /*
+        **私账的三样，全部组合在这里** (接缝④⑤ · 私账层).
+
+        这个函数是**桌面渲染管道**：`renderText`（文本投影）与原生卡那两条路一个字
+        都不经过它。私账内容离开桌面通道即事故，所以它们在这里长出来，而不是长在卡
+        自己的定义里——卡组件本体零改动，也就不可能在别的通道上把它们带出去。
+
+        未启用私账（或未开镜、族不认识）时三样全是 undefined：六个接缝的回落形态
+        就是「什么都没有」，界面一个字不变（断言⑩）。
+      */
+      const desk = ctx.get('yzjPledgerDesk')
+      const strip = desk?.stripFor(kind)
+      const twoRead = desk?.twoReadFor(kind)
+      const gearEffect = desk?.gearEffectFor(kind)
       out.push({
         kind,
         id: object.id,
@@ -2275,6 +2339,9 @@ export function cardsFor(
         seq: object.createdSeq,
         resolved: definition.isResolved(object.state as never),
         ...(demand === undefined ? {} : { demand }),
+        ...(strip === undefined ? {} : { strip }),
+        ...(twoRead === undefined ? {} : { twoRead }),
+        ...(gearEffect === undefined || gearEffect.gear === 'default' ? {} : { gearEffect }),
         actions: definition.actions.map(action => ({
           id: action.id,
           label: action.label,
@@ -2581,6 +2648,187 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               stringField(payload, 'input'),
             )
             return { ok: true, value: { receipt: result.receipt, outcome: result.outcome } }
+          }
+          /*
+            金库与私语面 —— 接缝⑥ 的服务端一半 (私账层).
+
+            全部走 `yzjPledgerDesk` 这一个座位。未启用时它不在上下文里，于是每一个
+            端点都回落成同一句「未启用」——**回落只有一种形态**，而不是每处各写一份
+            降级分支（断言⑩）。
+
+            这些端点只对**桌面**开着：桌面就是操作者本人（loopback authority，和
+            card-act 同一条），而私账的读取面上根本没有「以谁的身份看」这个参数。
+          */
+          case 'vault': {
+            const desk = scoped.get('yzjPledgerDesk')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            const days = (payload as { windowDays?: unknown }).windowDays
+            const view = desk.vault(typeof days === 'number' ? { days } : undefined)
+            return view === undefined
+              ? failure('私账账本还没打开（云之家身份还没就绪）')
+              : { ok: true, value: view }
+          }
+          case 'private-rows': {
+            const desk = scoped.get('yzjPledgerDesk')
+            return { ok: true, value: { rows: desk?.privateRows() ?? [] } }
+          }
+          case 'pledger-act': {
+            const desk = scoped.get('yzjPledgerDesk')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            const kind = stringField(payload, 'kind')
+            const id = stringField(payload, 'id')
+            const actionId = stringField(payload, 'actionId')
+            if (kind === undefined || id === undefined || actionId === undefined) {
+              return failure('pledger-act requires kind, id and actionId')
+            }
+            try {
+              return {
+                ok: true,
+                value: await desk.act(kind, id, actionId, stringField(payload, 'input')),
+              }
+            } catch (error) {
+              return failure(error instanceof Error ? error.message : String(error))
+            }
+          }
+          /**
+           * 立约 —— 拒绝要**说得清是哪一种** (断言⑭).
+           *
+           * 重复 / 越窗 / 无邀约，三种走不通各有各的下一步。压成一句「不行」，人就
+           * 只能猜；而这三种里有一种（越窗）的正确回应是「等下一次裁决」，另一种
+           * （重复）的正确回应是「先撤回」——猜错的代价是一次白等。
+           */
+          case 'pledger-pledge': {
+            const desk = scoped.get('yzjPledgerDesk')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            const kind = stringField(payload, 'verdictKind')
+            const id = stringField(payload, 'verdictId')
+            const text = stringField(payload, 'text')
+            if (kind === undefined || id === undefined || text === undefined) {
+              return failure('立约要说清是哪一次裁决，以及你的那一句赌注')
+            }
+            const outcome = await desk.pledge({ kind, id }, text)
+            return outcome.ok
+              ? { ok: true, value: { expectationId: outcome.expectationId } }
+              : failure(`[${(outcome.refusal as PledgeRefusal).kind}] ${outcome.refusal.message}`)
+          }
+          case 'pledger-decline': {
+            const desk = scoped.get('yzjPledgerDesk')
+            const inviteId = stringField(payload, 'inviteId')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            if (inviteId === undefined) return failure('pledger-decline requires inviteId')
+            return { ok: true, value: { receipt: await desk.decline(inviteId) } }
+          }
+          case 'pledger-withdraw': {
+            const desk = scoped.get('yzjPledgerDesk')
+            const expectationId = stringField(payload, 'expectationId')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            if (expectationId === undefined) return failure('撤回要说清是哪一条预期')
+            try {
+              // 撤回留痕不删史：理由留空也合法，前提消失本身就是理由。
+              await desk.withdraw(expectationId, stringField(payload, 'reason') ?? '前提消失')
+              return { ok: true, value: { expectationId } }
+            } catch (error) {
+              return failure(error instanceof Error ? error.message : String(error))
+            }
+          }
+          /**
+           * 补登事实 —— 图外事实的唯一入口 (PTD-11).
+           *
+           * `text` 一个字节不动地落账：它是人刚打的那句话，这条路上没有模型。
+           */
+          case 'pledger-note': {
+            const desk = scoped.get('yzjPledgerDesk')
+            const text = stringField(payload, 'text')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            if (text === undefined) return failure('补登事实要有内容——一句你自己的话')
+            const expectationId = stringField(payload, 'expectationId')
+            const verdictKind = stringField(payload, 'verdictKind')
+            const verdictId = stringField(payload, 'verdictId')
+            try {
+              const factId = expectationId !== undefined
+                ? await desk.note(text, { kind: 'expectation', expectationId })
+                : verdictKind !== undefined && verdictId !== undefined
+                  ? await desk.note(text, { kind: 'verdict', verdictRef: { kind: verdictKind, id: verdictId } })
+                  : undefined
+              return factId === undefined
+                ? failure('补登要说清这条事实说的是哪一次裁决或哪一个预期')
+                : { ok: true, value: { factId } }
+            } catch (error) {
+              return failure(error instanceof Error ? error.message : String(error))
+            }
+          }
+          case 'pledger-reattribute': {
+            const desk = scoped.get('yzjPledgerDesk')
+            const calibrationId = stringField(payload, 'calibrationId')
+            const attribution = stringField(payload, 'attribution')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            if (calibrationId === undefined || attribution === undefined) {
+              return failure('改归因要说清是哪一条回执、哪一格')
+            }
+            try {
+              await desk.reattribute(calibrationId, attribution as Attribution)
+              return { ok: true, value: { calibrationId, attribution } }
+            } catch (error) {
+              return failure(error instanceof Error ? error.message : String(error))
+            }
+          }
+          case 'pledger-shift': {
+            const desk = scoped.get('yzjPledgerDesk')
+            const family = stringField(payload, 'family')
+            const gear = stringField(payload, 'gear')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            if (family === undefined || gear === undefined) return failure('换挡要说清哪一族、哪一档')
+            const entry = stringField(payload, 'entry') === 'tail' ? 'tail' as const : 'vault' as const
+            try {
+              await desk.shift(family, gear as 'lease' | 'default' | 'weight', entry)
+              return { ok: true, value: { family, gear } }
+            } catch (error) {
+              return failure(error instanceof Error ? error.message : String(error))
+            }
+          }
+          case 'pledger-mirror': {
+            const desk = scoped.get('yzjPledgerDesk')
+            const family = stringField(payload, 'family')
+            const patternKey = stringField(payload, 'patternKey')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            if (family === undefined || patternKey === undefined) {
+              return failure('后视镜要说清哪一族、哪个模式')
+            }
+            try {
+              await desk.mirror(family, patternKey, (payload as { on?: unknown }).on === true)
+              return { ok: true, value: { family, patternKey } }
+            } catch (error) {
+              return failure(error instanceof Error ? error.message : String(error))
+            }
+          }
+          case 'pledger-reopen-invites': {
+            const desk = scoped.get('yzjPledgerDesk')
+            const family = stringField(payload, 'family')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            if (family === undefined) return failure('要说清哪一族')
+            try {
+              await desk.reopenInvites(family)
+              return { ok: true, value: { family } }
+            } catch (error) {
+              return failure(error instanceof Error ? error.message : String(error))
+            }
+          }
+          /**
+           * 销毁 —— **两段式**，而且第二段要人把那句话打出来.
+           *
+           * 数据主权归人：组织扣押成长账本就是 Org–P–Org′。所以这扇门必须真的存在，
+           * 而且不能只是一颗按钮——不可逆的终态由人签发，签发要有一次真的动作。
+           */
+          case 'pledger-destroy': {
+            const desk = scoped.get('yzjPledgerDesk')
+            const confirm = stringField(payload, 'confirm')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            try {
+              await desk.destroy(confirm ?? '')
+              return { ok: true, value: { destroyed: true } }
+            } catch (error) {
+              return failure(error instanceof Error ? error.message : String(error))
+            }
           }
           case 'memory-forget': {
             // The operator's half of `memory_forget`. Both halves exist for the
