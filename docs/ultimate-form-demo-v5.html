@@ -896,6 +896,20 @@ body.annotate .pin.inline { display: inline-flex; }
 .v5-door { color: var(--pub); background: none; border: none; border-bottom: 1px dashed var(--pub); cursor: pointer; font-weight: 650; font-size: inherit; padding: 0 1px; }
 .v5-cchip { font-size: 10px; padding: 1px 8px; border-radius: 999px; background: #EFE6D0; border: 1px solid var(--paper-line); color: #6B5A36; font-weight: 650; }
 .v5-refuse { border: 1px dashed var(--paper-line); border-radius: 10px; background: #FBF8EE; font-size: 11px; color: #6B5A36; line-height: 1.8; padding: 10px 13px; margin-top: 10px; position: relative; }
+/* ===== v5.2 · 决策 #62 十条修法 ===== */
+.v5-dead { font-size: 10px; padding: 0 6px; border-radius: 999px; background: #EFEAE0; border: 1px dashed #C9BFA6; color: #8C8271; cursor: not-allowed; text-decoration: line-through; }
+.v5-snapchip { font-size: 9.5px; padding: 0 5px; border-radius: 999px; background: #EFE6D0; color: #6B5A36; border: 1px solid var(--paper-line); font-weight: 650; letter-spacing: .02em; }
+.v5-loop { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 7px; padding: 6px 9px; border: 1px dashed var(--paper-line); border-radius: 8px; background: #FBF8EE; }
+.v5-loop .btn { font-size: 10.5px; padding: 2px 9px; }
+.v5-fold { display: flex; align-items: center; gap: 8px; padding: 7px 11px; border: 1px dashed var(--paper-line); border-radius: 10px; background: #FBF8EE; font-size: 11px; color: #6B5A36; margin: 4px 0 8px; }
+.v5-premise { border-left: 2px solid var(--amber-line); background: var(--amber-bg); border-radius: 6px; padding: 5px 8px; margin-top: 4px; font-size: 10.5px; color: #8A6D3B; }
+.v5-dist { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 2px; }
+.v5-distcell { border: 1px solid var(--paper-line); border-radius: 8px; background: #fff; padding: 5px 8px; font-size: 10.5px; color: var(--ink-3); text-align: left; cursor: pointer; }
+.v5-distcell b { display: block; font-size: 15px; color: #6B5A36; line-height: 1.2; }
+.v5-distcell:hover { border-color: #8A6D3B; }
+.v5-vq { flex: none; width: 168px; font: inherit; font-size: 11px; padding: 3px 9px; border: 1px solid var(--paper-line); border-radius: 999px; background: #fff; }
+.v5-sunk { opacity: .72; }
+.v5-offline { border: 1px solid #C9BFA6; background: #EFEAE0; border-radius: 10px; padding: 8px 12px; font-size: 11px; color: #6B5A36; line-height: 1.7; margin: 6px 0 2px; }
 
 @media (max-width: 1200px) {
   .app { grid-template-columns: 240px minmax(420px, 1fr) 0px; }
@@ -907,7 +921,7 @@ body.annotate .pin.inline { display: inline-flex; }
 
 <header class="topbar">
   <span class="wordmark">DSH<em>_</em></span>
-  <span class="crumb">终极形态 v5 · <b>P–agent–P′ 复利开双账</b>　—— v4 全量 + 私账层（决策 #60 · v4.25r）</span>
+  <span class="crumb">终极形态 v5.2 · <b>P–agent–P′ 复利开双账</b>　—— v4 全量 + 私账层（决策 #60/#61/<b>#62</b> · v4.26）</span>
   <span class="spacer"></span>
   <a class="xlink" href="ultimate-form-demo-v4.html">v4 沙盘 ↗</a>
   <button class="annotate-toggle" id="annotateToggle" aria-pressed="true">
@@ -923,6 +937,8 @@ body.annotate .pin.inline { display: inline-flex; }
   <span class="k">⑤ <b>决策 #60</b>：审批 #7 → 交付 → 验收「竞品对比表」→ 私聊「云小助 · 私语通道」立预期</span>
   <span class="k">⑥ ▸ 到明天 → 校准回执（左栏计数不动 = 三不入）→ 归因四格 → 「🔒 我的判断」金库与换挡台</span>
   <span class="k">⑦ 金库模式行开「🪞 后视镜」→ 回到任一待验收卡看判例在场（回喂环 · #61）</span>
+  <span class="k">⑧ <b>决策 #62</b>：回执答完归因 → <b>就地合环行</b>（不必记得去金库）· 金库顶栏「🔌 断开组织图」验判例自持 · 「📤 取走」看判例册</span>
+  <span class="k">⑨ 金库：检验中行的「⚠ 前提已变」双出口 · 未对表沉降区 · 模式区归因分布镜 · 换挡台日配额与全集谱 · 顶栏检索框</span>
   <button class="advance" id="v5adv" disabled title="先验收竞品对比表并答复立约邀约">▸ 到明天 · 评审结果回来</button>
   <button class="close" id="hintClose" aria-label="关闭引导">×</button>
 </div>
@@ -1508,6 +1524,17 @@ const NOTES = {
        body: '右栏的语义从未变过——<b>中栏是流、右栏是物</b>。金库的"物" = <b>判例的证据锚</b>：点判例/预期行的「证据 ›」，右栏归集当时的裁决卡、简报条目、事实消息、工件——只读预览、一跳可回真身，<b>边看证据边下归因</b>（"验收不出屏"的私账对偶）。默认态 = 待对表项的证据备料：打开金库 = <b>人发起的回看时刻</b>（持镜人条款"人发起"的消费时刻定义；备料不定案）。硬合同与持镜人条款不是右栏说明卡——它们住进<b>合同面板</b>（点会话头「判断力档案」chip，与场所合同同一语法）。<b>金库 ≠ 记忆</b>：记忆 tab 空态明标——记忆是 agent 的复利、金库是人的复利，两本账在右栏也不合流。（demo 初版曾把双螺旋/验收句等理论卡放进右栏——注解内容冒充产品面，已纠正：理论住 pin 层。）' },
   34: { title: '查看者样本律：成长回路人人有，账本互不可见',
        body: '金库视角切换：<b>张锐（执行者）有他自己的金库与回执</b>（返修数据估期偏后、行为回执兜底两次）——P′ 不是老板的特权；Bruce 的预期与回执在他的账里<b>不存在</b>（不是灰化，是不渲染）。王超（旁观）：他的金库是空账（空状态如实解释"预期不可回填"），且<b>没有任何入口</b>看到别人的对表——"找下属的对表"这个需求被明拒：误判史归组织，成长回路当场翻转为监控回路。每类空状态要有样本（样本纪律）。' },
+  /* ===== v5.2 · 决策 #62：P′ 二次全局 review 的十条修法 ===== */
+  37: { title: '立此存照律：私账存的是照片，不是链接（#62-A1/A2）',
+       body: '<b>主发现①：判例是空壳。</b>v1.x 的私账正文（当时/事实/证据）存的是组织图<b>锚</b>，内容靠渲染时解析——于是「目录自包含·拷走即取走全账」与「锚失效不蒸发内容」<b>两条同时为假</b>：组织侧墓碑一落，你取走的是一叠指向虚空的编号，数据主权在<b>实践层面</b>仍被扣押（"技术上可取走"是扣押的另一种拼法）。<b>修法</b>：pgraph schema 里<b>不存在裸锚</b>——<code>AnchoredText = { text, at, anchor? }</code> 是唯一携锚形态（文本必填、锚可空），实现者<b>想只存锚都写不出来</b>；<b>锚的三个合法用途 = 一跳回 / 活性探测 / 幂等键，取内容一律非法</b>（正文渲染函数的入参里根本没有组织图 service）。金库顶栏的「🔌 断开组织图」就是这条律的可核对形态：断开后一跳回全部失效，<b>正文零缺字</b>。配套：<b>人可读取走</b>——判例册 markdown + 原件 + README 三件套，"给不出人能读的东西的可取走，是明拒条款上的幽灵信号"（逐级兑付定律对硬合同自适用）。' },
+  38: { title: '就地合环 + 入口不垄断：#61 的条款对 #61 自己适用（#62-B5）',
+       body: '<b>主发现②：环7 的入口垄断在金库。</b>后视镜与换挡只能在金库开，而<b>最想合环的时刻是刚答完归因那一刻</b>——判断刚出炉、动机最热。#61 立下"凡只能在金库获得的能力即违规"，第一个违例就是 #61 自己的后视镜。<b>修法</b>：回执答完归因的终态<b>必带</b>就地合环动词条（开镜/调档），落账时 <code>entry: \'receipt\'</code>——与金库入口<b>同一事件、不同出生地</b>；升格为通则：<b>凡"人刚获得一个判断"的时刻，合环动词就近；金库是汇总处，不是唯一入口</b>。执法机关也一并给出——<b>能力-入口注册表 CI 校验</b>：任一私账能力的入口数 ≥ 2，出现"唯一入口 = 金库"即红。给自己立的法要有自己的执法机关。' },
+  39: { title: '可对表判据取代触发枚举 + 扩员即疲劳（#62-B4）',
+       body: '<b>主发现③：环1 的裁决面靠枚举。</b>立约触发是两个枚举点（验收 accept / 简报验收），可金库里躺着<b>委派锚与续约锚</b>的预期——这些可见状态<b>没有出生故事</b>。<b>修法</b>：判据取代枚举——①图上有<b>人签发的裁决留痕</b>②有<b>可命名的检验点</b>③<b>事实会自行回流</b>（图内结构性或人工补登够得着）④否决位 = <b>信息量</b>（高频低信息即使三条全过也不问——邀约变 nag 是疲劳的生产线，治理疲劳不如不生产疲劳）。判据定谱七类，确认卡被④否决。工程上落成<b>三段式：谱（纯函数）／门（读账：幂等·疲劳·配额）／笔（生成器，不读账）</b>——"镜子等人来照"要求生成器看不见镜子，而疲劳治理必须读账；v1.x 把两件事都叫"编排层"，实现者会顺手把 gate 的句柄传进 generator，当场破功。<b>并且</b>：<b>扩触发面必同扩治理面</b>——五个入口各自克制、合起来仍是骚扰，故同一次修改加<b>全局日配额</b>（换挡台可调 0-3）。扩员与疲劳是同一个动作的两面。' },
+  40: { title: '锚死显形：锚有余生，预期也有（#62-A3）',
+       body: '预期所锚的组织侧对象进终态/墓碑/作废/<b>移交</b>时，v1.x 的预期会永远躺在"检验中"——检验点一到，agent 还会来问一个三周前就已经不存在的东西的结果。<b>回程律对私账的兑现</b>：该行显形「⚠ 前提已变」+ 就地<b>双出口</b>（撤回 / 照旧对表）。三条纪律：①<b>不自动撤回</b>——撤回是人的诚实动作，<b>代撤即代产</b>（产婆术对"诚实退出"这个动作同样适用）；②<b>零事件</b>——显形是查询层派生（活性探测 + 快照），不落账（<b>能派生就不落账</b>，模式滚动律的推广：落账即档案）；③组织图不可达时退化为"未知"并<b>不显形</b>——取走后的目录里不会出现虚假的"前提已变"。' },
+  41: { title: '静默沉降 · 分布镜 · 不措辞化 · 两个明拒面（#62-B6/C7/C8/D9/D10）',
+       body: '<b>静默沉降（B6）</b>：「未答不成欠账」此前只是文字承诺——<b>堆积是催办的被动形态</b>，平铺的未答回执会让私语通道自己长成第二个收件箱。折叠归并（"N 张待对表 · 一起看 ›" 是门不是徽标）+ 超期沉入金库「未对表」区：<b>零事件、不红、不计数、不产生未读</b>，且沉降区的行<b>仍可动</b>（不打扰 ≠ 不可动）。<b>隐式预期不措辞化（C7）</b>：无显式预期时，回执"当时"栏只陈列<b>裁决事实本身</b>，不代人推演其含义——v5 首版写的"隐式预期即『它已经够好』"是 agent 替你写好了你当时在想什么，与预填出处律、归因候选措辞同族违规；工程上靠<b>两输入联合类型封闭</b>（第三种输入不可构造），不靠 prompt 里写"不要推演"。<b>归因分布镜（C8）</b>：单次归因防不住"永远选 q4（错了因世界）"，<b>分布能</b>——但只陈列不解读：分布查询的<b>返回类型没有 string 字段</b>，判词在 API 上不可构造。<b>陈列是镜子，解读是教练</b>。<b>两个明拒面（D9/D10）</b>：私账卡与金库行<b>没有转发/分享/引用到组织侧的动词</b>（不给动词就不会误用——人自己复制是人的自由，系统不递刀）；查看者样本律此前只裁了聚合面与导出面，<b>搜索是第三个漏口</b>——组织侧索引结构性不遍历私账，本人检索走金库内的检索框。' },
 };
 
 /* ============================================================ */
@@ -2255,7 +2282,24 @@ function renderBoard() {
    三不入：私账对象不进收件箱/决断条/徽标聚合——在场方式 = 私语通道未读（读即清）与金库本身 */
 const v5 = { offerReady: false, offer: 'pending', expectText: null, refused: false, tomorrow: false,
   attribution: null, zrAttr: null, gearWrite: 'default', gearDecomp: 'default', tailOpen: false, vaultAs: 'me',
-  mirror: false, receiptWrong: false, evid: null };
+  mirror: false, receiptWrong: false, evid: null,
+  /* ===== v5.2 · 决策 #62 十条修法 ===== */
+  orgLink: true,        // A1 立此存照律：断开组织图 = 模拟"取走后 / 组织侧墓碑"——正文零缺字，只是锚失效
+  premiseQ3: 'changed', // A3 锚死显形：Q3 路线图预期的锚已被移交（#59 边的重新签发）→ 前提已变
+  destroyArm: false,    // A2 销毁两段式
+  quota: 2,             // B4 全局日配额（扩触发面必同扩治理面）
+  mirrorEntry: null,    // B5 就地合环：记录后视镜由哪个入口签发（vault / receipt）
+  foldOpen: false,      // B6 静默沉降：私语流折叠归并条
+  sunk: 'sunk',         // B6 沉降区行的状态（sunk / noted / withdrawn）
+  vaultQ: '' };         // D10 金库内检索框（P1 形态，零组织侧接缝）
+
+/* A1 立此存照律：正文来自快照，锚只做一跳回——断开组织图后一跳回失效、内容零缺字 */
+function v5Anchor(inner) {
+  return v5.orgLink ? inner
+    : `<span class="v5-dead" title="组织图不可达（已取走的目录 / 组织侧墓碑）：一跳回失效。但正文来自写入时刻的快照——立此存照律（#62-A1）：私账存的是照片，不是链接">锚失效</span>`;
+}
+function v5SnapChip() { return `<span class="v5-snapchip" title="立此存照律（#62-A1）：这段文字是写入时刻定格的快照，不是渲染时去组织图解析出来的——组织侧墓碑落下也不蒸发">快照</span>`; }
+
 
 /* #61 澄清：金库右栏 = 对表证据面（判例的证据锚归集——"对表不出屏" = 验收不出屏的私账对偶） */
 const V5EVID = {
@@ -2263,14 +2307,10 @@ const V5EVID = {
     { icon: '📄', t: '客户走访汇总 · 8月第2周', m: '宏图科技：续约意向确认，待发正式报价', pv: 'doc-visit' },
     { icon: '▦', t: '走访记录表', m: '宏图行 · 8/12 · 续约意向', pv: 'sheet-visits' },
   ]},
-  skip: { t: '判例 · 「带已知差距上会被追问」', note: '证据锚一跳可回真身——边看证据边下归因。', items: [
+  skip: { t: '判例 · 「带已知差距上会被追问」', note: '摘要为主（快照在场）、锚为辅（一跳可回）——边看证据边下归因；锚死时快照原样在场（#62-A1）。', items: [
     { icon: '⚖', t: '验收裁决 · 竞品对比表', m: '今天 10:30 · 跳过差距条目②', sess: 'competitor' },
     { icon: '◐', t: '差距条目② · 目标评估', m: '「定价策略建议——部分达成」· 8/19 版基准', act: 'goto-eval' },
     { icon: '📄', t: '竞品对比分析.md', m: '当时验收的工件 · 三态预览', fpv: 'md1' },
-  ]},
-  roadmap: { t: '预期 · 「例会上路线图定稿」的语境', note: '检验点到达后，事实（例会结论）回流即出校准回执。', items: [
-    { icon: '🧵', t: 'Q3 路线图整理', m: '关联会话 · 一跳', sess: 'roadmap' },
-    { icon: '📅', t: '产品例会 · 今天 14:00', m: '检验点 · 事件枢纽', evhub: 'ev-meeting' },
   ]},
 };
 
@@ -2329,7 +2369,22 @@ function v5AttrZone(key, hints) {
   const extra = key === 'attribution' && val === 'q3'
     ? '模式「带已知差距上会被追问」：<button class="v5-door" data-v5cases="skip">第 2 次</button>（每个数字是门）'
     : '已入对表（金库可查）。';
-  return `<div class="cc-done-note" style="margin-top:8px">✓ 已对表 · ${V5Q[val]}<span style="display:block;font-weight:400;font-size:10.5px;color:var(--ink-3)">${extra} · 归因可纠（更正即追加，不改史）</span></div>`;
+  return `<div class="cc-done-note" style="margin-top:8px">✓ 已对表 · ${V5Q[val]}<span style="display:block;font-weight:400;font-size:10.5px;color:var(--ink-3)">${extra} · 归因可纠（更正即追加，不改史）</span></div>`
+    + (key === 'attribution' ? v5LoopbackRow() : '');
+}
+
+/* #62-B5 就地合环：环7 的入口不垄断——判断刚出炉、动机最热的那一刻，合环动词就近；
+   金库是汇总处不是唯一入口（#61「凡只能在金库获得的能力即违规」对 #61 自己的后视镜适用） */
+function v5LoopbackRow() {
+  const g = v5.gearWrite;
+  return `<div class="v5-loop">
+    <span style="font-size:10.5px;color:#6B5A36;flex:1 1 100%">🔁 <b>就地合环（#62）</b>：这类卡下次要不要不一样？——不必记得去金库
+      <span style="color:var(--ink-3)">· 入口不垄断律：私账的每个能力至少两个入口（金库 + 就近）</span>${pinInline(38)}</span>
+    <button class="btn" data-v5act="loop-mirror">🪞 ${v5.mirror ? '关掉这类卡的后视镜' : '给这类卡开后视镜'}</button>
+    <button class="btn" data-v5gear="gearWrite:weight"${g === 'weight' ? ' disabled' : ''}>🏋 调到负重档</button>
+    <button class="btn" data-v5gear="gearWrite:lease"${g === 'lease' ? ' disabled' : ''}>⏱ 调到租约档</button>
+    <span style="font-size:10px;color:var(--ink-3);flex:1 1 100%">落账时 <code>entry: 'receipt'</code>（与金库入口同一事件、不同出生地）——换挡与开镜恒由你签发，agent 只执行显示</span>
+  </div>`;
 }
 
 function v5OfferZone() {
@@ -2364,6 +2419,9 @@ function renderSelfDm() {
   h += `<div class="divider">8月18日</div>`;
   h += v5PriMsg(`<div class="bubble">上月华南回款多少？</div><div class="mfoot">本地 followup · 即时 · 群内不可见</div>`, 'me', '09:12');
   h += v5PriMsg(`<div class="bubble">¥2,412,000，环比 +12%（来源：ERP 数据面）。轻问 = 一次性投影，不落账。</div><div class="mfoot">仅你可见 · 桌面投影</div>`, 'agent', '09:12');
+  /* #62-B6 静默沉降：更早的未答回执折叠归并——不平铺、不变红、不产生未读 */
+  h += `<div class="divider">8月下旬</div>`;
+  h += v5FoldRow();
   if (!v5.offerReady) {
     h += `<div class="divider">今天</div>`;
     h += v5PriMsg(`<div class="bubble">这里现在很安静。私语通道的开口都要有出处——群里那份《竞品对比表》验收之后，如果有值得立预期的理由，我会在这儿问你一次（一次性邀约，不追问）。<span style="display:block;font-size:10px;color:var(--ink-3);margin-top:3px">agent 不会平白开口：无出处即无内容——预填出处律对话语同样适用</span></div><div class="mfoot">仅你可见 · 桌面投影</div>`, 'agent', '09:13');
@@ -2377,22 +2435,55 @@ function renderSelfDm() {
       ${v5OfferZone()}
     </div><div class="mfoot">私账对象 · 不进收件箱（左栏计数没有因这张卡变化——三不入）</div>`, 'agent', '10:31');
   if (v5.tomorrow) {
+    /* #62-C7 隐式预期不得措辞化：无显式预期时只陈列裁决事实本身，不代人推演其含义
+       （v5 首版写的"隐式预期即『它已经够好，评审能过』"= agent 替你写好了你当时在想什么） */
     const expectLine = v5.expectText
-      ? `<div style="font-size:11.5px;color:var(--ink-2)"><b>当时（今天 10:30）</b>：预期「${v5.expectText}」</div>`
-      : `<div style="font-size:11.5px;color:var(--ink-2)"><b>当时（今天 10:30）</b>：无显式预期——你的裁决是「验收」，隐式预期即「它已经够好，评审能过」。</div>`;
+      ? `<div style="font-size:11.5px;color:var(--ink-2)"><b>当时（今天 10:30）</b>：预期「${v5.expectText}」 <span style="font-size:10px;color:var(--ink-3)">你的原话，逐字直存（agent 无改写通道）</span></div>`
+      : `<div style="font-size:11.5px;color:var(--ink-2)"><b>当时（今天 10:30）</b>：你验收了《竞品对比 · 评审表》${v5SnapChip()}
+          <span style="display:block;font-size:10px;color:var(--ink-3);margin-top:1px">无显式预期——这里只陈列你当时做过的事，<b>不替你推演当时在想什么</b>（#62-C7：产婆术在回执正文的第三处应用）${pinInline(41)}</span></div>`;
     h += `<div class="divider">明天</div>`;
     h += v5PriMsg(`<div class="confirm-card" style="background:#FFFDF6;border-color:var(--paper-line)">
         <div class="cc-head"><span class="cc-domain" style="background:#EFE6D0;color:#6B5A36">校准回执</span><span class="cc-title">当时裁决 × 后来事实 · 《竞品对比 · 评审表》</span>${pinInline(28)}</div>
         ${expectLine}
-        <div style="font-size:11.5px;color:var(--ink-2);margin-top:3px"><b>事实（明早 10:40）</b>：评审通过，但管理层当场追问定价策略——只有对比没有建议，要求下周补策略文档再过一次 <span style="font-size:10px;color:var(--ink-3)">（<button class="v5-door" data-sess="prodgroup" style="font-size:10px">李婷群消息锚 · 一跳可回 ↗</button>）</span></div>
-        <div style="font-size:11px;color:var(--ink-2);border-left:2px solid var(--amber-line);background:var(--amber-bg);border-radius:6px;padding:5px 8px;margin-top:6px">⚠ <b>证据</b>：目标评估的差距条目②「定价策略建议——部分达成」早已在档（差距简报 · 真身证据）——工件早就提示了这个缺口 <button class="v5-door" data-v5act="goto-eval" style="font-size:10px">去目标枢纽看评估 ›</button></div>
+        <div style="font-size:11.5px;color:var(--ink-2);margin-top:3px"><b>事实（明早 10:40）</b>：评审通过，但管理层当场追问定价策略——只有对比没有建议，要求下周补策略文档再过一次 ${v5SnapChip()} <span style="font-size:10px;color:var(--ink-3)">（${v5Anchor('<button class="v5-door" data-sess="prodgroup" style="font-size:10px">李婷群消息锚 · 一跳可回 ↗</button>')}）</span></div>
+        <div style="font-size:11px;color:var(--ink-2);border-left:2px solid var(--amber-line);background:var(--amber-bg);border-radius:6px;padding:5px 8px;margin-top:6px">⚠ <b>证据</b>：目标评估的差距条目②「定价策略建议——部分达成」早已在档（差距简报 · 真身证据）——工件早就提示了这个缺口 ${v5SnapChip()} ${v5Anchor('<button class="v5-door" data-v5act="goto-eval" style="font-size:10px">去目标枢纽看评估 ›</button>')}</div>
         ${v5AttrZone('attribution', ['差距条目②当时已在档——对比表 ≠ 策略建议，事实链完整', '管理层临时加了要求，事前无从得知'])}
-      </div><div class="mfoot">私账对象 · 不老化 · 不可催 · 不成欠账——这本账的债主是你自己</div>`, 'agent', '明天 10:52');
+      </div><div class="mfoot">私账对象 · 不老化 · 不可催 · 不成欠账——这本账的债主是你自己${v5.orgLink ? '' : ' · <b>组织图已断开：正文零缺字，只是锚不可跳（立此存照律 #62-A1）</b>'}</div>`, 'agent', '明天 10:52');
   }
   return h;
 }
 
+/* #62-B6 折叠归并条：两张更早的未答回执静躺在这里——不平铺、不变红、不产生未读 */
+function v5FoldRow() {
+  if (!v5.foldOpen) {
+    return `<div class="v5-fold"><span style="flex:1">🗂 <b>2 张更早的待对表回执</b>静躺着——已折叠归并（不老化 · 不催 · 不计数 · 不产生未读）
+      <span style="display:block;font-size:10px;color:var(--ink-3)">静默沉降律（#62-B6）：堆积是催办的被动形态——平铺的未答回执会让私语通道自己长成第二个收件箱${pinInline(41)}</span></span>
+      <button class="btn" data-v5act="fold-open" style="font-size:10.5px;padding:2px 9px;flex:none">展开 ›</button>
+      <button class="btn" data-sess="vault" style="font-size:10.5px;padding:2px 9px;flex:none">一起去金库看 ›</button></div>`;
+  }
+  return `<div class="v5-fold" style="flex-direction:column;align-items:stretch;gap:5px">
+    <span style="display:flex;align-items:center;gap:8px"><span style="flex:1">🗂 <b>2 张更早的待对表回执</b>（展开态 · 归并条是门不是徽标：一跳可兑付到金库）</span>
+      <button class="btn" data-v5act="fold-close" style="font-size:10.5px;padding:2px 9px;flex:none">收起</button></span>
+    <span style="font-size:11px;color:var(--ink-2);background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:5px 8px">8/22 · 「预算追加申请一次过」× 事实：财务退回，要求补口径说明 ${v5SnapChip()}<span style="display:block;font-size:10px;color:var(--ink-3)">未答 10 天——再过 4 天沉入金库「未对表」区，仍可动，只是不再打扰</span></span>
+    <span style="font-size:11px;color:var(--ink-2);background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:5px 8px">8/25 · 「新版报价单不会有人问」× 事实：销售群三人追问口径 ${v5SnapChip()}<span style="display:block;font-size:10px;color:var(--ink-3)">未答 7 天 · 不老化不可催——这本账的债主是你自己</span></span>
+  </div>`;
+}
+
 /* ---------- 金库（私账对表面）---------- */
+
+/* #62-A2/D10：硬合同的每一条都要有一个可按的按钮（说明文字占位同罪 · #57）
+   取走（判例册）· 销毁（两段式）· 断开组织图（立此存照律的可核对形态）· 金库内检索框 */
+function v5VaultTools() {
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;padding-top:8px;border-top:1px dashed var(--paper-line)">
+    <input class="v5-vq" id="v5vq" placeholder="🔎 搜我的金库…" value="${v5.vaultQ}" title="#62-D10 搜索面条款：本人搜自己的金库合法（落点只有金库与私语域）；组织侧的索引结构性不遍历私账——查看者样本律此前只裁了聚合面与导出面，搜索是第三个漏口">
+    <button class="btn" data-v5act="export" style="font-size:10.5px;padding:2px 10px">📤 取走（导出判例册）</button>
+    <button class="btn" data-v5act="orglink" style="font-size:10.5px;padding:2px 10px${v5.orgLink ? '' : ';background:#EFEAE0;border-color:#C9BFA6;color:#6B5A36'}">🔌 ${v5.orgLink ? '断开组织图（验自持）' : '接回组织图'}</button>
+    <button class="btn" data-v5act="destroy" style="font-size:10.5px;padding:2px 10px;margin-left:auto${v5.destroyArm ? ';color:var(--red);border-color:var(--red)' : ''}">${v5.destroyArm ? '⚠ 再按一次：不可逆销毁整本账' : '🗑 销毁整本账'}</button>
+    ${v5.destroyArm ? '<button class="btn" data-v5act="destroy-cancel" style="font-size:10.5px;padding:2px 10px">取消</button>' : ''}
+    <span style="flex:1 1 100%;font-size:10px;color:var(--ink-3)">硬合同的每一条都得有一个<b>可按的按钮</b>——"组织不可导出、本人可取走"若给不出人能读的东西，就是明拒条款上的<b>幽灵信号</b>（逐级兑付定律对硬合同自适用）${pinInline(37)}</span>
+  </div>`;
+}
+
 function v5ContractChips() {
   return `<div style="display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 2px">
     <span class="v5-cchip">仅你可见</span><span class="v5-cchip">不入组织图</span>
@@ -2412,6 +2503,7 @@ function renderVault() {
     </div>
     ${v5ContractChips()}
     <div style="font-size:10px;color:var(--ink-3)">第二本账：组织的图记承诺的一生（承诺板/枢纽），金库记<b>你的判断</b>的一生——两处永不合流；金库入口永远没有徽标（三不入）。</div>
+    ${who ? '' : v5VaultTools()}
   </div>`;
   if (va === 'wangchao') {
     return `<div class="board">${head('王超')}
@@ -2440,36 +2532,121 @@ function renderVault() {
       <div class="v5-refuse"><b>这本账是张锐的。</b>Bruce 的预期、回执、模式在这里<b>不存在</b>——不是灰化，是不渲染。成长回路不是老板的特权，执行者同样在 P–agent–P′ 里。</div>
     </div>`;
   }
-  /* 我的金库 */
+  /* 我的金库（v5.2 = 决策 #62：六区 + 出生故事 + 锚死显形 + 分布镜 + 沉降区 + 检索框） */
+  const R = (txt, html) => ({ txt, html });
+  const born = (s) => `<span style="display:block;font-size:10px;color:#8A6D3B">出生：${s}</span>`;
+
+  /* —— 检验中 —— */
   const mainExpect = v5.offer === 'born' && !(v5.tomorrow && v5.attribution)
-    ? `<div class="cm-row"><span style="flex:none">🌱</span><span style="flex:1;font-size:12px">「${v5.expectText}」 · <b>检验中</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">检验点：明早评审后 · 锚：验收裁决（竞品对比表）· 出生：今天私语立约</span></span></div>` : '';
+    ? R(`${v5.expectText} 检验中 验收 竞品对比表`, `<div class="cm-row"><span style="flex:none">🌱</span><span style="flex:1;font-size:12px">「${v5.expectText}」 · <b>检验中</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">检验点：明早评审后 · 锚：验收裁决（竞品对比表）${v5SnapChip()} ${v5Anchor('<button class="v5-door" data-sess="prodgroup" style="font-size:10px">一跳回裁决 ↗</button>')}</span>${born('立约邀约 · <b>验收 accept</b>（判据 ✓✓✓，信息量高）· 今天私语立约')}</span></div>`) : null;
+  const emptyExpect = (!mainExpect && !(v5.tomorrow && v5.attribution) && v5.offer !== 'declined')
+    ? R('主线预期还没出生 不可回填', `<div class="cm-row" style="font-size:11px;color:#8A6D3B;background:var(--paper);border-color:var(--paper-line)">主线预期还没出生——去产品讨论群验收《竞品对比表》，私语通道会给你一次开口的机会。预期<b>不可回填</b>：这里永远不会出现"事后补写"的行。</div>`) : null;
+  /* #62-A3 锚死显形：锚有余生，预期也有——不自动撤回（代撤即代产），组织图断开时退化为不显形 */
+  const q3Alive = v5.premiseQ3 === 'changed' && v5.orgLink;
+  const q3Row = v5.premiseQ3 === 'withdrawn' || v5.premiseQ3 === 'settled' ? null
+    : R('Q3 路线图草稿能定稿 委派裁决 前提已变 移交',
+      `<div class="cm-row" style="flex-direction:column;align-items:stretch;gap:2px${q3Alive ? ';background:var(--paper);border-color:var(--paper-line)' : ''}">
+        <span style="display:flex;gap:8px"><span style="flex:none">🌱</span><span style="flex:1;font-size:12px">「例会上 Q3 路线图草稿能定稿」 · <b>检验中</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">检验点：今天 14:00 例会后 · 锚：委派裁决（Q3 路线图整理）${v5SnapChip()} ${v5Anchor('<button class="v5-door" data-sess="board" style="font-size:10px">一跳回承诺 ↗</button>')}</span>${born('立约邀约 · <b>委派签发</b>（#62-B4 判据新入的触发面——交付时间与质量是天然回流事实）· 09:33 私语立约')}</span></span>
+        ${q3Alive ? `<span class="v5-premise">⚠ <b>前提已变</b>：这条承诺已于今天 11:20 <b>移交</b>给王超（#59 边的重新签发）——你当时押的那件事，执行者已经不是同一个人了。${pinInline(40)}
+          <span style="display:block;margin-top:4px">锚有余生，预期也有：<b>系统只显形，不替你撤回</b>（代撤即代产——撤回是你的诚实动作）
+            <button class="btn" data-v5act="premise-withdraw" style="font-size:10px;padding:1px 9px;margin-left:6px">撤回（留痕）</button>
+            <button class="btn" data-v5act="premise-settle" style="font-size:10px;padding:1px 9px">照旧对表</button></span></span>`
+          : (v5.orgLink ? '' : `<span style="font-size:10px;color:var(--ink-3);padding-left:22px">组织图不可达 → 活性探测返回"未知" → <b>不显形</b>（取走后的目录里不会出现虚假的"前提已变"）</span>`)}
+      </div>`);
+  const reworkRow = R('返修数据分析 这一轮能一次过 打回 返工',
+    `<div class="cm-row"><span style="flex:none">🌱</span><span style="flex:1;font-size:12px">「返修数据分析这轮一次过，不用再返」 · <b>检验中</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">检验点：下一轮交付 · 锚：<b>打回裁决</b>（返修数据分析 · 第 1 轮拒收）${v5SnapChip()}</span>${born('立约邀约 · <b>打回·返工</b>（#62-B4 判据新入——打回是高信息裁决，返工轮次是天然回流事实）· 昨天 17:05')}</span></div>`);
+
+  /* —— 待对表 —— */
+  const pending = [
+    R('宏图续约 8/15 待对表', `<div class="cm-row"><span style="flex:none">⏳</span><span style="flex:1;font-size:12px">「8/15 前签回宏图续约」 · <b>已过检验点，待对表</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">出生：8/12 私语立约 · agent 已在私语通道问你结果（问结果合法，索要预期非法）· 不老化不可催 · ${v5Anchor('<button class="v5-door" data-sess="board" style="font-size:10px">一跳回承诺 ↗</button>')}</span></span><button class="btn" data-v5act="note-fact" style="font-size:10px;padding:1px 9px;flex:none">✍ 补登事实</button><button class="v5-door" data-v5evid="hongtu" style="flex:none">证据 ›</button></div>`),
+    R('预算追加申请一次过 财务退回', `<div class="cm-row"><span style="flex:none">⏳</span><span style="flex:1;font-size:12px">「预算追加申请一次过」 × 财务退回补口径 · <b>待对表</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">未答 10 天 · 私语流里已折叠归并（不平铺、不变红、不产生未读）</span></span><button class="btn" data-sess="selfdm" style="font-size:10px;padding:1px 9px;flex:none">回执 ↗</button></div>`),
+    R('新版报价单不会有人问 销售群追问口径', `<div class="cm-row"><span style="flex:none">⏳</span><span style="flex:1;font-size:12px">「新版报价单不会有人问」 × 销售群三人追问口径 · <b>待对表</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">未答 7 天 · 同上折叠</span></span><button class="btn" data-sess="selfdm" style="font-size:10px;padding:1px 9px;flex:none">回执 ↗</button></div>`),
+  ];
+
+  /* —— 已对表 —— */
   const settledMain = (v5.tomorrow && v5.attribution)
-    ? `<div class="cm-row"><span class="ex-tag human" style="flex:none">${V5Q[v5.attribution]}</span><span style="flex:1;font-size:12px">《竞品对比 · 评审表》验收${v5.expectText ? `——预期「${v5.expectText}」` : '（隐式预期）'}：评审过了但被追问定价策略<span style="display:block;font-size:10.5px;color:var(--ink-3)">判例：差距条目②在档 · 对表：明天 10:52 · <button class="v5-door" data-sess="selfdm" style="font-size:10px">回执 ↗</button></span></span></div>` : '';
-  const emptyExpect = (!mainExpect && !settledMain && v5.offer !== 'declined')
-    ? `<div class="cm-row" style="font-size:11px;color:#8A6D3B;background:var(--paper);border-color:var(--paper-line)">主线预期还没出生——去产品讨论群验收《竞品对比表》，私语通道会给你一次开口的机会。预期<b>不可回填</b>：这里永远不会出现"事后补写"的行。</div>` : '';
+    ? R(`竞品对比 评审表 验收 ${V5Q[v5.attribution]}`, `<div class="cm-row"><span class="ex-tag human" style="flex:none">${V5Q[v5.attribution]}</span><span style="flex:1;font-size:12px">《竞品对比 · 评审表》验收${v5.expectText ? `——预期「${v5.expectText}」` : '（无显式预期——只记你做过的事，不记你"当时在想什么"）'}：评审过了但被追问定价策略<span style="display:block;font-size:10.5px;color:var(--ink-3)">判例：差距条目②在档 ${v5SnapChip()} · 对表：明天 10:52 · ${v5Anchor('<button class="v5-door" data-sess="selfdm" style="font-size:10px">回执 ↗</button>')}</span></span></div>`) : null;
+  const q3Settled = v5.premiseQ3 === 'settled'
+    ? R('Q3 路线图 照旧对表', `<div class="cm-row"><span style="flex:none">⏳</span><span style="flex:1;font-size:12px">「例会上 Q3 路线图草稿能定稿」 · <b>照旧对表</b>——前提变了你仍要这个判例<span style="display:block;font-size:10.5px;color:var(--ink-3)">移交后的结果也是事实：换了人还是没定稿 / 换了人就定稿了，两种都值得你自己知道</span></span><button class="btn" data-v5act="note-fact" style="font-size:10px;padding:1px 9px;flex:none">✍ 补登事实</button></div>`) : null;
+  const settled = [settledMain, q3Settled,
+    R('Q2 复盘会一次收尾 对了因运气', `<div class="cm-row"><span class="ex-tag human" style="flex:none">对了·因运气</span><span style="flex:1;font-size:12px">「Q2 复盘会一次收尾」——收了，但因议题临时砍半，非你判断的依据<span style="display:block;font-size:10.5px;color:var(--ink-3)">对表：8/12 · 防自欺①：结果好 ≠ 判断对</span></span></div>`),
+    R('张三的走访汇总当天能交 对了因判断', `<div class="cm-row"><span class="ex-tag human" style="flex:none">对了·因判断</span><span style="flex:1;font-size:12px">「张三的走访汇总当天能交」——17:31 如期交付<span style="display:block;font-size:10.5px;color:var(--ink-3)">对表：昨天 · 下次同类委派可直接放权 · ${v5Anchor('<button class="v5-door" data-sess="board" style="font-size:10px">一跳回交付 ↗</button>')}</span></span></div>`),
+    R('路演材料两天够 错了因世界', `<div class="cm-row"><span class="ex-tag human" style="flex:none">错了·因世界</span><span style="flex:1;font-size:12px">「路演材料两天够」——法务合规评审临时插队，多花三天<span style="display:block;font-size:10.5px;color:var(--ink-3)">对表：8/19 · 这一格是最舒服的出口——所以才要看<b>分布</b>（见下）</span></span></div>`),
+  ];
+
+  /* —— 未对表（沉降区，#62-B6）—— */
+  const sunkRow = v5.sunk === 'sunk'
+    ? R('例会能砍掉季度复盘 未对表 沉降', `<div class="cm-row v5-sunk"><span style="flex:none">🌙</span><span style="flex:1;font-size:12px">「例会能砍掉季度复盘这一项」 · 过检验点 <b>21 天未对表</b>——已沉降<span style="display:block;font-size:10.5px;color:var(--ink-3)">不变红 · 不计数 · 不催 · 不产生未读——<b>沉降不剥夺可动性</b>：不打扰 ≠ 不可动</span></span><button class="btn" data-v5act="sunk-note" style="font-size:10px;padding:1px 9px;flex:none">✍ 补登事实</button><button class="btn" data-v5act="sunk-withdraw" style="font-size:10px;padding:1px 9px;flex:none">撤回</button></div>`)
+    : v5.sunk === 'noted'
+      ? R('例会能砍掉季度复盘 已补登', `<div class="cm-row"><span style="flex:none">✍</span><span style="flex:1;font-size:12px">「例会能砍掉季度复盘这一项」——你补登：<b>砍了，但换成了双周同步</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">图外事实的唯一入口是<b>你的一句话</b>（fact/noted · 系统不猜图外——"跟踪≠监工"对私账适用）· 回执已重新出，等你归因</span></span></div>`)
+      : null;
+
+  /* —— 已撤回 —— */
+  const withdrawn = [
+    v5.premiseQ3 === 'withdrawn' ? R('Q3 路线图 撤回 前提已变', `<div class="cm-row"><span style="flex:none">↩</span><span style="flex:1;font-size:12px">「例会上 Q3 路线图草稿能定稿」——你撤回：承诺已移交给王超，前提已变<span style="display:block;font-size:10.5px;color:var(--ink-3)">撤回：刚刚 · <b>你按的，不是系统替你按的</b>（代撤即代产）· 撤回是终态，不悔棋</span></span></div>`) : null,
+    v5.sunk === 'withdrawn' ? R('例会能砍掉季度复盘 撤回', `<div class="cm-row"><span style="flex:none">↩</span><span style="flex:1;font-size:12px">「例会能砍掉季度复盘这一项」——你撤回：这事早就没人提了<span style="display:block;font-size:10.5px;color:var(--ink-3)">撤回：刚刚 · 沉降区的行仍可动，这就是证明</span></span></div>`) : null,
+    R('8 月内签下益丰 撤回 客户转观望', `<div class="cm-row"><span style="flex:none">↩</span><span style="flex:1;font-size:12px">「8 月内签下益丰」——你撤回：客户转观望（走访记录表 8/14）<span style="display:block;font-size:10.5px;color:var(--ink-3)">撤回：8/15 · 前提消失时撤回预期是诚实，不是失败</span></span></div>`),
+  ];
+
+  /* —— 换挡台 —— */
   const skipN = (v5.tomorrow && v5.attribution === 'q3') ? 2 : 1;
   const inviteState = v5.offer === 'declined' ? '近 30 天：立 2 · 不立 2 —— 再连续不立将降频停问（人用脚投票就是应答）' : '正常（近 30 天：立 2 · 不立 1）';
+  const gearEntry = v5.mirrorEntry === 'receipt' ? '回执就地入口' : '条尾入口';
+  const gears = [
+    R('标准写确认 sheet doc 档位', `<div class="cm-row"><span style="flex:1;font-size:12px"><b>标准写确认（sheet/doc 类）</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">证据：近 90 天连续 19 次通过 · 中位停留 1.6s ${v5SnapChip()}${v5.gearWrite !== 'default' ? ` · 换挡记录：${gearEntry} · 刚刚` : ' · 入口有两个：审批卡条尾 与 回执答完的就地合环行（入口不垄断律）'}${v5.gearWrite === 'lease' ? ' · <b>90 天到期重签：重签卡携带期间证据摘要（重签即对表，#61）</b>' : ''}</span></span>${v5Gearset('gearWrite')}</div>`),
+    R('目标拆解提案 档位', `<div class="cm-row"><span style="flex:1;font-size:12px"><b>目标拆解提案</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">证据：近 2 轮提案你全盘通过、零改动——负重档 = "你先拆，agent 再补"（产婆术的可调节形态，生成侧温水的解）</span></span>${v5Gearset('gearDecomp')}</div>`),
+    R('立约触发面 五类裁决 判据', `<div class="cm-row"><span style="flex:1;font-size:12px"><b>立约触发面 · 五类裁决</b>（判据不是枚举）<span style="display:block;font-size:10.5px;color:var(--ink-3)">有裁决留痕 ∧ 有可命名检验点 ∧ 事实会自行回流 ∧ <b>信息量否决位</b>——确认卡被④否决（高频低信息，邀约变 nag）${pinInline(39)}</span></span><button class="v5-door" data-v5cases="spectrum" style="flex:none">看全集谱 ›</button></div>`),
+    R('立约邀约频率 疲劳治理', `<div class="cm-row"><span style="flex:1;font-size:12px"><b>立约邀约频率</b>（族级）<span style="display:block;font-size:10.5px;color:var(--ink-3)">${inviteState} · 重新打开的主权在这里（邀约疲劳治理）</span></span></div>`),
+    R('全局日配额 扩员即疲劳', `<div class="cm-row"><span style="flex:1;font-size:12px"><b>全局日配额</b>（总量）<span style="display:block;font-size:10.5px;color:var(--ink-3)">每天最多问你 <b>${v5.quota}</b> 次立约——<b>扩触发面必同扩治理面</b>：五个入口各自克制、合起来仍是骚扰${v5.quota === 0 ? ' · <b>0 = 全关</b>，一次也不问' : ''}</span></span><span style="display:inline-flex;border:1px solid var(--paper-line);border-radius:999px;overflow:hidden;flex:none;margin-left:auto">${[0, 1, 2, 3].map(n => `<button class="v5-gear${v5.quota === n ? ' on' : ''}" data-v5quota="${n}">${n}</button>`).join('')}</span></div>`),
+  ];
+
+  /* —— 模式（含分布镜）—— */
+  const patterns = [
+    R('归因分布 四格 q1 q2 q3 q4 分布镜', `<div class="cm-row" style="flex-direction:column;align-items:stretch;gap:3px"><span style="font-size:12px">📊 <b>归因分布</b>（近 90 天滚动 · 每个数字是门）${pinInline(41)}</span>
+      <div class="v5-dist">
+        <button class="v5-distcell" data-v5cases="dist"><b>2</b>对了·因判断</button>
+        <button class="v5-distcell" data-v5cases="dist"><b>1</b>对了·因运气</button>
+        <button class="v5-distcell" data-v5cases="dist"><b>${v5.tomorrow && v5.attribution === 'q3' ? 2 : 1}</b>错了·因判断</button>
+        <button class="v5-distcell" data-v5cases="dist"><b>6</b>错了·因世界</button>
+      </div>
+      <span style="font-size:10.5px;color:var(--ink-3)">四格防两种自欺，<b>分布防第三种</b>：单次归因防不住"永远选 错了·因世界"。<b>只陈列，不解读</b>——这里没有一个字告诉你这个分布意味着什么（分布查询的返回类型里根本没有文本字段；"你在推卸责任"在 API 上不可构造）。<b>陈列是镜子，解读是教练。</b></span></div>`),
+    R('带已知差距上会被追问 后视镜', `<div class="cm-row"><span style="flex:none">⚠</span><span style="flex:1;font-size:12px">带已知差距上会被追问：<button class="v5-door" data-v5cases="skip">${skipN} 次</button><span style="display:block;font-size:10.5px;color:var(--ink-3)">派生自：你的验收留痕 × 后续事实——不是系统的意见，是你自己的判例${v5.mirror ? `　· <b>后视镜已开</b>（签发于${v5.mirrorEntry === 'receipt' ? '<b>回执就地入口</b>' : '金库'}）：待验收卡旁将亮出此判例（仅你可见）` : ''}</span></span><button class="v5-door" data-v5evid="skip" style="flex:none;margin-right:6px">证据 ›</button><button class="btn" data-v5act="mirror" style="font-size:10px;padding:1px 9px;flex:none${v5.mirror ? ';color:#6B5A36;border-color:var(--paper-line);background:var(--paper)' : ''}" title="回喂环（#61）：后视镜 = 负重档的显示形态——你签发的私账规则，默认不开、随时可关；agent 只执行显示（持镜人合规）。#62：这不是它唯一的入口——回执答完归因的终态也有一个">🪞 后视镜：${v5.mirror ? '开' : '关'}</button></div>`),
+    R('对张锐工期的预估 校准系数', `<div class="cm-row"><span style="flex:none">📐</span><span style="flex:1;font-size:12px">对张锐工期的预估：近 3 次第 2 次偏后（<button class="v5-door" data-v5cases="zr">判例</button>）<span style="display:block;font-size:10.5px;color:var(--ink-3)">下次排期这是你自己的校准系数——用不用在你（agent 不会替你改排期：持镜人条款）</span></span></div>`),
+    R('打回动词 Q2 全季 0 次 本季 2 次', `<div class="cm-row"><span style="flex:none">💪</span><span style="flex:1;font-size:12px">打回动词：Q2 全季 0 次 → 本季 2 次（返工轮次既有对象）<span style="display:block;font-size:10.5px;color:var(--ink-3)">检验标准⑥的证据形态：第六个月的人，敢裁第一天不敢裁的事</span></span></div>`),
+  ];
+
+  const sec = (t, note) => `<div class="res-sec">${t}${note ? ` <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">· ${note}</span>` : ''}</div>`;
+  const body = v5VaultSections([
+    { sec: sec('检验中的预期', `立约时刻出生，不可回填 ${pinInline(29)}　·　<b>每一行都有出生故事</b>：哪一类裁决把它生出来的 ${pinInline(39)}`), rows: [mainExpect, emptyExpect, q3Row, reworkRow] },
+    { sec: sec('待对表', '已过检验点 · 不老化 · 不可催 · 不成欠账'), rows: pending },
+    { sec: sec('已对表', `四格是判例标签，不是分数原料 ${pinInline(30)}`), rows: settled },
+    { sec: sec('未对表（沉降）', '超期未对表自动沉降——不红不催不计数，<b>仍可动</b>'), rows: [sunkRow] },
+    { sec: sec('已撤回', '撤回留痕，不删史'), rows: withdrawn },
+    { sec: sec('换挡台 · 三档位定律：租约 ← 默认 → 负重', `按提案族 · 档位私有 · <b>回路的合环阀（#61）</b> ${pinInline(32)}${pinInline(31)}`), rows: gears },
+    { sec: sec('模式', `每个数字是门 · <b>滚动派生（近 90 天）非累积档案——金库照现在的你，不给你建档案（#61）</b>${pinInline(33)}`), rows: patterns },
+  ]);
+
   return `<div class="board">${head('')}
-    <div class="res-sec">检验中的预期 <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">· 立约时刻出生，不可回填 ${pinInline(29)}</span></div>
-    ${mainExpect}${emptyExpect}
-    <div class="cm-row"><span style="flex:none">🌱</span><span style="flex:1;font-size:12px">「例会上 Q3 路线图草稿能定稿」 · <b>检验中</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">检验点：今天 14:00 例会后 · 锚：委派裁决（Q3 路线图整理）· 出生：09:33 私语立约</span></span><button class="v5-door" data-v5evid="roadmap" style="flex:none">语境 ›</button></div>
-    <div class="cm-row"><span style="flex:none">⏳</span><span style="flex:1;font-size:12px">「8/15 前签回宏图续约」 · <b>已过检验点，待对表</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">出生：8/12 私语立约 · agent 已在私语通道问你结果（问结果合法，索要预期非法）· 不老化不可催——这本账的债主是你自己</span></span><button class="v5-door" data-v5evid="hongtu" style="flex:none">证据 ›</button></div>
-    <div class="res-sec">已对表 <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">· 四格是判例标签，不是分数原料 ${pinInline(30)}</span></div>
-    ${settledMain}
-    <div class="cm-row"><span class="ex-tag human" style="flex:none">对了·因运气</span><span style="flex:1;font-size:12px">「Q2 复盘会一次收尾」——收了，但因议题临时砍半，非你判断的依据<span style="display:block;font-size:10.5px;color:var(--ink-3)">对表：8/12 · 防自欺①：结果好 ≠ 判断对</span></span></div>
-    <div class="cm-row"><span class="ex-tag human" style="flex:none">对了·因判断</span><span style="flex:1;font-size:12px">「张三的走访汇总当天能交」——17:31 如期交付<span style="display:block;font-size:10.5px;color:var(--ink-3)">对表：昨天 · 下次同类委派可直接放权</span></span></div>
-    <div class="res-sec">已撤回 <span style="font-weight:400;color:var(--ink-3);letter-spacing:0">· 撤回留痕，不删史</span></div>
-    <div class="cm-row"><span style="flex:none">↩</span><span style="flex:1;font-size:12px">「8 月内签下益丰」——你撤回：客户转观望（走访记录表 8/14）<span style="display:block;font-size:10.5px;color:var(--ink-3)">撤回：8/15 · 前提消失时撤回预期是诚实，不是失败</span></span></div>
-    <div class="res-sec">换挡台 · 三档位定律：租约 ← 默认 → 负重，按提案族 · 档位私有 · <b>回路的合环阀（#61）</b> ${pinInline(32)}${pinInline(31)}</div>
-    <div class="cm-row"><span style="flex:1;font-size:12px"><b>标准写确认（sheet/doc 类）</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">证据：近 90 天连续 19 次通过 · 中位停留 1.6s${v5.gearWrite !== 'default' ? ' · 换挡记录：条尾入口 · 刚刚' : ' · 条尾入口在审批卡的终态上（去竞品对比表话题看）'}${v5.gearWrite === 'lease' ? ' · <b>90 天到期重签：重签卡携带期间证据摘要（重签即对表——换挡也是裁决、也有回执，#61）</b>' : ''}</span></span>${v5Gearset('gearWrite')}</div>
-    <div class="cm-row"><span style="flex:1;font-size:12px"><b>目标拆解提案</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">证据：近 2 轮提案你全盘通过、零改动——负重档 = "你先拆，agent 再补"（产婆术的可调节形态，生成侧温水的解）</span></span>${v5Gearset('gearDecomp')}</div>
-    <div class="cm-row"><span style="flex:1;font-size:12px"><b>立约邀约频率</b><span style="display:block;font-size:10.5px;color:var(--ink-3)">${inviteState} · 重新打开的主权在这里（邀约疲劳治理）</span></span></div>
-    <div class="res-sec">模式 · 每个数字是门 · <b>滚动派生（近 90 天）非累积档案——金库照现在的你，不给你建档案（#61）</b>${pinInline(33)}</div>
-    <div class="cm-row"><span style="flex:none">⚠</span><span style="flex:1;font-size:12px">带已知差距上会被追问：<button class="v5-door" data-v5cases="skip">${skipN} 次</button><span style="display:block;font-size:10.5px;color:var(--ink-3)">派生自：你的验收留痕 × 后续事实——不是系统的意见，是你自己的判例${v5.mirror ? ' · <b>后视镜已开</b>：待验收卡旁将亮出此判例（仅你可见）' : ''}</span></span><button class="v5-door" data-v5evid="skip" style="flex:none;margin-right:6px">证据 ›</button><button class="btn" data-v5act="mirror" style="font-size:10px;padding:1px 9px;flex:none${v5.mirror ? ';color:#6B5A36;border-color:var(--paper-line);background:var(--paper)' : ''}" title="回喂环（#61）：后视镜 = 负重档的显示形态——你签发的私账规则，默认不开、随时可关；agent 只执行显示（持镜人合规）">🪞 后视镜：${v5.mirror ? '开' : '关'}</button></div>
-    <div class="cm-row"><span style="flex:none">📐</span><span style="flex:1;font-size:12px">对张锐工期的预估：近 3 次第 2 次偏后（<button class="v5-door" data-v5cases="zr">判例</button>）<span style="display:block;font-size:10.5px;color:var(--ink-3)">下次排期这是你自己的校准系数——用不用在你（agent 不会替你改排期：持镜人条款）</span></span></div>
-    <div class="cm-row"><span style="flex:none">💪</span><span style="flex:1;font-size:12px">打回动词：Q2 全季 0 次 → 本季 2 次（返工轮次既有对象）<span style="display:block;font-size:10.5px;color:var(--ink-3)">检验标准⑥的证据形态：第六个月的人，敢裁第一天不敢裁的事</span></span></div>
-    <div class="v5-refuse">${pinInline(33)}<b>金库五不做</b>：无分数 · 无排名 · 无画像 · 无建议倾向 · 无团队视图。<br>P′ 四资产里只有<b>判断</b>被机制化——表达归产婆术、品味归磨稿亲笔（工作夹「磨目标」会话）、志向归目标作者权、关系归社交摩擦不碰；品味与志向的量化<b>明拒</b>。金库只陈列判例与对表，结论你自己下。</div>
+    ${v5.orgLink ? '' : `<div class="v5-offline">🔌 <b>组织图已断开</b>（模拟：目录被拷走到别处 / 组织侧对象已墓碑）。请核对：<b>下面每一行的正文一个字都没少</b>——因为写入时刻就存了快照（立此存照律 #62-A1：<b>私账存的是照片，不是链接</b>）。变化只有两处：一跳回的锚变灰失效、"前提已变"的显形消失（活性探测返回"未知"就不显形——不制造虚假信号）。${pinInline(37)}</div>`}
+    ${body}
+    <div class="v5-refuse">${pinInline(33)}<b>金库五不做</b>：无分数 · 无排名 · 无画像 · 无建议倾向 · 无团队视图。<br>P′ 四资产里只有<b>判断</b>被机制化——表达归产婆术、品味归磨稿亲笔（工作夹「磨目标」会话）、志向归目标作者权、关系归社交摩擦不碰；品味与志向的量化<b>明拒</b>。金库只陈列判例与对表，结论你自己下。
+      <br><b>私账动词族明拒（#62-D9）</b>：这一页的每一行都<b>没有</b>转发 / 分享 / 引用到组织侧的动词——不是禁用是<b>不存在</b>（不给动词就不会误用；你自己复制粘贴是你的自由，系统不递刀）。<b>搜索面（#62-D10）</b>：顶上的检索框只搜这一本账；组织侧的索引<b>结构性不遍历私账</b>（不是过滤掉，是索引器根本不认识这个存储）——查看者样本律此前只裁了聚合面与导出面，搜索是第三个漏口。${pinInline(41)}</div>
   </div>`;
+}
+
+/* #62-D10 金库内检索：本人搜自己的账合法，落点只有金库行 */
+function v5VaultSections(list) {
+  const q = v5.vaultQ.trim().toLowerCase();
+  let out = '', hits = 0;
+  for (const s of list) {
+    const rows = s.rows.filter(r => r && (!q || (r.txt || '').toLowerCase().includes(q)));
+    if (q && !rows.length) continue;
+    hits += rows.length;
+    out += s.sec + rows.map(r => r.html).join('');
+  }
+  if (!q) return out;
+  const head = `<div class="cm-row" style="background:var(--paper);border-color:var(--paper-line);font-size:11px;color:#6B5A36">🔎 「${v5.vaultQ}」命中 <b>${hits}</b> 行——<b>只搜了这一本账</b>：落点只有金库与私语域，组织侧索引结构性不含私账（#62-D10）<button class="btn" data-v5act="vq-clear" style="font-size:10px;padding:1px 9px;margin-left:auto;flex:none">清空</button></div>`;
+  return head + (hits ? out : `<div class="cm-row" style="font-size:11px;color:#8A6D3B">没有命中——空结果也是如实的结果（不猜、不扩检索域到组织图）。</div>`);
 }
 
 const V5CASES = {
@@ -2481,7 +2658,52 @@ const V5CASES = {
     ['8/08', '「明天给口径表」——实际后天（+1d）', '估期话语锚 × 交付时间'],
     ['本周', '「周日 18:00 前给结论」（返修数据分析）——周二经行为回执兜底（+2d）', '估期话语锚 × 交付时间 · dlvinfer 既有对象'],
   ]},
+  /* #62-B4 可对表判据取代触发枚举——全集谱，不是枚举清单 */
+  spectrum: { t: '立约触发面全集谱（判据 ∧∧∧ + 信息量否决位）', rows: () => [
+    ['✓ 验收 accept / reject', '检验点 = 使用场合或下一轮 · 事实走图内结构性回流 · 信息量高', 'P1 已开 · 本沙盘主线'],
+    ['✓ 差距简报验收', '检验点 = 下次评估 · 事实走图内结构性回流 · 信息量高', 'P1 已开'],
+    ['✓ 委派签发（含拆解落库）', '检验点 = due（既有两层）· 事实 = 交付/验收边 · 信息量高', 'P1 新入（#62）——金库里「Q3 路线图」那条的出生故事'],
+    ['✓ 打回 · 返工', '检验点 = 下一轮交付 · 事实 = 返工轮次对象 · 信息量高', 'P1 新入（#62）——打回是高信息裁决'],
+    ['✓ 租约签发', '检验点 = 90 天到期 · 事实 = 重签卡期间摘要 · 信息量高', 'P1 已开（#61 重签即对表——租约不成为回路的出口）'],
+    ['✗ 标准写确认卡', '留痕有、检验点弱、回流弱、<b>信息量低</b>', '被判据④否决：高频低信息 = 邀约变 nag，治理疲劳不如不生产疲劳'],
+    ['⏸ 目标签发', '检验点跨季、回流慢', '押证据门（周期太长，先看真实使用）'],
+    ['⏸ 移交 / 作废', '检验点模糊、回流弱', '押证据门'],
+  ]},
+  dist: { t: '归因分布 · 每一格都是门（只陈列，不解读）', rows: () => [
+    ['对了·因判断 2', '张三走访汇总当天能交 · 财务口径表自己能定', '判例可回锚 · 姿势可复用'],
+    ['对了·因运气 1', 'Q2 复盘会一次收尾（议题临时砍半）', '防自欺①：结果好 ≠ 判断对'],
+    [`错了·因判断 ${v5.tomorrow && v5.attribution === 'q3' ? 2 : 1}`, '月报数据缺口在档仍上会' + (v5.tomorrow && v5.attribution === 'q3' ? ' · 竞品对比表带差距上会（本沙盘主线）' : ''), '防自欺②：错了就是错了'],
+    ['错了·因世界 6', '路演材料两天够 · 益丰本季能签 · 例会能砍复盘 · 报价单不会有人问 …', '这一格最舒服——所以才要看分布'],
+    ['——', '这里没有一句话告诉你这个分布意味着什么', '分布查询的返回类型里没有文本字段：判词在 API 上不可构造（陈列是镜子，解读是教练）'],
+  ]},
 };
+
+/* #62-A2 人可读取走：判例册是"可取走"从法条变成事实的那一步 */
+function v5ShowExport(rect) {
+  $('popNo').textContent = '取走';
+  $('popTitle').textContent = '判例册.md（人可读全史 · 无需本系统即可阅读）';
+  const line = (s, c) => `<div style="font-size:11px;line-height:1.7;color:${c || 'var(--ink-2)'}">${s}</div>`;
+  $('popBody').innerHTML =
+    `<div style="border:1px solid var(--paper-line);border-radius:8px;background:#FBF8EE;padding:8px 10px;margin-bottom:6px;font-family:ui-monospace,Menlo,monospace">
+      ${line('# 我的判断 · 判例册')}
+      ${line('> 导出于 今天 · 归属：Bruce · 本目录不依赖任何外部系统', 'var(--ink-3)')}
+      ${line('&nbsp;')}
+      ${line('## 2026-08-30 《竞品对比 · 评审表》验收')}
+      ${line('- 当时：你验收了《竞品对比 · 评审表》')}
+      ${line('- 后来：评审通过，但管理层当场追问定价策略，要求补策略文档再过一次')}
+      ${line('- 证据：目标评估差距条目②「定价策略建议——部分达成」当时已在档')}
+      ${line('- 归因：错了 · 因判断')}
+      ${line('&nbsp;')}
+      ${line('## 2026-08-19 「路演材料两天够」')}
+      ${line('- 后来：法务合规评审临时插队，多花三天　- 归因：错了 · 因世界')}
+      ${line('…')}
+    </div>
+    <div style="font-size:10.5px;line-height:1.8;color:var(--ink-3)">目录三件套：<b>pledger.jsonl</b>（原件，机器可重放）· <b>判例册.md</b>（上图）· <b>README.md</b>（硬合同五条 + 格式说明）。<br>每一条的正文都是<b>写入时刻的快照</b>，不是导出时去组织图捞的——所以组织侧墓碑落下、或者你把目录拷到一台没装本系统的电脑上，它<b>照样完整</b>（立此存照律 #62-A1）。<br><b>拷得走 ≠ 取得走</b>：给不出人能读的东西的"可取走"，是明拒条款上的幽灵信号。</div>`;
+  const pop = $('popover');
+  pop.classList.add('show');
+  pop.style.left = Math.max(12, Math.min(rect.left - 120, window.innerWidth - 342)) + 'px';
+  pop.style.top = Math.min(rect.bottom + 10, window.innerHeight - 320) + 'px';
+}
 function v5ShowCases(key, rect) {
   const c = V5CASES[key];
   if (!c) return;
@@ -3437,10 +3659,11 @@ function renderRight() {
         const ev = V5EVID[v5.evid || 'hongtu'];
         const rows = ev.items.map(o => {
           const attrs = o.sess ? `data-sess="${o.sess}"` : o.pv ? `data-preview="${o.pv}"` : o.fpv ? `data-fpv="${o.fpv}"` : o.evhub ? `data-evhub="${o.evhub}"` : o.act ? `data-v5act="${o.act}"` : '';
-          return `<button class="res-item" ${attrs}>
+          /* #62-A1 立此存照：t/m 是私账自存的人可读快照（照片），断链时恒在场；死的只是锚（跳转能力） */
+          return `<button class="res-item" ${v5.orgLink ? attrs : ''}>
             <span class="ri">${o.icon}</span>
-            <span class="rt"><span class="rt1">${o.t}</span><span class="rt2">${o.m}</span></span>
-            <span style="font-size:10px;color:var(--pub);flex:none">›</span>
+            <span class="rt"><span class="rt1">${o.t}${v5SnapChip()}</span><span class="rt2">${o.m}${v5.orgLink ? '' : ' · ' + v5Anchor('')}</span></span>
+            <span style="font-size:10px;color:${v5.orgLink ? 'var(--pub)' : 'var(--ink-3)'};flex:none">${v5.orgLink ? '›' : '⚰'}</span>
           </button>`;
         }).join('');
         body.innerHTML = `
@@ -3800,12 +4023,72 @@ document.addEventListener('click', (e) => {
     if (a === 'tail-open') { v5.tailOpen = true; renderTimeline(); return; }
     if (a === 'tail-close') { v5.tailOpen = false; renderTimeline(); toast('先不动——档位保持默认。换挡台在金库，证据一直在。'); return; }
     if (a === 'goto-eval') {
+      if (!v5.orgLink) { toast('组织图已断开：一跳回失效——但回执正文一个字都没少（立此存照律 #62-A1：私账存的是照片，不是链接）。要跳回请先「接回组织图」。'); return; }
       openGoalHub('g1');
       state.evalGoal = 'g1'; state.evalPhase = 'ready';
       renderTimeline();
       toast('差距简报（既有对象）：条目②「定价策略建议——部分达成」——校准回执引用的就是它，判例可回锚。');
       return;
     }
+    /* ===== v5.2 · 决策 #62 十条修法 ===== */
+    if (a === 'loop-mirror') {   /* B5 就地合环：环7 的入口不垄断 */
+      v5.mirror = !v5.mirror;
+      v5.mirrorEntry = v5.mirror ? 'receipt' : null;
+      renderTimeline();
+      toast(v5.mirror
+        ? '🪞 后视镜已开——签发入口是<就地>而不是金库（落账 entry:\'receipt\'，与金库入口同一事件、不同出生地）。#61 立的"凡只能在金库获得的能力即违规"，第一个违例就是 #61 自己的后视镜；#62 补上：判断刚出炉那一刻，合环动词就近。'
+        : '后视镜已关——两个入口都能关，主权在你。');
+      return;
+    }
+    if (a === 'orglink') {       /* A1 立此存照律的可核对形态 */
+      v5.orgLink = !v5.orgLink;
+      renderTimeline();
+      renderRight();             /* 证据面同律：快照在场、锚死显形（#61 对象面 × #62-A1 接缝） */
+      toast(v5.orgLink
+        ? '已接回组织图——一跳回恢复，「前提已变」的显形也回来了。'
+        : '🔌 组织图已断开（模拟目录被拷走 / 组织侧墓碑）。核对两件事：①正文<b>一个字都没少</b>（写入时刻存的是快照，不是链接）②锚变灰、显形消失——不制造虚假信号。这就是"拷走即取走全账"从法条变成事实。');
+      return;
+    }
+    if (a === 'export') {        /* A2 人可读取走 */
+      v5ShowExport(v5act.getBoundingClientRect());
+      return;
+    }
+    if (a === 'destroy') {       /* A2 销毁两段式 */
+      if (!v5.destroyArm) { v5.destroyArm = true; renderTimeline(); toast('销毁是不可逆的人签发终态——与一键作废、一键验收同罪，走两段式确认门。再按一次才执行；本沙盘不会真的删。'); return; }
+      v5.destroyArm = false; renderTimeline();
+      toast('（沙盘不执行）真实产品里：目录整体删除 = 这本账唯一的抹除路径。更正一律走追加、部署开关关闭也不删数据——<b>销毁只能由你按</b>，组织按不了。');
+      return;
+    }
+    if (a === 'destroy-cancel') { v5.destroyArm = false; renderTimeline(); toast('已取消——取消无痕，不进任何面。'); return; }
+    if (a === 'premise-withdraw') {  /* A3 锚死显形的出口一 */
+      v5.premiseQ3 = 'withdrawn'; renderTimeline();
+      toast('已撤回（留痕不删史）。注意这一按是<b>你</b>按的——系统只显形不代撤：<b>代撤即代产</b>，撤回是人的诚实动作（产婆术对"诚实退出"同样适用）。');
+      return;
+    }
+    if (a === 'premise-settle') {    /* A3 锚死显形的出口二 */
+      v5.premiseQ3 = 'settled'; renderTimeline();
+      toast('照旧对表——前提变了你仍然要这个判例：换了人还是没定稿 / 换了人就定稿了，两种都值得你自己知道。双出口同权，系统不替你选。');
+      return;
+    }
+    if (a === 'fold-open') { v5.foldOpen = true; renderTimeline(); toast('展开归并条——归并是<b>门</b>不是徽标（一跳可兑付到金库，逐级兑付定律）；折叠期间它们不变红、不计数、不产生未读。'); return; }
+    if (a === 'fold-close') { v5.foldOpen = false; renderTimeline(); return; }
+    if (a === 'sunk-note') {         /* B6 沉降不剥夺可动性 */
+      v5.sunk = 'noted'; renderTimeline();
+      toast('已补登事实（fact/noted）——图外的事系统不猜，唯一入口是你的一句话（"跟踪≠监工"对私账适用）。沉降区的行仍可动：<b>不打扰 ≠ 不可动</b>。');
+      return;
+    }
+    if (a === 'sunk-withdraw') { v5.sunk = 'withdrawn'; renderTimeline(); toast('已撤回——沉降区的行照样有全套动词。沉降只是不打扰你，不是把它锁起来。'); return; }
+    if (a === 'note-fact') { toast('补登事实（fact/noted）：图外的结果——线下评审、口头反馈、邮件回复——只能由你一句话入账，系统不猜（环3 的词汇地板）。原话直存：agent 连转写你这句话的通道都没有。'); return; }
+    if (a === 'vq-clear') { v5.vaultQ = ''; renderTimeline(); return; }
+  }
+  const v5q = e.target.closest('[data-v5quota]');
+  if (v5q) {
+    v5.quota = Number(v5q.dataset.v5quota);
+    renderTimeline();
+    toast(v5.quota === 0
+      ? '全局日配额 = 0：一次也不问。<b>关得掉才叫治理</b>——邀约的总量主权在你。'
+      : `全局日配额 = ${v5.quota}/日。触发面从两个枚举点扩到五类判据的<b>同一次修改</b>里加的这一行——五个入口各自克制、合起来仍是骚扰；<b>扩员与疲劳是同一个动作的两面</b>，分两次做就会有一个中间版本在骚扰人。`);
+    return;
   }
   const v5attr = e.target.closest('[data-v5attr]');
   if (v5attr) {
@@ -3820,11 +4103,15 @@ document.addEventListener('click', (e) => {
   const v5gear = e.target.closest('[data-v5gear]');
   if (v5gear) {
     const [k, g] = v5gear.dataset.v5gear.split(':');
+    /* #62-B5 入口不垄断：换挡有三个入口——条尾两读 / 金库换挡台 / 回执答完的就地合环行 */
+    const fromReceipt = !!v5gear.closest('.v5-loop');
+    if (fromReceipt) v5.mirrorEntry = 'receipt';
     v5[k] = g; v5.tailOpen = false;
     renderTimeline();
-    toast({ lease: '换挡：租约档（全自动 · 90 天期到期重签，与授权租约同构）——裁决无信息量时租约是诚实的出口。',
+    const base = { lease: '换挡：租约档（全自动 · 90 天期到期重签，与授权租约同构）——裁决无信息量时租约是诚实的出口。',
             default: '换挡：默认档（agent 提案、你裁决）。',
-            weight: '换挡：负重档——此类提案摆开证据 / 你先手 agent 再补（产婆术的可调节形态）。仅对你生效，组织侧无人知晓（持镜人条款）。' }[g]);
+            weight: '换挡：负重档——此类提案摆开证据 / 你先手 agent 再补（产婆术的可调节形态）。仅对你生效，组织侧无人知晓（持镜人条款）。' }[g];
+    toast(base + (fromReceipt ? ' 　这一次的入口是<b>回执就地</b>（entry:\'receipt\'）——不是金库：判断刚出炉那一刻，合环动词就近（#62-B5 入口不垄断律）。' : ''));
     return;
   }
   const v5vault = e.target.closest('[data-v5vault]');
@@ -4530,6 +4817,16 @@ document.addEventListener('click', (e) => {
 $('voicePri').addEventListener('click', () => !$('voicePri').disabled && setVoice('pri'));
 $('voicePub').addEventListener('click', () => !$('voicePub').disabled && setVoice('pub'));
 $('input').addEventListener('input', updateVoiceHint);
+/* #62-D10 金库内检索框：本人搜自己的账（落点只有金库行）——组织侧索引结构性不含私账 */
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.id === 'v5vq') {
+    const pos = e.target.selectionStart;
+    v5.vaultQ = e.target.value;
+    renderTimeline();
+    const el = $('v5vq');
+    if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (_) {} }
+  }
+});
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id === 'goalTitleInput') { e.preventDefault(); document.querySelector('[data-goalconfirm]').click(); }
   if (e.key === 'Escape' && !$('fpvFull').hidden) { $('fpvFull').hidden = true; $('fpvFull').innerHTML = ''; }
