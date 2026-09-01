@@ -17,16 +17,25 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type {
-  EvidenceFaceWire, PrivateRowWire, SurfaceInject,
+  EvidenceFaceWire, ObjectPreviewWire, PrivateRowWire, SurfaceInject,
   VaultCaseWire, VaultExpectationWire, VaultViewWire,
 } from './rpc.ts'
 import { PrivateCard } from './PrivateCard.tsx'
+import { YzjVaultContract } from './VaultContract.tsx'
 import tokens from './tokens.module.css'
 import css from './vault.module.css'
 
 export interface VaultProps {
   inject: SurfaceInject
   back(): void
+  /**
+   * 一跳回真身 —— 证据行上的「回真身 ↗」落在哪儿.
+   *
+   * 不给这两个 prop，那颗按钮就**不长出来**（不是灰的）。灰按钮是「你不配」的展示；
+   * 不渲染才是「这条路在这个宿主里不存在」——#57 占位律。
+   */
+  openSession?(sessionId: string): void
+  openGoal?(goalRef: string): void
 }
 
 const ATTRIBUTIONS: readonly { id: 'q1' | 'q2' | 'q3' | 'q4'; label: string }[] = [
@@ -41,7 +50,7 @@ const when = (at: number): string => new Date(at).toLocaleString('zh-CN', {
 })
 
 export function YzjVault(props: VaultProps): ReactNode {
-  const { inject, back } = props
+  const { inject, back, openSession, openGoal } = props
   const [view, setView] = useState<VaultViewWire | undefined>(undefined)
   const [rows, setRows] = useState<readonly PrivateRowWire[]>([])
   const [error, setError] = useState<string | undefined>(undefined)
@@ -62,6 +71,15 @@ export function YzjVault(props: VaultProps): ReactNode {
   const [hits, setHits] = useState<readonly { zone: string; id: string; text: string }[]>([])
   /** 取走生成的两份文件。**读操作**：生成前后事件流一行不增。 */
   const [takeout, setTakeout] = useState<{ casebook: string; readme: string } | undefined>(undefined)
+  /** 合同面板开着没有。chips 是它的入口摘要——点得开，才不是一句挂在墙上的标语。 */
+  const [contractOpen, setContractOpen] = useState(false)
+  /**
+   * 锚活着的那些行，组织侧此刻长什么样 —— **预览是组织侧的礼貌**（PTD-26）.
+   *
+   * 它由 surface 单独去取（`objectPreview`），**不经私账层**：操作者本来就看得见
+   * 这些对象。所以这一份缓存丢了、取不到、锚死了，右栏都照旧完整——正文从来不靠它。
+   */
+  const [previews, setPreviews] = useState<Readonly<Record<string, ObjectPreviewWire>>>({})
 
   const reload = useCallback(async (): Promise<void> => {
     const [next, stream, face] = await Promise.all([
@@ -82,6 +100,32 @@ export function YzjVault(props: VaultProps): ReactNode {
     const timer = setInterval(() => { void reload() }, 5_000)
     return () => { clearInterval(timer) }
   }, [reload])
+
+  /*
+    只给**活着的锚**取预览。
+
+    锚死的那些不取——不是省一次请求，是**预览消失本身就是显形的一半**：那一行会
+    留下快照 + 一枚「真身已变/已亡」的徽记，而不是一个看起来还活着的标题。
+  */
+  useEffect(() => {
+    const live = (evidence?.rows ?? [])
+      .filter(row => row.premise === 'live' && row.anchor !== undefined)
+      .map(row => row.anchor as { kind: string; id: string })
+    if (live.length === 0) return
+    let dropped = false
+    void Promise.all(live.map(async (anchor) => {
+      const one = await inject.objectPreview(anchor.kind, anchor.id)
+      return { key: `${anchor.kind}:${anchor.id}`, one }
+    })).then((results) => {
+      if (dropped) return
+      const next: Record<string, ObjectPreviewWire> = {}
+      for (const result of results) {
+        if (result.one !== undefined) next[result.key] = result.one
+      }
+      setPreviews(next)
+    })
+    return () => { dropped = true }
+  }, [evidence, inject])
 
   /** 每一个写动词的同一条路：带回宿主的原话，然后重读。 */
   const run = useCallback(async (
@@ -306,12 +350,35 @@ export function YzjVault(props: VaultProps): ReactNode {
         <button type="button" className={css.back} onClick={back}>‹ 返回</button>
       </div>
 
-      {/* 硬合同五条 + 单向耦合：一份人看不见的合同不是合同。 */}
+      {/*
+        硬合同 chips —— **入口摘要，不是终点**（信号即门 / v2.1 #61 澄清②）.
+
+        「说明文字占位同罪」对 chips 自身适用：一句点不开的「仅你可见」，人只能
+        选择信或不信。点开的那一面与场所合同同一语法——硬区列的是**为什么改不了**。
+      */}
       <div className={css.contract}>
         {view.contract.map(chip => (
-          <span key={chip.label} className={css.chip} title={chip.how}>{chip.label}</span>
+          <button
+            key={chip.label}
+            type="button"
+            className={css.chip}
+            title={`${chip.how} —— 点开看这本账的合同全文`}
+            onClick={() => { setContractOpen(true) }}
+          >
+            {chip.label}
+          </button>
         ))}
+        <button
+          type="button"
+          className={css.chipMore}
+          onClick={() => { setContractOpen(true) }}
+        >
+          合同全文 ›
+        </button>
       </div>
+      {contractOpen && (
+        <YzjVaultContract inject={inject} close={() => { setContractOpen(false) }} />
+      )}
 
       <div className={css.body}>
         <div className={css.stream}>
@@ -710,22 +777,71 @@ export function YzjVault(props: VaultProps): ReactNode {
             : (
               <>
                 <div className={css.rowNote} style={{ marginBottom: 6 }}>{evidence.title}</div>
-                {evidence.rows.map((one, index) => (
-                  <div
-                    key={`${one.at}:${String(index)}`}
-                    className={`${css.evidenceRow} ${one.premise === 'changed' ? css.evidenceDead : ''}`}
-                  >
-                    {/* 第一行永远是照片。**它不是从锚解析出来的**。 */}
-                    {one.text}
-                    <span className={css.evidenceMeta}>
-                      {new Date(one.at).toLocaleString('zh-CN', { hour12: false })}
-                      {one.mark === undefined ? '' : ` · ⚠ ${one.mark}`}
-                      {one.anchor === undefined
-                        ? ' · 无锚：这一段只有快照，本来就跳不回去'
-                        : ` · ${one.anchor.kind}:${one.anchor.id}（回真身用的坐标，内容不来自它）`}
-                    </span>
-                  </div>
-                ))}
+                {evidence.rows.map((one, index) => {
+                  const key = one.anchor === undefined ? '' : `${one.anchor.kind}:${one.anchor.id}`
+                  const preview = previews[key]
+                  const jumpTo = preview?.sessionId ?? preview?.goalRef
+                  return (
+                    <div
+                      key={`${one.at}:${String(index)}`}
+                      className={`${css.evidenceRow} ${one.premise === 'changed' ? css.evidenceDead : ''}`}
+                    >
+                      {/* 第一行永远是照片。**它不是从锚解析出来的**。 */}
+                      {one.text}
+                      <span className={css.evidenceMeta}>
+                        {new Date(one.at).toLocaleString('zh-CN', { hour12: false })}
+                        {one.mark === undefined ? '' : ` · ⚠ ${one.mark}`}
+                        {one.anchor === undefined
+                          ? ' · 无锚：这一段只有快照，本来就跳不回去'
+                          : ` · ${one.anchor.kind}:${one.anchor.id}（回真身用的坐标，内容不来自它）`}
+                      </span>
+                      {/*
+                        **只读预览** —— 组织侧此刻长什么样（PTD-26）.
+
+                        它由 surface 单独去取，不经私账层；锚死时它整个不在，而上面
+                        那一行的快照原样在场。**这一块消失不影响对表**——正文从来
+                        不靠它，它只是「回去看看」之前的一眼。
+                      */}
+                      {preview?.alive === true && (
+                        <div className={css.preview}>
+                          <b>现在</b>：{preview.title ?? ''}
+                          {(preview.lines ?? []).map(line => (
+                            <span className={css.evidenceMeta} key={line}>{line}</span>
+                          ))}
+                        </div>
+                      )}
+                      {/*
+                        「回真身 ↗」—— **一跳**，不是把真身搬进来。
+
+                        没有落点就不画这颗按钮：一颗点了没反应的「回真身」，比没有
+                        更糟。宿主没给导航能力时同理（`openSession`/`openGoal` 缺席）。
+                      */}
+                      {jumpTo !== undefined && (
+                        <div className={css.actions}>
+                          <button
+                            type="button"
+                            className={css.verb}
+                            onClick={() => {
+                              if (preview?.sessionId !== undefined && openSession !== undefined) {
+                                openSession(preview.sessionId)
+                                return
+                              }
+                              if (preview?.goalRef !== undefined && openGoal !== undefined) {
+                                openGoal(preview.goalRef)
+                              }
+                            }}
+                            disabled={preview?.sessionId === undefined
+                              ? openGoal === undefined
+                              : openSession === undefined}
+                            title="一跳回它躺着的地方。内容不来自这一跳——正文在上面那张照片里。"
+                          >
+                            回真身 ↗
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
                 <div className={css.rowNote}>{evidence.note}</div>
               </>
             )}

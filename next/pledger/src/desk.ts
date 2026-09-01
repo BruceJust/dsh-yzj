@@ -13,6 +13,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString } from '@yzj-next/graph'
 import { PledgerCards } from './bus.ts'
 import { calibrationCard, type CalibrationState } from './calibration.ts'
+import { vaultContract, type VaultContract } from './contract.ts'
 import { DESTROY_PHRASE } from './destroy.ts'
 import { vaultExport, type VaultExport } from './export.ts'
 import { PROPOSAL_FAMILIES, familyOfCardKind } from './families.ts'
@@ -219,6 +220,12 @@ export interface PledgerDesk {
   privateRows(): readonly PrivateRow[]
   /** 折叠归并条：同类未答 ≥ 阈值时的那一行。没到阈值 = undefined。 */
   privateFold(): PrivateFold | undefined
+  /**
+   * 私账合同面板 —— **与场所合同同一语法** (v2.1 / #61 澄清②).
+   *
+   * Header 的 chips 是它的入口摘要（信号即门）：点得开，才不是一句挂在墙上的标语。
+   */
+  contract(): VaultContract
   /** 证据面：选中一行，归集它的 `AnchoredText[]`。 */
   evidenceFor(kind: 'calibration' | 'expectation', id: string): EvidenceFace | undefined
   /** 默认态：待对表首项的证据备料。 */
@@ -369,6 +376,10 @@ export function createDesk(ctx: Context, bus: PledgerCards): PledgerDesk {
           ? row
           : { ...row, zone: 'folded' as const }
       ))
+    },
+
+    contract(): VaultContract {
+      return vaultContract(ctx)
     },
 
     privateFold(): PrivateFold | undefined {

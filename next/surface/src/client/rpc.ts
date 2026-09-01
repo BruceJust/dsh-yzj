@@ -739,6 +739,15 @@ export interface SurfaceInject {
   privateRows(): Promise<{ rows: readonly PrivateRowWire[]; fold?: PrivateFoldWire }>
   /** 证据面。不给 id = 默认态（待对表首项备料）。 */
   vaultEvidence(kind?: 'calibration' | 'expectation', id?: string): Promise<EvidenceFaceWire | undefined>
+  /** 私账合同面板：chips 点开之后的那一面。 */
+  vaultContract(): Promise<VaultContractWire | undefined>
+  /**
+   * 一个证据锚的只读预览 —— **surface 对组织侧的独立调用**，不经私账层（PTD-26）。
+   *
+   * 读不到就如实说读不到：这个函数**从不猜一个标题**，因为猜出来的标题会把
+   * 「真身已亡」渲染成「真身还在」。
+   */
+  objectPreview(kind: string, id: string): Promise<ObjectPreviewWire | undefined>
   /** 金库内检索（P1 搜索面，零组织侧接缝）。 */
   vaultSearch(query: string): Promise<readonly { zone: string; id: string; text: string }[]>
   /** 取走：判例册 + README。**读操作**，不写事件。 */
@@ -899,6 +908,33 @@ export interface EvidenceRowWire {
 export interface EvidenceFaceWire {
   title: string
   rows: EvidenceRowWire[]
+  note: string
+}
+
+/**
+ * 一个证据锚的**只读预览** —— **预览是组织侧的礼貌，快照才是私账的真身**（PTD-26）.
+ *
+ * 它由 surface 单独去组织图取，**不经私账层**：操作者本来就看得见这些对象，所以这
+ * 是一次合法的 viewer=operator 组织图读。锚死时 `alive: false`，预览消失，而右栏那
+ * 一行的快照原样在场——**对表在组织侧对象亡故之后依然成立**。
+ */
+export interface ObjectPreviewWire {
+  alive: boolean
+  title?: string
+  lines?: string[]
+  /** 一跳回真身：它躺在哪个会话里。 */
+  sessionId?: string
+  /** 或者，它挂在哪个目标下。 */
+  goalRef?: string
+}
+
+/** 私账合同面板 —— 与场所合同同一语法（硬区列机械保证，软区列可调参数）。 */
+export interface VaultContractWire {
+  hard: { label: string; guarantee: string; how: string }[]
+  soft: { label: string; value: string; where: string; cost: string }[]
+  signedBy: string
+  /** 恒为 false。**这份合同没有对方代表可以递案。** */
+  agentMayPropose: boolean
   note: string
 }
 
@@ -1139,6 +1175,8 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
         'pledger-evidence', kind === undefined || id === undefined ? {} : { kind, id },
       ) ?? undefined
     },
+    vaultContract: () => call<VaultContractWire>('pledger-contract', {}),
+    objectPreview: (kind, id) => call<ObjectPreviewWire>('pledger-preview', { kind, id }),
     async vaultSearch(query) {
       return (await call<{ hits: { zone: string; id: string; text: string }[] }>(
         'pledger-search', { query },

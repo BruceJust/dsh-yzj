@@ -41,7 +41,7 @@ import {
 } from '../src/ring.ts'
 import { renderWhen, structuralFactFor, watchedVerdicts } from '../src/reflow.ts'
 import { YzjPledger } from '../src/service.ts'
-import { FORBIDDEN_VERBS, vaultView } from '../src/vault.ts'
+import { CONTRACT_CHIPS, FORBIDDEN_VERBS, vaultView } from '../src/vault.ts'
 import { PLEDGER_KINDS, expectationFamily } from '../src/vocabulary.ts'
 import {
   DEFAULT_PATTERN_WINDOW, FOLD_THRESHOLD, PLEDGER_FOLD_VERSION, SETTLE_DAYS,
@@ -618,12 +618,26 @@ describe('⑬ 原话直存：模型没有 text 这个参数', () => {
     toolCtx.provide('yzjPledger', pledger)
     const { applyPledgerTools } = await import('../src/tools.ts')
     applyPledgerTools(toolCtx)
+    /*
+      **参数名在 `properties` 里，不在 `parameters` 上**。
+
+      `defineTool` 把参数规范化成 JSON Schema（`{ type, properties }`），所以
+      `Object.keys(parameters)` 拿到的永远是 `['type','properties']`——那个写法
+      检查不到任何一个参数名，这条断言在它自己的门槛上**空转了整整一轮**。
+      一条永远为真的断言比没有断言更坏：它会让人以为这里有人看着。
+    */
+    const propsOf = (one?: { parameters?: Record<string, unknown> }): string[] => (
+      Object.keys((one?.parameters as { properties?: Record<string, unknown> } | undefined)?.properties ?? {})
+    )
     const register = registered.find(one => one.name === 'pledger_register')
     expect(register).toBeDefined()
-    expect(Object.keys(register?.parameters ?? {})).not.toContain('text')
+    // 先证明这个读法真的读到了参数名，再拿它去证明 `text` 不在里面。
+    expect(propsOf(register)).toContain('action')
+    expect(propsOf(register)).not.toContain('text')
     // 只读那一个也不该有 —— 读的东西没有理由带一句话进来。
     const query = registered.find(one => one.name === 'pledger_query')
-    expect(Object.keys(query?.parameters ?? {})).not.toContain('text')
+    expect(propsOf(query)).toContain('zone')
+    expect(propsOf(query)).not.toContain('text')
   })
 
   it('expectation.text 与人的原话逐字节一致', async () => {
@@ -1493,6 +1507,80 @@ describe('㉖ 证据面：摘要为主、锚为辅、锚死显形', () => {
     const row = desk.vault()?.settled.find(one => one.calibrationId === receiptId)
     expect(row?.verbs).toContain('reattribute')
     expect(row?.verbs).toContain('loopback')
+  })
+})
+
+describe('㉘ 私账合同面板：与场所合同同语法，但没有对方代表', () => {
+  it('硬区每一条都说得出自己的机械保证 —— 陈列「为什么改不了」不是「请勿修改」', () => {
+    const contract = desk.contract()
+    expect(contract.hard.length).toBeGreaterThanOrEqual(5)
+    for (const term of contract.hard) {
+      /*
+        一条 guard 拦得住而面板说不清的规矩，和一条没人执行的规矩一样不可信。
+
+        所以这里不许出现那句占位——**没写出机械保证本身就是问题**，而这条用例
+        就是让它当场变红的地方。
+      */
+      expect(term.guarantee).not.toContain('还没写出它的机械保证')
+      expect(term.guarantee.length).toBeGreaterThan(0)
+      expect(term.how.length).toBeGreaterThan(0)
+    }
+    // chips 是这一面的入口摘要，不是它的第二份副本：两处 label 必须逐条对上。
+    expect(contract.hard.map(term => term.label))
+      .toEqual(CONTRACT_CHIPS.map(chip => chip.label))
+  })
+
+  it('软区 = 换挡台参数，每条说得出改在哪儿、以及两个方向的代价', () => {
+    const contract = desk.contract()
+    expect(contract.soft.map(term => term.label))
+      .toEqual(['全局日配额', '沉降天数', '折叠阈值', '族级降频阈值'])
+    for (const term of contract.soft) {
+      // 说不出在哪儿改的「可调」，和不可调没有分别。
+      expect(term.where.length).toBeGreaterThan(0)
+      /*
+        **两个方向的代价都要写**：一个只说「调大更宽松」的参数面，会让人一路
+        调到底然后关掉整个功能。
+      */
+      expect(term.cost).toContain('；')
+    }
+    expect(contract.soft[0]?.value).toContain('/ 天')
+  })
+
+  it('agent 无提议权 —— 不是一条运行时检查，是模型工具动作枚举上的一处缺席', async () => {
+    expect(desk.contract().agentMayPropose).toBe(false)
+    expect(desk.contract().signedBy).toBe('你自己')
+
+    const registered: { name: string; parameters?: Record<string, unknown> }[] = []
+    const probe = new Context()
+    probe.provide('tools', {
+      register: (definition: { name: string; parameters?: Record<string, unknown> }) => {
+        registered.push(definition)
+        return () => undefined
+      },
+      guard: () => () => undefined,
+    } as never)
+    probe.provide('yzjPledger', pledger)
+    const { applyPledgerTools } = await import('../src/tools.ts')
+    applyPledgerTools(probe)
+
+    const register = registered.find(one => one.name === 'pledger_register')
+    const actions = (register?.parameters as {
+      properties?: { action?: { enum?: string[] } }
+    } | undefined)?.properties?.action?.enum
+    expect(actions).toBeDefined()
+    // 先证明读到的确实是那张枚举，再拿它去证明该缺席的都缺席。
+    expect(actions).toContain('shift-gear')
+    /*
+      **另一半签署人是你自己，没有对方代表可以递案。**
+
+      场所合同的软项 agent 可以提议修改；这一份不行。而它不靠一条运行时检查——
+      枚举里根本没有这些值，模型连提议的通道都不存在。
+    */
+    for (const forbidden of ['quota', 'set-quota', 'settle-days', 'fold', 'fatigue', 'contract']) {
+      expect(actions).not.toContain(forbidden)
+    }
+    // 配额确实可调——只是**只有人调得动**（金库配额行），工具面上没有它。
+    expect(desk.setQuota).toBeTypeOf('function')
   })
 })
 

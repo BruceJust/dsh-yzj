@@ -1859,6 +1859,62 @@ function assessmentsByGoal(ctx: Context): Map<string, BoardAssessment> {
  * agree: a lesson filed under a coordinate the reader never asks for is a
  * lesson that can be written and never read back.
  */
+/**
+ * 一个组织侧对象的**只读预览** —— 证据面右栏那一小块（v2.1 / PTD-26）.
+ *
+ * **这个函数住在 surface，而不是 pledger**，这不是文件摆放的问题，是分层本身：
+ *
+ * - 设计要「锚对象只读预览」，§2 要「pledger 取内容非法」。两条的消解在分层，
+ *   不在取舍。
+ * - **快照是私账的真身**：证据面正文永远来自写入时定格的照片，pledger 那一层的
+ *   渲染函数（`evidenceRowsOf`）入参里连组织图 service 都没有。
+ * - **预览是组织侧的礼貌**：这一次读用的是 viewer=operator ——**操作者本来就看得见
+ *   这些对象**，零泄漏；它是 surface 对组织侧的一次独立调用。
+ *
+ * 分层的意义在锚死那一刻显出来：**预览消失、快照仍在、对表继续**。所以读不到就
+ * 如实回 `alive: false`——**从不猜一个标题**，因为猜出来的标题会把「真身已亡」
+ * 渲染成「真身还在」。
+ */
+export function objectPreviewOf(
+  ctx: Context, kind: string, id: string,
+): {
+  alive: boolean
+  title?: string
+  lines?: string[]
+  sessionId?: string
+  goalRef?: string
+} {
+  const object = ctx.yzjGraph.rawObject(kind, id)
+  // 墓碑之后：预览没有了，而金库那一栏的快照一个字都不会少。
+  if (object === undefined) return { alive: false }
+  const state = asRecord(object.state)
+  const lines: string[] = []
+  const say = (label: string, value: string | undefined): void => {
+    if (value !== undefined && value !== '') lines.push(`${label}：${value}`)
+  }
+  say('状态', asString(state?.status))
+  say('负责', asString(asRecord(state?.executor)?.name))
+  say('期限', asString(asRecord(state?.due)?.text) ?? asString(state?.due))
+  say('交付', asString(asRecord(state?.delivery)?.claim))
+  say('标准', asString(state?.criteria))
+  say('结论', asString(state?.summary))
+  const topicKey = asString(state?.topicKey)
+  const sessionOfTopic = new Map<string, string>()
+  for (const entry of ctx.get('yzjTopics')?.tree() ?? []) {
+    for (const one of entry.topics) sessionOfTopic.set(one.topicKey, one.sessionId)
+  }
+  const sessionId = topicKey === undefined ? undefined : sessionOfTopic.get(topicKey)
+  const goalRef = asString(state?.parentGoalRef) ?? asString(state?.goalRef)
+  return {
+    alive: true,
+    title: asString(state?.what) ?? asString(state?.summary)
+      ?? asString(state?.reason) ?? `${kind}:${id}`,
+    lines,
+    ...(sessionId === undefined ? {} : { sessionId }),
+    ...(goalRef === undefined ? {} : { goalRef }),
+  }
+}
+
 export function objectFace(
   ctx: Context,
   topic: TopicDescriptor | undefined,
@@ -2904,6 +2960,37 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               ? desk.evidenceDefault()
               : desk.evidenceFor(kind as 'calibration' | 'expectation', id)
             return { ok: true, value: face ?? null }
+          }
+          /**
+           * 私账合同面板 —— **与场所合同同一语法** (v2.1 / #61 澄清②).
+           *
+           * Header 的 chips 是入口摘要；这一条是它点开之后的那一面。
+           */
+          case 'pledger-contract': {
+            const desk = scoped.get('yzjPledgerDesk')
+            if (desk === undefined) return failure('这个部署没有启用私账层')
+            return { ok: true, value: desk.contract() }
+          }
+          /**
+           * 证据锚的**只读预览** —— **预览分层裁决**（v2.1 / PTD-26）.
+           *
+           * 设计要「锚对象只读预览」，而 §2 要「pledger 取内容非法」。两条的消解在
+           * **分层**，不在取舍：
+           *
+           * - **快照是私账的真身**。证据面正文永远来自写入时定格的照片，pledger 那一
+           *   层连取内容的通道都没有（`evidenceRowsOf` 的入参里没有组织图 service）。
+           * - **预览是组织侧的礼貌**。这一条端点住在 **surface**，读的是组织图，用的
+           *   是 viewer=operator ——**操作者本来就看得见这些对象**，零泄漏。
+           *
+           * 分层的意义在锚死那一刻显出来：**预览消失、快照仍在、对表继续**。所以这里
+           * 读不到就如实返回 `alive: false`，绝不去猜一个标题。
+           */
+          case 'pledger-preview': {
+            const kind = stringField(payload, 'kind')
+            const id = stringField(payload, 'id')
+            if (kind === undefined || id === undefined) return failure('要说清是哪一个锚')
+            // 这一条**不碰 `yzjPledgerDesk`**，而那正是它成立的理由。
+            return { ok: true, value: objectPreviewOf(scoped, kind, id) }
           }
           /**
            * 金库内检索 —— P1 的搜索面形态，**零组织侧接缝**。

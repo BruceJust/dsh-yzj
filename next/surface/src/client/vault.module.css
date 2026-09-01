@@ -27,9 +27,10 @@
 /* 硬合同 chips —— 一份人看不见的合同不是合同，所以它在最上面一行。 */
 .contract { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 20px 0; }
 .chip {
-  font-size: 10px; padding: 2px 8px; border-radius: 5px;
-  background: #F0E7D2; color: #6B5A36; border: 1px solid #E4DAC4;
+  font: inherit; font-size: 10px; padding: 2px 8px; border-radius: 5px;
+  background: #F0E7D2; color: #6B5A36; border: 1px solid #E4DAC4; cursor: pointer;
 }
+.chip:hover { background: #E7DBBF; }
 
 /*
   两栏 —— **中栏是流、右栏是物**，和会话面同一条语义（#61 澄清①）。
@@ -62,6 +63,21 @@
 }
 .evidenceDead { border-color: #E9C8BE; background: #FDF4F1; }
 .evidenceMeta { display: block; font-size: 10px; color: #A2946F; margin-top: 3px; }
+
+/* 只读预览：组织侧此刻的样子。它在快照**下面**，因为快照才是正文。 */
+.preview {
+  margin-top: 6px; padding: 6px 9px;
+  border-left: 2px solid #E4DAC4; background: #F7F1E4;
+  border-radius: 0 6px 6px 0;
+  font-size: 11px; color: #5B5033; line-height: 1.55;
+}
+
+/* chips 是入口摘要，所以它长得像可以按 —— 信号即门。 */
+.chipMore {
+  font: inherit; font-size: 10px; padding: 2px 8px; border-radius: 5px;
+  background: #FFFDF8; color: #6B5A36; border: 1px solid #E4DAC4; cursor: pointer;
+}
+.chipMore:hover { background: #F5EFE2; }
 
 /* 取走：拷得走 ≠ 取得走。生成出来的东西要能当场看见。 */
 .take { white-space: pre-wrap; max-height: 220px; overflow-y: auto; }

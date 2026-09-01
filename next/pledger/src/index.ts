@@ -50,6 +50,9 @@ export {
   type PledgerLoopback, type PrivateFold, type PrivateRow, type TwoRead, type VaultHit,
 } from './desk.ts'
 export { upgradeLegacy } from './compat.ts'
+export {
+  vaultContract, type VaultContract, type VaultHardTerm, type VaultSoftTerm,
+} from './contract.ts'
 export { DESTROY_PHRASE } from './destroy.ts'
 export { calibrationCard, ATTRIBUTION_NOTE, type CalibrationState, type Case } from './calibration.ts'
 export {

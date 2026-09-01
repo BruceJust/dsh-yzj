@@ -17,7 +17,7 @@ import { commitmentFamily, createCommitmentCard } from '@yzj-next/objects'
 import {
   FAMILY_DELIVERY_ACCEPTANCE, PledgerCards, YzjPledger, calibrationCard, createDesk, inviteCard,
 } from '@yzj-next/pledger'
-import { cardsFor, inboxView } from '../src/rpc.ts'
+import { cardsFor, inboxView, objectPreviewOf } from '../src/rpc.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const VIEWER: GraphViewer = { kind: 'operator', openId: 'op-1' }
@@ -297,5 +297,43 @@ describe('三不入：组织图的可应答查询里永远没有私账 kind', ()
     for (const kind of ['invite', 'calibration', 'expectation', 'fact', 'gear', 'mirror']) {
       expect(kinds.has(kind)).toBe(false)
     }
+  })
+})
+
+describe('接缝⑧（v2.1）：证据锚的只读预览 —— 预览分层，快照仍是真身', () => {
+  it('预览是 surface 对组织侧的独立调用：**私账层不在这条路上**', async () => {
+    // 连 desk 都没有 provide 过，预览照样出得来——它读的是组织图，不是私账。
+    await boot(false)
+    expect(ctx.get('yzjPledgerDesk')).toBeUndefined()
+    await openCommitment('c-preview')
+
+    const preview = objectPreviewOf(ctx, 'commitment', 'c-preview')
+    expect(preview.alive).toBe(true)
+    expect(preview.title).toBe('竞品对比表')
+    expect(preview.lines).toContain('负责：张锐')
+    expect(preview.lines).toContain('交付：做完了')
+    // 一跳回真身要有落点：目标从图上读，会话由通道那张表翻译。
+    expect(preview.goalRef).toBe(GOAL)
+  })
+
+  it('锚死：预览整块消失，而它从不猜一个标题', async () => {
+    await boot(false)
+    /*
+      **读不到就说读不到**。
+
+      猜出来的标题会把「真身已亡」渲染成「真身还在」——而证据面正靠这一层区别，
+      在组织侧对象亡故之后仍然让对表成立（快照在上面那一行，一个字都没少）。
+    */
+    const preview = objectPreviewOf(ctx, 'commitment', '从来没有过这一条')
+    expect(preview).toEqual({ alive: false })
+    expect(preview.title).toBeUndefined()
+  })
+
+  it('私账层那一侧仍然拿不到内容 —— 渲染函数入参里没有组织图 service', async () => {
+    const { evidenceRowsOf } = await import('@yzj-next/pledger')
+    // 两个参数：一串照片，和一个只回状态不回内容的探针。分层在签名上就看得见。
+    expect(evidenceRowsOf.length).toBe(2)
+    // 而 surface 这一条要三个：ctx（组织图）、kind、id——**两条路，两个签名**。
+    expect(objectPreviewOf.length).toBe(3)
   })
 })

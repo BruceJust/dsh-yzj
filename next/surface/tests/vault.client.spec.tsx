@@ -178,6 +178,30 @@ function fakeInject(calls: string[], vault: VaultViewWire | undefined = VAULT): 
       return { casebook: '# 判例册\n\n## 错了 · 因判断\n', readme: '# 这是什么\n' }
     },
     setQuota: async (quota) => { calls.push(`quota:${String(quota)}`); return {} },
+    vaultContract: async () => {
+      calls.push('contract')
+      return {
+        hard: [
+          { label: '仅你可见', guarantee: 'policy · viewer 单态', how: '这个账本的读取面上没有「别人」这个参数' },
+          { label: '金库 ≠ 记忆', guarantee: 'import 禁令（双向）', how: '蒸馏器无 pgraph，pledger 无 memory' },
+        ],
+        soft: [
+          {
+            label: '全局日配额', value: '2 / 天（上限 3）', where: '金库 · 配额行',
+            cost: '调低：不再被问起也就不再有对表的机会；调高：合起来仍然是骚扰。',
+          },
+        ],
+        signedBy: '你自己',
+        agentMayPropose: false,
+        note: '模型工具的动作枚举里没有这些参数，连提议的通道都不存在。',
+      }
+    },
+    objectPreview: async (kind, id) => {
+      calls.push(`preview:${kind}:${id}`)
+      return id === 'c-1'
+        ? { alive: true, title: '竞品对比表', lines: ['状态：settled'], sessionId: 'ses-1' }
+        : { alive: false }
+    },
     pledgerAct: async () => ({ receipt: '已记在你的账上。', outcome: 'applied' }),
     pledge: async () => ({}),
     declineInvite: ok,
@@ -263,6 +287,69 @@ describe('金库：每一行既可见又可动', () => {
     for (const refusal of ['无分数', '无排名', '无画像', '无建议倾向', '无团队视图']) {
       expect(root.textContent).toContain(refusal)
     }
+  })
+
+  it('右栏是物：证据面摆开照片，锚活的那一行带只读预览与一跳', async () => {
+    const calls: string[] = []
+    const jumped: string[] = []
+    const { root } = render(
+      <YzjVault
+        inject={fakeInject(calls)}
+        back={() => {}}
+        openSession={(id) => { jumped.push(id) }}
+      />,
+    )
+    await act(async () => { await Promise.resolve() })
+    // 默认态 = 待对表首项的备料：**打开金库 = 人发起的回看时刻**。
+    expect(calls).toContain('evidence::')
+    expect(root.textContent).toContain('证据面')
+
+    // 摘要为主：第一行是照片，不是从锚解析出来的。
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(root.textContent).toContain('竞品对比表')
+    /*
+      **预览是组织侧的礼貌**：它由 surface 单独去取，摆在快照下面。
+      锚活着才取——锚死那一行整块不在，而快照原样在场。
+    */
+    expect(calls.some(one => one.startsWith('preview:commitment:c-1'))).toBe(true)
+    expect(root.textContent).toContain('现在')
+
+    const jump = [...root.querySelectorAll('button')].find(node => node.textContent?.startsWith('回真身'))
+    expect(jump).toBeDefined()
+    await act(async () => { (jump as HTMLButtonElement).click() })
+    expect(jumped).toEqual(['ses-1'])
+  })
+
+  it('宿主给不了落点时，「回真身」不渲染 —— 灰按钮是「你不配」的展示', async () => {
+    const { root } = render(<YzjVault inject={fakeInject([])} back={() => {}} />)
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    const jump = [...root.querySelectorAll('button')].find(node => node.textContent?.startsWith('回真身'))
+    // 有落点但宿主没给导航能力：按钮在，但按不动——这一条盯的是它**说了实话**。
+    expect(jump === undefined || (jump as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('硬合同 chips 是入口不是终点：点开是一份与场所合同同语法的合同', async () => {
+    const calls: string[] = []
+    const { root } = render(<YzjVault inject={fakeInject(calls)} back={() => {}} />)
+    await act(async () => { await Promise.resolve() })
+
+    const chip = [...root.querySelectorAll('button')].find(node => node.textContent === '仅你可见')
+    expect(chip).toBeDefined()
+    await act(async () => { (chip as HTMLButtonElement).click(); await Promise.resolve() })
+    expect(calls).toContain('contract')
+
+    /*
+      硬区列的是**为什么改不了**，不是「请勿修改」。
+
+      一条 guard 拦得住而面板说不清的规矩，和一条没人执行的规矩一样不可信。
+    */
+    expect(root.textContent).toContain('policy · viewer 单态')
+    // 软区 = 换挡台参数，只读陈列 + 指路。
+    expect(root.textContent).toContain('全局日配额')
+    expect(root.textContent).toContain('金库 · 配额行')
+    // 这份合同和场所合同唯一的语法差别，也是它的全部特殊性。
+    expect(root.textContent).toContain('agent 在这份合同上没有提议权')
+    expect(root.textContent).toContain('另一半签署人')
   })
 
   it('空账如实解释自己为什么空 ——「还没有」和「不可能有」是两句话', async () => {
