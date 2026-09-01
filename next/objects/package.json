@@ -26,9 +26,9 @@
     "@yzj-next/cards": "workspace:^",
     "@yzj-next/graph": "workspace:^",
     "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/dsh-agent": "0.1.0-rc.8",
-    "@deepseek-ai/dsh-user-approval": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-agent": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-user-approval": "0.1.1-rc.2",
     "@deepseek-ai/schemastery": "3.18.1",
-    "@deepseek-ai/dsh-tools": "0.1.0-rc.8"
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2"
   }
 }
