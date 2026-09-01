@@ -307,6 +307,19 @@ describe('⑤ 滚动模式：窗口必填，窗外不入计数、日志仍在', 
 })
 
 describe('⑥ 邀约输入面：生成器看不见镜子', () => {
+  it('inviteFor 的签名里没有任何私账句柄（静态断言）', async () => {
+    const source = await readFile(new URL('../src/invite.ts', import.meta.url), 'utf8')
+    const signature = source.slice(
+      source.indexOf('export function inviteFor'),
+      source.indexOf('}): {'),
+    )
+    // 出处只能引用组织侧事实：签名里出现 pledger / pattern / mirror 任一即越界。
+    for (const forbidden of ['YzjPledger', 'pledger', 'pattern', 'mirror', 'Case']) {
+      expect(signature).not.toContain(forbidden)
+    }
+    expect(signature).toContain('OrgAnchor')
+  })
+
   it('sourceOf 的调用栈里没有任何一次 pgraph 读取', async () => {
     await deliverCommitment('c-6')
     const reads: string[] = []
@@ -405,6 +418,28 @@ describe('⑨ viewer 单态：place viewer 构造不出私账查询', () => {
     const types = await readFile(new URL('../src/types.ts', import.meta.url), 'utf8')
     expect(types).toContain("kind: 'operator'")
     expect(types).not.toMatch(/readonly kind:\s*'place'/)
+  })
+
+  it('云之家场所触发的回合碰不到这本账 —— 单调拒绝，别人的 allow 翻不回来', async () => {
+    const { pledgerDenial, PLEDGER_TOOLS } = await import('../src/tools.ts')
+    const placeAgent = { session: { id: 'sess-place' } } as never
+    /*
+      turn binding 由编排层给，模型永远拿不到这个参数——所以这里造的是**编排层的
+      那一侧**：一个来自群里的回合，viewer 是 place。
+    */
+    ctx.provide('yzjTurns', {
+      bindingFor: () => ({
+        viewer: { kind: 'place', placeKey: 'yzj-group-g1' },
+        decider: 'op-1',
+        accountKey: 'acct-1',
+      }),
+      defaultBinding: () => undefined,
+    } as never)
+    for (const name of PLEDGER_TOOLS) {
+      expect(pledgerDenial(ctx, { name, agent: placeAgent })).toContain('私账')
+    }
+    // 组织侧的工具一个都不受影响：这道门只认这两个名字。
+    expect(pledgerDenial(ctx, { name: 'yzj_doc_create', agent: placeAgent })).toBeUndefined()
   })
 
   it('私账目录不出现在审计导出会走的组织图分区里', async () => {
