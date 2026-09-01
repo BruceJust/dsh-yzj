@@ -231,6 +231,14 @@ export const inviteFamily: GraphFamily = {
         evidenceRefs: z.array(orgAnchor).default([]),
         /** 出处那一句话。agent 开口必有出处，无出处即无内容。 */
         sourceLine: z.string().default(''),
+        /**
+         * 检验点的**话语层**，同样来自组织侧事实（那场会、那个期限）。
+         *
+         * 它在邀约上而不在预期上出生，因为它是**图上的事实**不是人的赌注：人写的是
+         * 那一句可证伪的话，检验点是这句话该在什么时候被检验。立约时它连同解析投影
+         * （可空）一起进 `expectation.checkpoint`——两层，与主册 due 同构。
+         */
+        checkpointText: z.string().default(''),
         status: z.literal('open').default('open'),
         /** 幂等锚 = verdictRef：一次裁决至多一张邀约。 */
         idemKey: z.string().min(1),
