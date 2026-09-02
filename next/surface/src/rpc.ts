@@ -507,6 +507,26 @@ export async function placeView(
   if (topics === undefined) {
     return { placeKey, groupName, messages: [], topics: cards, onDuty, kind, selfChat, aliases }
   }
+  /*
+    演示隐身档下，**自聊整间屋子不上屏** (D10 × v2.2 断言㉚).
+
+    私账层有一条内容离开桌面通道的合法出口：邀约与回执的**文本投影**投进自聊 DM
+    （§1「只出不进」）。投出去的那一刻它就成了一条普通的云之家消息——组织传输上的
+    一段私账正文。`pledgerDesk()` 在隐身档下让桌面的一切私账投影消失，可这些消息
+    **不经 desk**，它们躺在自聊的消息流里，打开自聊就在屏上。
+
+    修法是**分派不是过滤**：不去逐条认哪一句是私账投影（文本匹配会被下一种投影
+    格式绕过），而是隐身档下这一间屋子的消息流整个不取——自聊本来就是「审批与
+    私语通道」，私语那一半和消息流是分不开的。用 `staleReason` 如实说明为什么空，
+    而不是显示一个恰好为空的屋子。
+  */
+  if (stealthMode && selfChat) {
+    return {
+      placeKey, groupName, topics: cards, onDuty, kind, selfChat, aliases,
+      messages: [],
+      staleReason: '演示隐身档：自聊是私语通道，这一档下整间屋子不上屏。关掉隐身档即恢复。',
+    }
+  }
   try {
     const messages = await topics.messagesInPlace(placeKey, windowSize)
     // Marked read only AFTER the read succeeded. Clearing the badge on a read

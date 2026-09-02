@@ -468,7 +468,14 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
       它们静躺在私语流里等你有空。
     */
     const unread = stealth || (row.selfChat && inbox.pledger?.enabled !== true) ? 0 : row.unread
-    const note = row.selfChat ? '审批与私语通道' : stealth ? '' : row.preview
+    /*
+      自聊行的标签**照实说**：私账层在，它是「审批与私语通道」；私账层不在（未启用，
+      或隐身档下当作不在），它就只是审批通道——隐身档要的是私账层**整层**不上屏，
+      一个写着「私语」的入口标签也是上屏的一部分。
+    */
+    const note = row.selfChat
+      ? (inbox.pledger?.enabled === true ? '审批与私语通道' : '审批通道')
+      : stealth ? '' : row.preview
 
     if (place !== undefined && row.onDuty) {
       const holds = closed && place.topics.some(entry => entry.sessionId === currentSessionId)

@@ -17,7 +17,7 @@ import { commitmentFamily, createCommitmentCard } from '@yzj-next/objects'
 import {
   FAMILY_DELIVERY_ACCEPTANCE, PledgerCards, YzjPledger, calibrationCard, createDesk, inviteCard,
 } from '@yzj-next/pledger'
-import { applySurfaceRpc, cardsFor, inboxView, objectPreviewOf } from '../src/rpc.ts'
+import { applySurfaceRpc, cardsFor, inboxView, objectPreviewOf, placeView } from '../src/rpc.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
 const VIEWER: GraphViewer = { kind: 'operator', openId: 'op-1' }
@@ -447,20 +447,27 @@ describe('㉚ D10 演示隐身：私账层整层不存在，而不是逐处判�
       actor: OPERATOR,
     })
 
-    // ① 关着的时候：镜子在、档位生效面在、入口在。
+    // 两读要这一族攒够五次裁决才问——先攒够，否则「隐身档下没有两读」也是空转的。
+    for (let index = 0; index < 5; index += 1) {
+      await openCommitment(`c-stealth-done-${String(index)}`)
+      await cards.act({ kind: 'commitment', id: `c-stealth-done-${String(index)}` }, 'accept', OPERATOR, 'desktop')
+    }
+
+    // ① 关着的时候：镜子在（未答那张）、两读在（最新答完那张）、档位生效面在、入口在。
     applySurfaceRpc(new Context(), 20, false)
     const lit = cardsFor(ctx, topic).find(card => card.id === 'c-stealth')
     expect(lit?.strip?.cases.length).toBeGreaterThan(0)
     expect(lit?.gearEffect).toBeDefined()
+    expect(cardsFor(ctx, topic).some(card => card.twoRead !== undefined)).toBe(true)
     expect(inboxView(ctx).pledger?.enabled).toBe(true)
 
-    // ② 开着的时候：同一张卡、同一份数据，**一样都不在**。
+    // ② 开着的时候：同一批卡、同一份数据，**一样都不在**。
     applySurfaceRpc(new Context(), 20, true)
     const dark = cardsFor(ctx, topic).find(card => card.id === 'c-stealth')
     expect(dark).toBeDefined()
     expect(dark?.strip).toBeUndefined()
-    expect(dark?.twoRead).toBeUndefined()
     expect(dark?.gearEffect).toBeUndefined()
+    expect(cardsFor(ctx, topic).some(card => card.twoRead !== undefined)).toBe(false)
     /*
       金库入口读的就是这个布尔（未启用时那一行**不存在**，不是灰的）——于是隐身档
       一开，入口、私语未读豁免、以及一切读 desk 的接缝一起消失。
@@ -469,6 +476,46 @@ describe('㉚ D10 演示隐身：私账层整层不存在，而不是逐处判�
     // 全屏 canary：投影里一个私账字样都不许剩。
     expect(JSON.stringify(cardsFor(ctx, topic))).not.toContain('仅你可见')
     expect(JSON.stringify(cardsFor(ctx, topic))).not.toContain('判断仍由你下')
+  })
+
+  it('自聊 DM 里的文本投影也不上屏 —— 那是私账内容离开 desk 的唯一出口', async () => {
+    await boot(true)
+    /*
+      邀约与回执投进自聊的那一刻就成了一条普通的云之家消息，**不经 desk**。
+      `pledgerDesk()` 拦不到它——它躺在自聊的消息流里。所以隐身档下自聊**整间屋子**
+      不上屏（按 selfChat 分派，不逐条认文本）。
+    */
+    const projected = [{
+      msgId: 'm-dm-1', fromOpenId: 'op-1', fromName: '我', msgType: 'text', time: 1, own: true,
+      content: '【校准回执】当时裁决 × 后来事实\n当时：预期「一轮过」\n事实：返了两轮\n[calib#calibration:cal-1]',
+    }]
+    ctx.provide('yzjTopics', {
+      topicOf: () => undefined,
+      tree: () => [],
+      messagesFor: async () => Promise.resolve([]),
+      messagesInPlace: async () => Promise.resolve(projected),
+      conversations: () => [
+        { placeKey: 'yzj-dm-me', name: '我', kind: 'direct', onDuty: true, selfChat: true },
+        { placeKey: 'yzj-dm-d1', name: '张锐', kind: 'direct', onDuty: true, selfChat: false },
+      ],
+      markRead: () => undefined,
+      aliases: () => ['@next'],
+    } as never)
+
+    // 关着：自聊照常有那条投影。
+    applySurfaceRpc(new Context(), 20, false)
+    const lit = await placeView(ctx, 'yzj-dm-me', 20)
+    expect(lit.selfChat).toBe(true)
+    expect(JSON.stringify(lit.messages)).toContain('[calib#calibration:cal-1]')
+
+    // 开着：自聊整间屋子不上屏，而且**说清为什么空**；别人的私聊不受影响。
+    applySurfaceRpc(new Context(), 20, true)
+    const dark = await placeView(ctx, 'yzj-dm-me', 20)
+    expect(dark.messages).toEqual([])
+    expect(dark.staleReason).toContain('隐身档')
+    expect(JSON.stringify(dark)).not.toContain('calib#')
+    const other = await placeView(ctx, 'yzj-dm-d1', 20)
+    expect(other.messages).toHaveLength(1)
   })
 
   it('关掉即恢复，且隐身态本身不落任何一条私账事件', async () => {
