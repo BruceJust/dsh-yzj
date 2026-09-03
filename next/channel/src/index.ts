@@ -328,7 +328,15 @@ export function apply(ctx: Context, config: Config): void {
       // The terminal echo owed to every text surface a resolved card reached.
       disposers.push(ctx.on('yzj-cards/resolved', (payload) => {
         void (async (): Promise<void> => {
+          /*
+            终态欠每一个它到过的**面**一句话——同一间屋子里的两个片段（ack 与终态回帖都
+            登记为这张卡的投影）是同一个面，回一句就够：两句一模一样的「已验收」是噪音。
+          */
+          const echoed = new Set<string>()
           for (const projection of payload.projections) {
+            const place = projection.placeKey ?? projection.msgAnchors[0] ?? ''
+            if (echoed.has(place)) continue
+            echoed.add(place)
             await delivery.echo(projection, payload.echoText)
           }
         })().catch(onError)
