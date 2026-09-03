@@ -448,6 +448,7 @@ export class YzjCards extends Service {
     if (declared !== undefined) {
       const settled = asRecord(next?.state)
       const titleText = asString(settled?.what)
+        ?? asString(settled?.title)
         ?? asString(settled?.summary)
         ?? asString(settled?.reason)
       const decidedAt = Date.now()

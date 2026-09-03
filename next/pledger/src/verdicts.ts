@@ -89,7 +89,11 @@ export async function fileVerdict(ctx: Context, payload: VerdictSettled): Promis
   const verdictKey = verdictKeyFor(anchor, payload.verdictKey ?? payload.actionId)
   if (pledger.findByIdemKey(`verdict:${verdictKey}`) !== undefined) return verdictKey
   const at = payload.decidedAt ?? payload.at ?? Date.now()
-  const title = payload.titleText ?? labelOf(ctx, anchor.kind, anchor.id) ?? `${anchor.kind}:${anchor.id}`
+  // 逐条裁决：把那一条的原话钉进「当时」——一张卡上第 1 条与第 2 条不是同一次判断。
+  const index = /:(\d+)(?:[,，]|$)/u.exec(payload.verdictKey ?? '')?.[1]
+  const items = asRecord(ctx.get('yzjGraph')?.rawObject(anchor.kind, anchor.id)?.state)?.items
+  const item = index !== undefined && Array.isArray(items) ? asString(asRecord(items[Number(index)])?.what) : undefined
+  const title = (payload.titleText ?? labelOf(ctx, anchor.kind, anchor.id) ?? `${anchor.kind}:${anchor.id}`) + (item === undefined ? '' : `：${item}`)
   const topicKey = topicOf(ctx, anchor.kind, anchor.id)
   const waitMs = payload.openedAt === undefined ? undefined : Math.max(0, at - payload.openedAt)
   const agreeOf = spec.kinds[kind]
