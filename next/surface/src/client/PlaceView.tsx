@@ -438,8 +438,14 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     「将长出一个新话题」，是在按下之前就许一个服务端不会兑现的诺。
   */
   const aliases = view.aliases ?? []
+  /*
+    显式叫了人的回复不算向 agent 受话（v4.7 澄清，与通道 `mentionsPeopleInText` 同一条
+    规则）：草稿里剥掉触发词后还有 `@某人`，这句话是说给那个人的，锚定条不该预告点火。
+  */
+  const mentionsPeople = /(?<![\p{L}\p{N}_.-])[@＠][^\s@＠]+/u
+    .test(aliases.reduce((rest, alias) => rest.split(alias).join(' '), draft))
   const addressed = aliases.some(alias => draft.includes(alias))
-    || (replyTo !== undefined && replyTo.agent === true)
+    || (replyTo !== undefined && replyTo.agent === true && !mentionsPeople)
   /** 本实例不在岗时，观察到的对群在岗的同侪实例——锚定条与发送键都按它说话。 */
   const peerOnDuty = view.presence?.peers[0]
 

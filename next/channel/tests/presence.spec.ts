@@ -424,6 +424,53 @@ describe('断言⑦① 同侪回声 —— 代发登记话语在同侪在岗实�
   })
 })
 
+describe('显式受话者优先于隐式 (v4.7 冻结内澄清, dsh-2 实测)', () => {
+  function input(overrides: Partial<TriageInput> = {}): TriageInput {
+    return {
+      group: GROUP, message: message(), isOwnOutbound: false, isSelfChat: false,
+      aliases: ['@next'], acceptAccountMentions: false, operatorOpenId: BRUCE.openId,
+      // 回复的是我们 agent 的消息——v4.7 的隐式受话路。
+      repliesToAgent: () => true,
+      cardForAnchor: () => undefined, resolveKeyword: () => undefined,
+      ...overrides,
+    }
+  }
+
+  it('回复 agent 的回帖并 @ 操作者本人说「你好我在」：叫的是人，不是受话', () => {
+    const greeting = message({
+      content: '你好，我在。有事直接说。', fromOpenId: ZHANG.openId,
+      param: { replyMsgId: 'ours-final', notifyType: 1, notifyDesc: '[有人@你]' },
+    })
+    expect(triage(input({ message: greeting }))).toMatchObject({ kind: 'noise' })
+  })
+
+  it('回复 agent 消息并 @所有人、或正文 @ 第三个人：都是说给人的', () => {
+    expect(triage(input({ message: message({ content: '周会改到三点', param: { replyMsgId: 'ours-1', notifyToAll: true } }) })))
+      .toMatchObject({ kind: 'noise' })
+    expect(triage(input({ message: message({ content: '@张三 看看这个', param: { replyMsgId: 'ours-1' } }) })))
+      .toMatchObject({ kind: 'noise' })
+  })
+
+  it('纯回复不带任何 @ 维持 v4.7：回复 agent 的消息就是在跟它说', () => {
+    expect(triage(input({ message: message({ content: '再补一版', param: { replyMsgId: 'ours-1' } }) })))
+      .toEqual({ kind: 'trigger' })
+  })
+
+  it('回复 + 触发词照旧触发；@ 操作者账号在 acceptAccountMentions 打开时也算叫 agent', () => {
+    expect(triage(input({ message: message({ content: '@next 再补一版 @张三', param: { replyMsgId: 'ours-1' } }) })))
+      .toEqual({ kind: 'trigger' })
+    expect(triage(input({
+      acceptAccountMentions: true,
+      message: message({ content: '再补一版', param: { replyMsgId: 'ours-1', notifyType: 1 } }),
+    }))).toEqual({ kind: 'trigger' })
+  })
+
+  it('邮箱里的 @ 不是叫人', () => {
+    expect(triage(input({ message: message({ content: '发到 a@b.com', param: { replyMsgId: 'ours-1' } }) })))
+      .toEqual({ kind: 'trigger' })
+  })
+})
+
 describe('断言⑤′ 桌面出站对称 —— 非在岗场所不就地点火', () => {
   it('不在岗、有同侪在岗：话照发、不点火、由它接单（不是拒发）', () => {
     expect(deskSendPlan({ addressesAgent: true, repliesToAgent: false, onDuty: false, peerOnDuty: true }))

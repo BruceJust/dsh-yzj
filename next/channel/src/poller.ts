@@ -23,8 +23,8 @@ import { asRecord, asString, type GraphActor } from '@yzj-next/graph'
 import { describeObject, ownsCommitment, processSummary, readSignature } from '@yzj-next/objects'
 import {
   accountKeyFor, conversationKindForGroup, groupIdFromPlaceKey, hasLeadingAlias,
-  isAgentTrigger, isSelfChat, isTriageableConversation, NO_MESSAGE_TIME, outboundFingerprint,
-  placeKeyFor, resolveTopicRootId, topicRouteFor,
+  isAgentTrigger, isSelfChat, isTriageableConversation, mentionsPeopleInText, NO_MESSAGE_TIME,
+  outboundFingerprint, placeKeyFor, resolveTopicRootId, topicRouteFor,
   type YzjGroup, type YzjIdentity, type YzjMessage, type YzjTopicRoute,
 } from './protocol.ts'
 import { triage, triageOutbound, type TriageOutcome } from './triage.ts'
@@ -868,7 +868,9 @@ export class YzjPoller {
       // ourselves — so asking it "is this ours" answered a different question
       // and made replying to your OWN message in an off-duty place a refusal
       // with no `@` in it to remove.
-      repliesToAgent: replyTo !== undefined && this.state.isAgentOutboundId(replyTo),
+      // 显式叫了人的回复不算向 agent 受话（v4.7 澄清）——桌面这一侧只有正文层面可看。
+      repliesToAgent: replyTo !== undefined && this.state.isAgentOutboundId(replyTo)
+        && !mentionsPeopleInText(text, this.config.aliases),
       // An assistant or system feed is a subscription, not a conversation:
       // triage refuses those types outright, so igniting in one would run a
       // turn whose answers nobody can reply to. With the shipped default of an

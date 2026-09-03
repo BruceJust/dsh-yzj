@@ -17,7 +17,7 @@
 import type { CardProjection, CardRef } from '@yzj-next/cards'
 import type { OutboundSignature } from '@yzj-next/objects'
 import {
-  hasLeadingAlias, isAgentTrigger, stripTriggerAliases,
+  hasLeadingAlias, isAgentTrigger, mentionsPeople, stripTriggerAliases,
   type YzjGroup, type YzjMessage,
 } from './protocol.ts'
 import { classifyPeerOutbound, looksLikeInstanceOutbound, type PeerSignal } from './presence.ts'
@@ -176,24 +176,27 @@ export function triage(input: TriageInput): TriageOutcome {
    * rule exists to keep BARE notes-to-self from triggering — a deliberate
    * reply to the agent's own card was never one of those.
    */
-  if (input.repliesToAgent(message)) return { kind: 'trigger' }
+  /*
+    **显式受话者优先于隐式** (v4.7 冻结内澄清)。
 
+    触发词是显式叫 agent，先判；显式叫了人（@某人 / @所有人 / 平台标「有人@你」）而没叫
+    agent，受话者就是那些人——回复锚指向 agent 说的那条也不算：那是隐式受话，不该盖住
+    写出来的受话者。见 `mentionsPeople` 上那段实测。
+  */
   // Self-chat never free-triggers: only a LEADING alias counts, so ordinary
-  // notes to self stay ordinary notes to self (§5.2).
+  // notes to self stay ordinary notes to self (§5.2). A deliberate reply to
+  // the agent's own card was never one of those notes. 屋里只有一个人，没有
+  // 「显式叫了别人」这回事。
   if (input.isSelfChat) {
-    return hasLeadingAlias(message.content, input.aliases)
+    return hasLeadingAlias(message.content, input.aliases) || input.repliesToAgent(message)
       ? { kind: 'trigger' }
       : { kind: 'noise', reason: 'self-chat message outside the triage whitelist' }
   }
-  /**
-   * The other route into the same rule: an alias or an @ of the account.
-   *
-   * Both routes carry the same authority. That is what retires v2.5 F13's
-   * "only the operator may steer" — a colleague replying to the agent is not
-   * exercising a privilege, they are talking to it, exactly as if they had
-   * typed @, and the admission whitelist is what gates both.
-   */
   if (isAgentTrigger(message, input.aliases, input.acceptAccountMentions)) return { kind: 'trigger' }
+  if (mentionsPeople(message, input.aliases)) {
+    return { kind: 'noise', reason: 'explicitly addressed to people, not to the agent' }
+  }
+  if (input.repliesToAgent(message)) return { kind: 'trigger' }
 
   // ⑤ Noise.
   return { kind: 'noise', reason: 'the agent is not among the addressees' }

@@ -33,7 +33,7 @@ import type { ServeOutcome } from './topics.ts'
 export { triage, parseCommand, type TriageOutcome, type TriageInput } from './triage.ts'
 export {
   accountKeyFor, conversationKindForGroup, groupIdFromPlaceKey, isSelfChat,
-  isTriageableConversation, outboundFingerprint, parseGroup, parseMessage,
+  isTriageableConversation, mentionsPeople, mentionsPeopleInText, outboundFingerprint, parseGroup, parseMessage,
   placeKeyFor, renderChatContext, resolveTopicRootId, topicRouteFor,
   type YzjGroup, type YzjIdentity, type YzjMessage, type YzjTopicRoute,
 } from './protocol.ts'

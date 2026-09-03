@@ -389,6 +389,30 @@ export function isAgentTrigger(
   ))
 }
 
+/**
+ * 这条消息**显式**叫了人 —— 受话判定的收窄 (v4.7 冻结内澄清, 2026-09-03 dsh-2 实测).
+ *
+ * 「回复 agent 的消息即向它受话」是**隐式**受话：回复锚指向 agent 说的那条。可寄生期
+ * agent 顶着操作者的账号说话，同事回复"你账号发的那条"再 @ 你本人，最自然的读法是在
+ * 跟你说话。实测：单国鑫回复我们的回帖并 @ 代少兵说"你好，我在"，助理替人接了单、还要
+ * 他验收。显式受话者集合非空又不含 agent 时，隐式那一层不该反过来盖住它。
+ *
+ * 显式叫人的三种形状：平台标记「有人@你」（`notifyType === 1`，@ 的是这个账号——而
+ * `acceptAccountMentions: false` 正是操作者说过"@ 我的账号 = 叫的是人"）、@所有人、
+ * 正文里的 `@某人`（触发词先剥掉，剩下的 @ 才是人）。
+ */
+export function mentionsPeople(message: YzjMessage, aliases: readonly string[]): boolean {
+  if (message.param.notifyType === 1 || message.param.notifyToAll === true) return true
+  return mentionsPeopleInText(message.content, aliases)
+}
+
+/** 正文层面的 `@某人`——桌面出站没有平台标记，只有这一层可看。 */
+export function mentionsPeopleInText(content: string, aliases: readonly string[]): boolean {
+  const rest = stripTriggerAliases(content, aliases)
+  // 邮箱（a@b.com）前面是字母，不算；`@` 开头的 token 才是叫人。
+  return /(?<![\p{L}\p{N}_.-])[@＠][^\s@＠]+/u.test(rest)
+}
+
 export function stripTriggerAliases(content: string, aliases: readonly string[]): string {
   let result = content
   for (const alias of aliases) result = result.replace(new RegExp(escaped(alias), 'giu'), ' ')
