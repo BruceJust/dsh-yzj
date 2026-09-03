@@ -221,6 +221,8 @@ export const taskCard: CardDefinition<TaskState> = {
       label: '验收',
       style: 'primary',
       keywords: ['验收', '收了', '可以', '通过', 'done'],
+      // 验收是人签发的裁决终态：如实声明（家族即接口），判据留给听的人（私账侧的比值分子）。
+      verdict: 'acceptance',
       allowedActors: (actor, state) => mayJudge(actor.openId, state),
       available: state => state.status === 'terminal',
     },
@@ -230,6 +232,7 @@ export const taskCard: CardDefinition<TaskState> = {
       style: 'danger',
       keywords: ['打回', '不行', '重做', 'reject'],
       needsInput: true,
+      verdict: 'rework',
       allowedActors: (actor, state) => mayJudge(actor.openId, state),
       available: state => state.status === 'terminal',
     },
