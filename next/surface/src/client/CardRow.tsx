@@ -357,6 +357,9 @@ function CardBody(props: CardRowProps): ReactNode {
     const items = Array.isArray(state.items) ? state.items : []
     const decisions = record(state.decisions)
     const isGoal = text(state.kind) === 'goal'
+    // 同一张卡四种模式：提案（立目标 / 拆解）、裁决卡（发现）、交付推断（提议）。
+    const isFinding = text(state.kind) === 'finding'
+    const isDelivery = text(state.kind) === 'delivery'
     const settled = card.resolved
     /*
       按下去必须真的发生一件事 (v4.10 人签发).
@@ -378,6 +381,13 @@ function CardBody(props: CardRowProps): ReactNode {
       || (typed === '' ? text(state.goalRef) !== '' : looksLikeLink)
     const decide = (id: string, index: number): void => {
       if (id === 'confirmed' && !canSign) return
+      // 转办 <编号> <姓名>：名字从下面那一栏来，空着就不发——没有去向的转办不是转办。
+      if (id === 'transferred') {
+        if (input.trim() === '') return
+        act(card.kind, card.id, id, `${String(index + 1)} ${input.trim()}`)
+        setInput('')
+        return
+      }
       act(card.kind, card.id, id, isGoal ? (input === '' ? undefined : input) : String(index + 1))
       setInput('')
     }
@@ -385,7 +395,8 @@ function CardBody(props: CardRowProps): ReactNode {
       <div className={`${css.card} ${css.proposal}`}>
         <div className={css.head}>
           <span className={`${css.domain} ${settled ? css.domainGrey : css.domainAmber}`}>
-            提案 · {isGoal ? '立目标' : '拆解'}{settled ? ' · 已裁决' : ' · 待裁决'}
+            {isFinding ? '裁决卡 · 发现' : isDelivery ? '交付推断' : `提案 · ${isGoal ? '立目标' : '拆解'}`}
+            {settled ? ' · 已裁决' : isDelivery ? ' · 待确认' : ' · 待裁决'}
           </span>
           <span className={css.title}>{text(state.title)}</span>
         </div>
@@ -403,10 +414,14 @@ function CardBody(props: CardRowProps): ReactNode {
               <div className={css.item} key={`${card.id}:${String(index)}`}>
                 <span className={css.itemNo}>{index + 1}</span>
                 <span className={css.itemWhat}>{text(item.what)}</span>
-                <span className={css.itemWho}>
-                  {text(item.executorName) || text(item.executorOpenId) || '未定'}
-                  {text(item.due) === '' ? '' : ` · ${text(item.due)}`}
-                </span>
+                {(isFinding || isDelivery)
+                  ? (text(item.evidence) === '' ? null : <span className={css.itemWhere}>依据：{text(item.evidence)}</span>)
+                  : (
+                    <span className={css.itemWho}>
+                      {text(item.executorName) || text(item.executorOpenId) || '未定'}
+                      {text(item.due) === '' ? '' : ` · ${text(item.due)}`}
+                    </span>
+                  )}
                 {/*
                   场所是委派话语的一等参数——它得写在卡上，不能只活在实现里。
 
@@ -416,7 +431,7 @@ function CardBody(props: CardRowProps): ReactNode {
                   while confirming would post into a real group. Blank where
                   something will happen is the worst of the three states.
                 */}
-                {!isGoal && (() => {
+                {!isGoal && !isFinding && !isDelivery && (() => {
                   // A place KEY is a hex handle, not a name. When the item has
                   // no place of its own it lands here, and「这个会话所在的群」
                   // is the true, readable answer — printing the key would be
@@ -439,7 +454,7 @@ function CardBody(props: CardRowProps): ReactNode {
                     decided === 'confirmed' ? css.markOk : decided === 'rejected' ? css.markNo : css.markHold
                   }`}
                   >
-                    {decided === 'confirmed' ? '已确认' : decided === 'rejected' ? '已驳回' : '已挂起'}
+                    {decided === 'confirmed' ? '已确认' : decided === 'rejected' ? (isDelivery ? '不是交付' : '已驳回') : decided === 'transferred' ? '已转办' : '已挂起'}
                   </span>
                 )}
                 {/*
@@ -470,9 +485,20 @@ function CardBody(props: CardRowProps): ReactNode {
                           disabled={busy}
                           onClick={() => { decide('rejected', index) }}
                         >
-                          驳回
+                          {isDelivery ? '不是交付' : '驳回'}
                         </button>
-                        {!isGoal && decided !== 'held' && (
+                        {isFinding && (
+                          <button
+                            type="button"
+                            className={css.button}
+                            disabled={busy || input.trim() === ''}
+                            title={input.trim() === '' ? '先在下面那一栏写上转办给谁' : `给「${input.trim()}」立一条承诺，证据一起带过去`}
+                            onClick={() => { decide('transferred', index) }}
+                          >
+                            转办
+                          </button>
+                        )}
+                        {!isGoal && !isDelivery && decided !== 'held' && (
                           <button
                             type="button"
                             className={css.button}
@@ -488,6 +514,17 @@ function CardBody(props: CardRowProps): ReactNode {
             )
           })}
         </div>
+        {isFinding && !settled && (
+          <div className={css.actions}>
+            <input
+              className={css.input}
+              value={input}
+              placeholder="转办给谁（姓名）——按某一条的「转办」时用"
+              disabled={busy}
+              onChange={(event) => { setInput(event.target.value) }}
+            />
+          </div>
+        )}
         {isGoal && !settled && (
           <div className={css.actions}>
             <input
@@ -510,10 +547,14 @@ function CardBody(props: CardRowProps): ReactNode {
         )}
         <div className={css.foot}>
           {settled
-            ? '已裁决。没被确认的条目不会变成任何人的活。'
+            ? (isDelivery ? '已答。' : '已裁决。没被确认的条目不会变成任何人的活。')
             : isGoal
               ? '确认才算你签发——agent 只能提案。'
-              : '确认一条即签发一条：那条承诺会以你的名义发到执行者所在的会话，不会静默落库。'}
+              : isFinding
+                ? '确认 = 这条发现成立（改动仍要过写确认）；转办 = 给那个人立一条承诺，证据一起带过去。确认之前不动数据。'
+                : isDelivery
+                  ? '确认 = 以你的名义把「已交付」回到登记场所，那条承诺进入待验收；不是交付 = 这个文件与它无关，不再问。'
+                  : '确认一条即签发一条：那条承诺会以你的名义发到执行者所在的会话，不会静默落库。'}
           {!settled && actions.some(action => action.id === 'settle') && (
             <button
               type="button"

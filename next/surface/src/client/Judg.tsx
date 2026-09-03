@@ -33,14 +33,23 @@ const when = (at: number | string): string => {
   return Number.isFinite(parsed) ? new Date(parsed).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : String(at)
 }
 
-/** 组头一行：同意 N（没被推翻 · 被推翻）｜没同意 N（证明对 · 待定）｜每次约 X 秒 · 等你约 Y 分钟。 */
+/** 等了多久，用人读得出的单位：分钟 → 小时 → 天。 */
+export function waitText(ms: number): string {
+  const minutes = Math.round(ms / 60_000)
+  if (minutes < 60) return `${String(minutes)} 分钟`
+  const hours = Math.round(ms / 3_600_000)
+  if (hours < 48) return `${String(hours)} 小时`
+  return `${String(Math.round(ms / 86_400_000))} 天`
+}
+
+/** 组头一行：同意 N（没被推翻 · 被推翻）｜没同意 N（证明对 · 待定）｜每次约 X 秒 · 等你约 Y（分钟/小时/天）。 */
 export function HeadLine(props: { head: FamilyHeadWire }): ReactNode {
   const { head } = props
   return (
     <span className={css.sub}>
       同意 <b>{head.agree}</b>{head.agree > 0 ? `（没被推翻 ${String(head.notReversed)} · 被推翻 ${String(head.reversed)}）` : ''}
       {' ｜ '}没同意 <b>{head.diverged}</b>{head.diverged > 0 ? `（证明对 ${String(head.vindicated)}${head.pending > 0 ? ` · 待定 ${String(head.pending)}` : ''}）` : ''}
-      {' ｜ '}每次约 {String(Math.round(head.dwellMs / 1000))} 秒 · 等你约 {String(Math.round(head.waitMs / 60_000))} 分钟
+      {' ｜ '}每次约 {String(Math.round(head.dwellMs / 1000))} 秒 · 等你约 {waitText(head.waitMs)}
     </span>
   )
 }

@@ -282,7 +282,8 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
     */
     decideAction('confirmed', '确认', ['确认'], 'primary', 'delegation'),
     // 驳回也是人签发的裁决终态：如实广播，判据留给听的人（私账侧的比值分子）。
-    decideAction('rejected', '驳回', ['驳回'], 'danger', 'proposal-rejected'),
+    // 交付推断卡上这一票叫「不是交付」——关键词也认它；桌面按模式改标签。
+    decideAction('rejected', '驳回', ['驳回', '不是交付'], 'danger', 'proposal-rejected'),
     decideAction('held', '挂起', ['挂起'], 'neutral'),
     // 裁决卡第四动词：转办——对某条发现立一条 executor=人 的承诺，携证据锚与血缘 (v4.3)。
     decideAction('transferred', '转办', ['转办'], 'neutral'),

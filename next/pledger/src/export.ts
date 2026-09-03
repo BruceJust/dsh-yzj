@@ -5,6 +5,7 @@ import { judgView } from './judg.ts'
 import { activeClauses } from './pledge.ts'
 import { ATTRIBUTION_LABEL, DEFAULT_WINDOW, RECEIPT_TYPE_LABEL, type ClauseKey } from './types.ts'
 
+const waitText = (ms: number): string => ms < 3_600_000 ? `${String(Math.round(ms / 60_000))} 分钟` : ms < 172_800_000 ? `${String(Math.round(ms / 3_600_000))} 小时` : `${String(Math.round(ms / 86_400_000))} 天`
 export const DESTROY_PHRASE = '销毁我的判断账本'
 
 /** 硬合同五条：系统保证，只读。 */
@@ -69,7 +70,7 @@ export function casebookOf(ctx: Context, now = Date.now()): string {
       '',
       `同意 ${String(head.agree)}（没被推翻 ${String(head.notReversed)} · 被推翻 ${String(head.reversed)}）`
         + `｜没同意 ${String(head.diverged)}（证明对 ${String(head.vindicated)} · 待定 ${String(head.pending)}）`
-        + `｜每次约 ${String(Math.round(head.dwellMs / 1000))} 秒 · 等你约 ${String(Math.round(head.waitMs / 60_000))} 分钟`,
+        + `｜每次约 ${String(Math.round(head.dwellMs / 1000))} 秒 · 等你约 ${waitText(head.waitMs)}`,
       '',
     )
     for (const row of group.rows) {
