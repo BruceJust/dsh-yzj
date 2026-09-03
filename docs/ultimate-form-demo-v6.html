@@ -906,6 +906,15 @@ body.annotate .pin.inline { display: inline-flex; }
 .stealth-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #C4CAD6; padding: 5px 10px; border-radius: 8px; border: 1px solid #333B48; }
 body.stealth .stealth-toggle { background: #3A2A2A; border-color: #7A4A4A; color: #FFE8E8; }
 body.stealth .p6-private { display: none !important; }
+.p6-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.p6-col { background: #fff; border: 1px solid #EFE8D2; border-radius: 8px; padding: 6px 8px; min-width: 0; }
+.p6-colh { font-size: 10px; color: #A08D5F; letter-spacing: .04em; margin-bottom: 2px; }
+.p6-colt { font-weight: 700; color: #3F3213; margin-bottom: 4px; }
+.p6-photo { font-size: 11px; color: #4A3F2A; background: #FBF8EE; border-left: 2px solid #E0D5B8; padding: 4px 7px; margin-top: 4px; border-radius: 0 6px 6px 0; line-height: 1.5; }
+.p6-photo.dead { border-left-style: dashed; color: var(--ink-3); }
+.p6-photo-t { display: block; font-size: 9.5px; color: #A08D5F; }
+.p6-ans { margin-top: 7px; }
+.p6-gear { margin-top: 6px; padding: 6px 9px; border: 1px solid var(--pub-line); border-radius: 8px; background: #FDFEFF; font-size: 11.5px; display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
 .hintbar .p6adv { margin-left: 6px; padding: 3px 11px; border-radius: 8px; background: #B45309; color: #fff; font-weight: 700; font-size: 11.5px; border: none; cursor: pointer; }
 .hintbar .p6adv[disabled] { background: #D9CFAF; cursor: not-allowed; }
 
@@ -1486,24 +1495,26 @@ const NOTES = {
   /* ===== v6 · P′-lite 注解（决策 #64 / 私账层终极设计 v1.1）===== */
   25: { title: '自知：P′ 的终极产出（决策 #64）',
        body: 'P′ 的终极产出不是"判断力普遍变强"，而是<b>自知——知道自己的判断在哪一类裁决上值它的摩擦</b>。组织每让你裁决一次就付一笔摩擦，买的是<b>你相对于 agent 提案的增量信息</b>；"值不值"是一个按裁决族分布的比值（增量信息 ÷ 摩擦成本），而这个比值你自己不知道——温水剧场的本质就是它在悄悄变化而没有东西让你看见。私账层只做一件事：把比值的<b>原料</b>按族摆出来（通过、反转、偏离印证、停留），<b>比值由你得出</b>。判别式回顾：P–agent–P′ 与 agent–P–agent′ 动作相同，区别只在签字的人知不知道这次签字值不值。' },
-  26: { title: '押是你的动词——系统不邀约',
-       body: '所有已死的反省工具都要求人另写一步（PredictionBook 关停、决策日志三月留存 11%）；活着的都不要求。本层的存在前提是<b>决策过程自产记录</b>：组织图已经记着你每一次签发的裁决与后来的事实，私账只是把两者对上。所以立约是<b>人发起的动词</b>：在任一会话的私语道说「押：明早一次过」，系统把它锚到最近一条你签发的裁决——<b>锚是推断，ack 必须亮出可纠</b>（"锚到你 10:04 的确认《审批 #7》，不对请说"）；没有可锚的裁决时不猜、不问。邀约卡、判据谱、日配额、疲劳治理四条法随邀约一并不存在——无邀约即无 nag 可治（提醒与更低坚持相关，JMIR 2026）。不可改笔：改赌注 = 撤回 + 新押，同一裁决不可再押。' },
-  27: { title: '回执三处出生——由比值的分子定义',
-       body: '分子 = 你相对于提案的增量信息，凡能为它提供证据的事实才出回执，只有三种：①<b>押过的</b>（检验点到达或事实回流）；②<b>同意提案而现实反转</b>（验收后被追问补文档——分子为负的证据）；③<b>偏离提案而现实印证</b>（你打回了 agent 的交付、返工后评审点名那一处是亮点——分子为正的证据）。<b>盖章后平安无事不出回执</b>（分子为零）。没有第三处，账上永远不会出现"对了·因判断"，自知只剩短处——这是 v1.0 的断裂，v1.1 补上。试试：对《竞品对比表》分别验收与拒收，再按「到明天」，同一份事实生出不同型的回执。回执"当时"栏只陈列裁决事实本身，不代你推演当时在想什么（产婆术）。' },
+  26: { title: '押是你的动词——系统不邀约（发现路 = 占位文字）',
+       body: '所有已死的反省工具都要求人另写一步（PredictionBook 关停、决策日志三月留存 11%）；活着的都不要求。本层的存在前提是<b>决策过程自产记录</b>：组织图已经记着你每一次签发的裁决与后来的事实，私账只是把两者对上。所以立约是<b>人发起的动词</b>：在任一会话的私语道说「押：明早一次过」，系统把它锚到最近一条你签发的裁决——<b>锚是推断，ack 必须亮出可纠</b>（"锚到你 10:04 的确认《审批 #7》，不对请说"）；没有可锚的裁决时不猜、不问。邀约卡、判据谱、日配额、疲劳治理四条法随邀约一并不存在——无邀约即无 nag 可治（提醒与更低坚持相关，JMIR 2026）。不可改笔：改赌注 = 撤回 + 新押，同一裁决不可再押。<b>发现路（v6.1）</b>：裁决刚签发后，这个会话私语道的<b>占位文字</b>多半句「或「押：」一句预期，可选」——摊开的笔记本，不是敲门；押了或换了会话就消失。零通知、零卡片。' },
+  27: { title: '回执三处出生——由比值的分子定义；两栏照片（v6.1）',
+       body: '分子 = 你相对于提案的增量信息，凡能为它提供证据的事实才出回执，只有三种：①<b>押过的</b>（检验点到达或事实回流）；②<b>同意提案而现实反转</b>（验收后被追问补文档——分子为负的证据）；③<b>偏离提案而现实印证</b>（你打回了 agent 的交付、返工后评审点名那一处是亮点——分子为正的证据）。<b>盖章后平安无事不出回执</b>（分子为零）。没有第三处，账上永远不会出现"对了·因判断"，自知只剩短处——这是 v1.0 的断裂，v1.1 补上。试试：对《竞品对比表》分别验收与拒收，再按「到明天」，同一份事实生出不同型的回执。回执"当时"栏只陈列裁决事实本身，不代你推演当时在想什么（产婆术）。<b>v6.1 两栏照片</b>：「你当时 ｜ 后来」并置，每栏放<b>出生时刻从图上拍下的原文</b>（那张卡的状态、被跳过的差距条目原文、李婷那句话）——立此存照律说私账存的是照片不是链接，v6.0 存的是照片的标题。Farnam Street：看着自己当时的字迹，你和当时那个人面对面，无处可藏。' },
   28: { title: '私条住裁决 turn 的私语道；无私语道则只在取景框',
        body: '零新场所：回执是一根<b>私条</b>，长在你签发裁决的那张卡下面、那个会话的私语道里（仅你可见层）；会话归档不复活侧栏。从<b>枢纽或承诺板 CTA</b> 签发的裁决（差距简报验收）没有私语道——它的回执<b>只在取景框出现，不挂在枢纽行上</b>：组织侧卡上的"仅你可见层"只留给你签发的显示（负重、后视镜）。默认<b>没有到达信号</b>；想要仪式锚，在软合同里写"每天早上告诉我有几条对表"，晨报即多一行只有计数的"昨天 N 条对表"（人签发的显示，账本律第一句因此满足）。三不入（不进收件箱/决断条/徽标）由构造满足——没有第二个会话可进。' },
   29: { title: '归因四格：你来下，候选注只给证据',
        body: '对表时归因由<b>你自己</b>下：对了·因判断／对了·因运气（防把运气当实力）／错了·因判断／错了·因世界（防把误判赖给世界）+ 「配对错了」第五出口（这份事实与该裁决无关——宁空勿错的私账版，可纠回）。候选注只给证据与假设（"差距条目②当时已在档"），不给心理判词。<b>P1 不做任何判词，机械的也不做</b>（"你当时的押注与事实相反"算不算解释，是开放问题，判例过二十再裁）。更正即追加，不改史。' },
-  30: { title: '换挡 = 软合同一句话——本层唯一的产出',
-       body: '账本是仪器，<b>换挡是唯一产出</b>：一个族的比值让你看清之后，你写下一句话，这句话改变下一次裁决的摩擦。形态 = 你的软合同（操作者级）里的句子：<b>负重</b>「以后验收前摆开证据」（不预选、不截断、交付主张原话与返工轮次摆开——Buçinca 2021 认知强制函数 d=0.66，但人更喜欢让自己表现更差的系统，所以默认永不开、只按族 opt-in）；<b>后视镜</b>「以后验收前给我看判例」（hypercorrection 的"再测"）；<b>租约</b>归组织侧既有 lease/*。入口三个：私语道说一句、合同面板软区、取景框组头的「以后这类…」。换挡台面板、三档位 UI 押证据门（软合同私账句 > 5 条才需要）。' },
-  31: { title: '「我的判断」= 第三取景框，按裁决族分组，组头 = 原料',
-       body: '与承诺板严格同构：承诺板的组织轴是目标、组头带异常计数；这里的<b>组织轴是裁决族</b>、<b>组头 = 该族近 90 天滚动原料</b>（N 裁决 · 通过 · 反转 · 偏离印证 · 中位停留）——比值的原料在此，比值由你得。行 = 你的裁决 × 私账标注（押／回执／归因）。「标准写确认」族 0 回执不是没数据，是"盖章后平安无事不出回执"——19 次通过、1.6 秒停留、零反转，这一族的比值你自己能读出来。就近动词「以后这类…」长在组头。<b>不是仪表盘</b>：无分数、无排名、无跨人比较、无分布解读、无决断条（板级明拒原文适用）。它不在侧栏——从承诺板透镜进入，凡只能在这里获得的能力即违规。' },
+  30: { title: '换挡 = 软合同一句话——本层唯一的产出；三杠杆就地（v6.1）',
+       body: '账本是仪器，<b>换挡是唯一产出</b>：一个族的比值让你看清之后，你写下一句话，这句话改变下一次裁决的摩擦。形态 = 你的软合同（操作者级）里的句子：<b>负重</b>「以后验收前摆开证据」（不预选、不截断、交付主张原话与返工轮次摆开——Buçinca 2021 认知强制函数 d=0.66，但人更喜欢让自己表现更差的系统，所以默认永不开、只按族 opt-in）；<b>后视镜</b>「以后验收前给我看判例」（hypercorrection 的"再测"）；<b>租约</b>归组织侧既有 lease/*。入口三个：私语道说一句、合同面板软区、回执与组头上的「以后这类事…」——<b>就地展开三句，不跳走</b>（v6.0 跳到取景框再选，在人刚获得判断的那一刻把人带走）。负重的实证形态（Gajos 2022：只给证据不给建议）= 「要求 × 交付」两栏摆在裁决按钮<b>之上</b>，agent 的"已完成"降到最后一行（v6.0 只是去掉按钮的蓝色）；后视镜给的是<b>判例</b>不是计数（hypercorrection 的再测靠那个案例在你重蹈之前出现）。换挡台面板、三档位 UI 押证据门。' },
+  31: { title: '「我的判断」= 第三取景框，组头 = 2×2（v6.1）',
+       body: '与承诺板严格同构：承诺板的组织轴是目标、组头带异常计数；这里的<b>组织轴是裁决族</b>、<b>组头 = 比值的形状</b>：同意 →（成立／被推翻），没同意 →（证明对／错），旁边是每次的停留——分子（你相对提案的增量信息）和分母（摩擦）都在一行里，<b>不用算、没有分数</b>，自知从排列里直接出来（v6.0 的"通过/反转/偏离印证"计数把「偏离但错」那一格藏掉了，比值读不全）。行 = 你的裁决 × 私账标注（押／回执／归因）。「标准写确认」族 0 回执不是没数据，是"盖章后平安无事不出回执"——19 次通过、1.6 秒停留、零反转，这一族的比值你自己能读出来。就近动词「以后这类…」长在组头。<b>不是仪表盘</b>：无分数、无排名、无跨人比较、无分布解读、无决断条（板级明拒原文适用）。它不在侧栏——从承诺板透镜进入，凡只能在这里获得的能力即违规。' },
   32: { title: '判断力档案硬合同 = 合同面板同构；持镜人',
        body: '点任何会话头的 agent chip 打开合同面板，最下面多一节「判断力档案（操作者级）」：硬合同五条 guard 强制——<b>仅本人 · 不入组织图 · 本人可整体取走与销毁、组织与他人不可导出 · 永不进入绩效与聚合 · 审计导出不可触及</b>；软区就是你写下的那几句换挡。这份合同的特殊性只有一条：<b>另一半签署人是你自己</b>。先例：NASA ASRS 由 NASA 而非 FAA 托管才有 230 万份报告，医院自有系统只捕获 14%；Humanyze 工牌活下来的唯一条件是"只有员工本人能看自己的指标"。持镜人律：agent 只在你发起的时刻消费私账，不因你的误判史静默改组织侧行为，显示规则由你签发、agent 只执行。' },
   33: { title: '这里没有的东西（证据门十七项）',
        body: 'v5 有而 v6 没有的：私语通道会话、金库六区页、换挡台、沉降区、归因分布镜、金库内检索、立约邀约卡、条尾两读卡、日配额、判据谱、就地合环注册表、五不做页脚。每一样都有触发器才准回来（自发押注 < 3 次才考虑邀约；软合同句 > 5 才要面板；判例 > 20 才画分布；未答回执 > 5 才做沉降……），门开时只准加回该机制不准顺带加法。原因不是它们错，是它们在零使用证据下把私账层长成了 next/ 第三大包——比例尺律：新层法条 ≤ 10 直到有使用证据，每轮 review 必须点名删除项。' },
   34: { title: '查看者样本律 + 演示隐身',
        body: '取景框视角切换：张锐有<b>他自己</b>的账（交付估期偏后一次，答了归因）；王超是空账 + 明拒块"找下属的对表——不存在"。成长回路不是老板的特权，账本互不可见。顶栏「🙈 演示隐身」= D10 对私账层整层管辖：私条、后视镜、晨报对表行、「我裁决的」透镜一起消失——投屏那一刻忘掉一个就是把某人的判例投在墙上，所以是一个开关管整层，不是十几个渲染点各自记得。' },
+  36: { title: '文案：产品只说人话（v6.1）',
+       body: 'v6.0 的产品文案在说规格：「不可改笔」「留痕」「无私语道（此行是它唯一的家）」「组织轴 = 裁决族，组头 = 近 90 天滚动原料——比值的原料在此，比值由你得」。上一轮的病是注解冒充产品面，这一轮是<b>规格冒充文案</b>。规格自己定的用户词汇只有三个：押、回执、我的判断。v6.1 把设计语言全部退回注解 pin，产品面只剩：「押已记，明早评审之后结果会回到那张卡下面」「你当时 ｜ 后来」「这次算什么？（你来定）」「以后这类事…」「只有你能看到」——排列自己说话，文字退到最少。' },
   35: { title: '开放问题（明标不解）',
        body: '①<b>第二方</b>：所有活下来的反省实践对面都有一个人（指导者、三人组、团队、会议），本层只有一个 agent——agent 不会惊讶、不会带着分量反对。硬合同给自愿分享留的门是"人自己复制粘贴是自由，系统不递刀"。够不够，只有使用能回答。②<b>时间尺度</b>：Drucker 的对表周期是 9–12 个月、对象是关键决策；本层结构性回执多在天级。③<b>机械判词的边界</b>。检验标准可证伪版：30 天不烦（回喂事件 = 换挡次数 ≠ 0）→ 一季分配动了 → 一年自知带得走；一年内只能证伪不能证实。' },
 };
@@ -1638,9 +1649,8 @@ function renderItem(item, sess) {
       ? `<span class="lab">✓ 已验收 · 承诺终态（人工签发）· 已回写云之家真身</span>`
       : `<span class="lab">🗂 已验收归档 · 记忆已蒸馏</span>`;
     else if (rejected) inner = `<span class="lab" style="color:var(--amber)">↩ 已打回 · 返工第 ${item.round || 2} 轮 · 新旧交付 diff 已挂到任务</span>`;
-    else inner = `<div class="aw-face">✋ 验收点 · 等你验收<span style="font-weight:400;color:var(--ink-3)">（可应答对象——与收件箱同一真身）</span></div>
-          <span class="lab">交付物就在上方——边看边验（点工件可就地预览）</span>
-          ${p6SpreadFor(item, sess)}
+    else inner = `${p6SpreadFor(item, sess)}<div class="aw-face">✋ 验收点 · 等你验收<span style="font-weight:400;color:var(--ink-3)">（可应答对象——与收件箱同一真身）</span></div>
+          <span class="lab">${p6.soft.spread ? '要求和交付在上面——看完再裁' : '交付物就在上方——边看边验（点工件可就地预览）'}</span>
           <button class="btn${p6.soft.spread ? '' : ' primary'}" data-accept="${item.id}">✓ 验收归档（/done）</button>
           <button class="btn" data-reject="${item.id}">↩ 打回重做</button>
           ${p6MirrorFor('验收')}`;
@@ -2256,55 +2266,58 @@ function renderBoard() {
 }
 
 
-/* ============ v6 · P′-lite（决策 #64 / 私账层终极设计 v1.1）：自知 ============
+/* ============ v6.1 · P′-lite（决策 #64 / 私账层终极设计 v1.1）：自知 ============
    四动作：押（人发起动词）/ 回执（三处出生，由比值分子定义）/ 归因 / 换挡（软合同句）
    零新场所：私条住裁决 turn 的私语道；「我的判断」= 第三取景框（承诺板透镜进入）
-   硬合同：仅本人 · 不入组织图 · 本人可取走组织不可导出 · 永不绩效 · 审计不可触及 */
-const P6Q = { q1: '对了·因判断', q2: '对了·因运气', q3: '错了·因判断', q4: '错了·因世界' };
-const P6TYPE = { pledged: '押过的', reversed: '同意提案而现实反转', vindicated: '偏离提案而现实印证' };
-/* 裁决族原料（近 90 天滚动窗）——比值的原料在此，比值由人得；"标准写确认"零回执 = 盖章后平安无事不出回执 */
+   v6.1：回执两栏照片（当时 × 后来，出生时从图拍下原文）· 组头 = 2×2（同意→成立/推翻；偏离→对/错）+ 停留
+        · 三杠杆就地（后视镜给判例不给计数 / 负重把要求×交付摆在按钮之上 / 以后这类…就地展开）
+        · 产品文案只用人话（规格语言只留注解 pin）· 押的发现路 = 裁决后私语道占位文字 */
+const P6Q = { q1: '对了 · 因判断', q2: '对了 · 因运气', q3: '错了 · 因判断', q4: '错了 · 因世界' };
+const P6TYPE = { pledged: '你押过这条', reversed: '你同意了，后来被推翻', vindicated: '你没同意，后来证明你对' };
 const P6_FAM = {
-  '验收':       { n: 12, pass: 9,  rev: 2, vind: 1, dwell: '8.4s' },
-  '标准写确认': { n: 19, pass: 19, rev: 0, vind: 0, dwell: '1.6s' },
-  '对账裁决':   { n: 3,  pass: 2,  rev: 0, vind: 1, dwell: '41s' },
-  '委派':       { n: 7,  pass: 7,  rev: 1, vind: 0, dwell: '—' },
-  '目标提案':   { n: 2,  pass: 1,  rev: 0, vind: 0, dwell: '12s' },
-  '交付推断':   { n: 1,  pass: 1,  rev: 0, vind: 0, dwell: '5s' },
+  '验收':       { agree: 11, rev: 2, div: 2, vind: 1, wrong: 1, dwell: '8.4 秒' },
+  '标准写确认': { agree: 20, rev: 0, div: 0, vind: 0, wrong: 0, dwell: '1.6 秒' },
+  '对账裁决':   { agree: 2,  rev: 0, div: 1, vind: 1, wrong: 0, dwell: '41 秒' },
+  '委派':       { agree: 7,  rev: 1, div: 0, vind: 0, wrong: 0, dwell: '—' },
+  '目标提案':   { agree: 1,  rev: 0, div: 1, vind: 0, wrong: 0, dwell: '12 秒' },
+  '交付推断':   { agree: 1,  rev: 0, div: 0, vind: 0, wrong: 0, dwell: '5 秒' },
 };
 const p6 = {
-  lastVerdict: null, tomorrow: false, selected: null, viewAs: 'me',
+  lastVerdict: null, tomorrow: false, selected: null, viewAs: 'me', gearAt: null,
   soft: { spread: false, mirror: false, morning: false },
-  /* 样本：立约时刻出生、不可回填——两条种子押（待对表 / 前提已变） */
   bets: [
     { id: 'b-hongtu', text: '8/15 前签回宏图续约', family: '委派', anchor: { label: '委派 · 续约谈判（宏图）', time: '8/12 09:31', cardId: null, sess: 'zhangsan', alive: true },
       checkpoint: '8/15', state: 'past',
-      evidence: [{ t: '客户走访汇总 · 宏图行', m: '续约意向确认，待发正式报价 · 快照', alive: true }, { t: '走访记录表 · 8/12', m: '续约意向 · 快照', alive: true }] },
-    { id: 'b-yifeng', text: '8 月内签下益丰', family: '委派', anchor: { label: '委派 · 益丰跟进', time: '8/05', cardId: null, sess: null, alive: false, dead: '承诺已作废（客户转观望，8/14）' },
+      photos: [{ t: '客户走访汇总 · 宏图行', body: '宏图科技：续约意向确认，待发正式报价', alive: true }, { t: '走访记录表 · 8/12', body: '宏图科技 | 8/12 | 续约意向', alive: true }] },
+    { id: 'b-yifeng', text: '8 月内签下益丰', family: '委派', anchor: { label: '委派 · 益丰跟进', time: '8/05', cardId: null, sess: null, alive: false, dead: '这条承诺已作废（客户转观望，8/14）' },
       checkpoint: '8/31', state: 'premise',
-      evidence: [{ t: '走访记录表 · 益丰 8/14', m: '观望 · 快照', alive: true }, { t: '承诺「益丰跟进」', m: '已作废 · 锚死', alive: false }] },
+      photos: [{ t: '走访记录表 · 益丰 8/14', body: '益丰咨询 | 8/14 | 观望', alive: true }, { t: '承诺「益丰跟进」', body: '已作废 · 8/14', alive: false }] },
   ],
-  /* 样本：三处出生各一（已对表）——同一张账上必须有"对了·因判断" */
   receipts: [
     { id: 'r-monthly', type: 'reversed', family: '验收', verdict: { label: '验收《7 月月报》', time: '7/30 17:10', cardId: null, sess: 'fingroup' },
-      fact: { text: 'CFO 当场追问补数——月报差距条目「数据缺口」当时已在档', time: '7/31' }, attribution: 'q3', wrong: false,
-      evidence: [{ t: '差距条目「数据缺口」', m: '当时在档 · 快照', alive: true }, { t: 'CFO 追问 · 财务群消息', m: '7/31 09:20 · 快照', alive: true }] },
-    { id: 'r-contract', type: 'vindicated', family: '验收', verdict: { label: '拒收《供货框架合同》初稿（agent 提案通过）', time: '8/02', cardId: null, sess: 'fingroup' },
-      fact: { text: '法务复核：违约条款确有缺口——你拒得对', time: '8/04' }, attribution: 'q1', wrong: false,
-      evidence: [{ t: '你的拒收话语', m: '8/02 · 快照', alive: true }, { t: '法务复核结论', m: '8/04 · 快照', alive: true }] },
+      fact: { text: 'CFO 当场追问补数', time: '7/31' }, attribution: 'q3', wrong: false,
+      then: [{ t: '验收卡 · 7/30 17:10', body: '✓ 已验收 · 简报「数据缺口」条目未消解——跳过' }, { t: '差距条目 · 数据缺口', body: '◐ 华南分部 7 月回款数据缺 2 天——月报按估算填入（差距）' }],
+      later: [{ t: '财务群 · 7/31 09:20 · 郑慧', body: '「CFO 刚问华南那两天的回款是估的还是实的？要补实数。」' }] },
+    { id: 'r-contract', type: 'vindicated', family: '验收', verdict: { label: '拒收《供货框架合同》初稿', time: '8/02', cardId: null, sess: 'fingroup' },
+      fact: { text: '法务复核：违约条款确有缺口', time: '8/04' }, attribution: 'q1', wrong: false,
+      then: [{ t: '交付主张 · agent · 8/02', body: '「✅ 已完成：供货框架合同初稿，按模板生成，12 条条款。」' }, { t: '你的拒收 · 8/02 15:40', body: '「违约条款只写了逾期，没写质量不达标——打回补。」' }],
+      later: [{ t: '法务复核 · 8/04', body: '「初稿违约条款确实缺质量不达标情形，按打回意见补充。」' }] },
     { id: 'r-recon', type: 'vindicated', family: '对账裁决', verdict: { label: '驳回 #289 汇率修正提案', time: '7/12', cardId: null, sess: 'recon' },
       fact: { text: '供应商确认 7 月中旬调价，两笔口径本就不同', time: '7/15' }, attribution: 'q1', wrong: false,
-      evidence: [{ t: '裁决卡 #289', m: '驳回 · 快照', alive: true }, { t: '供应商回函', m: '7/15 · 快照', alive: true }] },
+      then: [{ t: '裁决卡 #289 · 7/12', body: '#289 汇率口径不一致（6.92 vs 7.08）· 你的裁决：✗ 驳回修正' }],
+      later: [{ t: '供应商回函 · 7/15', body: '「7/14 起执行新汇率 7.08，之前订单按 6.92 结算。」' }] },
   ],
-  /* 查看者样本律：张锐有自己的账；王超空账 */
   others: {
-    zhangrui: { receipts: [{ id: 'z1', type: 'reversed', family: '交付主张', verdict: { label: '交付主张 · 「周三能交 v3」', time: '8/21' }, fact: { text: '实际周五交——偏后 2 天', time: '8/23' }, attribution: 'q3', wrong: false, evidence: [{ t: '估期话语', m: '8/21 · 快照', alive: true }] }], fam: { '交付主张': { n: 3, pass: 1, rev: 2, vind: 0, dwell: '—' } } },
+    zhangrui: { receipts: [{ id: 'z1', type: 'reversed', family: '交付主张', verdict: { label: '交付主张 · 「周三能交 v3」', time: '8/21' }, fact: { text: '实际周五交——偏后 2 天', time: '8/23' }, attribution: 'q3', wrong: false, then: [{ t: '你的估期 · 8/21', body: '「周三能交 v3。」' }], later: [{ t: '交付 · 8/23', body: '「v3 来了，晚了两天，数据清洗比预想多。」' }] }], fam: { '交付主张': { agree: 1, rev: 2, div: 0, vind: 0, wrong: 0, dwell: '—' } } },
     wangchao: { receipts: [], fam: {} },
   },
 };
+const P6_DIVERGE = /^(拒收|驳回|不是交付|打回)/;
 function p6Verdict(label, family, sess, cardId) {
   p6.lastVerdict = { label, family, sess, cardId, time: nowStr() };
-  if (P6_FAM[family]) { P6_FAM[family].n += 1; if (!/^(拒收|驳回|不是交付)/.test(label)) P6_FAM[family].pass += 1; }
+  const f = P6_FAM[family]; if (f) { if (P6_DIVERGE.test(label)) f.div += 1; else f.agree += 1; }
   const b = $('p6adv'); if (b && !p6.tomorrow) b.disabled = !p6MainVerdict();
+  updateVoiceHint();
 }
 function p6MainVerdict() {
   const ac = sessions.competitor.timeline.find(i => i.type === 'accept' && i.id === 'ac-competitor');
@@ -2312,11 +2325,16 @@ function p6MainVerdict() {
 }
 function p6Checkpoint(v) {
   if (v && v.sess && sessions[v.sess] && sessions[v.sess].objects && sessions[v.sess].objects.events && sessions[v.sess].objects.events[0]) {
-    const ev = sessions[v.sess].objects.events[0]; return `${ev.time} ${ev.t}（还没开的那场会）`;
+    const ev = sessions[v.sess].objects.events[0]; return `${ev.time} ${ev.t}`;
   }
   return null;
 }
-/* 出站侧两个动词：押 / 以后…（软合同）——不经 agent 代写；ack 亮出锚，可纠 */
+function p6Placeholder() {
+  const v = p6.lastVerdict;
+  if (!v || v.sess !== state.current || state.voice !== 'pri' || state.ask) return null;
+  if (p6.bets.some(b => b.anchor.cardId && b.anchor.cardId === v.cardId && b.state !== 'withdrawn')) return null;
+  return '对 Agent 说点什么（群里不可见）……或「押：」一句预期，可选';
+}
 function p6Intercept(text, sessKey, safe) {
   const bet = text.match(/^(?:押|\/押)[：:\s]+(.+)$/);
   const soft = text.match(/^(不再|取消)?\s*(以后|每天早上)(.+)$/);
@@ -2324,193 +2342,222 @@ function p6Intercept(text, sessKey, safe) {
   appendItems(sessKey, [{ type: 'user-pri', time: nowStr(), text: safe }]);
   if (bet) {
     const v = p6.lastVerdict;
-    if (!v) { appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: '没有可押的裁决——押锚在你签发的裁决上，先裁决再押（我不猜、也不替你找一条）。' }], 700); return true; }
+    if (!v) { appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: '还没有可以押的裁决——先做一个裁决，再押。' }], 700); return true; }
     if (p6.bets.some(b => b.anchor.cardId && b.anchor.cardId === v.cardId && b.state !== 'withdrawn')) {
-      appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: `这条裁决已经押过——不可改笔：改赌注 = 撤回 + 新押，且同一裁决撤回后不可再押（不可回填律）。` }], 700); return true;
+      appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: '这条裁决已经押过了。要改，先撤回——撤回之后，这条就不能再押。' }], 700); return true;
     }
     const cp = p6Checkpoint(v);
-    p6.bets.push({ id: 'b' + Date.now(), text: bet[1].trim(), family: v.family, anchor: { ...v, alive: true }, checkpoint: cp || '无戳（不参与时间轮）', state: 'live',
-      evidence: [{ t: v.label, m: `${v.time} · 你的裁决 · 快照`, alive: true }] });
-    appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: `🔒 押已记：「${bet[1].trim()}」——锚到你 <b>${v.time} 的${v.label}</b>${cp ? `，检验点 = ${cp}` : '，无检验点（无戳不参与时间轮）'}。<b>不对请说</b>（锚是我的推断）。仅你可见 · 不入组织图 · 不可改笔。` }], 700);
+    p6.bets.push({ id: 'b' + Date.now(), text: bet[1].trim(), family: v.family, anchor: { ...v, alive: true }, checkpoint: cp || '没有定时间', state: 'live',
+      photos: [{ t: v.label + ' · ' + v.time, body: '你的裁决', alive: true }] });
+    appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: `押已记：「${bet[1].trim()}」——押在你 <b>${v.time} 的${v.label}</b>上${cp ? `；${cp}之后，结果会回到那张卡下面` : '；没有定时间，有结果时我放回那张卡下面'}。押错地方了就说一声。只有你能看到。` }], 700);
     if (v.sess === sessKey) setTimeout(renderTimeline, 800);
-    toast(v.cardId ? '押 = 你的动词。私条已长在那张裁决卡下面（仅你可见）。' : '押已记——这条裁决是从枢纽签发的，没有私语道：私条只在「我的判断」取景框里。');
+    toast(v.cardId ? '押已记，只有你能看到。' : '押已记——这条裁决没有会话，它只在「我的判断」里。');
+    updateVoiceHint();
     return true;
   }
   const off = !!soft[1];
   let key = null, label = '';
-  if (/摆开证据|不预选/.test(text)) { key = 'spread'; label = '以后验收前摆开证据、不预选'; }
-  else if (/判例|看我的/.test(text)) { key = 'mirror'; label = '以后验收前给我看我的相关判例'; }
-  else if (/晨报|每天早上|几条对表/.test(text)) { key = 'morning'; label = '每天早上告诉我有几条对表'; }
-  if (!key) { appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: '这一句我没认出是哪一类显示规则。软合同里现在能写的三句：「以后验收前摆开证据」「以后验收前给我看判例」「每天早上告诉我有几条对表」——租约归组织侧，从那里签。' }], 700); return true; }
+  if (/摆开证据|不预选|先看证据/.test(text)) { key = 'spread'; label = '以后验收前，先把要求和交付摆给我看'; }
+  else if (/判例|看我的|上次/.test(text)) { key = 'mirror'; label = '以后验收前，给我看我上次在这类事上的结果'; }
+  else if (/晨报|每天早上|几条/.test(text)) { key = 'morning'; label = '每天早上告诉我有几条结果等着看'; }
+  if (!key) { appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: '这句我没认出来。现在能写的三句：「以后验收前先看证据」「以后验收前给我看上次的结果」「每天早上告诉我有几条结果」。' }], 700); return true; }
   p6.soft[key] = !off;
-  appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: off ? `已从你的判断力档案删去：「${label}」。` : `已写入你的判断力档案（软合同 · 操作者级）：「<b>${label}</b>」——合同面板可检视、可删；这是你签发的显示规则，我只执行，不揣测。${key === 'spread' ? '下一张验收卡起：证据摆开、不预选、无一键通过。' : key === 'mirror' ? '下一张验收卡起：卡下亮出你这一族的判例。' : '晨报里会多一行只有计数的「昨天 N 条对表」（桌面私语投影，不进 IM 副本）。'}` }], 700);
-  toast('换挡 = 软合同一句话——本层唯一的产出。');
+  appendItems(sessKey, [{ type: 'agent-pri', time: nowStr(), text: off ? `好，删掉了：「${label}」。` : `记下了：「<b>${label}</b>」。这是你定的规矩，我照做；在合同面板能看到、能删。` }], 700);
+  toast(off ? '删掉了。' : '记下了。');
   return true;
 }
-/* 到明天：同一份事实按你的裁决生出不同型的回执（三处出生由比值分子定义） */
 function p6Advance() {
   const ac = p6MainVerdict(); if (!ac || p6.tomorrow) return;
   p6.tomorrow = true;
   const accepted = ac.state === 'done';
-  sessions.prodgroup.timeline.push(
-    { type: 'divider', text: '明天' },
-    { type: 'im', who: 'liting', name: '李婷', time: '明天 10:40', text: accepted
-      ? '评审结果：过了！但管理层当场追问定价策略——只有对比没有建议，下周补一版策略建议再过一次。'
-      : '评审一次过！管理层点名定价维度那一列是亮点——你上周打回让补的正是这个。' });
+  const lt = accepted
+    ? '评审结果：过了！但管理层当场追问定价策略——只有对比没有建议，下周补一版策略建议再过一次。'
+    : '评审一次过！管理层点名定价维度那一列是亮点——你上周打回让补的正是这个。';
+  sessions.prodgroup.timeline.push({ type: 'divider', text: '明天' }, { type: 'im', who: 'liting', name: '李婷', time: '明天 10:40', text: lt });
   const bet = p6.bets.find(b => b.anchor.cardId === 'accept-ac-competitor' && b.state === 'live');
   const type = bet ? 'pledged' : accepted ? 'reversed' : 'vindicated';
+  const vt = p6.lastVerdict && p6.lastVerdict.cardId === 'accept-ac-competitor' ? p6.lastVerdict.time : nowStr();
+  const claim = ((sessions.competitor.timeline.filter(i => i.type === 'agent-pub' && i.kind === 'done').pop() || {}).text || '').replace(/<[^>]+>/g, '');
   const r = { id: 'r-main', type, family: '验收', bet: bet ? bet.text : null,
-    verdict: { label: accepted ? '验收《竞品对比 · 评审表》' : '拒收《竞品对比 · 评审表》（agent 交付）', time: '今天 ' + (p6.lastVerdict ? p6.lastVerdict.time : '10:3x'), cardId: 'accept-ac-competitor', sess: 'competitor' },
-    fact: { text: accepted ? '评审过了，但管理层追问定价策略——差距条目②「定价策略建议」当时已在档' : '评审一次过，管理层点名你打回补的那一列', time: '明天 10:40' },
+    verdict: { label: accepted ? '验收《竞品对比 · 评审表》' : '拒收《竞品对比 · 评审表》', time: '今天 ' + vt, cardId: 'accept-ac-competitor', sess: 'competitor' },
+    fact: { text: accepted ? '评审过了，但管理层追问定价策略' : '评审一次过，管理层点名你打回补的那一列', time: '明天 10:40' },
     attribution: null, wrong: false,
-    evidence: accepted
-      ? [{ t: '李婷 · 评审结果', m: '明天 10:40 · 产品讨论群 · 快照', alive: true }, { t: '差距条目②「定价策略建议——部分达成」', m: '目标评估 · 8/19 版 · 快照', alive: true }]
-      : [{ t: '李婷 · 评审结果', m: '明天 10:40 · 产品讨论群 · 快照', alive: true }, { t: '返工第 2 轮 · 新旧交付 diff', m: '快照', alive: true }] };
+    then: accepted
+      ? [{ t: `验收卡 · 今天 ${vt}`, body: '✓ 已验收归档 · 交付：竞品对比 · 评审表（12 条记录 · 5 个维度）' },
+         { t: '差距条目② · 目标评估（8/19 版）', body: `${EVAL[1].desc} · ${EVAL[1].ev}` },
+         { t: '交付主张 · agent', body: '「' + claim + '」' }]
+      : [{ t: `验收卡 · 今天 ${vt}`, body: '↩ 已打回 · 返工第 2 轮' },
+         { t: '交付主张 · agent', body: '「' + claim + '」' }],
+    later: accepted
+      ? [{ t: '李婷 · 明天 10:40 · 产品讨论群', body: '「' + lt + '」' }]
+      : [{ t: '李婷 · 明天 10:40 · 产品讨论群', body: '「' + lt + '」' }, { t: '返工第 2 轮 · diff', body: '新增：定价维度列（3 家 × 席/月）' }] };
+  if (bet) r.then.unshift({ t: '你押的 · 今天', body: '「' + bet.text + '」' });
   p6.receipts.unshift(r);
   if (bet) bet.state = 'settled';
-  if (type === 'reversed') P6_FAM['验收'].rev += 1; if (type === 'vindicated') P6_FAM['验收'].vind += 1;
+  if (accepted) P6_FAM['验收'].rev += 1; else P6_FAM['验收'].vind += 1;
   $('p6adv').style.display = 'none';
   renderSidebar(); renderTimeline(); renderHead();
-  toast(`事实回流。回执出生型：${P6TYPE[type]}——长在竞品对比表话题那张验收卡下面（私条，仅你可见）。左栏待确认/待验收计数没变：三不入由构造满足。`);
+  toast('明天到了。结果放回了那张验收卡下面——只有你能看到。左边的待确认、待验收都没变。');
 }
-/* 私条：住裁决 turn 的私语道——只对有 cardId 的裁决渲染；枢纽 CTA 裁决无私语道 → 只在取景框 */
+function p6Photo(ph) {
+  return `<div class="p6-photo${ph.alive === false ? ' dead' : ''}"><span class="p6-photo-t">${ph.alive === false ? '⚰ ' : ''}${ph.t}</span>${ph.body}</div>`;
+}
 function p6StripFor(cardId, sess) {
   if (document.body.classList.contains('stealth')) return '';
   let h = '';
   p6.bets.filter(b => b.anchor.cardId === cardId && b.state !== 'withdrawn').forEach(b => {
-    h += `<div class="p6-strip p6-private"><span class="p6-lock">🔒 仅你可见 · 不入组织图</span><span class="p6-tag">押</span>${b.state === 'settled' ? '已结清' : '检验中'} 「<b>${b.text}</b>」 · 检验点：${b.checkpoint} · 不可改笔${b.state === 'live' ? ` <button class="btn p6-tiny" data-p6="withdraw:${b.id}">撤回（留痕）</button>` : ''}${pinInline(26)}</div>`;
+    h += `<div class="p6-strip p6-private"><span class="p6-lock">🔒 只有你能看到</span><span class="p6-tag">押</span>「<b>${b.text}</b>」${b.state === 'settled' ? ' · 已见分晓' : ` · ${b.checkpoint}之后见分晓`}${b.state === 'live' ? ` <button class="btn p6-tiny" data-p6="withdraw:${b.id}">撤回</button>` : ''}${pinInline(26)}</div>`;
   });
-  p6.receipts.filter(r => r.verdict.cardId === cardId).forEach(r => { h += p6ReceiptHtml(r, false); });
+  p6.receipts.filter(r => r.verdict.cardId === cardId).forEach(r => { h += p6ReceiptHtml(r); });
   return h;
 }
-function p6ReceiptHtml(r, inJudg) {
-  const attr = r.wrong
-    ? `<div style="margin-top:5px;color:var(--red)">✗ 已标注「配对错了」——这份事实与该裁决无关，判例未入账（宁空勿错）<button class="btn p6-tiny" data-p6="restore:${r.id}" style="margin-left:6px">纠回</button></div>`
-    : r.attribution
-      ? `<div style="margin-top:5px"><span class="p6-tag">${P6Q[r.attribution]}</span>已对表 · 归因可改（追加不改史）${inJudg ? '' : ` <button class="btn p6-tiny" data-p6="gear:${r.family}">以后这类… ›</button>`}</div>`
-      : `<div style="margin-top:5px"><b>归因（你来下，我不代下）</b>${pinInline(29)}</div>
-         <div class="p6-quad">
-           <button data-p6="attr:${r.id}:q1">对了 · 因判断<small>判例入账，姿势可复用</small></button>
-           <button data-p6="attr:${r.id}:q2">对了 · 因运气<small>结果好 ≠ 判断对</small></button>
-           <button data-p6="attr:${r.id}:q3">错了 · 因判断<small>${r.evidence[1] ? r.evidence[1].t + ' 当时已在档' : '证据见上'}</small></button>
-           <button data-p6="attr:${r.id}:q4">错了 · 因世界<small>前提变了，事前无从得知</small></button>
-         </div>
-         <div style="margin-top:4px"><button class="btn p6-tiny" data-p6="wrong:${r.id}" style="border-style:dashed">配对错了——这不是对表事实</button></div>`;
-  const evi = r.evidence.map(e => `<span class="p6-evi${e.alive ? '' : ' dead'}">${e.alive ? '📎' : '⚰'} ${e.t}</span>`).join('');
-  return `<div class="p6-strip p6-private" id="p6r-${r.id}"><span class="p6-lock">🔒 仅你可见</span><span class="p6-tag">校准回执</span><b>${P6TYPE[r.type]}</b>${pinInline(27)}
-    <div><b>当时</b>（${r.verdict.time}）：${r.verdict.label}${r.bet ? `——你押的是「${r.bet}」` : '（回执只陈列裁决事实，不代你推演当时在想什么）'}</div>
-    <div><b>事实</b>（${r.fact.time}）：${r.fact.text}</div>
-    <div>${evi}</div>${attr}</div>`;
+function p6GearBox(family, at) {
+  return `<div class="p6-gear p6-private">以后「${family}」这类事：
+    <button class="btn p6-tiny" data-p6="soft:spread:${family}:${at}">先把要求和交付摆给我看</button>
+    <button class="btn p6-tiny" data-p6="soft:mirror:${family}:${at}">给我看上次的结果</button>
+    <button class="btn p6-tiny" data-p6="soft:lease:${family}:${at}">不用再问我</button>
+    <button class="btn p6-tiny" data-p6="gearx">先不改</button>${pinInline(30)}</div>`;
 }
-/* 负重档（软合同）：摆开证据、不预选——同一份图上的数据，不是新造的话 */
+function p6ReceiptHtml(r) {
+  const notes = {
+    q1: '你当时看到的，就是后来发生的',
+    q2: '结果是好的，但不是因为你当时看到的那些',
+    q3: r.then[1] ? `「${r.then[1].t}」当时就在卡上` : '当时卡上有的，你没看',
+    q4: '后来的事，当时看不到',
+  };
+  const attr = r.wrong
+    ? `<div class="p6-ans">这不是那件事的结果——没记入。<button class="btn p6-tiny" data-p6="restore:${r.id}" style="margin-left:6px">记回来</button></div>`
+    : r.attribution
+      ? `<div class="p6-ans"><span class="p6-tag">${P6Q[r.attribution]}</span>已记 · 想改随时改${p6.gearAt !== r.id ? ` <button class="btn p6-tiny" data-p6="gear:${r.family}:${r.id}">以后这类事… ›</button>` : ''}</div>${p6.gearAt === r.id ? p6GearBox(r.family, r.id) : ''}`
+      : `<div class="p6-ans"><b>这次算什么？</b>（你来定）${pinInline(29)}</div>
+         <div class="p6-quad">
+           <button data-p6="attr:${r.id}:q1">${P6Q.q1}<small>${notes.q1}</small></button>
+           <button data-p6="attr:${r.id}:q2">${P6Q.q2}<small>${notes.q2}</small></button>
+           <button data-p6="attr:${r.id}:q3">${P6Q.q3}<small>${notes.q3}</small></button>
+           <button data-p6="attr:${r.id}:q4">${P6Q.q4}<small>${notes.q4}</small></button>
+         </div>
+         <div style="margin-top:4px"><button class="btn p6-tiny" data-p6="wrong:${r.id}" style="border-style:dashed">这不是那件事的结果</button></div>`;
+  return `<div class="p6-strip p6-private" id="p6r-${r.id}"><span class="p6-lock">🔒 只有你能看到</span><span class="p6-tag">回执</span><b>${P6TYPE[r.type]}</b>${pinInline(27)}
+    <div class="p6-two">
+      <div class="p6-col"><div class="p6-colh">你当时 · ${r.verdict.time}</div><div class="p6-colt">${r.verdict.label}</div>${r.then.map(p6Photo).join('')}</div>
+      <div class="p6-col"><div class="p6-colh">后来 · ${r.fact.time}</div><div class="p6-colt">${r.fact.text}</div>${r.later.map(p6Photo).join('')}</div>
+    </div>${attr}</div>`;
+}
 function p6SpreadFor(item, sess) {
   if (!p6.soft.spread || document.body.classList.contains('stealth')) return '';
-  const claim = (sess.timeline.filter(i => i.type === 'agent-pub' && i.kind === 'done').pop() || {}).text || '（无交付主张原话）';
-  const rounds = item.round ? `返工第 ${item.round} 轮` : '首轮交付';
-  return `<div class="p6-strip p6-private"><span class="p6-lock">🔒 负重档 · 你的软合同</span><span class="p6-tag">摆开证据</span>不预选 · 无一键通过${pinInline(30)}<div><b>交付主张原话</b>：${claim.replace(/<[^>]+>/g, '')}</div><div><b>轮次</b>：${rounds} · <b>差距条目</b>：${sess.title === '竞品对比表' ? '②「定价策略建议——部分达成」（目标评估 8/19 版）' : '—'}</div></div>`;
+  const ask = ((sess.timeline.find(i => i.type === 'im' && !i.mine) || sess.timeline.find(i => i.type === 'im') || {}).text || '').replace(/<[^>]+>/g, '');
+  const delegate = ((sess.timeline.find(i => i.type === 'im' && i.delegate) || {}).text || '').replace(/<[^>]+>/g, '');
+  const claim = ((sess.timeline.filter(i => i.type === 'agent-pub' && i.kind === 'done').pop() || {}).text || '').replace(/<[^>]+>/g, '');
+  const arts = (sess.objects && sess.objects.artifacts || []).map(a => `${a.icon} ${a.t}（${a.m}）`).join('；') || '（还没有交付物）';
+  const goal = sess.title === '竞品对比表' ? GOALS.g1 : null;
+  const had = ['<br><b>交付里有：</b>对比表 12 条 · 5 个维度', '<br><b>交付里有：</b>对比表含定价列；<b>没有：</b>策略建议文档', '<br><b>交付里有：</b>—（不在这次交付范围）'];
+  const std = goal ? goal.std.map((x, i) => `<div class="p6-photo"><span class="p6-photo-t">目标要求 ${['①', '②', '③'][i]}</span>${x}${had[i]}</div>`).join('') : '';
+  return `<div class="p6-strip p6-private" style="margin:0 0 8px"><span class="p6-lock">🔒 你定的规矩</span><span class="p6-tag">先看</span>要求 × 交付${pinInline(30)}
+    <div class="p6-two">
+      <div class="p6-col"><div class="p6-colh">要求</div>${std || p6Photo({ t: '对方原话', body: ask })}${delegate ? p6Photo({ t: '你的委派原话', body: delegate }) : ''}</div>
+      <div class="p6-col"><div class="p6-colh">交付</div>${p6Photo({ t: '交付物', body: arts })}${item.round ? p6Photo({ t: '轮次', body: `返工第 ${item.round} 轮` }) : ''}<div class="p6-photo" style="opacity:.7"><span class="p6-photo-t">agent 说</span>${claim || '—'}</div></div>
+    </div></div>`;
 }
-/* 后视镜（软合同）：判例 chip 一跳回取景框——人签发的显示，agent 只执行 */
 function p6MirrorFor(family) {
   if (!p6.soft.mirror || document.body.classList.contains('stealth')) return '';
-  const f = P6_FAM[family] || { rev: 0, vind: 0 };
-  return `<div class="p6-strip p6-private"><span class="p6-lock">🔒 后视镜 · 你的软合同</span><span class="p6-tag">判例</span>${family}类：反转 <b>${f.rev}</b> · 偏离印证 <b>${f.vind}</b>（近 90 天）<button class="btn p6-tiny" data-p6="judg" style="margin-left:6px">看判例 ›</button> · 判断仍由你下</div>`;
+  const cases = p6.receipts.filter(r => r.family === family && r.attribution && !r.wrong).slice(0, 2);
+  if (!cases.length) return '';
+  return `<div class="p6-strip p6-private"><span class="p6-lock">🔒 你定的规矩</span><span class="p6-tag">上次</span>你在${family}上的结果：
+    ${cases.map(c => `<div class="p6-photo"><span class="p6-photo-t">${c.verdict.time} · ${P6Q[c.attribution]}</span>${c.verdict.label} → ${c.fact.text} <button class="btn p6-tiny" data-p6="evid:r:${c.id}:go">看 ›</button></div>`).join('')}</div>`;
 }
 function p6MorningLine() {
   if (!p6.soft.morning) return '';
   const n = p6.receipts.filter(r => !r.attribution && !r.wrong).length;
-  return `<span class="chip p6-private" data-p6="judg" role="button" tabindex="0" style="cursor:pointer;background:#FBF8EE;border-color:#E0D5B8;color:#6B5A36" title="你签发的显示（软合同）· 只有计数 · 桌面私语投影，不进 IM 副本">🔒 昨天 <b>${n}</b> 条对表 ›</span>`;
+  return `<span class="chip p6-private" data-p6="judg" role="button" tabindex="0" style="cursor:pointer;background:#FBF8EE;border-color:#E0D5B8;color:#6B5A36">🔒 ${n} 条结果等着看 ›</span>`;
 }
-/* 「我的判断」取景框：与承诺板同构——组织轴 = 裁决族，组头 = 原料，就近动词在组头 */
+function p6FamHead(f, raw, mine) {
+  const ok = raw.agree - raw.rev;
+  const pend = raw.div - raw.vind - raw.wrong;
+  return `<div class="p6-fam"><b>${f}</b>
+    <span class="raw">同意 <b>${raw.agree}</b>${raw.agree ? `（成立 ${ok} · 被推翻 <b>${raw.rev}</b>）` : ''}</span>
+    <span class="raw">｜ 没同意 <b>${raw.div}</b>${raw.div ? `（证明对 <b>${raw.vind}</b> · 错 ${raw.wrong}${pend ? ` · 待定 ${pend}` : ''}）` : ''}</span>
+    <span class="raw">｜ 每次约 ${raw.dwell}</span>
+    ${mine ? `<span style="margin-left:auto;display:flex;gap:4px;align-items:center">${p6.soft.spread && f === '验收' ? '<span class="p6-cchip">先看</span>' : ''}${p6.soft.mirror && f === '验收' ? '<span class="p6-cchip">上次</span>' : ''}${p6.gearAt !== 'fam:' + f ? `<button class="btn p6-tiny" data-p6="gear:${f}:fam:${f}">以后这类事… ›</button>` : ''}</span>` : ''}</div>${p6.gearAt === 'fam:' + f ? p6GearBox(f, 'fam:' + f) : ''}`;
+}
 function renderJudg() {
   const va = p6.viewAs;
   const seat = (id, l) => `<button class="btn${va === id ? ' primary' : ''}" data-p6="viewas:${id}" style="font-size:10.5px;padding:2px 9px">${l}</button>`;
   const head = `<div class="hub-card">
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="ex-tag goal" style="background:#EFE6D0;color:#6B5A36;border-color:#E0D5B8">私账</span><b style="font-size:14px">🔒 我的判断${va === 'me' ? '' : va === 'zhangrui' ? '（张锐）' : '（王超）'}</b>${pinInline(25)}${pinInline(31)}
-      <span style="margin-left:auto;font-size:10px;color:var(--ink-3)">视角（查看者样本律）：</span>${seat('me', '我')}${seat('zhangrui', '张锐')}${seat('wangchao', '王超')}${pinInline(34)}</div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 2px"><span class="p6-cchip">仅本人</span><span class="p6-cchip">不入组织图</span><span class="p6-cchip">本人可取走 · 组织不可导出</span><span class="p6-cchip">永不绩效</span><span class="p6-cchip">审计不可触及</span></div>
-    <div style="font-size:10.5px;color:var(--ink-3)">第三取景框（跨裁决）：组织轴 = 裁决族，组头 = 近 90 天滚动原料——<b>比值的原料在此，比值由你得</b>。无分数、无排名、无跨人比较、无决断条。</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px">🔒 我的判断${va === 'me' ? '' : va === 'zhangrui' ? '（张锐）' : '（王超）'}</b>${pinInline(25)}${pinInline(31)}
+      <span style="margin-left:auto;font-size:10px;color:var(--ink-3)">视角（演示）：</span>${seat('me', '我')}${seat('zhangrui', '张锐')}${seat('wangchao', '王超')}${pinInline(34)}</div>
+    <div style="font-size:11.5px;color:var(--ink-2);margin-top:5px">你签发过的裁决，和后来发生的事。</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 0"><span class="p6-cchip">只有你能看到</span><span class="p6-cchip">不进公司的账</span><span class="p6-cchip">随时可以整本带走</span></div>
   </div>`;
   if (va === 'wangchao') return `<div class="board">${head}
-    <div class="p6-refuse">空账。预期在你自己的裁决时刻出生，不可回填——王超最近的裁决没有经过图。<br><b>找「下属的对表」？——不存在。</b>误判史归组织，成长回路当场翻转为监控回路（托管律）。旁观者能看的是组织的账：承诺板与目标枢纽。</div></div>`;
+    <div class="p6-refuse">还没有内容——押和结果都从你自己的裁决长出来。<br>别人的判断记录在这里看不到，从来都看不到。</div></div>`;
   const src = va === 'me' ? { receipts: p6.receipts, bets: p6.bets, fam: P6_FAM } : { receipts: p6.others[va].receipts, bets: [], fam: p6.others[va].fam };
-  const fams = Object.keys(src.fam);
   const betRow = b => {
-    const st = b.state === 'live' ? '<b>检验中</b>' : b.state === 'past' ? '<b>已过检验点 · 待对表</b>（不老化 · 不可催）' : b.state === 'premise' ? '<span style="color:var(--amber)"><b>⚠ 前提已变</b></span>：' + b.anchor.dead : b.state === 'settled' ? '已结清' : b.state === 'anyway' ? '照旧对表 · 检验点 ' + b.checkpoint : '已撤回';
-    const verbs = b.state === 'past' ? `<button class="btn p6-tiny" data-p6="noted:${b.id}">补登事实</button> <button class="btn p6-tiny" data-p6="withdraw:${b.id}">撤回</button>`
-      : b.state === 'premise' ? `<button class="btn p6-tiny" data-p6="withdraw:${b.id}">撤回（留痕）</button> <button class="btn p6-tiny" data-p6="anyway:${b.id}">照旧对表</button>`
+    const st = b.state === 'live' ? `${b.checkpoint}之后见分晓` : b.state === 'past' ? `已过 ${b.checkpoint}，还没结果` : b.state === 'premise' ? `<span style="color:var(--amber)">⚠ ${b.anchor.dead}</span>` : b.state === 'settled' ? '已见分晓' : b.state === 'anyway' ? `照旧，${b.checkpoint}之后对` : '已撤回';
+    const verbs = b.state === 'past' ? `<button class="btn p6-tiny" data-p6="noted:${b.id}">补一句结果</button> <button class="btn p6-tiny" data-p6="withdraw:${b.id}">撤回</button>`
+      : b.state === 'premise' ? `<button class="btn p6-tiny" data-p6="withdraw:${b.id}">撤回</button> <button class="btn p6-tiny" data-p6="anyway:${b.id}">照旧对</button>`
       : b.state === 'live' ? `<button class="btn p6-tiny" data-p6="withdraw:${b.id}">撤回</button>` : '';
-    return `<div class="p6-row"><span>🌱</span><span class="t">「${b.text}」 · ${st}<span class="m">锚：${b.anchor.label} · ${b.anchor.time}${b.anchor.cardId ? '' : ' · 无私语道（此行是它唯一的家）'} · 检验点 ${b.checkpoint}</span></span><span style="flex:none;display:flex;gap:4px;flex-wrap:wrap">${verbs}<button class="btn p6-tiny" data-p6="evid:b:${b.id}">证据 ›</button></span></div>`;
+    return `<div class="p6-row"><span>🌱</span><span class="t">「${b.text}」 · ${st}<span class="m">押在：${b.anchor.label} · ${b.anchor.time}${b.anchor.cardId ? '' : ' · 只在这里'}</span></span><span style="flex:none;display:flex;gap:4px;flex-wrap:wrap">${verbs}<button class="btn p6-tiny" data-p6="evid:b:${b.id}">看 ›</button></span></div>`;
   };
-  const recRow = r => `<div class="p6-row"><span>${r.wrong ? '✗' : r.attribution ? '<span class="p6-tag">' + P6Q[r.attribution] + '</span>' : '📮'}</span><span class="t">${r.verdict.label}${r.bet ? `——押「${r.bet}」` : ''} → ${r.fact.text}<span class="m">${P6TYPE[r.type]} · ${r.verdict.time} → ${r.fact.time}${r.attribution ? '' : r.wrong ? ' · 配对错了（未入账）' : ' · <b>未对表</b>（不老化不可催）'}${r.verdict.cardId ? ` · <button class="v5-door btn p6-tiny" data-sess="${r.verdict.sess}">回原卡 ›</button>` : ''}</span></span><span style="flex:none"><button class="btn p6-tiny" data-p6="evid:r:${r.id}">证据 ›</button></span></div>`;
+  const recRow = r => `<div class="p6-row"><span>${r.wrong ? '—' : r.attribution ? '<span class="p6-tag">' + P6Q[r.attribution] + '</span>' : '📮'}</span><span class="t">${r.verdict.label}${r.bet ? `——押「${r.bet}」` : ''} → ${r.fact.text}<span class="m">${P6TYPE[r.type]} · ${r.verdict.time} → ${r.fact.time}${r.attribution ? '' : r.wrong ? ' · 没记入' : ' · <b>还没定</b>'}${r.verdict.cardId ? ` · <button class="v5-door btn p6-tiny" data-sess="${r.verdict.sess}">回那张卡 ›</button>` : ''}</span></span><span style="flex:none"><button class="btn p6-tiny" data-p6="evid:r:${r.id}">看 ›</button></span></div>`;
   let body = '';
-  fams.forEach(f => {
-    const raw = src.fam[f];
+  Object.keys(src.fam).forEach(f => {
     const rows = [...src.bets.filter(b => b.family === f && b.state !== 'withdrawn').map(betRow), ...src.receipts.filter(r => r.family === f).map(recRow)];
-    body += `<div class="p6-fam"><b>${f}</b><span class="raw">近 90 天：<b>${raw.n}</b> 裁决 · 通过 <b>${raw.pass}</b> · 反转 <b>${raw.rev}</b> · 偏离印证 <b>${raw.vind}</b> · 中位停留 <b>${raw.dwell}</b></span>
-      ${va === 'me' ? `<span style="margin-left:auto;display:flex;gap:4px;align-items:center"><button class="btn p6-tiny" data-p6="gear:${f}">以后这类… ›</button>${p6.soft.spread && f === '验收' ? '<span class="p6-cchip">负重</span>' : ''}${p6.soft.mirror && f === '验收' ? '<span class="p6-cchip">后视镜</span>' : ''}</span>` : ''}</div>`;
-    body += rows.length ? rows.join('') : `<div class="p6-row" style="color:var(--ink-3)"><span>·</span><span class="t">0 回执——盖章后平安无事不出回执（分子为零）。${f === '标准写确认' ? '19 次通过、1.6 秒停留、零反转：这一族的比值你自己能读出来。' : ''}</span></div>`;
+    body += p6FamHead(f, src.fam[f], va === 'me');
+    body += rows.length ? rows.join('') : `<div class="p6-row" style="color:var(--ink-3)"><span>·</span><span class="t">近 90 天没有结果回来。</span></div>`;
   });
-  if (!fams.length) body = `<div class="p6-refuse">还没有任何标注。押是你的动词，系统不会来问；回执只在三处出生。</div>`;
-  const gearBox = p6.gearFor ? `<div class="p6-fam" style="background:#FDFEFF;border-color:var(--pub-line)"><b>以后「${p6.gearFor}」这类…</b>
-      <button class="btn p6-tiny" data-p6="soft:spread:${p6.gearFor}">摆开证据、不预选（负重）</button>
-      <button class="btn p6-tiny" data-p6="soft:mirror:${p6.gearFor}">给我看判例（后视镜）</button>
-      <button class="btn p6-tiny" data-p6="soft:lease:${p6.gearFor}">设为租约（组织侧）</button>
-      <button class="btn p6-tiny" data-p6="gearx">取消</button>
-      <span class="raw" style="flex-basis:100%">写进你的软合同（合同面板可检视、可删）——换挡是本层唯一的产出${pinInline(30)}</span></div>` : '';
-  return `<div class="board">${head}${gearBox}${body}
-    <div class="p6-refuse">${pinInline(33)}<b>这里没有的东西</b>：分数、排名、画像、建议、团队视图、决断条、沉降区、分布镜、检索——各有证据门（注解 33）。</div>
+  if (!Object.keys(src.fam).length) body = `<div class="p6-refuse">还没有内容。</div>`;
+  return `<div class="board">${head}${body}
+    <div class="p6-refuse">${pinInline(33)}这里没有分数、没有排名、没有别人的账。</div>
   </div>`;
 }
-/* 证据面：右栏 = f(当前会话, tab)——快照为主、锚为辅、锚死显形；切离即毁 */
 function p6EvidenceFace() {
   const sel = p6.selected;
-  let title = '待对表备料', items = [], note = '打开取景框 = 人发起的回看时刻——备料不定案。';
+  let title = '等结果的', photos = [];
   if (sel) {
     const [k, id] = sel.split(':');
     const o = k === 'b' ? p6.bets.find(b => b.id === id) : (p6.viewAs === 'me' ? p6.receipts : p6.others[p6.viewAs].receipts).find(r => r.id === id);
-    if (o) { title = k === 'b' ? `押 · 「${o.text}」` : `回执 · ${o.verdict.label}`; items = o.evidence; note = '摘要为主（快照在场）、锚为辅（一跳回）——边看证据边下归因；锚死时快照原样在场。'; }
+    if (o) { title = k === 'b' ? `押 · 「${o.text}」` : `${o.verdict.label}`; photos = k === 'b' ? o.photos : [...o.then, ...o.later]; }
   } else {
-    const b = p6.bets.find(x => x.state === 'past'); if (b) { title = `待对表 · 「${b.text}」`; items = b.evidence; }
+    const b = p6.bets.find(x => x.state === 'past'); if (b) { title = `「${b.text}」`; photos = b.photos; }
   }
-  const rows = items.map(e => `<button class="res-item" ${e.alive ? '' : 'disabled'}><span class="ri">${e.alive ? '📎' : '⚰'}</span><span class="rt"><span class="rt1">${e.t} <span class="p6-cchip">快照</span></span><span class="rt2">${e.m}${e.alive ? '' : ' · 锚失效——正文来自写入时刻的快照'}</span></span></button>`).join('');
-  return `<div class="res-sec">对表证据面 · ${title}</div>${rows || '<div class="mem-empty">无待对表项——右栏本就该空；左边任一行按「证据 ›」</div>'}<div class="mem-empty" style="text-align:left">${note}<br>账本随会话整体切换：切离取景框，这里的选中态即毁（残留面 = 泄漏口）。</div>`;
+  return `<div class="res-sec">当时的样子 · ${title}</div>${photos.map(p6Photo).join('') || '<div class="mem-empty">左边任一行按「看 ›」</div>'}<div class="mem-empty" style="text-align:left;font-size:10.5px">这些是当时拍下的原文，不是现在去查的。离开这一页就收起。</div>`;
 }
-/* 判断力档案 = 合同面板同构（每个会话的合同面板末尾一节，操作者级）——另一半签署人是你自己 */
 function p6ContractHtml() {
-  const hard = [['可见域', '仅本人'], ['真身', '个人域（不入组织图 · host 内存非真身）'], ['导出', '本人可整体取走与销毁 · 组织与他人不可导出'], ['绩效', '永不进入任何聚合与绩效'], ['审计', '审计导出不可触及']]
-    .map(([k, v]) => `<div class="ap-row"><span class="k">${k}</span><span class="v">${v}</span><span class="ap-inherit ovr">guard 强制</span></div>`).join('');
-  const soft = [['spread', '以后验收前摆开证据、不预选'], ['mirror', '以后验收前给我看我的相关判例'], ['morning', '每天早上告诉我有几条对表']]
-    .filter(([k]) => p6.soft[k]).map(([k, l]) => `<div class="ap-row"><span class="k">软</span><span class="v">「${l}」</span><button class="btn p6-tiny" data-p6="soft:${k}:off" style="margin-left:auto">删</button></div>`).join('')
-    || `<div class="ap-note">（暂无——在任一会话的私语道说「以后验收前摆开证据」即写入；取景框组头「以后这类…」同门）</div>`;
-  return `<div class="ap-sec"><div class="ap-sec-h">判断力档案（操作者级）<span class="ap-badge hard">硬合同 · 另一半签署人是你自己</span><button class="pin inline" data-note="32" aria-label="设计注解 32">32</button></div>${hard}
-    <div class="ap-note">持镜人律：agent 只在你发起的时刻消费私账；不因你的误判史静默改组织侧行为；显示规则由你签发、agent 只执行。</div></div>
-    <div class="ap-sec"><div class="ap-sec-h">换挡（软合同）<span class="ap-badge soft">可对话修改 · 可删</span></div>${soft}</div>`;
+  const hard = [['谁能看', '只有你'], ['存在哪', '你自己的记录，不进公司系统'], ['带走', '可以整本导出或销毁；公司和别人不能导出'], ['考核', '永远不进任何考核或汇总'], ['审计', '审计导出也碰不到']]
+    .map(([k, v]) => `<div class="ap-row"><span class="k">${k}</span><span class="v">${v}</span><span class="ap-inherit ovr">系统保证</span></div>`).join('');
+  const soft = [['spread', '以后验收前，先把要求和交付摆给我看'], ['mirror', '以后验收前，给我看我上次在这类事上的结果'], ['morning', '每天早上告诉我有几条结果等着看']]
+    .filter(([k]) => p6.soft[k]).map(([k, l]) => `<div class="ap-row"><span class="k">你定的</span><span class="v">「${l}」</span><button class="btn p6-tiny" data-p6="soft:${k}:off" style="margin-left:auto">删</button></div>`).join('')
+    || `<div class="ap-note">（还没有——在私语道里说一句「以后验收前先看证据」就记下了）</div>`;
+  return `<div class="ap-sec"><div class="ap-sec-h">你的判断记录<span class="ap-badge hard">只有你</span><button class="pin inline" data-note="32" aria-label="设计注解 32">32</button></div>${hard}
+    <div class="ap-note">我只在你要看的时候拿出来，不拿它去改别的事。</div></div>
+    <div class="ap-sec"><div class="ap-sec-h">你定的规矩<span class="ap-badge soft">说一句就改</span></div>${soft}</div>`;
 }
 function p6Action(a, el) {
-  const [k, x, y] = a.split(':');
-  if (k === 'judg') { state.navStack.push({ scroll: timelineEl.scrollTop, from: state.current }); openSession('judg'); toast('第三取景框：我签发的裁决 × 私账标注——按裁决族分组，组头 = 原料，比值由你得。'); return; }
+  const parts = a.split(':'); const [k, x, y] = parts;
+  if (k === 'judg') { state.navStack.push({ scroll: timelineEl.scrollTop, from: state.current }); openSession('judg'); return; }
   if (k === 'viewas') { p6.viewAs = x; p6.selected = null; renderTimeline(); renderRight(); return; }
-  if (k === 'evid') { p6.selected = x + ':' + y; renderRight(); toast('证据面：快照为主、锚为辅——对表不出屏。'); return; }
-  if (k === 'attr') { const r = p6.receipts.find(r => r.id === x); if (r && !r.wrong) { r.attribution = y; renderTimeline(); toast('已入对表。归因是你下的——agent 只备料举证。'); } return; }
-  if (k === 'wrong') { const r = p6.receipts.find(r => r.id === x); if (r) { r.wrong = true; renderTimeline(); toast('配对错了：判例未入账（宁空勿错）。可纠回。'); } return; }
+  if (k === 'evid') { if (state.current !== 'judg') { state.navStack.push({ scroll: timelineEl.scrollTop, from: state.current }); openSession('judg'); } p6.selected = x + ':' + y; renderRight(); return; }
+  if (k === 'attr') { const r = p6.receipts.find(r => r.id === x); if (r && !r.wrong) { r.attribution = y; renderTimeline(); toast('记下了。'); } return; }
+  if (k === 'wrong') { const r = p6.receipts.find(r => r.id === x); if (r) { r.wrong = true; renderTimeline(); toast('好，没记入。'); } return; }
   if (k === 'restore') { const r = p6.receipts.find(r => r.id === x); if (r) { r.wrong = false; renderTimeline(); } return; }
-  if (k === 'withdraw') { const b = p6.bets.find(b => b.id === x); if (b) { b.state = 'withdrawn'; renderTimeline(); toast('已撤回（留痕，不删史）。同一裁决不可再押——不可回填律。'); } return; }
-  if (k === 'anyway') { const b = p6.bets.find(b => b.id === x); if (b) { b.state = 'anyway'; renderTimeline(); toast('照旧对表：前提变了你仍要这个判断的对表——系统只显形，不代撤。'); } return; }
+  if (k === 'withdraw') { const b = p6.bets.find(b => b.id === x); if (b) { b.state = 'withdrawn'; renderTimeline(); updateVoiceHint(); toast('撤回了。这条裁决不能再押。'); } return; }
+  if (k === 'anyway') { const b = p6.bets.find(b => b.id === x); if (b) { b.state = 'anyway'; renderTimeline(); toast('好，照旧对。'); } return; }
   if (k === 'noted') { const b = p6.bets.find(b => b.id === x); if (b) { b.state = 'settled';
-      p6.receipts.unshift({ id: 'r-' + b.id, type: 'pledged', family: b.family, bet: b.text, verdict: { label: b.anchor.label, time: b.anchor.time, cardId: null, sess: b.anchor.sess }, fact: { text: '你补登：8/14 签了，但金额减 15%（图外事实 · fact/noted）', time: '今天' }, attribution: null, wrong: false, evidence: b.evidence });
-      renderTimeline(); toast('补登事实 = 图外事实的唯一入口（同组织侧"人一句话补登"）——回执出生：押过的。'); } return; }
-  if (k === 'gear') { p6.gearFor = x; if (state.current !== 'judg') { state.navStack.push({ scroll: timelineEl.scrollTop, from: state.current }); openSession('judg'); } else renderTimeline(); return; }
-  if (k === 'gearx') { p6.gearFor = null; renderTimeline(); return; }
+      p6.receipts.unshift({ id: 'r-' + b.id, type: 'pledged', family: b.family, bet: b.text, verdict: { label: b.anchor.label, time: b.anchor.time, cardId: null, sess: b.anchor.sess }, fact: { text: '你补的：8/14 签了，金额减 15%', time: '今天' }, attribution: null, wrong: false,
+        then: [{ t: '你押的 · 8/12', body: '「' + b.text + '」' }, ...b.photos], later: [{ t: '你补的 · 今天', body: '「8/14 签了，但金额减了 15%。」' }] });
+      renderTimeline(); toast('记下了，结果在上面。'); } return; }
+  if (k === 'gear') { p6.gearAt = parts.slice(2).join(':'); renderTimeline(); return; }
+  if (k === 'gearx') { p6.gearAt = null; renderTimeline(); return; }
   if (k === 'soft') {
-    if (x === 'lease') { toast('租约是组织侧对象（lease/*）——授权租约族开门后从合同面板签发；私账绝不代发一份并不存在的授权（押证据门）。'); return; }
-    if (y === 'off') { p6.soft[x] = false; openAgentPanel(); renderTimeline(); toast('已从判断力档案删去。'); return; }
-    if (y !== '验收' && y !== 'off') { toast(`「${y}」族的负重形态押证据门——本 demo 只有验收类有摆开证据的实现。`); return; }
-    p6.soft[x] = true; p6.gearFor = null; renderTimeline();
-    toast(x === 'spread' ? '已写入软合同：「以后验收前摆开证据、不预选」——下一张验收卡起生效。换挡 = 本层唯一的产出。' : '已写入软合同：「以后验收前给我看判例」——下一张验收卡下亮出你这一族的判例。');
+    const fam = y;
+    if (x === 'lease') { toast('「不用再问我」要在公司的账上签（授权租约）——这里不代签。'); return; }
+    if (y === 'off') { p6.soft[x] = false; openAgentPanel(); renderTimeline(); toast('删掉了。'); return; }
+    if (fam !== '验收') { toast(`「${fam}」这类还没接上，先只有验收。`); return; }
+    p6.soft[x] = true; p6.gearAt = null; renderTimeline();
+    toast(x === 'spread' ? '记下了：以后验收前先把要求和交付摆给你看。' : '记下了：以后验收前给你看上次的结果。');
     return;
   }
 }
-document.addEventListener('DOMContentLoaded', () => {});
 
 function renderTimeline() {
   const sess = sessions[state.current];
@@ -2734,7 +2781,7 @@ function isDM(sess) { return sess.kind === 'dm' || sess.placeKey === '李婷' ||
 function updateVoiceHint() {
   const input = $('input');
   input.placeholder = state.ask ? '问一个数…（试试：销售群里凯瑞的最新口径是什么）'
-    : state.voice === 'pri' ? '对 Agent 说点什么（群里不可见）…'
+    : state.voice === 'pri' ? (p6Placeholder() || '对 Agent 说点什么（群里不可见）…')
     : '说点什么 · @成员 提及 · @云小助 受话 agent…';
   renderQuoteBar();
 }
