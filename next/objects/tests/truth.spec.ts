@@ -402,3 +402,60 @@ describe('doc block 回包的两层形状', () => {
     expect(bodyPayload(undefined)).toEqual({})
   })
 })
+
+/**
+ * 收紧⑥ (决策 #63 v3.23r)：**同侪回写不触发真身之变** —— 校验只看栅栏以上的人话区。
+ *
+ * 多实例下，同侪实例往同一份目标文档的栅栏以下追加台账，版本号照样 +1；单实例靠
+ * 「回写顺手记回版本」压住的假警报，这时压不住——每一笔同侪回写都在本机显形一次假的
+ * 「真身已变」。反复报出来的警告等于没有警告。
+ */
+describe('同侪回写不触发真身之变 —— 只看栅栏以上', () => {
+  const doc = (human: string[], ledger: string[]): unknown => ({
+    data: {
+      version: 4 + ledger.length,
+      blocks: [{
+        type: 'doc',
+        content: [...human, fenceLine('成功标准'), ...ledger].map(text => ({
+          type: 'paragraph', content: [{ type: 'text', content: text }],
+        })),
+      }],
+    },
+  })
+
+  it('栅栏以下多了一行台账（版本 +1）：没变', async () => {
+    await goal()
+    body = { ok: true, json: doc(['成功标准一：三家竞品各一页'], ['· 竞品一 — 张三 · 已完成']) }
+    expect((await checkGoalTruth(ctx, GOAL)).kind).toBe('first-look')
+    // 同侪实例回写了一笔：版本动了，人话区没动。
+    body = { ok: true, json: doc(['成功标准一：三家竞品各一页'], ['· 竞品一 — 张三 · 已完成', '· 竞品二 — 李四 · 已完成']) }
+    expect((await checkGoalTruth(ctx, GOAL)).kind).toBe('unchanged')
+    expect(truthEvents()).toHaveLength(0)
+  })
+
+  it('栅栏以上的成功标准改了：报变', async () => {
+    await goal()
+    body = { ok: true, json: doc(['成功标准一：三家竞品各一页'], ['· 竞品一 — 张三 · 已完成']) }
+    await checkGoalTruth(ctx, GOAL)
+    body = { ok: true, json: doc(['成功标准一：五家竞品各一页'], ['· 竞品一 — 张三 · 已完成']) }
+    expect((await checkGoalTruth(ctx, GOAL)).kind).toBe('changed')
+    expect(truthEvents()).toHaveLength(1)
+  })
+
+  it('旧基准是版本量纲：用同一次观察的版本比最后一次，然后迁到人话区', async () => {
+    await goal()
+    // 旧日志里记的是 blocks:4（比如回写那边顺手记的）。
+    await graph.append({
+      type: 'commitment/updated',
+      data: { commitmentId: goalCommitmentIdFor(GOAL), truthFingerprint: 'blocks:4' },
+      actor: OPERATOR,
+    })
+    body = { ok: true, json: doc(['成功标准一'], []) }
+    const migrated = await checkGoalTruth(ctx, GOAL)
+    expect(migrated.kind).toBe('unchanged')
+    expect(knownMark()).toMatch(/^human:/u)
+    // 迁移之后，栅栏以下再多一行不再报。
+    body = { ok: true, json: doc(['成功标准一'], ['· 一行台账']) }
+    expect((await checkGoalTruth(ctx, GOAL)).kind).toBe('unchanged')
+  })
+})

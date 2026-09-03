@@ -61,6 +61,45 @@ export interface PendingTask {
   readonly message: YzjMessage
   readonly route: YzjTopicRoute
   readonly admittedAt: number
+  /**
+   * 四级解析的结果——这条触发凭什么由本实例接 (决策 #63)。缺席 = 旧记录或私聊，
+   * 按「没有对手」跑。
+   */
+  readonly claim?: {
+    readonly tier: 'speaker' | 'presence' | 'standby'
+    readonly tiebreak: 'sole' | 'msgId'
+    readonly contenders: readonly string[]
+  }
+}
+
+/**
+ * 一条**为发言者实例让了一个轮询周期**的触发 (决策 #63 级 1).
+ *
+ * 落盘而不是留在内存：游标已经过了它，进程这时崩掉，它就永远没人看了——而它是一句
+ * 真人对着 agent 说的话。
+ */
+export interface ParkedTrigger {
+  readonly group: YzjGroup
+  readonly message: YzjMessage
+  readonly readyAt: number
+}
+
+/** 一条观察到的同侪出站（署名识别）。能派生就不落图，落运行态。 */
+export interface PeerMessageRecord {
+  readonly msgId: string
+  readonly groupId: string
+  readonly openId: string
+  readonly time: number
+  readonly signal: 'presence-declared' | 'presence-withdrawn' | 'yield' | 'ack' | 'other'
+  readonly replyMsgId?: string
+}
+
+/** 一个同侪实例在某群的在岗观测。 */
+export interface PeerPresenceRecord {
+  readonly on: boolean
+  readonly msgId: string
+  readonly time: number
+  readonly name: string
 }
 
 /**
@@ -131,6 +170,21 @@ interface AccountState {
    * without putting the work back in a loop.
    */
   resumable?: Record<string, PendingTask>
+  /**
+   * groupId → 触发者范围 (决策 #63)：`all` 对群在岗，`self` 仅本人。
+   *
+   * 和 `served` 分开存：接不接是一件事，接谁的话是另一件。缺席 = 旧记录，按 `all`
+   * 读（那是它们一直以来的行为）。
+   */
+  servedScope?: Record<string, 'all' | 'self'>
+  /** 观察到的同侪实例：operatorOpenId → 名字与最后一次出现。 */
+  peers?: Record<string, { name: string; lastSeen: number }>
+  /** groupId → operatorOpenId → 在岗观测。 */
+  peerPresence?: Record<string, Record<string, PeerPresenceRecord>>
+  /** 同侪出站的索引——级 0 对象归属与 ack 检测的数据基础。 */
+  peerMessages?: PeerMessageRecord[]
+  /** 为发言者实例让位一周期的触发。 */
+  parked?: ParkedTrigger[]
 }
 
 interface StateFile {
@@ -143,8 +197,11 @@ function freshAccount(): AccountState {
     cursors: {}, processed: [], pending: [], messageTopics: {},
     generations: {}, outbound: [], managedTitles: {},
     conversations: {}, readAt: {}, served: {}, resumable: {},
+    servedScope: {}, peers: {}, peerPresence: {}, peerMessages: [], parked: [],
   }
 }
+
+const MAX_PEER_MESSAGES = 2_000
 
 export class ChannelState {
   private data: StateFile = { version: 1, accounts: {} }
@@ -279,11 +336,91 @@ export class ChannelState {
     return this.active().served ?? {}
   }
 
-  setServed(groupId: string, on: boolean): void {
+  setServed(groupId: string, on: boolean, scope?: 'all' | 'self'): void {
     if (groupId === '') return
     const account = this.active()
     account.served ??= {}
     account.served[groupId] = on
+    if (scope !== undefined) {
+      account.servedScope ??= {}
+      account.servedScope[groupId] = scope
+    }
+  }
+
+  /** 触发者范围。缺席 = 从没选过，调用方按 `all` 读。 */
+  scopeOf(groupId: string): 'all' | 'self' | undefined {
+    return this.active().servedScope?.[groupId]
+  }
+
+  // ---- 同侪观测 (决策 #63) ----------------------------------------------
+
+  /** 见过一条署名出站：这个操作者有实例。 */
+  rememberPeer(openId: string, name: string, time: number = Date.now()): void {
+    if (openId === '') return
+    const account = this.active()
+    account.peers ??= {}
+    account.peers[openId] = { name, lastSeen: time }
+  }
+
+  peerOf(openId: string): { name: string; lastSeen: number } | undefined {
+    return this.active().peers?.[openId]
+  }
+
+  peers(): readonly { openId: string; name: string; lastSeen: number }[] {
+    return Object.entries(this.active().peers ?? {}).map(([openId, peer]) => ({ openId, ...peer }))
+  }
+
+  recordPeerMessage(record: PeerMessageRecord): void {
+    const account = this.active()
+    account.peerMessages ??= []
+    if (account.peerMessages.some(entry => entry.msgId === record.msgId)) return
+    account.peerMessages.push(record)
+  }
+
+  peerMessageOf(msgId: string): PeerMessageRecord | undefined {
+    return this.active().peerMessages?.find(entry => entry.msgId === msgId)
+  }
+
+  /** 同侪对某条触发的 ack——按看到的顺序。 */
+  peerAcksOn(groupId: string, triggerMsgId: string): readonly PeerMessageRecord[] {
+    return (this.active().peerMessages ?? []).filter(entry => (
+      entry.groupId === groupId && entry.signal === 'ack' && entry.replyMsgId === triggerMsgId
+    ))
+  }
+
+  setPeerPresence(groupId: string, openId: string, record: PeerPresenceRecord): void {
+    const account = this.active()
+    account.peerPresence ??= {}
+    account.peerPresence[groupId] ??= {}
+    const previous = account.peerPresence[groupId][openId]
+    // 只往前走：一条更早的观测不能推翻更晚的。
+    if (previous !== undefined && previous.time > record.time) return
+    account.peerPresence[groupId][openId] = record
+  }
+
+  /** 此刻在这个群对群在岗的同侪实例。 */
+  peersOnDutyIn(groupId: string): readonly { openId: string; name: string; since: number; msgId: string }[] {
+    return Object.entries(this.active().peerPresence?.[groupId] ?? {})
+      .filter(([, record]) => record.on)
+      .map(([openId, record]) => ({ openId, name: record.name, since: record.time, msgId: record.msgId }))
+  }
+
+  // ---- 让位一周期 ----------------------------------------------------------
+
+  park(trigger: ParkedTrigger): void {
+    const account = this.active()
+    account.parked ??= []
+    if (account.parked.some(entry => entry.message.msgId === trigger.message.msgId)) return
+    account.parked.push(trigger)
+  }
+
+  parked(): readonly ParkedTrigger[] {
+    return [...(this.active().parked ?? [])]
+  }
+
+  unpark(msgId: string): void {
+    const account = this.active()
+    account.parked = (account.parked ?? []).filter(entry => entry.message.msgId !== msgId)
   }
 
   /** Remember how to resume an interrupted task. */
@@ -447,6 +584,9 @@ export class ChannelState {
       account.outbound = account.outbound
         .filter(entry => entry.time >= now - RETAIN_MS)
         .slice(-MAX_OUTBOUND)
+      account.peerMessages = (account.peerMessages ?? [])
+        .filter(entry => entry.time >= now - RETAIN_MS)
+        .slice(-MAX_PEER_MESSAGES)
       const topics = Object.entries(account.messageTopics)
       if (topics.length > MAX_TOPIC_INDEX) {
         account.messageTopics = Object.fromEntries(topics.slice(-MAX_TOPIC_INDEX))

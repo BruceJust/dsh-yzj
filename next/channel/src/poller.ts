@@ -20,7 +20,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString, type GraphActor } from '@yzj-next/graph'
-import { describeObject, ownsCommitment, processSummary } from '@yzj-next/objects'
+import { describeObject, ownsCommitment, processSummary, readSignature } from '@yzj-next/objects'
 import {
   accountKeyFor, conversationKindForGroup, groupIdFromPlaceKey, hasLeadingAlias,
   isAgentTrigger, isSelfChat, isTriageableConversation, NO_MESSAGE_TIME, outboundFingerprint,
@@ -28,7 +28,11 @@ import {
   type YzjGroup, type YzjIdentity, type YzjMessage, type YzjTopicRoute,
 } from './protocol.ts'
 import { triage, triageOutbound, type TriageOutcome } from './triage.ts'
-import { parseSendTime, type DeskSend } from './topics.ts'
+import { parseSendTime, type DeskSend, type PresenceView } from './topics.ts'
+import {
+  classifyPeerOutbound, looksLikeInstanceOutbound, presenceDeclaration, presenceWithdrawal,
+  resolveAddressee, type ClaimTier, type PeerSignal, type YieldReason,
+} from './presence.ts'
 import { executeHandoff, openHandoffCard, prepareHandoff, type HandoffPlan } from './handoff.ts'
 import type { YzjChannelClient } from './client.ts'
 import type { ChannelState } from './state.ts'
@@ -75,15 +79,30 @@ export function deskSendPlan(input: {
   readonly onDuty: boolean
   /** Assistant / system feeds: a subscription, not a conversation. */
   readonly feed?: boolean
-}): 'send' | 'send-and-ignite' | 'refuse' | 'refuse-feed' {
+  /**
+   * **桌面出站对称** (决策 #63, v3.15③ 同律)：这个场所有同侪实例对群在岗。
+   *
+   * 本实例不在岗而它在：话照发、**不就地点火**——将由它接单，锚定条要在按下之前就
+   * 说这句。不发（refuse）是给「谁都不接」留的：一个永远没人应答的公开 @。
+   */
+  readonly peerOnDuty?: boolean
+  /**
+   * 级 0 对象归属：回复的是**同侪实例**的消息。真身在对方图上，动作经文本到达它
+   * （镜像行的动作 = 文本传送门）——话照发，本实例永不就地动手。
+   */
+  readonly repliesToPeer?: boolean
+}): 'send' | 'send-and-ignite' | 'send-deferred' | 'refuse' | 'refuse-feed' {
   // Nobody is on the other end of a push feed. Closing the composer in the UI
   // is the first door; this is the one that actually holds.
   if (input.feed === true) return 'refuse-feed'
+  // 对象归属先于一切：指向同侪对象的话语，跨实例永不竞赛。
+  if (input.repliesToPeer === true) return 'send-deferred'
   // 受话判定 (v4.7): an alias addresses the agent; so does replying to one of
   // its own messages — replying to somebody IS addressing them.
   const addressed = input.addressesAgent || input.repliesToAgent
   if (!addressed) return 'send'
-  return input.onDuty ? 'send-and-ignite' : 'refuse'
+  if (input.onDuty) return 'send-and-ignite'
+  return input.peerOnDuty === true ? 'send-deferred' : 'refuse'
 }
 
 /**
@@ -188,6 +207,16 @@ export class YzjPoller {
   private readonly lastRoutes = new Map<string, YzjTopicRoute>()
   /** Handoff plans whose confirmation card has not been answered yet. */
   private readonly handoffs = new Map<string, HandoffPlan>()
+  /** 本进程里已经读过一次近史找在岗声明的群 (决策 #63)。 */
+  private readonly presenceScanned = new Set<string>()
+  /**
+   * 每次轮询最多为一个群读近史找在岗声明。
+   *
+   * 平台对连着打的读会回 `10000429 请求过于频繁`（实测）。开机那一刻所有在岗群一起
+   * 扫两页，就是在自己制造一次限流——错开到每轮一个群，几轮之内扫完，代价只是
+   * 头几轮里在岗观测慢一点，而观测缺口本来就有认领协议兜底。
+   */
+  private presenceScanBudget = 0
 
   constructor(
     private readonly ctx: Context,
@@ -225,9 +254,12 @@ export class YzjPoller {
         this.replayedPending = true
         this.replayPending()
       }
+      this.presenceScanBudget = 1
       for (const group of await this.client.recentGroups(this.config.groupPages)) {
         await this.inspectGroup(group)
       }
+      // 群都看过了（同侪的 ack 已经记下），再回头看为发言者实例让过一周期的触发。
+      await this.reviewParked()
       await this.state.save()
       await this.health.recordSuccess()
     } catch (error) {
@@ -248,12 +280,12 @@ export class YzjPoller {
         const context = await this.client.contextFor(
           task.group, task.message, this.config.contextMessages, task.route.topicRootId, lookup,
         )
-        this.orchestrator.enqueue(task.group, task.message, task.route, context)
+        this.orchestrator.enqueue(task.group, task.message, task.route, context, task.claim)
       })().catch(this.onError)
     }
   }
 
-  private allowed(groupId: string): boolean {
+  allowed(groupId: string): boolean {
     return onDutyIn({
       groupId,
       allowedGroupIds: this.config.allowedGroupIds,
@@ -286,6 +318,16 @@ export class YzjPoller {
       // accumulate a backlog that a later allow-list change would replay.
       this.state.setCursor(group.groupId, group.lastMsgId)
       return
+    }
+    /*
+      在岗声明可能是我们不在线的时候发的，也可能早于新鲜度窗口——每个在岗的群本进程
+      读一次近史找它（决策 #63 §8「接单前先读近史」的运行时对偶）。观测缺口之外的
+      部分由认领协议兜底，这里只是把缺口缩小。
+    */
+    if (!this.presenceScanned.has(group.groupId) && this.presenceScanBudget > 0) {
+      this.presenceScanBudget -= 1
+      this.presenceScanned.add(group.groupId)
+      await this.scanPresence(group.groupId).catch(this.onError)
     }
     const cursor = this.state.cursor(group.groupId)
     if (cursor === undefined || this.discovery.has(group.groupId)) {
@@ -379,6 +421,8 @@ export class YzjPoller {
     const identity = this.identity
     if (identity === undefined) return
 
+    // 署名协议：带落款的是实例出站——自己的或同侪的，都不是受话 (决策 #63)。
+    const signature = readSignature(message.content)
     const outcome = triage({
       group,
       message,
@@ -386,6 +430,7 @@ export class YzjPoller {
         message.msgId, group.groupId, outboundFingerprint(group.groupId, message.content),
       ),
       isSelfChat: isSelfChat(group, identity),
+      ...(signature === undefined ? {} : { signature }),
       aliases: this.config.aliases,
       acceptAccountMentions: this.config.acceptAccountMentions,
       operatorOpenId: identity.openId,
@@ -419,9 +464,35 @@ export class YzjPoller {
       case 'echo-suppressed':
       case 'noise':
         return
-      case 'command':
+      case 'peer-echo': {
+        /*
+          同侪回声只作观测与镜像源，永不受话。观测三种：在岗声明/退岗（级 2 的数据）、
+          同侪 ack（级 1/级 3 的数据；打到进行中的回合上还可能让位——梯队高于时序）、
+          让位帖（对方让给我，无需动作）。
+        */
+        const signal = this.observePeer(group.groupId, message)
+        const replyTo = message.param.replyMsgId
+        if (signal === 'ack' && replyTo !== undefined) {
+          await this.orchestrator.onPeerAck(group.groupId, replyTo, {
+            openId: outcome.operatorOpenId, name: outcome.operatorName,
+          })
+        }
+        return
+      }
+      case 'command': {
+        /*
+          级 0 对象归属也管命令 (v3.23r ②)：回复着同侪实例的消息说 `/cancel`，取消的是**它**的
+          话题，不是本机在这个群里最近的那个。不是叫我 → 记一笔让位，丢弃。
+        */
+        const anchor = message.param.replyMsgId ?? message.param.replyRootMsgId
+        const owner = anchor === undefined ? undefined : this.state.peerMessageOf(anchor)
+        if (owner !== undefined && conversationKindForGroup(group) === 'group') {
+          await this.recordYield(placeKeyFor('group', group.groupId), message.msgId, 'object-owner', owner.openId)
+          return
+        }
         await this.runCommand(group, message, outcome.name, outcome.argument, identity)
         return
+      }
       case 'card-action': {
         const actor: GraphActor = {
           kind: message.fromOpenId === identity.openId ? 'operator' : 'person',
@@ -434,8 +505,242 @@ export class YzjPoller {
         return
       }
       case 'trigger':
-        await this.runTrigger(group, message, batch, identity)
+        // 私聊对端唯一，无歧义；群场所要先回答「叫的是哪一个」(§6.2 ④′)。
+        if (conversationKindForGroup(group) === 'direct') {
+          await this.runTrigger(group, message, batch, identity)
+          return
+        }
+        await this.resolveAndRun(group, message, batch, identity, false)
     }
+  }
+
+  // ---- 多实例受话唯一律 (决策 #63) -------------------------------------------
+
+  /**
+   * 记一条同侪出站的观测。返回它是哪种信号。
+   *
+   * 能派生就不落图：同侪在岗与同侪 ack 都是群消息流的派生观测，住在运行态。
+   */
+  private observePeer(groupId: string, message: YzjMessage): PeerSignal | undefined {
+    const identity = this.identity
+    const signature = readSignature(message.content)
+    if (identity === undefined || message.fromOpenId === identity.openId) return undefined
+    // 没落款但是机器形状（过渡期的旧构建）：也是实例出站，只是名字不知道。
+    if (signature === undefined && !looksLikeInstanceOutbound(message.content)) return undefined
+    const time = parseSendTime(message.sendTime) || Date.now()
+    const signal = classifyPeerOutbound(message.content)
+    const known = this.state.peerOf(message.fromOpenId)?.name
+    this.state.rememberPeer(message.fromOpenId, signature?.operator ?? known ?? message.fromOpenId, time)
+    this.state.recordPeerMessage({
+      msgId: message.msgId,
+      groupId,
+      openId: message.fromOpenId,
+      time,
+      signal,
+      ...(message.param.replyMsgId === undefined ? {} : { replyMsgId: message.param.replyMsgId }),
+    })
+    if (signal === 'presence-declared' || signal === 'presence-withdrawn') {
+      this.state.setPeerPresence(groupId, message.fromOpenId, {
+        on: signal === 'presence-declared', msgId: message.msgId, time,
+        name: signature?.operator ?? known ?? message.fromOpenId,
+      })
+    }
+    return signal
+  }
+
+  /** 读一个群的近史（两页）找同侪的在岗声明与出站——接单前、以及每个在岗群每进程一次。 */
+  async scanPresence(groupId: string): Promise<void> {
+    const newest = await this.client.messages(groupId, 20)
+    const earliest = newest[0]
+    const older = earliest === undefined ? [] : (await this.client.olderPage(groupId, earliest.msgId)).messages
+    for (const message of [...older, ...newest]) this.observePeer(groupId, message)
+  }
+
+  /**
+   * 四级解析：受话成立后、入队前，回答「叫的是哪一个」。
+   *
+   * @param waited - 这条触发已经为发言者实例让过一个轮询周期。
+   */
+  private async resolveAndRun(
+    group: YzjGroup,
+    message: YzjMessage,
+    batch: readonly YzjMessage[],
+    identity: YzjIdentity,
+    waited: boolean,
+  ): Promise<void> {
+    const groupId = group.groupId
+    const placeKey = placeKeyFor('group', groupId)
+    // 级 0 的材料：回复指向的那条消息在谁的图上。先看直接回复的，再看链根。
+    let objectOwner: 'self' | 'peer' | 'unknown' = 'unknown'
+    let objectOwnerOpenId: string | undefined
+    for (const anchor of [message.param.replyMsgId, message.param.replyRootMsgId]) {
+      if (anchor === undefined) continue
+      const known = this.state.peerMessageOf(anchor)
+      const inBatch = batch.find(candidate => candidate.msgId === anchor)
+      const peerOpenId = known?.openId
+        ?? (inBatch !== undefined && inBatch.fromOpenId !== identity.openId
+          && (readSignature(inBatch.content) !== undefined || looksLikeInstanceOutbound(inBatch.content))
+          ? inBatch.fromOpenId
+          : undefined)
+      if (peerOpenId !== undefined) {
+        objectOwner = 'peer'
+        objectOwnerOpenId = peerOpenId
+        break
+      }
+      if (this.state.isOwnOutboundId(anchor)) {
+        objectOwner = 'self'
+        break
+      }
+    }
+    const speakerPeer = message.fromOpenId === identity.openId
+      ? undefined
+      : this.state.peerOf(message.fromOpenId)
+    const resolution = resolveAddressee({
+      speakerOpenId: message.fromOpenId,
+      selfOpenId: identity.openId,
+      objectOwner,
+      ...(objectOwnerOpenId === undefined ? {} : { objectOwnerOpenId }),
+      ...(speakerPeer === undefined
+        ? {}
+        : { speakerInstance: { openId: message.fromOpenId, name: speakerPeer.name } }),
+      waited,
+      speakerAcked: this.state.peerAcksOn(groupId, message.msgId)
+        .some(ack => ack.openId === message.fromOpenId),
+      selfScope: this.allowed(groupId) ? (this.state.scopeOf(groupId) ?? 'all') : 'off',
+      peersOnDuty: this.state.peersOnDutyIn(groupId),
+    })
+    switch (resolution.kind) {
+      case 'mine':
+        await this.runTrigger(group, message, batch, identity, {
+          tier: resolution.tier, tiebreak: resolution.tiebreak, contenders: resolution.contenders,
+        })
+        return
+      case 'wait':
+        /*
+          发言者有自己的实例：让它先。**落盘**而不是留在内存——游标已经过了这条消息，
+          进程这时崩掉它就永远没人看了。不标 processed：一周期后它还要走一次入场。
+        */
+        this.state.park({ group, message, readyAt: Date.now() + this.config.pollIntervalMs })
+        await this.state.save()
+        return
+      case 'yield':
+        this.state.markProcessed(message.msgId)
+        await this.recordYield(placeKey, message.msgId, resolution.reason, resolution.to)
+        return
+      case 'unserved':
+        // 仅本人合同：他人的受话本实例不接。记一笔无对象的让位——「为什么没接」要可答。
+        this.state.markProcessed(message.msgId)
+        await this.recordYield(placeKey, message.msgId, 'presence', undefined)
+    }
+  }
+
+  /** 让过一周期的触发，到点再看一次：发言者实例接了就静默让位，没接就往下走。 */
+  private async reviewParked(): Promise<void> {
+    const identity = this.identity
+    if (identity === undefined) return
+    const now = Date.now()
+    for (const parked of this.state.parked()) {
+      if (parked.readyAt > now) continue
+      this.state.unpark(parked.message.msgId)
+      if (this.state.isProcessed(parked.message.msgId)) continue
+      let batch: YzjMessage[] = []
+      try {
+        batch = await this.client.messages(parked.group.groupId, 20)
+      } catch (error) {
+        this.onError(error)
+      }
+      await this.resolveAndRun(parked.group, parked.message, batch, identity, true)
+    }
+  }
+
+  /** 让位留痕：静默让位无帖但有账。 */
+  private async recordYield(
+    placeKey: string, triggerMsgId: string, reason: YieldReason, to: string | undefined,
+  ): Promise<void> {
+    try {
+      await this.ctx.yzjGraph.append({
+        type: 'presence/yielded',
+        data: {
+          placeKey,
+          triggerAnchor: `yzj:${triggerMsgId}`,
+          reason,
+          ...(to === undefined ? {} : { toOperatorOpenId: to }),
+        },
+        actor: { kind: 'system' },
+      })
+    } catch (error) {
+      this.onError(error)
+    }
+  }
+
+  /** 本实例在这个群是否已向群声明过对群在岗（图上的在岗对象）。 */
+  declaredIn(groupId: string): boolean {
+    const object = this.ctx.yzjGraph.rawObject('presence', placeKeyFor('group', groupId))
+    return asString(asRecord(object?.state)?.status) === 'declared'
+  }
+
+  /** 这个群的在岗图景：本实例的范围与同侪的声明。 */
+  presenceIn(groupId: string): PresenceView {
+    const placeKey = placeKeyFor('group', groupId)
+    const object = this.ctx.yzjGraph.rawObject('presence', placeKey)
+    const declared = asString(asRecord(object?.state)?.status) === 'declared'
+    const anchor = declared ? asString(asRecord(object?.state)?.msgAnchor) : undefined
+    return {
+      self: this.allowed(groupId) ? (this.state.scopeOf(groupId) ?? 'all') : 'off',
+      ...(anchor === undefined ? {} : { selfAnchor: anchor }),
+      ...(declared && object !== undefined ? { selfSince: object.updatedAt } : {}),
+      peers: this.state.peersOnDutyIn(groupId)
+        .map(peer => ({ openId: peer.openId, name: peer.name, since: peer.since })),
+    }
+  }
+
+  /**
+   * 向群发一次在岗声明并记岗。**发不出去也记岗**——但返回 false，面板要说「群里还不知道」。
+   *
+   * 接单 = 人签发的身份/听众敏感动作；群即审计面（v3.15⑤ 兑现，三方知情零新机制）。
+   */
+  async declarePresence(groupId: string): Promise<boolean> {
+    const identity = this.identity
+    if (identity === undefined) throw new Error('云之家身份尚未就绪')
+    let msgId: string | undefined
+    try {
+      msgId = (await this.client.send({ groupId }, presenceDeclaration(identity.name))).msgId
+    } catch (error) {
+      this.onError(error)
+    }
+    const groupName = this.groupNameOf(groupId)
+    await this.ctx.yzjGraph.append({
+      type: 'presence/declared',
+      data: {
+        placeKey: placeKeyFor('group', groupId),
+        scope: 'all',
+        ...(msgId === undefined ? {} : { msgAnchor: msgId }),
+        ...(groupName === undefined ? {} : { groupName }),
+      },
+      actor: this.ctx.yzjCards.desktopActor(),
+    })
+    return msgId !== undefined
+  }
+
+  /** 退岗帖 + 退岗记录。在岗移交 = 这一帖 + 接岗者自己的在岗帖。 */
+  async withdrawPresence(groupId: string): Promise<boolean> {
+    const identity = this.identity
+    if (identity === undefined) throw new Error('云之家身份尚未就绪')
+    let msgId: string | undefined
+    try {
+      msgId = (await this.client.send({ groupId }, presenceWithdrawal(identity.name))).msgId
+    } catch (error) {
+      this.onError(error)
+    }
+    await this.ctx.yzjGraph.append({
+      type: 'presence/withdrawn',
+      data: {
+        placeKey: placeKeyFor('group', groupId),
+        ...(msgId === undefined ? {} : { msgAnchor: msgId }),
+      },
+      actor: this.ctx.yzjCards.desktopActor(),
+    })
+    return msgId !== undefined
   }
 
   private async routeFor(
@@ -496,8 +801,21 @@ export class YzjPoller {
     if (groupId === undefined) throw new Error(`认不出这个场所：${placeKey}`)
 
     const listed = this.state.conversation(groupId)
+    /*
+      **桌面出站对称** (决策 #63)：本实例不在岗而有同侪对群在岗 → 话照发、不就地点火，
+      由它接单；回复的是同侪实例的消息 → 真身在对方图上，动作经文本到达它。
+    */
+    const peersOnDuty = this.state.peersOnDutyIn(groupId)
+    const repliedPeer = replyTo === undefined ? undefined : this.state.peerMessageOf(replyTo)
+    const deferTo = repliedPeer !== undefined
+      ? { openId: repliedPeer.openId, name: this.state.peerOf(repliedPeer.openId)?.name ?? repliedPeer.openId }
+      : peersOnDuty[0] === undefined
+        ? undefined
+        : { openId: peersOnDuty[0].openId, name: peersOnDuty[0].name }
     const plan = deskSendPlan({
       feed: listed !== undefined && listed.type !== 1 && listed.type !== 2,
+      peerOnDuty: peersOnDuty.length > 0,
+      repliesToPeer: repliedPeer !== undefined,
       addressesAgent: isAgentTrigger(
         { msgId: '', content: text, fromOpenId: identity.openId, msgType: 'text', sendTime: '', param: {} },
         this.config.aliases,
@@ -519,6 +837,14 @@ export class YzjPoller {
     })
     if (plan === 'refuse-feed') return { ignited: false, refused: 'feed' }
     if (plan === 'refuse') return { ignited: false, refused: 'not-on-duty' }
+    if (plan === 'send-deferred') {
+      const sent = await this.client.send({ groupId }, text, replyTo, 'desk')
+      return {
+        ...(sent.msgId === undefined ? {} : { msgId: sent.msgId }),
+        ignited: false,
+        ...(deferTo === undefined ? {} : { deferredTo: deferTo }),
+      }
+    }
     const addressed = plan === 'send-and-ignite'
 
     /*
@@ -701,6 +1027,8 @@ export class YzjPoller {
     message: YzjMessage,
     batch: readonly YzjMessage[],
     identity: YzjIdentity,
+    /** 四级解析的结果。私聊与桌面点火没有它：对端唯一 / 发言者就是本人。 */
+    claim?: { tier: ClaimTier; tiebreak: 'sole' | 'msgId'; contenders: readonly string[] },
   ): Promise<string | undefined> {
     const lookup = (groupId: string, msgId: string): string | undefined => (
       this.state.topicForMessage(groupId, msgId)
@@ -720,14 +1048,16 @@ export class YzjPoller {
 
     // Persist the admission BEFORE the work starts; a failed write un-admits
     // rather than leaving a task that is neither pending nor running.
-    if (!this.state.admit({ group, message, route, admittedAt: Date.now() })) return undefined
+    if (!this.state.admit({
+      group, message, route, admittedAt: Date.now(), ...(claim === undefined ? {} : { claim }),
+    })) return undefined
     try {
       await this.state.save()
     } catch (error) {
       this.state.forget(message.msgId)
       throw error
     }
-    this.orchestrator.enqueue(group, message, route, context)
+    this.orchestrator.enqueue(group, message, route, context, claim)
     return route.sessionId
   }
 

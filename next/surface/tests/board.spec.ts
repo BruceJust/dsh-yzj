@@ -72,6 +72,8 @@ beforeEach(async () => {
     }],
     topicOf: (sessionId: string) => TOPICS.find(topic => topic.sessionId === sessionId),
     aliases: () => ['@next'],
+    presenceIn: () => ({ self: 'off' as const, peers: [] }),
+    peers: () => [],
     conversations: () => [],
   })
 })

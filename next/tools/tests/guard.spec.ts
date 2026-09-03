@@ -144,6 +144,22 @@ describe('identity and revocation', () => {
   })
 })
 
+describe('写前复核 (决策 #63)', () => {
+  it('让位落成一条撤销：输了却已进入工作的回合，在第一个写调用处被截断，理由说清让给了谁', async () => {
+    expect(await decide(execution('yzj_doc_list', { workspace: 'kb-1' })))
+      .toMatchObject({ kind: 'allow' })
+    await graph.append({
+      type: 'authority/revoked',
+      data: { messageId: 'msg-1', reason: '让位给 云小助（张三）' },
+      actor: { kind: 'system' },
+    })
+    const decision = await decide(execution('yzj_doc_list', { workspace: 'kb-1' }))
+    expect(decision).toMatchObject({ kind: 'deny' })
+    expect((decision as { reason: string }).reason).toContain('云小助（张三）')
+    expect((decision as { reason: string }).reason).toContain('不可两人动手')
+  })
+})
+
 describe('write gating', () => {
   it('asks for a strong write even inside an admitted gateway turn', async () => {
     const decision = await decide(execution('yzj_doc_delete', { id: 'doc-1' }))

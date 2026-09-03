@@ -689,3 +689,10 @@
 .roomSection {
   margin: 8px 2px 3px; font-size: 10.5px; line-height: 1.6; color: var(--yzj-ink-3);
 }
+
+/* 明标降级 (决策 #63)：多实例部署下板 = 本实例登记集。一条实话，不是徽标。 */
+.mirrorNote {
+  margin: 8px 16px 0; padding: 6px 10px;
+  border: 1px dashed var(--line, #d9d4c7); border-radius: 8px;
+  font-size: 11px; line-height: 1.6; color: var(--ink-soft, #6b6b6b);
+}

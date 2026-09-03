@@ -16,7 +16,9 @@ import {
   type GraphObject, type GraphViewer, type JsonValue,
 } from '@yzj-next/graph'
 import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
-import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/channel'
+import {
+  placeKeyFor, type PresenceView, type TopicDescriptor, type TopicMessage,
+} from '@yzj-next/channel'
 /*
   **surface ──依赖──▶ pledger，单向** (私账层 §1 依赖方向铁律).
 
@@ -310,6 +312,11 @@ export interface ContractView {
   }[]
   /** False while no lease can be granted — stated, not implied by an empty list. */
   readonly leasesAvailable: boolean
+  /**
+   * 在岗图景 (决策 #63)：本实例在这里是对群在岗 / 仅本人 / 不接单，声明帖发出去了没有，
+   * 以及观察到的同侪在岗实例。接单开关的两种范围在这里选。
+   */
+  readonly presence?: PresenceView
 }
 
 export function contractView(ctx: Context, placeKey: string): ContractView {
@@ -374,6 +381,7 @@ export function contractView(ctx: Context, placeKey: string): ContractView {
     bannedTools: [...GATEWAY_ESCAPE_TOOLS],
     revocations,
     leasesAvailable: false,
+    ...(topics === undefined ? {} : { presence: topics.presenceIn(placeKey) }),
   }
 }
 
@@ -429,6 +437,11 @@ export interface PlaceView {
   /** The words that address the agent, from the channel's config. */
   readonly aliases: readonly string[]
   readonly staleReason?: string
+  /**
+   * 在岗图景 (决策 #63 桌面出站对称)：本实例不在岗而有同侪对群在岗时，锚定条要在
+   * 按下之前说「本群在岗：云小助（张三）——将由它接单」，而不是拦下这句话。
+   */
+  readonly presence?: PresenceView
 }
 
 /** Assemble the place view: recent messages plus the topics born in them. */
@@ -507,6 +520,7 @@ export async function placeView(
   if (topics === undefined) {
     return { placeKey, groupName, messages: [], topics: cards, onDuty, kind, selfChat, aliases }
   }
+  const presence = kind === 'group' ? topics.presenceIn(placeKey) : undefined
   /*
     演示隐身档下，**自聊整间屋子不上屏** (D10 × v2.2 断言㉚).
 
@@ -533,7 +547,10 @@ export async function placeView(
     // that failed destroys the unread signal and puts nothing in its place —
     // the one pairing worse than either failure alone.
     topics.markRead(placeKey)
-    return { placeKey, groupName, topics: cards, onDuty, kind, selfChat, aliases, messages }
+    return {
+      placeKey, groupName, topics: cards, onDuty, kind, selfChat, aliases, messages,
+      ...(presence === undefined ? {} : { presence }),
+    }
   } catch (error) {
     return {
       placeKey,
@@ -545,6 +562,7 @@ export async function placeView(
       aliases,
       messages: [],
       staleReason: error instanceof Error ? error.message : String(error),
+      ...(presence === undefined ? {} : { presence }),
     }
   }
 }
@@ -1099,6 +1117,13 @@ export interface BoardView {
    * in a batch instead of being discovered a quarter later.
    */
   readonly unattached: readonly BoardRow[]
+  /**
+   * **P1 明标降级** (决策 #63 §7.4)：多实例部署下，板 = 本实例登记集。
+   *
+   * 同侪实例登记的承诺真身在它们的图上，镜像行押多操作者 dogfood；在那之前这块板不是
+   * 「组织的一屏」，而它看起来像。如实入账，不假装一屏——只在观察到同侪实例时出现。
+   */
+  readonly mirrorNote?: string
 }
 
 /**
@@ -1671,7 +1696,12 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     right.counts.overdue - left.counts.overdue || right.counts.open - left.counts.open
   ))
 
-  return { rows: sorted, goals, unattached }
+  const peers = topics?.peers() ?? []
+  const mirrorNote = peers.length === 0
+    ? undefined
+    : `本机登记集：这块板只有本实例登记的承诺。${peers.map(peer => `云小助（${peer.name}）`).join('、')}`
+      + '登记的真身在它们各自的图上，镜像行尚未落地（多操作者试运行后开工）。'
+  return { rows: sorted, goals, unattached, ...(mirrorNote === undefined ? {} : { mirrorNote }) }
 }
 
 /**
@@ -3603,8 +3633,11 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (placeKey === undefined) return failure('接单需要 placeKey')
             const topics = scoped.get('yzjTopics')
             if (topics === undefined) return failure('云之家通道未就绪')
+            // 触发者范围 (决策 #63)：对群在岗 / 仅本人。不给就沿用（旧行为 = 对群）。
+            const scopeField = stringField(payload, 'scope')
+            const scope = scopeField === 'all' || scopeField === 'self' ? scopeField : undefined
             try {
-              return { ok: true, value: await topics.setServed(placeKey, on) }
+              return { ok: true, value: await topics.setServed(placeKey, on, scope) }
             } catch (error) {
               return failure(error instanceof Error ? error.message : String(error))
             }

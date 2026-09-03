@@ -94,3 +94,15 @@
   border: 1px solid var(--yzj-line); border-radius: 8px; background: var(--yzj-surface); color: var(--yzj-ink-3);
 }
 .noteBad { margin-top: 6px; font-size: 11px; color: var(--yzj-red); }
+
+/* 接单范围的两个选项 (决策 #63)：范围是接单的第一个参数。 */
+.choice { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; font-size: 12px; line-height: 1.6; }
+.choice label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.choice input { margin-top: 3px; flex: none; }
+
+/* 请对方退岗的拟稿：你亲自发。 */
+.draft {
+  width: 100%; box-sizing: border-box; margin: 4px 0; padding: 6px 8px;
+  font: inherit; font-size: 11.5px; line-height: 1.5; resize: vertical;
+  border: 1px dashed currentColor; border-radius: 6px; background: transparent; opacity: .85;
+}

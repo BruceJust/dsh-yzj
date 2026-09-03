@@ -450,9 +450,72 @@ const contractFamily: GraphFamily = {
         served: z.boolean(),
         /** 群名，为了让审计读得懂：placeKey 是个 id，人记不住哪个群是哪个。 */
         groupName: z.string().optional(),
+        /**
+         * 触发者范围 (决策 #63, v3.23r 精确化).
+         *
+         * `all` = **对群在岗**：接受全群委派——把自己的账号与授权借给这个群，是身份/听众
+         * 敏感的主权动作，切开即向群发一次在岗声明帖；`self` = **仅本人**：只应答自己的
+         * 操作者，与他人天然无冲突，不声明、不算在岗。缺席 = 旧记录，按 `all` 读。
+         */
+        scope: z.enum(['all', 'self']).optional(),
       }),
     },
   },
+}
+
+/**
+ * 在岗 —— **多实例受话唯一律的人签发面** (决策 #63 = 设计 v4.27, 技术方案 §8 B5).
+ *
+ * 寄生期「同一个 agent」在部署上是 N 个操作者的 N 个实例——名字唯一而实体多。一个群
+ * 场所一次受话只能有一个接单者，到达单数**过人的手或过总序，永不过运气**。这一族记的
+ * 是过人的手那一半：
+ *
+ * - `declared` / `withdrawn`：本实例对某群场所的**对群在岗**与退岗。`msgAnchor` 是向群
+ *   发出的声明帖——**群即审计面**（v3.15⑤「谁把 agent 接进这个群」由此可审，三方知情
+ *   零新机制）。仅本人合同不声明、不算在岗（唯一律的不变量是「一次受话一个接单者」，
+ *   不是「一个场所一个实例」）。
+ * - `yielded`：让位留痕。「我的 agent 为什么没接」必须可答——静默让位无帖但有账，显式
+ *   让位帖锚入 `retractAnchor`。四个 reason 对应四级解析各一。
+ *
+ * 同侪在岗与同侪 ack 是**从群消息流派生的观测**（署名识别），不落本族——能派生就
+ * 不落账；认领胜出也不设事件（`task/opened` 即胜出证据，补 `claim` 字段）。
+ */
+const presenceFamily: GraphFamily = {
+  kind: 'presence',
+  events: {
+    'presence/declared': {
+      schema: z.object({
+        placeKey: z.string().min(1),
+        scope: z.literal('all').default('all'),
+        /** 向群发出的在岗声明帖。发不出去也要记在岗——但那时群里还不知道，面板要说。 */
+        msgAnchor: z.string().optional(),
+        groupName: z.string().optional(),
+        status: z.literal('declared').default('declared'),
+      }),
+    },
+    'presence/withdrawn': {
+      schema: z.object({
+        placeKey: z.string().min(1),
+        msgAnchor: z.string().optional(),
+        status: z.literal('withdrawn').default('withdrawn'),
+      }),
+    },
+    'presence/yielded': {
+      schema: z.object({
+        placeKey: z.string().min(1),
+        /** 那一次受话——`yzj:<msgId>`。 */
+        triggerAnchor: z.string().min(1),
+        /** 让给了谁的实例。观测不到对方身份时可空（仅本人合同下他人的受话没人接）。 */
+        toOperatorOpenId: z.string().optional(),
+        reason: z.enum(['object-owner', 'speaker-instance', 'presence', 'ack-order']),
+        /** 显式让位帖。静默让位没有它。 */
+        retractAnchor: z.string().optional(),
+      }),
+    },
+  },
+  // 让位是边，不是对象；在岗是对象（一个场所一份）。
+  objectIdOf: (type, data) => (type === 'presence/yielded' ? undefined : field(data, 'placeKey')),
+  reduce: mergeReduce,
 }
 
 /**
@@ -481,4 +544,5 @@ export const KERNEL_FAMILIES: readonly GraphFamily[] = [
   envFamily,
   answerFamily, tombstoneFamily,
   authorityFamily, contractFamily, cardFamily,
+  presenceFamily,
 ]

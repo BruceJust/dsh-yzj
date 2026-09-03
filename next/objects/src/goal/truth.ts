@@ -31,6 +31,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { asNumber, asRecord, asString, type JsonValue } from '@yzj-next/graph'
 import { failureOf } from '../bridge-error.ts'
+import { createHash } from 'node:crypto'
 import { splitAtFence } from '../fence.ts'
 import { goalCommitmentIdFor } from './family.ts'
 
@@ -82,6 +83,28 @@ export function bodyMark(version: number): string {
 }
 
 /**
+ * 人话区的指纹 —— **真身之变只看栅栏以上** (决策 #63 v3.23r 收紧⑥).
+ *
+ * 版本号是整份文档的：系统自己往栅栏以下追加一行台账，版本也会 +1。单实例时靠回写
+ * 那边「顺手记回刚写出的版本」把这个假警报压住；多实例下压不住——**同侪实例**每回写
+ * 一笔（它只回写自己持真身的承诺，落在同一份目标文档的栅栏以下），本实例就会显形一次
+ * 假的「真身已变」。而反复报出来的警告等于没有警告。
+ *
+ * 所以指纹取**栅栏以上的人话区**：人改了成功标准才算变，任何一个实例往线以下记账都
+ * 不算。读不到正文（上传的 Office 文件没有块）时才退回版本量纲——两种量纲在指纹里
+ * 写明是哪一种，`checkGoalTruth` 见量纲不同只换基准不报变。
+ */
+export function humanMark(human: string): string {
+  const digest = createHash('sha256').update(human.replace(/\s+/gu, ' ').trim()).digest('hex')
+  return `human:${digest.slice(0, 16)}`
+}
+
+/** 指纹的量纲：`human` / `blocks` / `node`。不同量纲之间比不出「变没变」。 */
+function schemeOf(mark: string): string {
+  return mark.split(':')[0] ?? ''
+}
+
+/**
  * 读一个知识库节点的指纹。没有通道就是没有,不假装读到了。
  *
  * **先问正文,再退回节点。** 在线文档(otl)的正文版本在 `doc block list` 里;
@@ -90,7 +113,7 @@ export function bodyMark(version: number): string {
  */
 async function fingerprint(
   ctx: Context, docId: string, prefetched?: BridgeRead,
-): Promise<{ mark: string; note: string } | { error: string }> {
+): Promise<{ mark: string; note: string; legacy?: string } | { error: string }> {
   const bridge = ctx.get('yzjBridge')
   if (bridge === undefined) return { error: '云之家通道未就绪' }
 
@@ -98,7 +121,20 @@ async function fingerprint(
   const body = prefetched
     ?? await bridge.run(['doc', 'block', 'list', '--id', docId], { timeoutMs: 20_000 })
   if (body.ok) {
+    /*
+      先取人话区：正文读得到、栅栏以上有字，就按人话区的内容取指纹（收紧⑥）。
+      人话区空着（没人写过成功标准）退回版本量纲——那时没有可以被改的标准。
+    */
+    const read = bodyOf(body)
     const version = asNumber(bodyPayload(body.json).version)
+    if (read.ok && read.text.trim() !== '') {
+      // `legacy` 是同一次观察的版本量纲：旧基准（`blocks:N`）靠它比最后一次，然后迁移。
+      return {
+        mark: humanMark(read.text),
+        note: '人话区（栅栏以上）',
+        ...(version === undefined ? {} : { legacy: bodyMark(version) }),
+      }
+    }
     if (version !== undefined) return { mark: bodyMark(version), note: `正文版本 ${String(version)}` }
   }
 
@@ -157,6 +193,37 @@ export async function checkGoalTruth(
     return { kind: 'first-look', note: seen.note }
   }
   if (known === seen.mark) return { kind: 'unchanged', note: seen.note }
+  /*
+    量纲换了就只换基准，不报变：旧日志里记的是版本量纲（`blocks:4`），这次读到的是
+    人话区量纲（`human:…`），两个数比不出「有人改了成功标准」。报变会是凭空一次警报。
+  */
+  if (schemeOf(known) !== schemeOf(seen.mark)) {
+    /*
+      旧基准是版本量纲、这次读到的是人话区量纲：**用同一次观察的版本量纲比最后一次**，
+      比完把基准迁到人话区。这样迁移那一刻不会吞掉一次真的改动，也不会凭空报一次。
+      两个量纲都对不上（上传文件换成了在线文档之类）才只换基准不报变。
+    */
+    if (seen.legacy !== undefined && schemeOf(known) === schemeOf(seen.legacy)) {
+      if (known === seen.legacy) {
+        await remember()
+        return { kind: 'unchanged', note: `${seen.note}（基准已迁到人话区）` }
+      }
+      await ctx.yzjGraph.append({
+        type: 'truth/changed',
+        data: {
+          ref: { uri: goalRef, placeKey: 'yzj-kb', kind: 'doc' },
+          kind: 'changed',
+          observedAt: Date.now(),
+          detail: `真身已被改动（${known} → ${seen.legacy}）——按旧标准下过的结论未必还成立`,
+        },
+        actor: { kind: 'agent' },
+      })
+      await remember()
+      return { kind: 'changed', note: `${known} → ${seen.legacy}（基准已迁到人话区）` }
+    }
+    await remember()
+    return { kind: 'first-look', note: `${seen.note}（指纹量纲更换，重建基准）` }
+  }
 
   await ctx.yzjGraph.append({
     type: 'truth/changed',

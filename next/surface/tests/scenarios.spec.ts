@@ -68,6 +68,8 @@ beforeEach(async () => {
     tree: () => [{ place: { placeKey: 'yzj-group-g1', groupName: '财务组' }, topics: TOPICS }],
     topicOf: (sessionId: string) => TOPICS.find(topic => topic.sessionId === sessionId),
     aliases: () => ['@next'],
+    presenceIn: () => ({ self: 'off' as const, peers: [] }),
+    peers: () => [],
     conversations: () => [],
   })
   docLines = ['成功标准一：三家竞品各出一页']

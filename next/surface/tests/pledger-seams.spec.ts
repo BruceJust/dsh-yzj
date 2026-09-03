@@ -500,6 +500,8 @@ describe('㉚ D10 演示隐身：私账层整层不存在，而不是逐处判�
       ],
       markRead: () => undefined,
       aliases: () => ['@next'],
+      presenceIn: () => ({ self: 'off' as const, peers: [] }),
+      peers: () => [],
     } as never)
 
     // 关着：自聊照常有那条投影。

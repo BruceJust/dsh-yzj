@@ -194,6 +194,42 @@ export interface DeskSend {
   readonly ignited: boolean
   readonly refused?: 'not-on-duty' | 'feed'
   readonly sessionId?: string
+  /**
+   * **桌面出站对称** (决策 #63, v3.15③ 同律)：本实例在这个场所不在岗，但有同侪实例
+   * 对群在岗——话发出去了、**不就地点火**，将由它接单。锚定条在按下之前就要说这句。
+   */
+  readonly deferredTo?: { readonly openId: string; readonly name: string }
+}
+
+/** 一个场所此刻的在岗图景 —— 本实例的范围与观察到的同侪 (决策 #63)。 */
+export interface PresenceView {
+  /** 本实例：对群在岗 / 仅本人 / 不接单。 */
+  readonly self: 'all' | 'self' | 'off'
+  /** 对群在岗时，那条向群发出的声明帖；没发出去是 `undefined`（面板要说）。 */
+  readonly selfAnchor?: string
+  readonly selfSince?: number
+  /** 观察到的对群在岗的同侪实例。 */
+  readonly peers: readonly { readonly openId: string; readonly name: string; readonly since: number }[]
+}
+
+/** 接单开关按下去之后的实话。 */
+export interface ServeOutcome {
+  readonly served: boolean
+  readonly scope?: 'all' | 'self'
+  readonly groupName?: string
+  /** 对群在岗声明帖发出去了没有——记了岗但群里不知道，是要说出来的状态。 */
+  readonly announced?: boolean
+  /**
+   * 第二在岗押门 (P1)：已有同侪对群在岗，这一次**没有接**。两条出口——请对方退岗
+   * （`draft`，拟稿亲发）、或改为仅本人。
+   */
+  readonly conflict?: { readonly openId: string; readonly name: string; readonly since: number }
+  readonly draft?: string
+  /**
+   * 退岗时，本群的**场所记忆**拟成一段背景包 (决策 #63 在岗移交)。越境律：场所记忆随包
+   * 须人签发的脱密——所以它只是拟稿，由你决定发不发、发给谁；私语不迁移，这里也没有。
+   */
+  readonly memoryDraft?: string
 }
 
 export interface YzjTopics {
@@ -273,7 +309,11 @@ export interface YzjTopics {
    * Takes effect without a restart (the allow-list is one live set), and is
    * durable (the decision outlives the process).
    */
-  setServed(placeKey: string, on: boolean): Promise<{ served: boolean; groupName?: string }>
+  setServed(placeKey: string, on: boolean, scope?: 'all' | 'self'): Promise<ServeOutcome>
+  /** 这个场所的在岗图景：本实例的范围、同侪的在岗声明 (决策 #63)。 */
+  presenceIn(placeKey: string): PresenceView
+  /** 观察到的同侪实例——板上「本实例登记集」明标降级要它 (决策 #63 §7.4 P1)。 */
+  peers(): readonly { readonly openId: string; readonly name: string; readonly lastSeen: number }[]
   /**
    * An attachment's real content, fetched through the CLI and cached on disk.
    *
@@ -365,8 +405,13 @@ export class YzjTopicReader implements YzjTopics {
     private readonly postToPerson: (
       openId: string, text: string,
     ) => Promise<DeskSend & { placeKey?: string }>,
-    /** Conversations the agent answers in. Empty means every conversation. */
-    private readonly onDutyGroupIds: ReadonlySet<string>,
+    /**
+     * 这个群 agent 在不在岗 —— 和轮询那一侧**同一个谓词**（`onDutyIn`）。
+     *
+     * 此前这里自己算了一遍（空集 = 到处在岗），而门那一侧早已改成空集 = 全关：
+     * 左栏许诺一个永远不会应答的 agent。一个事实源，一个谓词。
+     */
+    private readonly onDutyOf: (groupId: string) => boolean,
     /** The trigger words, from config — one source for the gate and the UI. */
     private readonly triggerAliases: readonly string[],
     /**
@@ -376,9 +421,14 @@ export class YzjTopicReader implements YzjTopics {
      * and the durable record of the decision have to move together, and they
      * both live where the channel is assembled. One writer, one place.
      */
-    private readonly serve: (groupId: string, on: boolean) => Promise<void>,
+    private readonly serve: (groupId: string, on: boolean, scope?: 'all' | 'self') => Promise<ServeOutcome>,
     /** Where fetched attachments are cached — the deployment's own workspace. */
     private readonly cacheDir: string,
+    /** 在岗图景与同侪观测都住在轮询那一侧；这里只是把它们交给桌面。 */
+    private readonly presence: {
+      readonly of: (groupId: string) => PresenceView
+      readonly peers: () => readonly { openId: string; name: string; lastSeen: number }[]
+    },
   ) {}
 
   /** Text-ish extensions worth showing as words rather than offering as a download. */
@@ -501,12 +551,22 @@ export class YzjTopicReader implements YzjTopics {
     return { savedTo, size: cached.size }
   }
 
-  async setServed(placeKey: string, on: boolean): Promise<{ served: boolean; groupName?: string }> {
+  async setServed(placeKey: string, on: boolean, scope?: 'all' | 'self'): Promise<ServeOutcome> {
     const groupId = groupIdFromPlaceKey(placeKey)
     if (groupId === undefined) throw new Error('这不是一个可接入的会话')
-    await this.serve(groupId, on)
+    const outcome = await this.serve(groupId, on, scope)
     const name = this.state.conversation(groupId)?.name
-    return { served: on, ...(name === undefined ? {} : { groupName: name }) }
+    return { ...outcome, ...(name === undefined ? {} : { groupName: name }) }
+  }
+
+  presenceIn(placeKey: string): PresenceView {
+    const groupId = groupIdFromPlaceKey(placeKey)
+    if (groupId === undefined) return { self: 'off', peers: [] }
+    return this.presence.of(groupId)
+  }
+
+  peers(): readonly { readonly openId: string; readonly name: string; readonly lastSeen: number }[] {
+    return this.presence.peers()
   }
 
   aliases(): readonly string[] {
@@ -537,9 +597,7 @@ export class YzjTopicReader implements YzjTopics {
    * column the operator scans fastest.
    */
   conversations(): readonly ConversationRow[] {
-    const onDuty = (groupId: string): boolean => (
-      this.onDutyGroupIds.size === 0 || this.onDutyGroupIds.has(groupId)
-    )
+    const onDuty = this.onDutyOf
     return this.state.conversations()
       .map((record) => {
         const kind = record.type === 1 ? 'direct' : record.type === 2 ? 'group' : 'assistant'
@@ -701,7 +759,8 @@ export class YzjTopicReader implements YzjTopics {
       cardForAnchor: candidate => this.ctx.yzjCards.cardForAnchor(candidate),
       resolveKeyword: (cardRef, value) => this.ctx.yzjCards.resolveKeyword(cardRef, value),
     })
-    const sent = await this.client.send({ groupId: topic.groupId }, body, anchor)
+    // 会话列里打的是人自己的话：`desk` 出站——不签实例署名，回复它也不算受话 agent。
+    const sent = await this.client.send({ groupId: topic.groupId }, body, anchor, 'desk')
     if (answer !== undefined) {
       const result = await this.ctx.yzjCards.act(
         answer.projection.cardRef,

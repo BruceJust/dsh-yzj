@@ -37,6 +37,8 @@ beforeEach(async () => {
     tree: () => [{ place: { placeKey: HERE, groupName: '财务组' }, topics: [] }],
     topicOf: () => undefined,
     aliases: () => ['@next'],
+    presenceIn: () => ({ self: 'off' as const, peers: [] }),
+    peers: () => [],
     conversations: () => [],
   })
 })

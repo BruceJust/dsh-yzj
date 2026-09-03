@@ -440,6 +440,8 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const aliases = view.aliases ?? []
   const addressed = aliases.some(alias => draft.includes(alias))
     || (replyTo !== undefined && replyTo.agent === true)
+  /** 本实例不在岗时，观察到的对群在岗的同侪实例——锚定条与发送键都按它说话。 */
+  const peerOnDuty = view.presence?.peers[0]
 
   /**
    * 说出口了，语境才装载 (v4.9) —— 和会话那一侧一字不差。
@@ -481,11 +483,23 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const settle = (result: {
     error?: string; refused?: string; ignited?: boolean; sessionId?: string
     toCommitmentId?: string; note?: string
+    deferredTo?: { openId: string; name: string }
   }): void => {
     if (result.refused === 'not-on-duty') {
       // Nothing was sent. 人看人发不受限制,但在没接单的场所 @ agent 会在同事
       // 面前留下一个永远不会有人应答的 @ —— 那比在这里说清楚糟得多。
       setNotOnDuty(true)
+    } else if (result.deferredTo !== undefined) {
+      /*
+        桌面出站对称 (决策 #63)：话发出去了，本实例没点火——本群在岗的是同侪实例，
+        将由它接单。这不是失败，是「谁接」这个问题的另一个答案。
+      */
+      setDraft('')
+      setReplyTo(undefined)
+      setPendingRegister(undefined)
+      setPendingHandoff(undefined)
+      setAudienceRisk('')
+      setToast(`已发出。本群在岗的是 云小助（${result.deferredTo.name}），这句话将由它接单。`)
     } else if (result.error !== undefined) setToast(result.error)
     else {
       setDraft('')
@@ -1026,7 +1040,14 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
             // same gesture has the opposite outcome, so the bar has to say
             // THAT before the key is pressed, not after.
             view.onDuty === false
-              ? <span className={css.anchorCold}>这个场所没接单 · @ 不会被应答</span>
+              ? peerOnDuty === undefined
+                ? <span className={css.anchorCold}>这个场所没接单 · @ 不会被应答</span>
+                : (
+                  // 桌面出站对称 (决策 #63)：不就地点火，锚定条明示由谁接单。
+                  <span className={css.anchorIgnite}>
+                    本群在岗：云小助（{peerOnDuty.name}）——将由它接单
+                  </span>
+                )
               : (
                 <span className={css.anchorIgnite}>
                   {replyTo === undefined ? '将长出一个新话题' : '整条链将收纳为话题'}
@@ -1085,7 +1106,11 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           >
             {/* A key that says 「交给 agent」 where no agent will take it is a
                 promise the place cannot keep. */}
-            {addressed && view.onDuty !== false ? '发送并交给 agent' : '发到群里'}
+            {addressed && view.onDuty !== false
+              ? '发送并交给 agent'
+              : addressed && peerOnDuty !== undefined
+                ? `发送，由 云小助（${peerOnDuty.name}）接单`
+                : '发到群里'}
           </button>
         </div>
       </div>

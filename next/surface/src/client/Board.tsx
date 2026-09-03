@@ -1375,6 +1375,14 @@ export function YzjBoard(props: BoardProps): ReactNode {
 
   return (
     <div className={`${tokens.tokens} ${css.board}`}>
+      {/*
+        **P1 明标降级** (决策 #63 §7.4)：多实例部署下板 = 本实例登记集。同侪实例登记的
+        承诺真身在它们的图上，镜像行押多操作者 dogfood——在那之前这块板不是组织的一屏，
+        而它看起来像。如实入账，不假装一屏；只在观察到同侪实例时出现。
+      */}
+      {view.mirrorNote !== undefined && (
+        <div className={css.mirrorNote}>{view.mirrorNote}</div>
+      )}
       <div className={css.head}>
         <span className={css.title}>承诺板</span>
         <span className={css.sub}>

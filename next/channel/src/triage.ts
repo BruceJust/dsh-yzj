@@ -15,14 +15,29 @@
  */
 
 import type { CardProjection, CardRef } from '@yzj-next/cards'
+import type { OutboundSignature } from '@yzj-next/objects'
 import {
   hasLeadingAlias, isAgentTrigger, stripTriggerAliases,
   type YzjGroup, type YzjMessage,
 } from './protocol.ts'
+import { classifyPeerOutbound, looksLikeInstanceOutbound, type PeerSignal } from './presence.ts'
 
 export type TriageOutcome =
   /** ① Our own outbound message read back. */
   | { readonly kind: 'echo-suppressed' }
+  /**
+   * ①′ **同侪回声** (决策 #63 v3.23r)：另一个实例的出站，署名识别。
+   *
+   * 永不进入受话判定——否则 Bruce 的代发登记话语会被张三的在岗实例判为「叫的是我」，
+   * 二次登记 + 二次 ack = 幽灵承诺的多实例双胞胎。它只作镜像源与观测（在岗声明、
+   * 同侪 ack、让位帖）。
+   */
+  | {
+    readonly kind: 'peer-echo'
+    readonly operatorOpenId: string
+    readonly operatorName: string
+    readonly signal: PeerSignal
+  }
   /** ② A slash command. Runs on the bypass channel, never in the topic queue. */
   | { readonly kind: 'command'; readonly name: string; readonly argument: string }
   /** ③a A reply to a projected card whose text matched one of its keywords. */
@@ -45,6 +60,13 @@ export interface TriageInput {
   readonly message: YzjMessage
   /** True when this message is one we sent (msgId or fingerprint match). */
   readonly isOwnOutbound: boolean
+  /**
+   * 这条消息的落款，当它带着一个（决策 #63 署名协议）。
+   *
+   * 落款 + 发送者 = 本操作者 → 也是我们自己的出站（模型直连 CLI 的那条路不经出站
+   * 登记）；落款 + 别的发送者 → 同侪出站。两种都不是受话。
+   */
+  readonly signature?: OutboundSignature
   /** True for the operator's own chat with themselves. */
   readonly isSelfChat: boolean
   readonly aliases: readonly string[]
@@ -90,6 +112,34 @@ export function triage(input: TriageInput): TriageOutcome {
   // own answer carry the SAME openId, so "drop my own messages" would drop the
   // answer too — identity cannot decide this, only the outbound registry can.
   if (input.isOwnOutbound) return { kind: 'echo-suppressed' }
+  /*
+    ①′ 同侪回声：一切实例出站恒带署名，署名的就不是人在说话。
+
+    自己账号发出的署名消息也在这里收口：`yzj_im_message_send` 直连 CLI，不过出站
+    登记，它回来的时候只有落款能证明它是我们说的。
+  */
+  if (input.signature !== undefined) {
+    if (message.fromOpenId === input.operatorOpenId) return { kind: 'echo-suppressed' }
+    return {
+      kind: 'peer-echo',
+      operatorOpenId: message.fromOpenId,
+      operatorName: input.signature.operator,
+      signal: classifyPeerOutbound(message.content),
+    }
+  }
+  /*
+    署名之前的实例（过渡期）：机器形状即实例出站。名字不知道（没有落款），openId 知道。
+    见 `looksLikeInstanceOutbound` 上那段实测——两个实例对打，就是从这里进来的。
+  */
+  if (looksLikeInstanceOutbound(message.content)) {
+    if (message.fromOpenId === input.operatorOpenId) return { kind: 'echo-suppressed' }
+    return {
+      kind: 'peer-echo',
+      operatorOpenId: message.fromOpenId,
+      operatorName: '',
+      signal: classifyPeerOutbound(message.content),
+    }
+  }
 
   // ② Command — the bypass channel.
   const command = parseCommand(message.content, input.aliases)

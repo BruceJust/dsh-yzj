@@ -81,6 +81,10 @@ export {
 export { applyCommitmentNotify } from './goal/notify.ts'
 export { applyGoalWriteback, lineFor, writebackIdFor } from './goal/writeback.ts'
 export { failureOf } from './bridge-error.ts'
+export {
+  SIGNATURE_AGENT, readSignature, signOutbound, signatureLine, stripSignature,
+  type OutboundSignature,
+} from './signature.ts'
 export { applyGraphTools, describeObject } from './graph-tools.ts'
 export { applyMemoryTools, memoriesFor, memoryIdFor } from './memory/tools.ts'
 export { processSummary, type ProcessSummaryInput } from './summary.ts'

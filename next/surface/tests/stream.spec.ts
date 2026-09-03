@@ -368,6 +368,8 @@ describe('what the host assembles for the column', () => {
       conversations: () => [],
       markRead: () => undefined,
       aliases: () => ['@next'],
+      presenceIn: () => ({ self: 'off' as const, peers: [] }),
+      peers: () => [],
     ...overrides,
   })
 
@@ -467,6 +469,8 @@ describe('the inbox is ordered by attention', () => {
       conversations: () => [],
       markRead: () => undefined,
       aliases: () => ['@next'],
+      presenceIn: () => ({ self: 'off' as const, peers: [] }),
+      peers: () => [],
     })
   })
 
@@ -624,6 +628,8 @@ describe('the commitment board', () => {
       conversations: () => [],
       markRead: () => undefined,
       aliases: () => ['@next'],
+      presenceIn: () => ({ self: 'off' as const, peers: [] }),
+      peers: () => [],
     })
   })
 
@@ -689,6 +695,8 @@ describe('the board, grouped by goal', () => {
       conversations: () => [],
       markRead: () => undefined,
       aliases: () => ['@next'],
+      presenceIn: () => ({ self: 'off' as const, peers: [] }),
+      peers: () => [],
       messagesFor: async () => Promise.resolve([]),
       sendToPlace: async () => Promise.resolve({}),
     })
@@ -805,6 +813,8 @@ describe('the object face', () => {
       conversations: () => [],
       markRead: () => undefined,
       aliases: () => ['@next'],
+      presenceIn: () => ({ self: 'off' as const, peers: [] }),
+      peers: () => [],
     })
   }
 
@@ -1058,6 +1068,8 @@ describe('the place seen whole', () => {
       conversations: () => [],
       markRead: () => undefined,
       aliases: () => ['@next'],
+      presenceIn: () => ({ self: 'off' as const, peers: [] }),
+      peers: () => [],
     lightAsk: async () => Promise.resolve(''),
   })
 
@@ -1178,6 +1190,8 @@ describe('the local-session fallback', () => {
       conversations: () => [],
       markRead: () => undefined,
       aliases: () => ['@next'],
+      presenceIn: () => ({ self: 'off' as const, peers: [] }),
+      peers: () => [],
       lightAsk: async () => Promise.resolve(''),
     })
   })
@@ -1286,6 +1300,8 @@ describe('the conversation base', () => {
       conversations: () => CONVERSATIONS,
       markRead: () => undefined,
       aliases: () => ['@next'],
+      presenceIn: () => ({ self: 'off' as const, peers: [] }),
+      peers: () => [],
     } as unknown as YzjTopics)
   })
 

@@ -51,6 +51,27 @@ export interface TurnBinding {
    * down somewhere.
    */
   readonly writeMode?: 'standard' | 'read-only'
+  /**
+   * 操作者的显示名 —— 署名协议要落款的那个名字 (决策 #63, §8 B5②).
+   *
+   * 一切实例出站恒带「—— 云小助（Bruce）」。通道那一侧从身份里读；模型直连 CLI 的
+   * `yzj_im_message_send` 够不到通道，它从这里读——两条出站路签的是同一个名字。
+   */
+  readonly operatorName?: string
+  /**
+   * 这一回合的**认领态** —— 受话唯一律的运行时结果 (决策 #63, §6.4 认领协议).
+   *
+   * 一次受话可能到达 N 个实例；本回合能开工，是因为它在梯队协议里**赢了**（或者根本
+   * 没有对手）。记在绑定上，合同面板与审计读得到「这一回合凭什么动手」。
+   *
+   * 写前复核不读这里：让位落的是 `authority/revoked`（撤销穿透，guard 逐调用实时查），
+   * 一个输了却已进入工作的回合在第一个写调用处被截断——双写的最后一道机械防线。
+   */
+  readonly claim?: {
+    readonly tier: 'speaker' | 'presence' | 'standby'
+    readonly tiebreak: 'sole' | 'tier' | 'msgId'
+    readonly contenders: readonly string[]
+  }
 }
 
 /** Provided by the channel plugin. Absent means no transport is mounted. */

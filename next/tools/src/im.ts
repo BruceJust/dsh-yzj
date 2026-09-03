@@ -8,6 +8,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import { signOutbound } from '@yzj-next/objects'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import {
   asArray, asNumber, asRecord, asString, clipJson, named, runValue, titled, yzjToolOutput,
@@ -77,10 +78,25 @@ export function applyImTools(ctx: Context, budget: YzjToolBudget): () => void {
     output: yzjToolOutput,
     timeoutMs: budget.timeoutMs,
     isConcurrencySafe: () => false,
-    async execute(args) {
+    async execute(args, exec) {
       if ((args.groupId === undefined) === (args.toOpenId === undefined)) {
         throw new Error('yzj_im_message_send: exactly one of groupId or toOpenId is required')
       }
+      /*
+        **署名协议，无豁免** (决策 #63 §8 B5②)。
+
+        这条路直连 CLI，不经通道的 `client.send`——那里签的名这里签不到，于是模型代发
+        的一句话会不带落款地进群：对人分不清是 Bruce 还是他的助理，对同侪实例更糟——
+        它长得像一句人话，若带着触发词，就会被别的实例当成受话。落款的名字从回合绑定
+        读（通道把身份写进去了）；没有通道时也签，只是名字是「未署名」。
+      */
+      const turns = ctx.get('yzjTurns')
+      const agent = exec?.agent
+      const binding = (agent === undefined ? undefined : turns?.bindingFor(agent))
+        ?? turns?.defaultBinding()
+      const content = args.content === undefined || args.msgType === 'file'
+        ? args.content
+        : signOutbound(args.content, binding?.operatorName ?? '')
       if (args.msgType === 'file') {
         if (args.fileId === undefined) throw new Error('yzj_im_message_send: msg-type file requires fileId')
         if (args.content !== undefined || args.replyMsgId !== undefined
@@ -96,7 +112,7 @@ export function applyImTools(ctx: Context, budget: YzjToolBudget): () => void {
       const command = ['im', 'message', 'send', '--msg-type', args.msgType]
       if (args.groupId !== undefined) command.push('--group-id', args.groupId)
       if (args.toOpenId !== undefined) command.push('--to-open-id', args.toOpenId)
-      if (args.content !== undefined) command.push('--content', args.content)
+      if (content !== undefined) command.push('--content', content)
       if (args.fileId !== undefined) command.push('--file-id', args.fileId)
       if (args.replyMsgId !== undefined) command.push('--reply-msg-id', args.replyMsgId)
       for (const id of args.atOpenIds ?? []) command.push('--at-open-id', id)

@@ -73,6 +73,8 @@ beforeEach(async () => {
     conversations: () => [],
     markRead: () => undefined,
     aliases: () => ['@next'],
+    presenceIn: () => ({ self: 'off' as const, peers: [] }),
+    peers: () => [],
   })
 })
 

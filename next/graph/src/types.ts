@@ -33,7 +33,11 @@ export const GRAPH_ENVELOPE_VERSION = 1
   上一次（`delegatedBy`）也有人觉得显然，结果 16 个对象对不上。重折是 O(日志)，一份
   说谎的缓存没有上限。
 */
-export const GRAPH_FOLD_VERSION = 3
+/*
+  4 —— 新增 presence 族（决策 #63）、task/opened 的 claim 字段、commitment/opened 的
+  origin 字段。旧日志里没有这些事件与字段，折叠结果可证不变——规矩仍然是 +1。
+*/
+export const GRAPH_FOLD_VERSION = 4
 
 /** Lossless JSON, the only shape a graph event may carry. */
 export type JsonValue =

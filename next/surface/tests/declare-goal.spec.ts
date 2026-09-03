@@ -54,6 +54,8 @@ beforeEach(async () => {
     tree: () => places,
     topicOf: () => undefined,
     aliases: () => ['@next'],
+    presenceIn: () => ({ self: 'off' as const, peers: [] }),
+    peers: () => [],
     conversations: () => conversations,
   })
   cards = new YzjCards(ctx)

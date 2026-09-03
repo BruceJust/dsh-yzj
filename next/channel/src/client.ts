@@ -12,6 +12,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@yzj-next/bridge'
+import { signOutbound } from '@yzj-next/objects'
 import {
   asArray, asRecord, asString, conversationKindForGroup, outboundFingerprint,
   parseGroup, parseMessage, resolveTopicRootId,
@@ -24,6 +25,8 @@ export const YZJ_MESSAGE_PAGE_MAX = 20
 
 export class YzjChannelClient {
   private pinned: Pick<YzjIdentity, 'orgId' | 'openId'> | undefined
+  /** 署名要落的名字。身份解析之前发出的东西签「未署名」——不签是唯一不允许的。 */
+  private operatorName = ''
 
   constructor(
     private readonly ctx: Context,
@@ -50,12 +53,13 @@ export class YzjChannelClient {
   }
 
   /** Pin the identity this run is bound to; a change is fatal, not adaptive. */
-  pinIdentity(identity: Pick<YzjIdentity, 'orgId' | 'openId'>): void {
+  pinIdentity(identity: Pick<YzjIdentity, 'orgId' | 'openId'> & { name?: string }): void {
     const pinned = this.pinned
     if (pinned !== undefined && (pinned.orgId !== identity.orgId || pinned.openId !== identity.openId)) {
       throw new Error('Yunzhijia login account changed while the channel was running')
     }
     this.pinned = { orgId: identity.orgId, openId: identity.openId }
+    if (identity.name !== undefined && identity.name !== '') this.operatorName = identity.name
   }
 
   /**
@@ -303,6 +307,14 @@ export class YzjChannelClient {
     origin: 'agent' | 'desk' = 'agent',
   ): Promise<{ msgId?: string; groupId?: string }> {
     const groupId = target.groupId ?? `dm:${target.toOpenId ?? ''}`
+    /*
+      **署名协议** (决策 #63 §8 B5②)：agent 的一切出站恒带「—— 云小助（Bruce）」。
+      桌面那一路（`desk`）是人自己在说话，不签——签了，别的实例会把人的话当成实例出站
+      而不接（同侪回声），而人的话恰恰是要被接的。
+
+      指纹按**签完的正文**算：回来的就是这一段。
+    */
+    content = origin === 'agent' ? signOutbound(content, this.operatorName) : content
     const nonce = randomUUID()
     const fingerprint = outboundFingerprint(groupId, content)
     this.state.registerOutbound(nonce, groupId, fingerprint, origin)

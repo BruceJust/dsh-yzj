@@ -41,6 +41,18 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
+  /**
+   * 触发者范围 (决策 #63)：对群在岗（会向群发在岗声明）/ 仅本人（不公告、不算在岗）。
+   * 接单是身份/听众敏感的主权动作，范围是它的第一个参数，不是事后的设置。
+   */
+  const [scope, setScope] = useState<'all' | 'self'>('all')
+  /** 第二在岗押门：已有同侪对群在岗时，这一次没有接——两条出口在这儿。 */
+  const [conflict, setConflict] = useState<
+    { name: string; since: number; draft?: string } | undefined
+  >(undefined)
+  const [copied, setCopied] = useState(false)
+  /** 退岗时本群场所记忆的脱密拟稿：越境律，人签发——发不发、发给谁归你。 */
+  const [memoryDraft, setMemoryDraft] = useState<string | undefined>(undefined)
 
   const load = useCallback(async (): Promise<void> => {
     setView(await inject.contract(placeKey))
@@ -79,7 +91,9 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                 <div className={css.sectionHead}>
                   接单
                   <span className={`${css.tag} ${view.onDuty === false ? css.tagSoft : css.tagHard}`}>
-                    {view.onDuty === false ? '未接单' : '在岗'}
+                    {view.onDuty === false
+                      ? '未接单'
+                      : view.presence?.self === 'self' ? '仅本人' : '对群在岗'}
                   </span>
                 </div>
                 <div className={css.row}>
@@ -88,9 +102,39 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                     {view.onDuty === false
                       ? <>
                         agent <b>不在这里应答</b>。人和人照常说话、照常回复；
-                        在这里 @ 它会被<b>拦在发送之前</b>，而不是发出去等一个永远不来的回复。
+                        {(view.presence?.peers.length ?? 0) > 0
+                          ? <>在这里 @ 它，这句话会<b>由本群在岗的同侪实例接单</b>，本机不动手。</>
+                          : <>在这里 @ 它会被<b>拦在发送之前</b>，而不是发出去等一个永远不来的回复。</>}
                       </>
-                      : <>agent 在这里接单：@ 它或回复它的消息都会起一个回合。</>}
+                      : view.presence?.self === 'self'
+                        ? <>
+                          agent 在这里<b>只应答你自己</b>：同事 @ 它不由本机接（一个群一次受话
+                          一个接单者；仅本人不声明、不算在岗，与别人的实例天然无冲突）。
+                        </>
+                        : <>
+                          agent 在这里<b>接受全群委派</b>：@ 它或回复它的消息都会起一个回合。
+                          {view.presence?.selfAnchor === undefined
+                            ? <span className={css.noteBad}>在岗声明帖没有发出去——群里还不知道它在岗。</span>
+                            : <>已向群发过在岗声明。</>}
+                          <div className={css.note}>
+                            已知缺陷：这台电脑合盖离线时，本群<b>无人接单，而群里不会知道</b>
+                            （寄生期 agent 的可用性寄生在个人电脑上；专号/机器人阶段解决）。
+                          </div>
+                        </>}
+                    {/*
+                      **同侪在岗** (决策 #63)：署名识别出来的、在这个群对群在岗的别的实例。
+                      群里 N 个都叫「云小助」，这一行说清此刻谁在岗——也是「我的 agent 为什么
+                      没接」的第一个答案。
+                    */}
+                    {(view.presence?.peers.length ?? 0) > 0 && (
+                      <div className={css.note}>
+                        本群在岗的同侪实例：
+                        {(view.presence?.peers ?? []).map(peer => (
+                          <span key={peer.openId}> 云小助（{peer.name}）</span>
+                        ))}
+                        。一个场所一次受话一个接单者——同事的 @ 由它接，你自己的 @ 仍由你的实例接。
+                      </div>
+                    )}
                     <div className={css.note}>
                       接单范围是这套部署的<b>爆炸半径</b>。所以开关在这里，不在会话列里
                       ——四十多行里每行挂一个一键开关，等于邀请人顺手把 agent 能读能写的
@@ -101,6 +145,83 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                       轮询会开始读这个会话的历史，话题会长在这里，登记的承诺卡也会
                       投进来。这些都不是按下去之后才该知道的。
                     */}
+                    {memoryDraft !== undefined && (
+                      <div className={css.confirm}>
+                        <div className={css.confirmBody}>
+                          <b>在岗移交的背景包。</b>这个群里助理学到的惯例（场所记忆）拟成了一段话——
+                          越境须人签发，所以它只是拟稿：发不发、发给接岗的谁，都是你的。私语不迁移。
+                        </div>
+                        <textarea className={css.draft} readOnly value={memoryDraft} rows={4} />
+                        <div className={css.confirmActs}>
+                          <button
+                            type="button"
+                            className={css.confirmNo}
+                            onClick={() => {
+                              void navigator.clipboard?.writeText(memoryDraft)
+                                .then(() => { setCopied(true) }, () => { setCopied(false) })
+                            }}
+                          >
+                            {copied ? '已复制' : '复制拟稿'}
+                          </button>
+                          <button type="button" className={css.confirmNo} onClick={() => { setMemoryDraft(undefined) }}>
+                            收起
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {conflict !== undefined && (
+                      /*
+                        第二在岗押门 (P1)：分工需要名字，名字需要专号。在那之前一个群只能有
+                        一个对群在岗的实例。两条出口——请对方退岗（拟稿亲发，社交摩擦不碰）、
+                        或改为仅本人（只服务你自己，天然无冲突）。
+                      */
+                      <div className={css.confirm}>
+                        <div className={css.confirmBody}>
+                          <b>没有接。</b>本群已有 云小助（{conflict.name}）对群在岗
+                          （{new Date(conflict.since).toLocaleString('zh-CN', { hour12: false })} 声明）。
+                          一个群一次受话一个接单者，第二个在岗此阶段不接。
+                        </div>
+                        {conflict.draft !== undefined && (
+                          <>
+                            <div className={css.note}>请对方退岗的话，你亲自发（拟稿，不代发）：</div>
+                            <textarea className={css.draft} readOnly value={conflict.draft} rows={3} />
+                          </>
+                        )}
+                        <div className={css.confirmActs}>
+                          {conflict.draft !== undefined && (
+                            <button
+                              type="button"
+                              className={css.confirmNo}
+                              onClick={() => {
+                                void navigator.clipboard?.writeText(conflict.draft ?? '')
+                                  .then(() => { setCopied(true) }, () => { setCopied(false) })
+                              }}
+                            >
+                              {copied ? '已复制' : '复制拟稿'}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={css.confirmGo}
+                            disabled={busy}
+                            onClick={() => {
+                              setBusy(true)
+                              void inject.setServed(placeKey, true, 'self').then((result) => {
+                                setBusy(false)
+                                setConflict(undefined)
+                                if (result.error !== undefined) setNote(result.error)
+                                else void load()
+                              })
+                            }}
+                          >
+                            改为仅本人接入
+                          </button>
+                          <button type="button" className={css.confirmNo} onClick={() => { setConflict(undefined) }}>
+                            先不接
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {asking
                       ? (
                         <div className={css.confirm}>
@@ -113,8 +234,36 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                               : <>
                                 移出服务之后：这里不再被轮询，<b>agent 看不见</b>新消息；
                                 已经长出来的话题还在，但不会再有新的。
+                                {view.presence?.self === 'all' && <>会向群发一条<b>退岗帖</b>。</>}
                               </>}
                           </div>
+                          {view.onDuty === false && (
+                            /*
+                              范围是接单的第一个参数 (决策 #63)。对群在岗 = 把你的账号与授权借给
+                              这个群，向群公告一次（群即审计面）；仅本人 = 只应答你，不公告。
+                            */
+                            <div className={css.choice}>
+                              <label>
+                                <input
+                                  type="radio"
+                                  name="serve-scope"
+                                  checked={scope === 'all'}
+                                  onChange={() => { setScope('all') }}
+                                />
+                                <b>接受全群委派</b>（对群在岗）——同事也能 @ 它；会向群发一条在岗声明，
+                                一个群只能有一个在岗实例。
+                              </label>
+                              <label>
+                                <input
+                                  type="radio"
+                                  name="serve-scope"
+                                  checked={scope === 'self'}
+                                  onChange={() => { setScope('self') }}
+                                />
+                                <b>仅本人</b>——只应答你自己的 @；不公告，和别人的实例天然无冲突。
+                              </label>
+                            </div>
+                          )}
                           <div className={css.confirmActs}>
                             <button
                               type="button"
@@ -122,12 +271,32 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                               disabled={busy}
                               onClick={() => {
                                 setBusy(true)
-                                void inject.setServed(placeKey, view.onDuty === false)
+                                const turningOn = view.onDuty === false
+                                void inject.setServed(placeKey, turningOn, turningOn ? scope : undefined)
                                   .then((result) => {
                                     setBusy(false)
                                     setAsking(false)
-                                    if (result.error !== undefined) setNote(result.error)
-                                    else void load()
+                                    if (result.error !== undefined) {
+                                      setNote(result.error)
+                                    } else if (result.conflict !== undefined) {
+                                      setConflict({
+                                        name: result.conflict.name,
+                                        since: result.conflict.since,
+                                        ...(result.draft === undefined ? {} : { draft: result.draft }),
+                                      })
+                                    } else {
+                                      const lines: string[] = []
+                                      if (result.announced === false) {
+                                        lines.push(turningOn
+                                          ? '已接入，但在岗声明帖没发出去——群里还不知道它在岗。'
+                                          : '已移出，但退岗帖没发出去——群里还以为它在岗。')
+                                      }
+                                      if (result.memoryDraft !== undefined) {
+                                        setMemoryDraft(result.memoryDraft)
+                                      }
+                                      setNote(lines.join(' '))
+                                      void load()
+                                    }
                                   })
                               }}
                             >

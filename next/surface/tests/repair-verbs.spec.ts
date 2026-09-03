@@ -51,6 +51,8 @@ beforeEach(async () => {
     tree: () => [{ place: { placeKey: 'yzj-group-g1', groupName: '财务组' }, topics: TOPICS }],
     topicOf: (sessionId: string) => TOPICS.find(topic => topic.sessionId === sessionId),
     aliases: () => ['@next'],
+    presenceIn: () => ({ self: 'off' as const, peers: [] }),
+    peers: () => [],
     conversations: () => [],
     sendInPlace: async (placeKey: string, text: string) => {
       posted.push({ placeKey, text })

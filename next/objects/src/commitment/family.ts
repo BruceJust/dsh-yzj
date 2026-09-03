@@ -259,6 +259,23 @@ export const commitmentFamily: GraphFamily = {
           commitmentId: z.string().min(1),
           executor,
         }).optional(),
+        /**
+         * 镜像行的来源 (决策 #63 §7.4, P1.5 物化).
+         *
+         * 公域承诺的真身 = **登记者实例的图**；本实例从群消息流里带句柄的登记 ack 物化
+         * 一行镜像，`origin` 记着它是谁的图上的真身：`operatorOpenId` 是那个实例的操作者，
+         * `handle` 是消息里的句柄（卡片三定律②「消息载句柄」至此成为跨实例外键），
+         * `msgAnchor` 是那条 ack。幂等锚 = (operatorOpenId, handle)。
+         *
+         * 镜像永不本地改写、永不回写（否则一条承诺两本真身）；修理动词按主权自然不渲染。
+         * 字段先入 schema：物化押多操作者 dogfood（附录 A 段 4q P1.5）。
+         */
+        origin: z.object({
+          kind: z.literal('foreign'),
+          operatorOpenId: z.string().min(1),
+          handle: z.string().min(1),
+          msgAnchor: z.string().min(1),
+        }).optional(),
         /*
           出生时就说清也合法——默认从登记场所派生，但**派生只是默认**：一条明知要私下
           处理的活，登记它的时候就可以说「这条不写进目标文档」，不必等 ack 再反转一次。

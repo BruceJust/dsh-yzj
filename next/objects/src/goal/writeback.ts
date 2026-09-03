@@ -380,9 +380,17 @@ export function applyGoalWriteback(ctx: Context): () => void {
           同样的记录早就有这道闸（`truth.spec.ts` 专门锁着它），我这一处漏了。
         */
         const goalId = goalCommitmentIdFor(goalRef)
+        const goalObject = ctx.yzjGraph.rawObject('commitment', goalId)
+        /*
+          基准已经是人话区量纲（`human:…`，决策 #63 收紧⑥）时**不记**：这一笔账落在栅栏
+          以下，人话区一个字没动，基准照旧就是对的。记一个版本量纲进去反而把基准换回
+          整份文档的版本，下一次同侪回写就又会显形一次假的真身之变。
+        */
+        const baseline = asString(asRecord(goalObject?.state)?.truthFingerprint)
         if (
           outcome.ok && outcome.version !== undefined
-          && ctx.yzjGraph.rawObject('commitment', goalId) !== undefined
+          && goalObject !== undefined
+          && baseline?.startsWith('human:') !== true
         ) {
           await ctx.yzjGraph.append({
             type: 'commitment/updated',

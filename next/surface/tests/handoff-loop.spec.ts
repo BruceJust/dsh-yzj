@@ -58,6 +58,8 @@ beforeEach(async () => {
     tree: () => [],
     topicOf: () => undefined,
     aliases: () => ['@next'],
+    presenceIn: () => ({ self: 'off' as const, peers: [] }),
+    peers: () => [],
     conversations: () => [],
     sendInPlace: async (placeKey: string, text: string) => {
       posted.push({ placeKey, text })

@@ -327,9 +327,22 @@ export class GraphStore {
   }
 
   isRevoked(messageId: string): boolean {
-    return this.rawEvents(['authority/revoked']).some(event => (
-      isRecord(event.data) && event.data.messageId === messageId
-    ))
+    return this.revocationOf(messageId) !== undefined
+  }
+
+  /**
+   * 撤销的理由，给拒绝的那句话用。
+   *
+   * 「授权已被撤销」和「这次受话已让位给 云小助（张三）」是两种完全不同的处境：前者
+   * 是人或超时收回了权力，后者是**另一个实例正在做这件事**（决策 #63 写前复核）。
+   * 模型读到后者，知道该停、也知道不必道歉。
+   */
+  revocationOf(messageId: string): string | undefined {
+    for (const event of this.rawEvents(['authority/revoked'])) {
+      if (!isRecord(event.data) || event.data.messageId !== messageId) continue
+      return typeof event.data.reason === 'string' ? event.data.reason : ''
+    }
+    return undefined
   }
 
   private filterObjects(objects: readonly GraphObject[], viewer: GraphViewer): readonly GraphObject[] {

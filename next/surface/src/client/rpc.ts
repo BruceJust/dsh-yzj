@@ -144,6 +144,8 @@ export interface PlaceViewWire {
   /** The words that address the agent, from the channel's config. */
   aliases?: string[]
   staleReason?: string
+  /** 在岗图景：锚定条按它在按下之前说「本群在岗：云小助（张三）」。 */
+  presence?: PresenceWire
 }
 
 export interface ContractViewWire {
@@ -162,6 +164,24 @@ export interface ContractViewWire {
   /** 这个开关最近几次是谁按的（v3.15 裁决⑤：记下来而没人读得到，等于没记）。 */
   servedChanges?: { served: boolean; by?: string; time: number }[]
   leasesAvailable: boolean
+  /** 在岗图景 (决策 #63)：接单开关的范围在这里选。 */
+  presence?: PresenceWire
+}
+
+/** 接单开关按下去之后的实话 (决策 #63)。 */
+export interface ServeOutcomeWire {
+  served?: boolean
+  scope?: 'all' | 'self'
+  groupName?: string
+  /** 在岗声明帖发出去了没有。false = 记了岗，群里还不知道。 */
+  announced?: boolean
+  /** 第二在岗押门：已有同侪对群在岗，这一次没有接。 */
+  conflict?: { openId: string; name: string; since: number }
+  /** 请对方退岗的拟稿——你亲自发。 */
+  draft?: string
+  /** 退岗时本群场所记忆的脱密拟稿——发不发、发给谁归你。 */
+  memoryDraft?: string
+  error?: string
 }
 
 export type AttachmentBodyWire =
@@ -245,11 +265,27 @@ export interface HandoffPrior {
   name?: string
 }
 
+/** 一个场所此刻的在岗图景 (决策 #63)。 */
+export interface PresenceWire {
+  /** 本实例：对群在岗 / 仅本人 / 不接单。 */
+  self: 'all' | 'self' | 'off'
+  /** 对群在岗时向群发出的声明帖；没发出去就没有——面板要说「群里还不知道」。 */
+  selfAnchor?: string
+  selfSince?: number
+  /** 观察到的对群在岗的同侪实例。 */
+  peers: { openId: string; name: string; since: number }[]
+}
+
 /** 桌面往一个场所里说一句话，回来是什么。 */
 export interface SentInPlace {
   msgId?: string
   ignited?: boolean
   refused?: 'not-on-duty' | 'feed'
+  /**
+   * 话发出去了、**没有就地点火**：本实例不在岗而有同侪对群在岗，将由它接单
+   * （决策 #63 桌面出站对称）。
+   */
+  deferredTo?: { openId: string; name: string }
   /** 点着了的话，新长出来的那个话题——目标语境要挂到它头上。 */
   sessionId?: string
   /** 这一句构成了一次移交时，新签发出来的那条边。 */
@@ -483,6 +519,8 @@ export interface BoardViewWire {
   goals: BoardGoalWire[]
   /** 未挂是合法状态；这一组把对齐债务从「看不见」变成「拉一下就看见」。 */
   unattached: BoardRowWire[]
+  /** P1 明标降级 (决策 #63)：多实例部署下，板 = 本实例登记集。只在观察到同侪时出现。 */
+  mirrorNote?: string
 }
 
 export interface ObjectRowWire {
@@ -625,7 +663,7 @@ export interface SurfaceInject {
    * 不改仓库里的配置——一个会改写自己出厂配置的程序，会让「这套部署到底被
    * 允许碰什么」在仓库里查不出来）。
    */
-  setServed(placeKey: string, on: boolean): Promise<{ served?: boolean; error?: string }>
+  setServed(placeKey: string, on: boolean, scope?: 'all' | 'self'): Promise<ServeOutcomeWire>
   /** 就地展开: the last few lines of a topic, for a glance without navigating. */
   topicTail(sessionId: string): Promise<string[]>
   /**
@@ -1151,9 +1189,11 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       )
       return value ?? { receipt: error ?? '这张卡没有回应。', outcome: 'failed' }
     },
-    async setServed(placeKey, on) {
-      const { value, error } = await write<{ served: boolean }>('set-served', { placeKey, on })
-      return error === undefined ? { served: value?.served ?? on } : { error }
+    async setServed(placeKey, on, scope) {
+      const { value, error } = await write<ServeOutcomeWire>(
+        'set-served', { placeKey, on, ...(scope === undefined ? {} : { scope }) },
+      )
+      return error === undefined ? { ...value, served: value?.served ?? on } : { error }
     },
 
     /* ——— 私账层（金库）. 每一个写动词都走 `write`：拒绝的原话必须原样带回来。 ——— */

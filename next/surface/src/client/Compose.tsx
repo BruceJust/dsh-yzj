@@ -151,6 +151,11 @@ export function ForwardPicker(props: ForwardPickerProps): ReactNode {
         done(`没发出去：这条里带着触发词，而 agent 不在「${row.name}」接单。`)
         return
       }
+      if (result.deferredTo !== undefined) {
+        done(`已转发到「${row.name}」——本群在岗的是 云小助（${result.deferredTo.name}），由它接单。`)
+        close()
+        return
+      }
       done(result.error ?? `已转发到「${row.name}」`)
       close()
     })

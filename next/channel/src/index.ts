@@ -17,7 +17,7 @@ import type {} from '@deepseek-ai/dsh-workspace'
 import type {} from '@yzj-next/bridge'
 import type {} from '@yzj-next/cards'
 import type {} from '@yzj-next/graph'
-import type { TurnBinding } from '@yzj-next/objects'
+import { memoriesFor, type TurnBinding } from '@yzj-next/objects'
 import { YzjChannelClient } from './client.ts'
 import { ChannelHealth } from './health.ts'
 import { YzjTopicReader } from './topics.ts'
@@ -27,6 +27,8 @@ import { YzjPoller } from './poller.ts'
 import { ChannelState } from './state.ts'
 import { accountKeyFor, type YzjIdentity } from './protocol.ts'
 import { applyServe } from './serve.ts'
+import { withdrawRequestDraft } from './presence.ts'
+import type { ServeOutcome } from './topics.ts'
 
 export { triage, parseCommand, type TriageOutcome, type TriageInput } from './triage.ts'
 export {
@@ -40,8 +42,16 @@ export { YzjChannelClient } from './client.ts'
 export { ChannelHealth } from './health.ts'
 export {
   YzjTopicReader, parseSendTime, sessionIdOfTopic, sniffMime, topicKeyOfSession,
-  type AttachmentBody, type ConversationRow, type TopicDescriptor, type TopicMessage, type YzjTopics,
+  type AttachmentBody, type ConversationRow, type DeskSend, type PresenceView, type ServeOutcome,
+  type TopicDescriptor, type TopicMessage, type YzjTopics,
 } from './topics.ts'
+export {
+  ackText, acksIn, claimVerdict, classifyPeerOutbound, presenceDeclaration, presenceWithdrawal,
+  resolveAddressee, reviewClaim, tierOfPeer, withdrawRequestDraft, yieldNotice,
+  type AckObservation, type ClaimTier, type ClaimVerdict, type Contender, type PeerSignal,
+  type Resolution, type ResolveInput, type YieldReason,
+} from './presence.ts'
+export { applyServe, serveRecordFor, type ServeRecord } from './serve.ts'
 export { sourceFor, yzjSourceOf, type YzjNextMessageSource } from './source.ts'
 export { YzjCardDelivery } from './delivery.ts'
 export {
@@ -202,6 +212,8 @@ export function apply(ctx: Context, config: Config): void {
         accountKey: accountKeyFor(identity),
         accountOrgId: identity.orgId,
         accountOpenId: identity.openId,
+        // 署名要落的名字 (决策 #63)：通道的出站与工具直连的出站签同一个名。
+        operatorName: identity.name,
       }
       orchestrator.setDefaultBinding(binding)
       // The desktop surface acts as the operator. Until this is set, the card
@@ -218,15 +230,40 @@ export function apply(ctx: Context, config: Config): void {
         (route, text) => orchestrator.lightAsk(route, text),
         (placeKey, text, replyTo) => poller.sendFromDesktop(placeKey, text, replyTo),
         (openId, text) => poller.sendToPerson(openId, text),
-        allowedGroupIds,
+        (groupId) => poller.allowed(groupId),
         aliases,
-        async (groupId: string, on: boolean) => {
+        async (groupId: string, on: boolean, scope?: 'all' | 'self'): Promise<ServeOutcome> => {
+          /*
+            **接单 = 人签发的身份/听众敏感动作** (决策 #63 §8 B5①)。
+
+            触发者范围含他人（`all`）= **对群在岗**：切开即向群发一次在岗声明帖——群即
+            审计面。接单前先读场所近史：已有同侪对群在岗 → **第二在岗押门**（P1 一个场所
+            一个在岗），这一次不接，给两条出口——请对方退岗（拟稿亲发）/ 改为仅本人。
+            仅本人（`self`）不声明、不算在岗：它只服务自己的操作者，与他人天然无冲突。
+          */
+          const wasOn = poller.allowed(groupId)
+          const previousScope = state.scopeOf(groupId) ?? 'all'
+          const nextScope = on ? (scope ?? (wasOn ? previousScope : 'all')) : undefined
+          const declared = poller.declaredIn(groupId)
+          if (on && nextScope === 'all' && !declared) {
+            await poller.scanPresence(groupId).catch(onError)
+            const peer = state.peersOnDutyIn(groupId)[0]
+            if (peer !== undefined) {
+              return {
+                served: wasOn,
+                ...(wasOn ? { scope: previousScope } : {}),
+                conflict: { openId: peer.openId, name: peer.name, since: peer.since },
+                draft: withdrawRequestDraft(peer.name, poller.groupNameOf(groupId) ?? groupId),
+              }
+            }
+          }
           /*
             **动作先落图，再物化到运行态** (v3.15 裁决⑤)。顺序与失败语义见 `applyServe`。
           */
           await applyServe({
             groupId,
             on,
+            ...(nextScope === undefined ? {} : { scope: nextScope }),
             allowedGroupIds,
             deniedGroupIds,
             nameOf: (id) => poller.groupNameOf(id),
@@ -243,13 +280,43 @@ export function apply(ctx: Context, config: Config): void {
                 throw error
               }
             },
-            persist: async (id, served) => {
-              state.setServed(id, served)
+            persist: async (id, served, servedScope) => {
+              state.setServed(id, served, servedScope)
               await state.save()
             },
           })
+          // 声明帖在运行态之后：先把岗接了，再向群说；说不出去也记岗，但要报「群里还不知道」。
+          let announced: boolean | undefined
+          let memoryDraft: string | undefined
+          if (on && nextScope === 'all' && !declared) {
+            announced = await poller.declarePresence(groupId).catch((error: unknown) => { onError(error); return false })
+          } else if ((!on || nextScope === 'self') && declared) {
+            announced = await poller.withdrawPresence(groupId).catch((error: unknown) => { onError(error); return false })
+            /*
+              在岗移交 = 退岗帖 + 接岗者的在岗帖；背景包里的**场所记忆**须人签发的脱密
+              （越境律），所以只拟稿不代发。私语不迁移——这里读的只有场所轴。
+            */
+            const placeKey = `yzj-group-${groupId}`
+            const lines = memoriesFor(ctx, 'place', placeKey).map(memory => `- ${memory.summary}`)
+            if (lines.length > 0) {
+              memoryDraft = [
+                `「${poller.groupNameOf(groupId) ?? groupId}」这个群里我的助理学到的惯例，交给接岗的你：`,
+                ...lines,
+              ].join('\n')
+            }
+          }
+          return {
+            served: on,
+            ...(nextScope === undefined ? {} : { scope: nextScope }),
+            ...(announced === undefined ? {} : { announced }),
+            ...(memoryDraft === undefined ? {} : { memoryDraft }),
+          }
         },
         cwd,
+        {
+          of: (groupId) => poller.presenceIn(groupId),
+          peers: () => state.peers(),
+        },
       )))
       disposers.push(ctx.provide('yzjTurns', {
         bindingFor: (agent) => orchestrator.bindingFor(agent),

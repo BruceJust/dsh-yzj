@@ -57,6 +57,8 @@ beforeEach(async () => {
     tree: () => [],
     conversations: () => [],
     aliases: () => ['@next'],
+    presenceIn: () => ({ self: 'off' as const, peers: [] }),
+    peers: () => [],
     topicOf: (sessionId: string) => (sessionId === 'sess-1'
       ? {
         topicKey: 'tk-1', sessionId: 'sess-1', label: '定价',

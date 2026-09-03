@@ -84,6 +84,8 @@ function mountFake(reply: (command: readonly string[]) => YzjRunResult): {
   const captured: CapturedTool[] = []
   const commands: string[][] = []
   const ctx = {
+    // 署名协议从回合绑定读操作者名 (决策 #63)；这个夹具没有通道，`get` 答「没有」。
+    get: () => undefined,
     tools: {
       register(definition: CapturedTool): () => void {
         captured.push(definition)
@@ -319,6 +321,18 @@ describe('real-CLI protocol probe (self-skipping)', () => {
     const result = await list?.execute({})
     expect(result?.content.length).toBeGreaterThan(0)
     expect(result?.content).not.toContain('failed')
+  })
+})
+
+describe('署名协议在工具直连的那条路上也无豁免 (决策 #63)', () => {
+  it('文本消息落款「—— 云小助（…）」；文件消息没有正文可签', async () => {
+    const { tools, commands } = mountFake(() => okResult({ msgId: 'sent-1' }))
+    await tools.get('yzj_im_message_send')?.execute({ msgType: 'text', groupId: 'g', content: '好的，我来。' })
+    const first = commands[0] ?? []
+    const content = first[first.indexOf('--content') + 1] ?? ''
+    expect(content).toMatch(/—— 云小助（.+）$/u)
+    await tools.get('yzj_im_message_send')?.execute({ msgType: 'file', groupId: 'g', fileId: 'f' })
+    expect(commands[1]).not.toContain('--content')
   })
 })
 

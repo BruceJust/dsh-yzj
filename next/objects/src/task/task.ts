@@ -46,6 +46,12 @@ export interface TaskState {
   readonly acceptedBy?: string
   readonly voidedBy?: string
   readonly resumedBy?: string
+  /** 认领胜出的证据 (决策 #63)。没有它 = 单实例部署或旧日志。 */
+  readonly claim?: {
+    readonly contenders: readonly string[]
+    readonly tier: 'speaker' | 'presence' | 'standby'
+    readonly tiebreak: 'sole' | 'tier' | 'msgId'
+  }
 }
 
 export const taskFamily: GraphFamily = {
@@ -61,6 +67,18 @@ export const taskFamily: GraphFamily = {
         audience: z.array(z.string()).optional(),
         delegatedBy: z.string().optional(),
         operator: z.string().optional(),
+        /**
+         * 认领胜出的证据 (决策 #63)：`task/opened` 即胜出，不另设事件。
+         *
+         * `contenders` 是当时观察到的同侪在岗实例；`tier` 是本实例赢在哪一梯队
+         * （发言者实例 › 对群在岗 › 备岗）；`tiebreak` 说明怎么赢的——没有对手、梯队
+         * 更高、或同梯队按群消息流的服务端总序更早。
+         */
+        claim: z.object({
+          contenders: z.array(z.string()).default([]),
+          tier: z.enum(['speaker', 'presence', 'standby']),
+          tiebreak: z.enum(['sole', 'tier', 'msgId']),
+        }).optional(),
       }),
     },
     'task/terminal': {

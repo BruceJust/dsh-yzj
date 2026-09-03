@@ -221,4 +221,9 @@ export class YzjGraph extends Service {
   isRevoked(messageId: string): boolean {
     return this.store.isRevoked(messageId)
   }
+
+  /** The reason the revocation gave, when there is one. */
+  revocationOf(messageId: string): string | undefined {
+    return this.store.revocationOf(messageId)
+  }
 }

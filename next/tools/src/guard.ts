@@ -186,8 +186,19 @@ export function denialFor(ctx: Context, exec: Pick<ToolExecution, 'name' | 'agen
     return '轻问是只读投影：问一个数得一个数，不做任何写入。需要写就用普通提问开一个任务。'
   }
   if (!exec.name.startsWith('yzj_')) return undefined
-  if (binding?.messageId !== undefined && ctx.yzjGraph.isRevoked(binding.messageId)) {
-    return '云之家任务授权已被撤销（超时或人工取消）'
+  if (binding?.messageId !== undefined) {
+    const revoked = ctx.yzjGraph.revocationOf(binding.messageId)
+    /*
+      **写前复核** (决策 #63, §6.4)：让位落的就是一条 `authority/revoked`（撤销穿透，
+      逐调用实时查）。一个在认领里输了却已进入工作的回合，在第一个写调用处被截断——
+      双写的最后一道机械防线。理由原样带出：「另一个实例正在做」和「人收回了权力」
+      对模型是两种完全不同的处境。
+    */
+    if (revoked !== undefined) {
+      return revoked.startsWith('让位')
+        ? `这次受话已${revoked}，本实例不再动手——宁可无人接单，不可两人动手`
+        : '云之家任务授权已被撤销（超时或人工取消）'
+    }
   }
   const spec = WRITE_SPECS[exec.name]
   if (spec?.category === undefined) return undefined

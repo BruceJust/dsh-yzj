@@ -27,10 +27,22 @@ export interface ServeRecord {
   readonly served: boolean
   /** 名录里认得出来才写——**不猜**，宁可那一笔只有 id。 */
   readonly groupName?: string
+  /**
+   * 触发者范围 (决策 #63)：`all` 对群在岗（会向群公告），`self` 仅本人（不公告、不算
+   * 在岗）。摘单时不写——摘的是整个接单，范围随之消失。
+   */
+  readonly scope?: 'all' | 'self'
 }
 
-export function serveRecordFor(groupId: string, on: boolean, name?: string): ServeRecord {
-  return { placeKey: placeKeyFor('group', groupId), served: on, ...(name === undefined ? {} : { groupName: name }) }
+export function serveRecordFor(
+  groupId: string, on: boolean, name?: string, scope?: 'all' | 'self',
+): ServeRecord {
+  return {
+    placeKey: placeKeyFor('group', groupId),
+    served: on,
+    ...(name === undefined ? {} : { groupName: name }),
+    ...(on && scope !== undefined ? { scope } : {}),
+  }
 }
 
 /**
@@ -42,13 +54,15 @@ export function serveRecordFor(groupId: string, on: boolean, name?: string): Ser
 export async function applyServe(input: {
   readonly groupId: string
   readonly on: boolean
+  /** 触发者范围。缺席 = 沿用旧行为（对群）。 */
+  readonly scope?: 'all' | 'self'
   readonly allowedGroupIds: Set<string>
   readonly deniedGroupIds: Set<string>
   readonly record: (record: ServeRecord) => Promise<void>
   readonly nameOf?: (groupId: string) => string | undefined
-  readonly persist: (groupId: string, on: boolean) => Promise<void>
+  readonly persist: (groupId: string, on: boolean, scope?: 'all' | 'self') => Promise<void>
 }): Promise<void> {
-  await input.record(serveRecordFor(input.groupId, input.on, input.nameOf?.(input.groupId)))
+  await input.record(serveRecordFor(input.groupId, input.on, input.nameOf?.(input.groupId), input.scope))
   /*
     三值纪律 (`onDutyIn`)：接单写进 allowed **并撤掉那个明确的「不」**，摘单反过来写进
     denied。只从一个集合里 delete 会把「明确说了不」退化回「从没提过」，而后者会被部署
@@ -61,5 +75,5 @@ export async function applyServe(input: {
     input.deniedGroupIds.add(input.groupId)
     input.allowedGroupIds.delete(input.groupId)
   }
-  await input.persist(input.groupId, input.on)
+  await input.persist(input.groupId, input.on, input.scope)
 }
