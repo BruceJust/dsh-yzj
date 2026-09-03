@@ -41,7 +41,7 @@ export class YzjChannelClient {
   }
 
   async identity(): Promise<YzjIdentity> {
-    const json = await this.run(['contact', 'user', 'get'], 'identity')
+    const json = await this.run(['whoami'], 'identity')
     const first = asRecord(asArray(json)[0] ?? json)
     const openId = asString(first.openId)
     const orgId = asString(first.orgId)
@@ -168,7 +168,7 @@ export class YzjChannelClient {
     const command = ['contact', 'user', 'get']
     for (const openId of openIds) command.push('--open-id', openId)
     const json = await this.run(command, 'contact user get')
-    const rows = Array.isArray(json) ? json : []
+    const rows = Array.isArray(json) ? json : asArray(asRecord(json).list)
     const out: { openId: string; name: string }[] = []
     for (const row of rows) {
       const record = asRecord(row)

@@ -66,6 +66,23 @@ const DEFAULT_BINARY = 'yzj-cli'
 const DEFAULT_TIMEOUT_MS = 60_000
 const DEFAULT_MAX_OUTPUT_CHARS = 200_000
 
+const CLI_ENVELOPE_KEYS = new Set(["success", "identity", "data", "error"])
+
+/** Peel yzj-cli 0.1.6 `{success, identity, data}` down to `data`. Bare 0.1.4 payloads pass through. */
+export function unwrapCli(json: unknown): unknown {
+  if (json === undefined || json === null) return json
+  if (Array.isArray(json) || typeof json !== "object") return json
+  const rec = json as Record<string, unknown>
+  if (rec.success === true && "data" in rec) {
+    return rec.data === undefined || rec.data === null ? {} : rec.data
+  }
+  if (rec.success === true && rec.identity !== undefined) {
+    const extra = Object.keys(rec).filter(key => !CLI_ENVELOPE_KEYS.has(key))
+    if (extra.length === 0) return rec.data ?? {}
+  }
+  return json
+}
+
 export const ConfigSchema: z<Config> = z.object({
   binary: z.string().default(DEFAULT_BINARY),
   profile: z.string().default(''),
@@ -204,7 +221,7 @@ export class YzjBridge extends Service {
         let json: unknown
         if (stdout.trim() !== '') {
           try {
-            json = JSON.parse(stdout) as unknown
+            json = unwrapCli(JSON.parse(stdout) as unknown)
           } catch {
             // Non-JSON output stays text-only.
           }

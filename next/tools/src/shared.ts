@@ -56,7 +56,7 @@ function looksUnauthenticated(stderr: string): boolean {
  * 强确认表里，操作者被问、按了确认，CLI 却因为没有 `--yes` 拒绝执行。**人点的头落在
  * 了空处**，而模型只看到一句「failed」，于是它会去编一个别的办法。
  */
-export const CONFIRM_REQUIRED_EXIT = 3
+export const CONFIRM_REQUIRED_EXIT = 10
 
 /** A model-facing failure digest from a non-ok bridge invocation. */
 export function failureDigest(label: string, result: YzjRunResult, max: number): YzjToolValue {
