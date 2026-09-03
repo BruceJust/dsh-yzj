@@ -48,14 +48,29 @@ export function applyContactTools(ctx: Context, budget: YzjToolBudget): () => vo
     timeoutMs: budget.timeoutMs,
     isConcurrencySafe: () => true,
     async execute() {
-      return runValue(ctx, budget, 'contact user get', ['contact', 'user', 'get'], (json) => {
-        const users = usersOf(json)
+      /*
+        yzj-cli 0.1.6 起有原生的 `whoami`（个人授权身份），比 `contact user get` 取首条多
+        两样只有它给的事实：`tokenStatus` 与 `expiresAt`。**登录快过期**此前只能以一串
+        莫名失败的形态被人发现——「看不了不等于没有」那条纪律在这里有了可读的原料。
+        回包形状 `{ data: {...一个人} }`；桥接层若已剥掉 data，顶层就是它。两种都认。
+      */
+      return runValue(ctx, budget, 'whoami', ['whoami'], (json) => {
+        const root = asRecord(json)
+        const me = asRecord(root.data ?? root)
+        const users = asString(me.openId) !== '' ? [me] : usersOf(json)
         const lines = users.map(contactLine)
+        const tokenStatus = asString(me.tokenStatus)
+        const expiresAt = asString(me.expiresAt)
+        if (tokenStatus !== '') {
+          lines.push(`登录态：${tokenStatus}${expiresAt === '' ? '' : ` · 到期 ${expiresAt}`}`)
+        }
         return {
           content: lines.length === 0 ? '(no user info)' : lines.join('\n'),
           data: {
             record: clipJson(asRecord(users[0]), { maxChars: budget.maxMetaChars }),
             users: clipJson(users, { maxChars: budget.maxMetaChars }),
+            ...(tokenStatus === '' ? {} : { tokenStatus }),
+            ...(expiresAt === '' ? {} : { expiresAt }),
           },
         }
       })

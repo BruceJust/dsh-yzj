@@ -1,5 +1,5 @@
 /**
- * IM-domain tools: sending, history, and recent sessions.
+ * IM-domain tools: sending, history, cross-conversation search, and recent sessions.
  *
  * Sending is the one tool in this family that speaks OUTWARD under the
  * operator's own name, so it validates the CLI's mutually exclusive target and
@@ -147,6 +147,82 @@ export function applyImTools(ctx: Context, budget: YzjToolBudget): () => void {
             ...(more ? ['(more messages available)'] : []),
           ].join('\n'),
           data: { list: clipJson(messages, { maxChars: budget.maxMetaChars }), more },
+        }
+      })
+    },
+  }))
+
+  /**
+   * 跨会话内容检索 —— yzj-cli 0.1.6 起平台有了这一面 (`im message search`).
+   *
+   * 分册接缝⑦此前的事实前提是「主册 §7 没有跨会话的内容搜索面（`im group search`
+   * 是群名录搜索）」——**这个前提从 0.1.6 起不再成立**：平台按群聚合返回当前用户全部
+   * 可见范围内的匹配消息。这里先落成 agent 的**读工具**（F-read，可见域本含）；桌面
+   * 搜索面要不要落座是主册 §7 的产品裁决，不在这个工具里越权。
+   *
+   * 与 `yzj_im_message_list` 同一条纪律：读是可见域内的合法读，**说**才受听众集合
+   * 约束——群回合里从别的群搜到的话，不得引进这个群。读侧要不要按听众集合收窄，
+   * 两个工具应同一裁决（目前 list 也不收窄），记在能力盘点里待裁。
+   */
+  register(defineTool({
+    name: 'yzj_im_message_search',
+    description: 'Search chat history by keyword across every group/chat the login user can see (platform full-text search, grouped by conversation). Optional filters: groupId, senderOpenId, notifyToOpenId (who was @-mentioned), start/end (date, datetime or unix timestamp). Returns one line per matched message with group, time, sender, content and msgId. In a group turn, never quote messages found in OTHER conversations into this one.',
+    presentCall: args => titled(`搜聊天记录「${String(args.keyword ?? '')}」`, 'search'),
+    parameters: {
+      keyword: { type: 'string', required: true, description: 'Search keyword.' },
+      groupId: { type: 'string', description: 'Restrict to one group or chat session id.' },
+      senderOpenId: { type: 'string', description: 'Only messages sent by this openId.' },
+      notifyToOpenId: { type: 'string', description: 'Only messages that @-mention this openId.' },
+      start: { type: 'string', description: 'Range start: a date, a datetime, or a unix timestamp.' },
+      end: { type: 'string', description: 'Range end; same forms as start.' },
+      limit: { type: 'number', description: 'Per-page count; default 10, must be >= 1.' },
+      page: { type: 'number', description: 'Page number; default 1, must be >= 1.' },
+    },
+    output: yzjToolOutput,
+    timeoutMs: budget.timeoutMs,
+    isConcurrencySafe: () => true,
+    async execute(args) {
+      if (args.keyword.trim() === '') throw new Error('yzj_im_message_search: keyword must not be empty')
+      const command = ['im', 'message', 'search', '--keyword', args.keyword]
+      if (args.groupId !== undefined) command.push('--group-id', args.groupId)
+      if (args.senderOpenId !== undefined) command.push('--sender-open-id', args.senderOpenId)
+      if (args.notifyToOpenId !== undefined) command.push('--notify-to-open-id', args.notifyToOpenId)
+      if (args.start !== undefined) command.push('--start', args.start)
+      if (args.end !== undefined) command.push('--end', args.end)
+      for (const [flag, value] of [['--limit', args.limit], ['--page', args.page]] as const) {
+        if (value === undefined) continue
+        if (!Number.isInteger(value) || value < 1) {
+          throw new Error(`yzj_im_message_search: ${flag.slice(2)} must be an integer >= 1`)
+        }
+        command.push(flag, String(value))
+      }
+      return runValue(ctx, budget, 'im message search', command, (json) => {
+        const root = asRecord(json)
+        // 0.1.6 回 `{ data: { count, list } }`；桥接层若已剥掉 data，顶层就是它。两种都认。
+        const body = asRecord(root.data ?? root)
+        const groups = asArray(body.list)
+        const lines: string[] = []
+        for (const entry of groups) {
+          const item = asRecord(entry)
+          const group = asRecord(item.group)
+          const name = asString(group.groupName)
+          const id = asString(group.groupId)
+          const matched = asNumber(item.matchedMessageCount)
+          const header = [`## ${name === '' ? id : name}`]
+          if (id !== '' && id !== name) header.push(`(${id})`)
+          if (matched !== undefined) header.push(`· 命中 ${String(matched)} 条`)
+          if (item.hasMoreMessages === true) header.push('· 还有更多')
+          lines.push(header.join(' '))
+          for (const wrapped of asArray(item.messages)) {
+            lines.push(messageLine(asRecord(wrapped).message ?? wrapped))
+          }
+        }
+        return {
+          content: lines.length === 0 ? '(没有搜到消息)' : lines.join('\n'),
+          data: {
+            count: asNumber(body.count) ?? groups.length,
+            list: clipJson(groups, { maxChars: budget.maxMetaChars }),
+          },
         }
       })
     },

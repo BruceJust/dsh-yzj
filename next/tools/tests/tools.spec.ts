@@ -107,7 +107,7 @@ function mountFake(reply: (command: readonly string[]) => YzjRunResult): {
 }
 
 describe('the tool family', () => {
-  it('registers all 41 tools across the six domains under their original names', () => {
+  it('registers every tool across the six domains under its original name', () => {
     // The names are load-bearing (TD-11): the dual-instance deployment removes
     // the same-layer collision, so every prompt and habit built on `yzj_*`
     // keeps working. A rename here is a silent break for the model.
@@ -124,13 +124,13 @@ describe('the tool family', () => {
       'yzj_doc_workspace_list',
       'yzj_file_download', 'yzj_file_upload',
       'yzj_im_group_create', 'yzj_im_group_recent', 'yzj_im_group_search',
-      'yzj_im_message_list', 'yzj_im_message_send',
+      'yzj_im_message_list', 'yzj_im_message_search', 'yzj_im_message_send',
       'yzj_sheet_create', 'yzj_sheet_get', 'yzj_sheet_record_create', 'yzj_sheet_record_delete',
       'yzj_sheet_record_list', 'yzj_sheet_record_update', 'yzj_sheet_table_create',
       'yzj_sheet_table_delete', 'yzj_sheet_table_get', 'yzj_sheet_table_rename',
       'yzj_whoami',
     ])
-    expect(tools.size).toBe(43)
+    expect(tools.size).toBe(44)
   })
 
   it('lets every tool say what it is doing in human words', () => {
@@ -451,5 +451,60 @@ describe('修理动词族在确认表里', () => {
     expect(WRITE_SPECS.commitment_void?.level).toBe('strong')
     expect(WRITE_SPECS.commitment_postpone?.level).toBe('standard')
     expect(WRITE_SPECS.commitment_handoff?.level).toBe('standard')
+  })
+})
+
+describe('yzj-cli 0.1.6 带来的两条闭环', () => {
+  it('跨会话内容检索：argv 照平台的旗子发，回包按群聚合渲染', async () => {
+    const { tools, commands } = mountFake(() => okResult({
+      data: {
+        count: 1,
+        list: [{
+          group: { groupId: 'g-1', groupName: '830 项目', groupType: 2 },
+          hasMoreMessages: true,
+          matchedMessageCount: 12,
+          messages: [{
+            message: {
+              msgId: 'm-1', fromOpenId: 'u-1', msgType: 'text',
+              content: '明天上午 10 点评审', sendTime: '2026-09-02 08:25:35',
+            },
+          }],
+        }],
+      },
+    }))
+    const search = tools.get('yzj_im_message_search')
+    expect(search).toBeDefined()
+    const value = await search?.execute({
+      keyword: '评审', groupId: 'g-1', senderOpenId: 'u-1', start: '2026-08-01', end: '2026-09-03', limit: 5, page: 2,
+    }) as { content: string; data: { count: number } }
+    expect(commands[0]).toEqual([
+      'im', 'message', 'search', '--keyword', '评审', '--group-id', 'g-1', '--sender-open-id', 'u-1',
+      '--start', '2026-08-01', '--end', '2026-09-03', '--limit', '5', '--page', '2',
+    ])
+    /*
+      **按群聚合**是平台回包的形状，渲染要把它说出来：哪个群、命中几条、还有没有——
+      否则模型看到的是一串脱离语境的句子，正是「群回合里把别的群的话引进来」的温床。
+    */
+    expect(value.content).toContain('## 830 项目 (g-1) · 命中 12 条 · 还有更多')
+    expect(value.content).toContain('明天上午 10 点评审')
+    expect(value.content).toContain('<m-1>')
+    expect(value.data.count).toBe(1)
+    await expect(search?.execute({ keyword: '   ' })).rejects.toThrow(/keyword/u)
+    await expect(search?.execute({ keyword: 'x', limit: 0 })).rejects.toThrow(/limit/u)
+  })
+
+  it('whoami 走原生命令，并把登录态读出来——登录快过期不该以一串莫名失败的形态被发现', async () => {
+    const { tools, commands } = mountFake(() => okResult({
+      data: {
+        openId: 'op-1', name: '代少兵', department: '灵基Chat', jobTitle: '算法开发', jobNo: '69294',
+        tokenStatus: 'valid', expiresAt: '2026-09-03T09:26:28+08:00',
+      },
+      identity: 'user', success: true,
+    }))
+    const value = await tools.get('yzj_whoami')?.execute({}) as { content: string; data: { tokenStatus?: string } }
+    expect(commands[0]).toEqual(['whoami'])
+    expect(value.content).toContain('代少兵 · 灵基Chat · 算法开发 · 工号 69294 · <op-1>')
+    expect(value.content).toContain('登录态：valid · 到期 2026-09-03T09:26:28+08:00')
+    expect(value.data.tokenStatus).toBe('valid')
   })
 })
