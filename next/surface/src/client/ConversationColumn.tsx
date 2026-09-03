@@ -901,6 +901,11 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
               setDraft(value => value.split(word).join('').trimStart())
             }
           },
+          pledgeOn: (handle: string) => {
+            setReplyTo(undefined)
+            setVoice('private')
+            setDraft(`押 ${handle}：`)
+          },
           askAgentAbout: (msgId, who, text) => {
             setReplyTo({ msgId, who, text: clip(text) })
             setVoice('place')
@@ -1207,6 +1212,8 @@ interface RowContext {
   forward(text: string): void
   replyTo(msgId: string, who: string, text: string): void
   askAgentAbout(msgId: string, who: string, text: string): void
+  /** 引用指名押：句柄进私语道 composer，人把那句话说完。 */
+  pledgeOn(handle: string): void
   /** Scroll to a message in THIS topic — the 「那句话在哪」 door. */
   jumpTo(msgId: string): void
   /** Whether this session is a Yunzhijia topic at all; a local one has no place. */
@@ -1560,7 +1567,7 @@ function renderRow(row: StreamRow, context: RowContext): ReactNode {
       return shell(row.key, 'private', (
         <>
           <div className={css.mhead}><span className={css.clock}>{clock}</span></div>
-          <CardRow card={row.card} busy={context.busy} act={context.act} inject={context.inject} />
+          <CardRow card={row.card} busy={context.busy} act={context.act} inject={context.inject} pledgeOn={context.pledgeOn} />
         </>
       ), `${row.card.kind}:${row.card.id}`)
   }

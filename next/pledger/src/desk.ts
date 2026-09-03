@@ -9,7 +9,7 @@ import {
 } from './pledge.ts'
 import { stripsFor, type Strip } from './strips.ts'
 import { anchoredOf, DEFAULT_WINDOW, type AnchoredText, type Attribution, type ClauseKey, type JudgWindow, type PremiseState } from './types.ts'
-import { isAlive, latestVerdictIn } from './verdicts.ts'
+import { isAlive, latestVerdictIn, verdictOn } from './verdicts.ts'
 
 export interface EvidenceRow {
   readonly text: string
@@ -43,6 +43,8 @@ export interface PledgerDesk {
   say(topicKey: string, text: string): Promise<string | undefined>
   /** 发现路 = 占位文字：本会话最近裁决尚未押过时才有。不弹卡、不计数、不重复。 */
   placeholderFor(topicKey: string): string | undefined
+  /** 引用指名押的句柄：这张卡上有你签发过、还没押过的裁决时才有；撤回过的不再给（幂等锚）。 */
+  pledgeHandle(kind: string, id: string): string | undefined
   withdraw(expectationId: string, reason: string): Promise<void>
   note(text: string, about: { kind: 'verdict'; verdict: AnchoredText } | { kind: 'expectation'; expectationId: string }): Promise<string>
   attribute(calibrationId: string, cell: Attribution): Promise<void>
@@ -87,7 +89,7 @@ export function createDesk(ctx: Context): PledgerDesk {
     async say(topicKey, text) {
       const parsed = parsePrivateSay(text)
       if (parsed === undefined) return undefined
-      if (parsed.kind === 'pledge') return pledge(ctx, { topicKey, text: parsed.text })
+      if (parsed.kind === 'pledge') return pledge(ctx, { topicKey, text: parsed.text, ...(parsed.anchor === undefined ? {} : { anchor: parsed.anchor }) })
       if (parsed.key === undefined) {
         return '这句我没认出来。现在能写的三句：「以后验收前先看证据」「以后验收前给我看上次的结果」「每天早上告诉我有几条结果」。'
       }
@@ -100,6 +102,10 @@ export function createDesk(ctx: Context): PledgerDesk {
       const pledger = ctx.get('yzjPledger')
       const pledged = pledger?.findByIdemKey(`expectation:${verdict.anchor.kind}:${verdict.anchor.id}`) !== undefined
       return pledged ? undefined : '或「押：」一句预期，可选'
+    },
+    pledgeHandle(kind, id) {
+      if (!ready() || verdictOn(ctx, { kind, id }) === undefined) return undefined
+      return ctx.get('yzjPledger')?.findByIdemKey(`expectation:${kind}:${id}`) === undefined ? `[card#${kind}:${id}]` : undefined
     },
     withdraw: (expectationId, reason) => withdraw(ctx, expectationId, reason),
     note: (text, about) => noteFact(ctx, { text, about }),

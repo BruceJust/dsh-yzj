@@ -148,6 +148,11 @@ export function latestVerdictIn(ctx: Context, topicKey: string): FiledVerdict | 
   return filedVerdicts(ctx).filter(one => one.topicKey === topicKey).at(-1)
 }
 
+/** 指名：某一张卡上你签发过的裁决（引用句柄 `[card#kind:id]`）；别人的裁决从不入档，所以也押不到。 */
+export function verdictOn(ctx: Context, anchor: OrgAnchor): FiledVerdict | undefined {
+  return filedVerdicts(ctx).filter(one => one.anchor.kind === anchor.kind && one.anchor.id === anchor.id).at(-1)
+}
+
 /** 检验点取值序：还没开的那场会 › 未来的 due › 无戳。 */
 export function checkpointFor(ctx: Context, anchor: OrgAnchor, now: number): { text: string; ts?: number } {
   const graph = ctx.get('yzjGraph')

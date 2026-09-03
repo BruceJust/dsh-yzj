@@ -13,7 +13,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, asRecord, asString } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { approvalCard, approvalFamily, commitmentFamily, createCommitmentCard, taskFamily, waitingFamily } from '@yzj-next/objects'
+import { approvalCard, approvalFamily, assessmentFamily, commitmentFamily, createCommitmentCard, taskFamily, waitingFamily } from '@yzj-next/objects'
 import { YzjPledger } from '../src/service.ts'
 import { createDesk } from '../src/desk.ts'
 import { fileVerdict, filedVerdicts, isAlive } from '../src/verdicts.ts'
@@ -40,7 +40,7 @@ beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'yzj-next-pledger-'))
   ctx = new Context()
   graph = new YzjGraph(ctx, { root: join(root, 'graph') })
-  for (const family of [approvalFamily, commitmentFamily, taskFamily, waitingFamily]) graph.defineFamily(family)
+  for (const family of [approvalFamily, assessmentFamily, commitmentFamily, taskFamily, waitingFamily]) graph.defineFamily(family)
   await graph.selectAccount('acct-1')
   cards = new YzjCards(ctx)
   cards.register(approvalCard)
@@ -413,5 +413,67 @@ describe('v2 旧行', () => {
     expect(view.groups).toHaveLength(0)
     expect(view.empty).toBe(true)
     expect(stripsFor(ctx2, 'commitment', 'cmt-v2', true)).toHaveLength(0)
+  })
+})
+
+describe('引用指名押（P1.5）', () => {
+  it('带句柄的押锚到那张卡而不是本会话最近裁决；押不到别的；句柄只给还没押的卡', async () => {
+    await acceptedDelivery('cmt-a', '甲报表')
+    await acceptedDelivery('cmt-b', '乙报表')
+    const desk = createDesk(ctx)
+    expect(desk.pledgeHandle('commitment', 'cmt-a')).toBe('[card#commitment:cmt-a]')
+    expect(parsePrivateSay('押 [card#commitment:cmt-a]：甲一周内不会返工')).toEqual({ kind: 'pledge', text: '甲一周内不会返工', anchor: { kind: 'commitment', id: 'cmt-a' } })
+    const ack = await desk.say(TOPIC, '押 [card#commitment:cmt-a]：甲一周内不会返工')
+    expect(ack).toContain('押已记')
+    expect(pledger.findByIdemKey('expectation:commitment:cmt-a')).toBeDefined()
+    expect(pledger.findByIdemKey('expectation:commitment:cmt-b')).toBeUndefined()
+    expect(desk.pledgeHandle('commitment', 'cmt-a')).toBeUndefined()
+    expect(desk.pledgeHandle('commitment', 'cmt-b')).toBe('[card#commitment:cmt-b]')
+    expect(await desk.say(TOPIC, '押 [card#commitment:cmt-zzz]：随便')).toContain('没有这条裁决的记录')
+    expect(desk.pledgeHandle('commitment', 'cmt-zzz')).toBeUndefined()
+    // 撤回过的不再给句柄：幂等锚吸收。
+    await withdraw(ctx, 'exp-' + 'x', '押错了').catch(() => undefined)
+    const exp = pledger.query('expectation').find(one => asString(asRecord(one.state)?.idemKey) === 'expectation:commitment:cmt-a')
+    if (exp !== undefined) { await withdraw(ctx, exp.id, '押错了'); expect(desk.pledgeHandle('commitment', 'cmt-a')).toBeUndefined() }
+  })
+})
+
+describe('差距简报配对两行', () => {
+  const opened = async (id: string, what: string): Promise<void> => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: { commitmentId: id, what, parentGoalRef: 'https://goal/1', executor: { kind: 'agent', topicKey: TOPIC }, sourceAnchor: `yzj:m-${id}`, topicKey: TOPIC, audience: [PLACE], idemKey: `cmt:${id}` },
+      actor: OPERATOR,
+    })
+    await graph.append({ type: 'commitment/delivered', data: { commitmentId: id, delivery: { claim: '交付了', at: Date.now() } }, actor: { kind: 'agent' } })
+  }
+  const brief = async (assessmentId: string, verdict: 'met' | 'missing', evidence: string): Promise<void> => {
+    await graph.append({
+      type: 'assessment/reported',
+      data: { assessmentId, goalRef: 'https://goal/1', summary: '简报', lines: [{ criterion: 'T+3 出报表', verdict, evidence }], sourceAnchor: `yzj:m-${assessmentId}` },
+      actor: { kind: 'agent' },
+    })
+    await settle()
+  }
+  const types = (): string[] => pledger.query('calibration').map(one => asString(asRecord(one.state)?.type) ?? '')
+
+  it('验收后简报把这条标为未达 → 反转执；简报点名别的承诺则不配', async () => {
+    await opened('cmt-g1', '对账报表')
+    await cards.act({ kind: 'commitment', id: 'cmt-g1' }, 'accept', OPERATOR, 'desktop')
+    await settle()
+    await brief('asm-0', 'missing', '没有任何承诺覆盖这一条')
+    expect(types()).toEqual([])
+    await brief('asm-1', 'missing', '承诺 cmt-g1 交的不是报表')
+    expect(types()).toEqual(['reversed'])
+    const later = asRecord(pledger.query('calibration')[0]?.state)?.later
+    expect(JSON.stringify(later)).toContain('标为未达')
+  })
+
+  it('打回后简报把这条标为已达 → 印证执（按原话点名也算）', async () => {
+    await opened('cmt-g2', '差异清单')
+    await cards.act({ kind: 'commitment', id: 'cmt-g2' }, 'reject', OPERATOR, 'desktop', '差异条目没对上')
+    await settle()
+    await brief('asm-2', 'met', '差异清单已经出了，条目 3 条')
+    expect(types()).toEqual(['vindicated'])
   })
 })

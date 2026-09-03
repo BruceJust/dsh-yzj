@@ -9,18 +9,22 @@ import {
 } from './families.ts'
 import {
   anchoredJson, snapshot, CLAUSE_TEXT,
-  type AnchoredText, type Attribution, type ClauseKey,
+  type AnchoredText, type Attribution, type ClauseKey, type OrgAnchor,
 } from './types.ts'
-import { checkpointFor, latestVerdictIn } from './verdicts.ts'
+import { checkpointFor, latestVerdictIn, verdictOn } from './verdicts.ts'
 
 /** 私语道那句话是不是私账动词。认不出 = 不是，照常给 agent。 */
 export type PrivateSay =
-  | { readonly kind: 'pledge'; readonly text: string }
+  | { readonly kind: 'pledge'; readonly text: string; readonly anchor?: OrgAnchor }
   | { readonly kind: 'clause'; readonly off: boolean; readonly key?: Exclude<ClauseKey, 'lease'>; readonly raw: string }
 
 export function parsePrivateSay(text: string): PrivateSay | undefined {
-  const bet = /^(?:押|\/押)[：:\s]+(.+)$/su.exec(text.trim())
-  if (bet !== null) return { kind: 'pledge', text: (bet[1] ?? '').trim() }
+  // 引用指名押：「押 [card#task:tsk-…]：…」——句柄就是各处回复用的那一个；不带句柄 = 本会话最近裁决。
+  const bet = /^(?:押|\/押)(?:\s*\[card#([a-z-]+):([^\]\s]+)\])?[：:\s]+(.+)$/su.exec(text.trim())
+  if (bet !== null) {
+    const [, kind, id, body] = bet
+    return { kind: 'pledge', text: (body ?? '').trim(), ...(kind === undefined || id === undefined ? {} : { anchor: { kind, id } }) }
+  }
   const soft = /^(不再|取消)?\s*(以后|每天早上)(.+)$/su.exec(text.trim())
   if (soft === null) return undefined
   const key = /摆开证据|不预选|先看证据|先看|摆给我看/u.test(text) ? 'spread'
@@ -40,12 +44,12 @@ const when = (at: number): string => new Date(at).toLocaleString('zh-CN', { hour
  * 押：锚到本会话最近一条人签发的裁决。没有 → 不猜不问；已押 → 先撤回，且撤回后不可再押。
  * ack 亮出锚与检验点，可纠。
  */
-export async function pledge(ctx: Context, input: { readonly topicKey: string; readonly text: string }): Promise<string> {
+export async function pledge(ctx: Context, input: { readonly topicKey: string; readonly text: string; readonly anchor?: OrgAnchor }): Promise<string> {
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined || !pledger.ready) return '私账还没打开——云之家身份还没就绪。'
   if (input.text === '') return '押什么？跟在「押：」后面说一句可证伪的话。'
-  const verdict = latestVerdictIn(ctx, input.topicKey)
-  if (verdict === undefined) return '还没有可以押的裁决——先做一个裁决，再押。'
+  const verdict = input.anchor === undefined ? latestVerdictIn(ctx, input.topicKey) : verdictOn(ctx, input.anchor)
+  if (verdict === undefined) return input.anchor === undefined ? '还没有可以押的裁决——先做一个裁决，再押。' : '没有这条裁决的记录——只能押你自己签发过的裁决。'
   if (pledger.findByIdemKey(expectationIdemKeyFor(verdict.anchor)) !== undefined) {
     return '这条裁决已经押过了。要改，先撤回——撤回之后，这条就不能再押。'
   }

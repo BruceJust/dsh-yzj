@@ -27,7 +27,7 @@ export {
   recordLeaseClause, setClause, withdraw, type PrivateSay,
 } from './pledge.ts'
 export { openReceipt, pairFact, receiptOf, reflowOnGraphEvent, reflowOnNotedFact, startClock, tickCheckpoints, type PairedFact } from './reflow.ts'
-export { checkpointFor, fileVerdict, filedVerdicts, isAlive, latestVerdictIn, type FiledVerdict, type VerdictSettled } from './verdicts.ts'
+export { checkpointFor, fileVerdict, filedVerdicts, isAlive, latestVerdictIn, verdictOn, type FiledVerdict, type VerdictSettled } from './verdicts.ts'
 export { FAMILIES, familyLabel, familyOfKind, familySpec, type VerdictFamilySpec } from './families.ts'
 export { PLEDGER_TOOLS, applyPledgerTools, isOperatorTurn, pledgerDenial } from './tools.ts'
 export { PledgerLog, decodePledgerEvent, type LoadedPledger } from './log.ts'

@@ -88,6 +88,8 @@ export interface StreamCard {
    * 文本投影走另一条路，那条路上没有这个字段。
    */
   strips?: StripWire[]
+  /** 引用指名押的句柄：这张卡上有你签发过、还没押过的裁决时才有。 */
+  pledgeHandle?: string
   actions: { id: string; label: string; style?: string; needsInput: boolean; available: boolean }[]
 }
 

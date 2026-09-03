@@ -85,6 +85,8 @@ export interface StreamCard {
     readonly needsInput: boolean
     readonly available: boolean
   }[]
+  /** 引用指名押的句柄 `[card#kind:id]`：只在这张卡上有你签发过、还没押过的裁决时才有（私账层 §4.1）。 */
+  readonly pledgeHandle?: string
 }
 
 /**
@@ -2543,16 +2545,11 @@ export function cardsFor(
       const desk = pledgerDesk(ctx)
       const resolved = definition.isResolved(object.state as never)
       /*
-        **后视镜长在还没答的卡上，条尾两读长在答完的卡上。**
-
-        时刻是它们各自的意思的一部分。一条挂在已经答完的卡旁边的判例，只剩下「你看
-        你又错了」——说教剧场，正是 #61 要躲开的死法。而「这类确认还需要你吗」是一个
-        只有在你刚刚又答过一次之后才问得出口的问题：答之前问它，等于在你要做判断的
-        那一刻推销一个把判断关掉的开关。
-
-        两读还要**每一族只挂一次**，见下面那一段。
+        先看条长在还没答的卡上（不预选），押条与回执长在答完的卡下（那是它们的锚）；
+        指名押的句柄只给「你签发过、还没押」的卡——发现路不弹卡、不计数。
       */
       const strips = desk?.stripsFor(kind, object.id, resolved) ?? []
+      const pledgeHandle = resolved ? desk?.pledgeHandle(kind, object.id) : undefined
       out.push({
         kind,
         id: object.id,
@@ -2562,6 +2559,7 @@ export function cardsFor(
         resolved,
         ...(demand === undefined ? {} : { demand }),
         ...(strips.length === 0 ? {} : { strips }),
+        ...(pledgeHandle === undefined ? {} : { pledgeHandle }),
         actions: definition.actions.map(action => ({
           id: action.id,
           label: action.label,

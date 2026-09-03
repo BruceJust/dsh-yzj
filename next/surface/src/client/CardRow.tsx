@@ -92,6 +92,8 @@ export interface CardRowProps {
   act(kind: string, id: string, actionId: string, input?: string, dwellMs?: number): void
   /** 私条上的动词走它。不给 = 这张卡长在没有私账的地方，私条整块不画。 */
   inject?: SurfaceInject
+  /** 引用指名押：把句柄放进私语道 composer（「押 [card#…]：」），由人把话说完。 */
+  pledgeOn?(handle: string): void
 }
 
 interface Action {
@@ -622,7 +624,7 @@ function CardBody(props: CardRowProps): ReactNode {
  * / 「先看」摆开条（要求 × 交付）/ 「上次」判例条（同族判例 ≤2）。不在场时整块不画。
  */
 function PledgerTail(props: CardRowProps): ReactNode {
-  const { card, inject } = props
+  const { card, inject, pledgeOn } = props
   const strips = card.strips ?? []
   const [note, setNote] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState(false)
@@ -637,7 +639,7 @@ function PledgerTail(props: CardRowProps): ReactNode {
     for (const id of fresh) seen.current.add(id)
     void inject.markSeen(fresh)
   }, [receipts, inject])
-  if (strips.length === 0 || inject === undefined) return null
+  if ((strips.length === 0 && card.pledgeHandle === undefined) || inject === undefined) return null
 
   const run = (action: () => Promise<{ error?: string; note?: string }>): void => {
     setBusy(true)
@@ -660,6 +662,12 @@ function PledgerTail(props: CardRowProps): ReactNode {
   return (
     <div className={css.pledgerTail}>
       {note !== undefined && <div className={css.gearNote}>{note}</div>}
+      {card.pledgeHandle !== undefined && pledgeOn !== undefined && (
+        <div className={css.mirror}>
+          <span className={css.mirrorMark}>🔒</span>
+          <span className={css.twoReadLine}>{tiny('押一句 ›', '对这次裁决押一句可证伪的话——有结果时回到这张卡下面；只有你能看到', () => { pledgeOn(card.pledgeHandle ?? '') })}</span>
+        </div>
+      )}
       {strips.map((strip, index) => {
         if (strip.kind === 'pledge') {
           const row = strip.row

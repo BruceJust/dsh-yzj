@@ -19,21 +19,11 @@ import {
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /**
-     * The private ledger. **Optional on purpose**: `pledger.enabled = false`
-     * provides nothing at all, so every consumer's degradation path is the one
-     * it already has for「服务没挂」 rather than a second, private branch
-     * (断言⑩).
-     */
+    /** 可选是故意的：`enabled=false` 什么都不提供，消费者只有「服务没挂」这一条回落路（断言⑩）。 */
     yzjPledger?: YzjPledger
   }
   interface Events {
-    /**
-     * One private event was appended and folded. The vault re-renders from
-     * this. It is emitted on the plugin context like any other cordis event —
-     * and no organization-side package subscribes to it, because no
-     * organization-side package may import this module at all (PTD-3).
-     */
+    /** 一条私事件已追加并折叠；组织侧包不得订阅——它们根本不许 import 本模块（PTD-3）。 */
     'yzj-pledger/appended'(event: GraphEvent): void
   }
 }
@@ -60,14 +50,7 @@ export class YzjPledger extends Service {
     for (const family of PLEDGER_FAMILIES) this.store.register(family)
   }
 
-  /**
-   * The one viewer this ledger has.
-   *
-   * Private rather than a parameter: {@link PledgerViewer} has a single
-   * inhabitant, and handing it to callers would invite somebody to build a
-   * second one. Reads below simply do not ask who is looking, because the
-   * directory answers that question before the process starts.
-   */
+  /** 唯一的 viewer：不做参数，读取面不问谁在看——目录在进程启动前就回答了。 */
   private get viewer(): PledgerViewer {
     return { kind: 'operator', openId: this.operatorOpenId ?? '' }
   }

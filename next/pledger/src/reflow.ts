@@ -20,13 +20,10 @@ export interface PairedFact {
 }
 
 /**
- * 回流配对表（P1）。每一行：族 × 同意与否 × 组织图事件形状 → 反转 / 印证。
- *
- * | 验收 accept | 反转：同承诺 `commitment/reopened`；转包子边 `commitment/opened{parentCommitmentId}`；
- * |            | 同目标同对话 7 日内新 `commitment/opened`（弱路径）
- * | 验收 reject | 印证：返工后同承诺 `commitment/closed` 且轮次 ≥ 1
- * | 目标提案 确认 | 反转：落库的子承诺 7 日内 `commitment/voided`
- * | 标准写确认 / 目标评估 | 无结构性来源（如实留空——正面证据只能靠押）
+ * 回流配对表（P1）：族 × 同意与否 × 组织图事件形状 → 反转 / 印证。
+ * 验收 accept 反转：`commitment/reopened`；转包子边；同目标同对话 7 日内新 opened（弱路径）；差距简报标为未达。
+ * 验收 reject 印证：返工后 `commitment/closed` 且轮次 ≥ 1；差距简报标为已达。目标提案确认反转：子承诺 7 日内 voided。
+ * 标准写确认 / 目标评估：无结构性来源，如实留空（正面证据只能靠押）。
  */
 export function pairFact(ctx: Context, verdict: FiledVerdict, event: GraphEvent): PairedFact | undefined {
   const data = asRecord(event.data)
@@ -39,6 +36,22 @@ export function pairFact(ctx: Context, verdict: FiledVerdict, event: GraphEvent)
   })
 
   if (verdict.family === 'acceptance' && kind === 'commitment') {
+    // 差距简报两行：把你验收过的这条标为未达 → 反转；把你打回过的这条标为已达 → 印证。只认点名这条承诺（id 或原话）的简报行。
+    if (event.type === 'assessment/reported') {
+      const goal = goalRefOf(ctx, kind, id)
+      if (goal === undefined || asString(data.goalRef) !== goal) return undefined
+      const what = asString(asRecord(ctx.get('yzjGraph')?.rawObject('commitment', id)?.state)?.what) ?? ''
+      const brief: OrgAnchor = { kind: 'assessment', id: asString(data.assessmentId) ?? '' }
+      for (const raw of Array.isArray(data.lines) ? data.lines : []) {
+        const line = asRecord(raw)
+        const evidence = asString(line?.evidence) ?? ''
+        if (!(evidence.includes(id) || (what !== '' && evidence.includes(what)))) continue
+        const criterion = asString(line?.criterion) ?? ''
+        if (verdict.agree && asString(line?.verdict) === 'missing') return shot('reversed', `差距简报把你验收过的这条标为未达：${criterion}`, brief)
+        if (!verdict.agree && asString(line?.verdict) === 'met') return shot('vindicated', `打回之后，差距简报把这条标为已达：${criterion}`, brief)
+      }
+      return undefined
+    }
     if (verdict.agree) {
       if (event.type === 'commitment/reopened' && asString(data.commitmentId) === id) {
         return shot('reversed', `你验收过的这一条又被打回：${asString(data.cause) ?? '返工'}`, { kind, id })
