@@ -42,6 +42,27 @@ export interface YzjRunResult {
   readonly durationMs: number
 }
 
+/**
+ * yzj-cli 0.1.6 起，成功输出统一包在信封里：`{ success: true, identity, data }`——
+ * 0.1.4 及之前是裸数据（数组，或 `{ list, more }` 这样的对象）。
+ *
+ * **在这一点剥壳，而且只在这一点**：桥接层是所有消费者读 `result.json` 的唯一入口
+ * （通道 / 工具 / 桌面 / 私账），每个消费者各自兼容两种形状，就是十几处可以忘记的
+ * 地方——而忘掉一处的形态不是报错，是「(no workspaces)」这种恰好为空的屏幕。
+ * 这次升级正是这么把两个实例一起打断的：identity 读到的是整只信封，`openId` 在
+ * `data` 里，通道以为登录没了。
+ *
+ * 认信封的判据是**形状**不是版本：`success === true` 且带 `data` 键。裸数据里不会
+ * 同时出现这两样（旧形状的对象是 `{ list, more }` / `{ msgId }` 之类）。失败信封走
+ * 的是 stderr + 非零 exit，不经这里。
+ */
+export function unwrapEnvelope(json: unknown): unknown {
+  if (json === null || typeof json !== 'object' || Array.isArray(json)) return json
+  const record = json as Record<string, unknown>
+  if (record.success === true && 'data' in record) return record.data
+  return json
+}
+
 /** Failed to launch the configured binary. */
 export class YzjSpawnError extends Error {}
 
@@ -204,7 +225,7 @@ export class YzjBridge extends Service {
         let json: unknown
         if (stdout.trim() !== '') {
           try {
-            json = JSON.parse(stdout) as unknown
+            json = unwrapEnvelope(JSON.parse(stdout) as unknown)
           } catch {
             // Non-JSON output stays text-only.
           }

@@ -8,7 +8,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { fileURLToPath } from 'node:url'
-import { YzjBridge, YzjSpawnError, resolveNpmLauncher } from '../src/index.ts'
+import { YzjBridge, YzjSpawnError, resolveNpmLauncher, unwrapEnvelope } from '../src/index.ts'
 
 const FAKE_BINARY = fileURLToPath(new URL('./fixtures/fake-yzj-cli.mjs', import.meta.url))
 const WINDOWS = process.platform === 'win32'
@@ -77,5 +77,33 @@ describe('YzjBridge.run', () => {
 describe('resolveNpmLauncher', () => {
   it('returns undefined for an unreadable path', () => {
     expect(resolveNpmLauncher('/nonexistent/launcher.cmd')).toBeUndefined()
+  })
+})
+
+describe('yzj-cli 0.1.6 的输出信封', () => {
+  it('在桥接层剥壳：消费者读到的仍是裸数据', async () => {
+    /*
+      0.1.6 把所有成功输出包成 `{ success, identity, data }`。这次升级正是这么把两个
+      实例一起打断的：identity 读到整只信封，openId 在 data 里，通道以为登录没了。
+      **剥壳只在这一点**——每个消费者各自兼容两种形状，就是十几处可以忘记的地方。
+    */
+    const result = await bridgeWith().run(fakeArgs(['envelope']), { timeoutMs: 5_000 })
+    expect(result.ok).toBe(true)
+    expect(result.json).toEqual({ list: [{ id: 'a' }], more: false, count: 1 })
+  })
+
+  it('认的是形状不是版本：裸数据一个字节不动', () => {
+    for (const bare of [
+      [{ id: 'a' }],
+      { list: [], more: true },
+      { msgId: 'm-1' },
+      { success: false, error: { type: 'api' } },
+      { data: 1 },
+      'text', 3, null, undefined,
+    ]) {
+      expect(unwrapEnvelope(bare)).toEqual(bare)
+    }
+    expect(unwrapEnvelope({ success: true, identity: 'user', data: [1] })).toEqual([1])
+    expect(unwrapEnvelope({ success: true, data: null })).toBeNull()
   })
 })
