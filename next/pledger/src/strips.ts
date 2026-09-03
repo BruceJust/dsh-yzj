@@ -12,7 +12,7 @@ export type Strip =
   | { readonly kind: 'spread'; readonly requirements: readonly AnchoredText[]; readonly delivery: readonly AnchoredText[] }
   | { readonly kind: 'mirror'; readonly family: string; readonly cases: readonly ReceiptRow[] }
 
-const CARD_FAMILY: Readonly<Record<string, string>> = { commitment: 'acceptance', approval: 'write-confirm', proposal: 'proposal', assessment: 'assessment' }
+const CARD_FAMILY: Readonly<Record<string, string>> = { commitment: 'acceptance', task: 'acceptance', approval: 'write-confirm', proposal: 'proposal', assessment: 'assessment' }
 
 export function familyOfCard(kind: string): string | undefined {
   const family = CARD_FAMILY[kind]
@@ -29,7 +29,7 @@ export function stripsFor(ctx: Context, cardKind: string, id: string, resolved: 
   for (const row of pledgeRows(ctx, now)) if (mine(row.verdict) && row.status !== 'withdrawn') out.push({ kind: 'pledge', row })
   for (const row of receiptRows(ctx)) if (mine(row.verdict)) out.push({ kind: 'receipt', row })
   if (family === 'acceptance' && !resolved) {
-    if (clauseOn(ctx, 'spread', family)) out.push({ kind: 'spread', ...spreadOf(ctx, id, now) })
+    if (clauseOn(ctx, 'spread', family)) out.push({ kind: 'spread', ...spreadOf(ctx, cardKind, id, now) })
     if (clauseOn(ctx, 'mirror', family)) {
       const cases = receiptRows(ctx).filter(row => row.family === family && row.attribution !== undefined && !row.dismissed).slice(0, 2)
       if (cases.length > 0) out.push({ kind: 'mirror', family: familyLabel(family), cases })
@@ -38,13 +38,13 @@ export function stripsFor(ctx: Context, cardKind: string, id: string, resolved: 
   return out
 }
 
-/** 「先看」= 要求 × 交付。要求：目标成功标准；没目标就是对方原话 + 委派原话。交付：主张 + 轮次 + 工件。 */
-function spreadOf(ctx: Context, commitmentId: string, now: number): { requirements: AnchoredText[]; delivery: AnchoredText[] } {
+/** 「先看」= 要求 × 交付。要求：目标成功标准；没目标就是对方原话 + 委派原话。交付：主张 + 轮次 + 工件。任务卡（task）走同一张脸：原话 × 这条话题里产出的工件。 */
+function spreadOf(ctx: Context, cardKind: string, id: string, now: number): { requirements: AnchoredText[]; delivery: AnchoredText[] } {
   const graph = ctx.get('yzjGraph')
-  const state = asRecord(graph?.rawObject('commitment', commitmentId)?.state)
+  const state = asRecord(graph?.rawObject(cardKind === 'task' ? 'task' : 'commitment', id)?.state)
   const at = new Date(now).toISOString()
   const requirements: AnchoredText[] = []
-  const goalRef = asString(state?.parentGoalRef)
+  const goalRef = cardKind === 'task' ? undefined : asString(state?.parentGoalRef)
   if (goalRef !== undefined && graph !== undefined) {
     for (const event of graph.rawEvents(['commitment/opened'])) {
       const data = asRecord(event.data)
@@ -58,7 +58,7 @@ function spreadOf(ctx: Context, commitmentId: string, now: number): { requiremen
       break
     }
   }
-  if (requirements.length === 0) requirements.push({ text: `委派原话：${asString(state?.what) ?? ''}`, at })
+  if (requirements.length === 0) requirements.push({ text: `${cardKind === 'task' ? '对方原话' : '委派原话'}：${asString(state?.what) ?? ''}`, at })
   const delivery: AnchoredText[] = []
   const claim = asRecord(state?.delivery)
   if (asString(claim?.claim) !== undefined) delivery.push({ text: `交付主张：${asString(claim?.claim) ?? ''}`, at })

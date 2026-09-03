@@ -86,7 +86,8 @@ export function receiptRows(ctx: Context): readonly ReceiptRow[] {
   const out: ReceiptRow[] = []
   for (const object of pledger.query('calibration')) {
     const state = asRecord(object.state)
-    if (state === undefined) continue
+    // v2 形状的旧行（无 type / then）不上屏：历史册只作拆除对照，旧账在原件里，不在这一页。
+    if (state === undefined || !Array.isArray(state.then) || familySpec(asString(state.family) ?? '') === undefined) continue
     const attribution = asString(state.attribution) as Attribution | undefined
     const status = asString(state.status)
     out.push({
@@ -115,7 +116,7 @@ export function pledgeRows(ctx: Context, now: number): readonly PledgeRow[] {
   const out: PledgeRow[] = []
   for (const object of pledger.query('expectation')) {
     const state = asRecord(object.state)
-    if (state === undefined) continue
+    if (state === undefined || familySpec(asString(state.family) ?? '') === undefined || asRecord(state.checkpoint) === undefined) continue
     const verdict = anchoredOf(state.verdict)
     const checkpoint = asRecord(state.checkpoint)
     const ts = checkpoint?.ts

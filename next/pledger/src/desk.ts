@@ -99,7 +99,7 @@ export function createDesk(ctx: Context): PledgerDesk {
       if (verdict === undefined) return undefined
       const pledger = ctx.get('yzjPledger')
       const pledged = pledger?.findByIdemKey(`expectation:${verdict.anchor.kind}:${verdict.anchor.id}`) !== undefined
-      return pledged ? undefined : '……或「押：」一句预期，可选'
+      return pledged ? undefined : '或「押：」一句预期，可选'
     },
     withdraw: (expectationId, reason) => withdraw(ctx, expectationId, reason),
     note: (text, about) => noteFact(ctx, { text, about }),
