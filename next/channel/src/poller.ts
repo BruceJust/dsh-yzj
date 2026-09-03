@@ -31,7 +31,7 @@ import { triage, triageOutbound, type TriageOutcome } from './triage.ts'
 import { parseSendTime, type DeskSend, type PresenceView } from './topics.ts'
 import {
   classifyPeerOutbound, looksLikeInstanceOutbound, presenceDeclaration, presenceWithdrawal,
-  resolveAddressee, type ClaimTier, type PeerSignal, type YieldReason,
+  resolveAddressee, resolveCommand, type ClaimTier, type PeerSignal, type YieldReason,
 } from './presence.ts'
 import { executeHandoff, openHandoffCard, prepareHandoff, type HandoffPlan } from './handoff.ts'
 import type { YzjChannelClient } from './client.ts'
@@ -486,9 +486,29 @@ export class YzjPoller {
         */
         const anchor = message.param.replyMsgId ?? message.param.replyRootMsgId
         const owner = anchor === undefined ? undefined : this.state.peerMessageOf(anchor)
-        if (owner !== undefined && conversationKindForGroup(group) === 'group') {
-          await this.recordYield(placeKeyFor('group', group.groupId), message.msgId, 'object-owner', owner.openId)
-          return
+        if (conversationKindForGroup(group) === 'group') {
+          const placeKey = placeKeyFor('group', group.groupId)
+          if (owner !== undefined) {
+            await this.recordYield(placeKey, message.msgId, 'object-owner', owner.openId)
+            return
+          }
+          // 裸命令按同一把刀切，但不等：发言者有实例就是他的实例答，仅本人不答他人的。
+          const speakerPeer = message.fromOpenId === identity.openId ? undefined : this.state.peerOf(message.fromOpenId)
+          const verdict = resolveCommand({
+            speakerOpenId: message.fromOpenId,
+            selfOpenId: identity.openId,
+            ...(speakerPeer === undefined ? {} : { speakerInstance: { openId: message.fromOpenId, name: speakerPeer.name } }),
+            selfScope: this.allowed(group.groupId) ? (this.state.scopeOf(group.groupId) ?? 'all') : 'off',
+            peersOnDuty: this.state.peersOnDutyIn(group.groupId),
+          })
+          if (verdict.kind === 'yield') {
+            await this.recordYield(placeKey, message.msgId, verdict.reason, verdict.to)
+            return
+          }
+          if (verdict.kind === 'unserved') {
+            await this.recordYield(placeKey, message.msgId, 'presence', undefined)
+            return
+          }
         }
         await this.runCommand(group, message, outcome.name, outcome.argument, identity)
         return
@@ -530,6 +550,18 @@ export class YzjPoller {
     const time = parseSendTime(message.sendTime) || Date.now()
     const signal = classifyPeerOutbound(message.content)
     const known = this.state.peerOf(message.fromOpenId)?.name
+    /*
+      名字给人读：让位帖「已由 云小助（张三）接单」、板上「云小助（张三）登记的真身…」。
+      旧构建的实例没有落款，名字只能问名录——问一次，记住；问不到就先用 openId，
+      不猜。这一趟不等它：观测不该被一次目录读拖住。
+    */
+    if (signature === undefined && (known === undefined || known === message.fromOpenId)) {
+      const openId = message.fromOpenId
+      void this.client.usersByOpenId([openId]).then((users) => {
+        const user = users.find(candidate => candidate.openId === openId)
+        if (user !== undefined && user.name !== openId) this.state.rememberPeer(openId, user.name, time)
+      }).catch(this.onError)
+    }
     this.state.rememberPeer(message.fromOpenId, signature?.operator ?? known ?? message.fromOpenId, time)
     this.state.recordPeerMessage({
       msgId: message.msgId,
@@ -546,6 +578,16 @@ export class YzjPoller {
       })
     }
     return signal
+  }
+
+  /**
+   * 桌面读回来的一页消息，顺手当观测 (决策 #63 桌面出站对称的数据基础)。
+   *
+   * 不在岗的群我们不轮询，于是永远不知道谁在那儿对群在岗——而锚定条要在按下之前说
+   * 「本群在岗：云小助（张三）」。群视图本来就要读这一页，零额外调用。
+   */
+  observeMessages(groupId: string, messages: readonly YzjMessage[]): void {
+    for (const message of messages) this.observePeer(groupId, message)
   }
 
   /** 读一个群的近史（两页）找同侪的在岗声明与出站——接单前、以及每个在岗群每进程一次。 */

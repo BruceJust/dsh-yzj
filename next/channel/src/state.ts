@@ -202,6 +202,8 @@ function freshAccount(): AccountState {
 }
 
 const MAX_PEER_MESSAGES = 2_000
+/** 一个同侪实例多久没出声就不再当它存在——级 1 的一周期延迟不该为一个卸了的助理永远付。 */
+const PEER_RETAIN_MS = 30 * 24 * 60 * 60 * 1_000
 
 export class ChannelState {
   private data: StateFile = { version: 1, accounts: {} }
@@ -587,6 +589,9 @@ export class ChannelState {
       account.peerMessages = (account.peerMessages ?? [])
         .filter(entry => entry.time >= now - RETAIN_MS)
         .slice(-MAX_PEER_MESSAGES)
+      account.peers = Object.fromEntries(
+        Object.entries(account.peers ?? {}).filter(([, peer]) => peer.lastSeen >= now - PEER_RETAIN_MS),
+      )
       const topics = Object.entries(account.messageTopics)
       if (topics.length > MAX_TOPIC_INDEX) {
         account.messageTopics = Object.fromEntries(topics.slice(-MAX_TOPIC_INDEX))

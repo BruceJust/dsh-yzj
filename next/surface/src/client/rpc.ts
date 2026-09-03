@@ -162,7 +162,9 @@ export interface ContractViewWire {
   bannedTools: string[]
   revocations: { messageId: string; reason: string; time: number }[]
   /** 这个开关最近几次是谁按的（v3.15 裁决⑤：记下来而没人读得到，等于没记）。 */
-  servedChanges?: { served: boolean; by?: string; time: number }[]
+  servedChanges?: { served: boolean; by?: string; time: number; scope?: 'all' | 'self' }[]
+  /** 「我的 agent 为什么没接」：这个场所最近几次让位 (决策 #63)。 */
+  yields?: { time: number; reason: 'object-owner' | 'speaker-instance' | 'presence' | 'ack-order'; to?: string; loud: boolean }[]
   leasesAvailable: boolean
   /** 在岗图景 (决策 #63)：接单开关的范围在这里选。 */
   presence?: PresenceWire

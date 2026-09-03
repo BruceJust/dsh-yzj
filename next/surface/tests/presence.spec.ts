@@ -73,6 +73,31 @@ describe('合同面板：范围与同侪', () => {
   })
 })
 
+describe('合同面板：「我的 agent 为什么没接」可从让位账作答', () => {
+  it('这个场所的让位按时间倒序，带着让给了谁、静默还是有帖', async () => {
+    await ctx.yzjGraph.append({
+      type: 'presence/yielded',
+      data: { placeKey: PLACE, triggerAnchor: 'yzj:m-1', reason: 'speaker-instance', toOperatorOpenId: 'op-zhang' },
+      actor: { kind: 'system' },
+    })
+    await ctx.yzjGraph.append({
+      type: 'presence/yielded',
+      data: { placeKey: PLACE, triggerAnchor: 'yzj:m-2', reason: 'ack-order', toOperatorOpenId: 'op-zhang', retractAnchor: 'y-1' },
+      actor: { kind: 'system' },
+    })
+    await ctx.yzjGraph.append({
+      type: 'presence/yielded',
+      data: { placeKey: 'yzj-group-elsewhere', triggerAnchor: 'yzj:m-3', reason: 'presence' },
+      actor: { kind: 'system' },
+    })
+    const view = contractView(ctx, PLACE)
+    expect(view.yields.map(item => [item.reason, item.to, item.loud])).toEqual([
+      ['ack-order', 'op-zhang', true],
+      ['speaker-instance', 'op-zhang', false],
+    ])
+  })
+})
+
 describe('承诺板：P1 明标降级', () => {
   it('没有观察到同侪实例时，板上没有那句话——它只在多实例部署下出现', () => {
     expect(boardFrame(ctx).mirrorNote).toBeUndefined()

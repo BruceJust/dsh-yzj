@@ -309,6 +309,19 @@ export interface ContractView {
    */
   readonly servedChanges: readonly {
     readonly served: boolean; readonly by?: string; readonly time: number
+    readonly scope?: 'all' | 'self'
+  }[]
+  /**
+   * **「我的 agent 为什么没接」** (决策 #63)：这个场所最近几次让位——让给了谁、凭哪一级。
+   *
+   * 记下来而没人读得到，等于没记（v3.15⑤ 的原话）。让位账落在图上，这里是人真正会
+   * 来问的那块面板。
+   */
+  readonly yields: readonly {
+    readonly time: number
+    readonly reason: 'object-owner' | 'speaker-instance' | 'presence' | 'ack-order'
+    readonly to?: string
+    readonly loud: boolean
   }[]
   /** False while no lease can be granted — stated, not implied by an empty list. */
   readonly leasesAvailable: boolean
@@ -317,6 +330,11 @@ export interface ContractView {
    * 以及观察到的同侪在岗实例。接单开关的两种范围在这里选。
    */
   readonly presence?: PresenceView
+}
+
+/** 接单记录上的范围，认得出才带上——旧记录没有它，按对群读，但不替它编一个。 */
+function scopeOf(value: string | undefined): { scope?: 'all' | 'self' } {
+  return value === 'all' || value === 'self' ? { scope: value } : {}
 }
 
 export function contractView(ctx: Context, placeKey: string): ContractView {
@@ -356,7 +374,25 @@ export function contractView(ctx: Context, placeKey: string): ContractView {
         ? {}
         : { by: asString((event.actor as { openId?: string }).openId) as string }),
       time: event.time,
+      ...scopeOf(asString(asRecord(event.data)?.scope)),
     }))
+    .reverse()
+    .slice(0, 5)
+  const yields = ctx.yzjGraph.rawEvents(['presence/yielded'])
+    .filter(event => asString(asRecord(event.data)?.placeKey) === placeKey)
+    .map((event) => {
+      const data = asRecord(event.data)
+      const reason = asString(data?.reason)
+      const to = asString(data?.toOperatorOpenId)
+      return {
+        time: event.time,
+        reason: (reason === 'object-owner' || reason === 'speaker-instance' || reason === 'ack-order'
+          ? reason
+          : 'presence') as 'object-owner' | 'speaker-instance' | 'presence' | 'ack-order',
+        ...(to === undefined ? {} : { to }),
+        loud: asString(data?.retractAnchor) !== undefined,
+      }
+    })
     .reverse()
     .slice(0, 5)
   const revocations = ctx.yzjGraph.rawEvents(['authority/revoked'])
@@ -377,6 +413,7 @@ export function contractView(ctx: Context, placeKey: string): ContractView {
     oaRequiredCategories: contract.oaRequiredCategories,
     strongTools,
     servedChanges,
+    yields,
     standardCount,
     bannedTools: [...GATEWAY_ESCAPE_TOOLS],
     revocations,

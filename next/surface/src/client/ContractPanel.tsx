@@ -114,7 +114,37 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                         : <>
                           agent 在这里<b>接受全群委派</b>：@ 它或回复它的消息都会起一个回合。
                           {view.presence?.selfAnchor === undefined
-                            ? <span className={css.noteBad}>在岗声明帖没有发出去——群里还不知道它在岗。</span>
+                            ? <>
+                              <span className={css.noteBad}>还没向群发过在岗声明——群里不知道它在岗。</span>
+                              {/*
+                                部署名单里的群是配置签的岗，不是人对着群签的。补这一帖仍然要
+                                人按——它是身份/听众敏感的动作，不自动发。
+                              */}
+                              <button
+                                type="button"
+                                className={css.serveBtn}
+                                disabled={busy}
+                                onClick={() => {
+                                  setBusy(true)
+                                  void inject.setServed(placeKey, true, 'all').then((result) => {
+                                    setBusy(false)
+                                    if (result.error !== undefined) setNote(result.error)
+                                    else if (result.conflict !== undefined) {
+                                      setConflict({
+                                        name: result.conflict.name,
+                                        since: result.conflict.since,
+                                        ...(result.draft === undefined ? {} : { draft: result.draft }),
+                                      })
+                                    } else {
+                                      setNote(result.announced === false ? '在岗声明帖没发出去——群里还不知道它在岗。' : '')
+                                      void load()
+                                    }
+                                  })
+                                }}
+                              >
+                                向群发在岗声明
+                              </button>
+                            </>
                             : <>已向群发过在岗声明。</>}
                           <div className={css.note}>
                             已知缺陷：这台电脑合盖离线时，本群<b>无人接单，而群里不会知道</b>
@@ -337,11 +367,37 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                         {(view.servedChanges ?? []).map(item => (
                           <li key={`${String(item.time)}-${String(item.served)}`}>
                             {new Date(item.time).toLocaleString('zh-CN', { hour12: false })}
-                            {' · '}{item.served ? '接入' : '移出'}
+                            {' · '}{item.served ? (item.scope === 'self' ? '接入（仅本人）' : '接入（对群在岗）') : '移出'}
                             {item.by === undefined ? '' : ` · ${item.by}`}
                           </li>
                         ))}
                       </ul>
+                    )}
+                    {/*
+                      **「我的 agent 为什么没接」** (决策 #63)：让位账在这里读。静默让位没有帖、
+                      只有账——正因为如此它必须在面板上，否则"没接"看起来像"坏了"。
+                    */}
+                    {(view.yields ?? []).length > 0 && (
+                      <div className={css.note}>
+                        最近让位：
+                        <ul className={css.list}>
+                          {(view.yields ?? []).map(item => (
+                            <li key={`${String(item.time)}-${item.reason}`}>
+                              {new Date(item.time).toLocaleString('zh-CN', { hour12: false })}
+                              {' · '}
+                              {item.reason === 'object-owner'
+                                ? '对象在别的实例图上'
+                                : item.reason === 'speaker-instance'
+                                  ? '发言者自己的助理接了'
+                                  : item.reason === 'ack-order'
+                                    ? '对方先应了（总序）'
+                                    : '本机不对群在岗'}
+                              {item.to === undefined ? '' : ` · 让给 ${item.to}`}
+                              {item.loud ? ' · 有让位帖' : ' · 静默'}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                     {note !== '' && <div className={css.noteBad}>{note}</div>}
                   </span>

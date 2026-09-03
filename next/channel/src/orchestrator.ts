@@ -538,6 +538,21 @@ export class YzjOrchestrator {
       }
       // task/opened 即胜出证据：输了的回合没有任务对象，也就没有僵尸。
       await this.openTask(taskId, trigger, route, settled)
+      /*
+        ack 带着句柄，就得登记为这张卡的一个片段：对着它回「验收」要解析到任务卡（状态机
+        会答「还没交付」），而不是被当成一句新的委派开出第二个回合。句柄写在消息里、
+        消息却不认这张卡，是分诊③ 兑不了的承诺。
+      */
+      if (active.ackId !== undefined) {
+        await this.ctx.yzjCards.project({
+          cardRef: { kind: 'task', id: taskId },
+          surface: YZJ_TEXT_SURFACE,
+          msgAnchors: [active.ackId],
+          placeKey: route.placeKey,
+        }).catch((error: unknown) => {
+          console.error('[yzj-next-channel] failed to register the ack projection', error)
+        })
+      }
       const firstSeq = agent.session.seq
       agent.followup(createUserMessage({
         content: [{

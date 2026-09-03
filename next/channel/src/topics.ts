@@ -428,6 +428,8 @@ export class YzjTopicReader implements YzjTopics {
     private readonly presence: {
       readonly of: (groupId: string) => PresenceView
       readonly peers: () => readonly { openId: string; name: string; lastSeen: number }[]
+      /** 桌面读到的消息交给轮询那一侧当观测：不在岗的群里谁在岗，只有这条路能知道。 */
+      readonly observe?: (groupId: string, messages: readonly YzjMessage[]) => void
     },
   ) {}
 
@@ -726,6 +728,7 @@ export class YzjTopicReader implements YzjTopics {
       if (!older.more) break
     }
     await this.resolveNames(mine)
+    this.presence.observe?.(topic.groupId, scanned)
     return mine
       .map(message => this.render(message, topic.groupId))
       .sort((left, right) => left.time - right.time)
@@ -806,6 +809,7 @@ export class YzjTopicReader implements YzjTopics {
       if (!older.more) break
     }
     await this.resolveNames(scanned)
+    this.presence.observe?.(groupId, scanned)
     const group: YzjGroup = {
       groupId, groupName: '', groupType: 2, lastMsgId: '', lastMsgSendTime: '',
     }

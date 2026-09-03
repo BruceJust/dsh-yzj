@@ -46,8 +46,9 @@ export {
   type TopicDescriptor, type TopicMessage, type YzjTopics,
 } from './topics.ts'
 export {
-  ackText, acksIn, claimVerdict, classifyPeerOutbound, presenceDeclaration, presenceWithdrawal,
-  resolveAddressee, reviewClaim, tierOfPeer, withdrawRequestDraft, yieldNotice,
+  ackText, acksIn, claimVerdict, classifyPeerOutbound, looksLikeInstanceOutbound, presenceDeclaration,
+  presenceWithdrawal, resolveAddressee, resolveCommand, reviewClaim, tierOfPeer, withdrawRequestDraft,
+  yieldNotice,
   type AckObservation, type ClaimTier, type ClaimVerdict, type Contender, type PeerSignal,
   type Resolution, type ResolveInput, type YieldReason,
 } from './presence.ts'
@@ -316,6 +317,8 @@ export function apply(ctx: Context, config: Config): void {
         {
           of: (groupId) => poller.presenceIn(groupId),
           peers: () => state.peers(),
+          // 桌面读到的每一页消息都是观测：不在岗的群里谁在岗，只有这条路能知道。
+          observe: (groupId, messages) => { poller.observeMessages(groupId, messages) },
         },
       )))
       disposers.push(ctx.provide('yzjTurns', {

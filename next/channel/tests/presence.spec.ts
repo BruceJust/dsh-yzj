@@ -18,7 +18,7 @@ import type { YzjRunResult } from '@yzj-next/bridge'
 import { readSignature, SIGNATURE_AGENT, signOutbound } from '@yzj-next/objects'
 import {
   ackText, acksIn, classifyPeerOutbound, presenceDeclaration, presenceWithdrawal,
-  resolveAddressee, reviewClaim, withdrawRequestDraft, yieldNotice,
+  resolveAddressee, resolveCommand, reviewClaim, withdrawRequestDraft, yieldNotice,
   type ClaimTier, type Resolution,
 } from '../src/presence.ts'
 import { triage, type TriageInput } from '../src/triage.ts'
@@ -248,6 +248,24 @@ describe('断言⑦② 发言者实例优先于在岗 —— 真身跟说话的�
     const solo: Instance = { me: BRUCE, scope: 'all', peersOnDuty: [], knownPeers: { [ZHANG.openId]: ZHANG.name } }
     expect(resolve(solo, stream, trigger, false)).toEqual({ kind: 'wait', cycles: 1 })
     expect(resolve(solo, stream, trigger, true)).toMatchObject({ kind: 'mine', tier: 'presence', tiebreak: 'sole' })
+  })
+})
+
+describe('裸命令按同一把刀切，但不等', () => {
+  const base = { selfOpenId: BRUCE.openId, selfScope: 'all' as const, peersOnDuty: [ZHANG] }
+
+  it('本人的命令我答；有实例的人的命令归他的实例；没助理的人的命令归对群在岗的我', () => {
+    expect(resolveCommand({ ...base, speakerOpenId: BRUCE.openId })).toEqual({ kind: 'mine' })
+    expect(resolveCommand({ ...base, speakerOpenId: ZHANG.openId, speakerInstance: ZHANG }))
+      .toEqual({ kind: 'yield', reason: 'speaker-instance', to: ZHANG.openId })
+    expect(resolveCommand({ ...base, speakerOpenId: LISI.openId })).toEqual({ kind: 'mine' })
+  })
+
+  it('仅本人：他人的命令不由我答', () => {
+    expect(resolveCommand({ ...base, selfScope: 'self', speakerOpenId: LISI.openId }))
+      .toEqual({ kind: 'yield', reason: 'presence', to: ZHANG.openId })
+    expect(resolveCommand({ ...base, selfScope: 'self', peersOnDuty: [], speakerOpenId: LISI.openId }))
+      .toEqual({ kind: 'unserved' })
   })
 })
 
@@ -525,9 +543,18 @@ describe('运行态：同侪观测与让位一周期都要落盘', () => {
     expect(state.peersOnDutyIn('g-1')).toEqual([])
   })
 
+  it('一个月没出声的同侪不再当它存在：级 1 的一周期延迟不为卸了的助理永远付', async () => {
+    const now = Date.now()
+    state.rememberPeer(ZHANG.openId, '张三', now - 31 * 24 * 60 * 60 * 1_000)
+    state.rememberPeer(LISI.openId, '李四', now)
+    await state.save(now)
+    expect(state.peerOf(ZHANG.openId)).toBeUndefined()
+    expect(state.peerOf(LISI.openId)?.name).toBe('李四')
+  })
+
   it('停车、范围、同侪都跨重启存活——游标过了的触发不能靠内存', async () => {
     state.setServed('g-1', true, 'self')
-    state.rememberPeer(ZHANG.openId, '张三', 1)
+    state.rememberPeer(ZHANG.openId, '张三', Date.now())
     state.recordPeerMessage({ msgId: 'ack-1', groupId: 'g-1', openId: ZHANG.openId, time: Date.now(), signal: 'ack', replyMsgId: 'm-1' })
     state.park({ group: GROUP, message: message(), readyAt: 5 })
     await state.save()

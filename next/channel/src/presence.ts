@@ -194,6 +194,33 @@ export function resolveAddressee(input: ResolveInput): Resolution {
   }
 }
 
+/**
+ * **裸命令**（没有回复锚的 `/status` `/cancel` …）归谁答。
+ *
+ * 命令走旁路，不排队、不 ack，所以没有认领竞赛可裁——两个对群在岗的实例都答一句
+ * `/status` 是噪音不是双写，可 `/cancel` 各取消各的话题就未必是人要的。于是按同一
+ * 把刀切，但**不等**：发言者是本人 → 我答；发言者有实例 → 他的实例答，我不插嘴；
+ * 仅本人 → 他人的命令不由我答；对群在岗 → 我答。
+ */
+export function resolveCommand(input: {
+  readonly speakerOpenId: string
+  readonly selfOpenId: string
+  readonly speakerInstance?: Contender
+  readonly selfScope: 'all' | 'self' | 'off'
+  readonly peersOnDuty: readonly Contender[]
+}): { readonly kind: 'mine' } | { readonly kind: 'yield'; readonly reason: YieldReason; readonly to?: string } | { readonly kind: 'unserved' } {
+  if (input.selfScope === 'off') return { kind: 'unserved' }
+  if (input.speakerOpenId === input.selfOpenId) return { kind: 'mine' }
+  if (input.speakerInstance !== undefined) {
+    return { kind: 'yield', reason: 'speaker-instance', to: input.speakerInstance.openId }
+  }
+  if (input.selfScope === 'self') {
+    const peer = input.peersOnDuty[0]
+    return peer === undefined ? { kind: 'unserved' } : { kind: 'yield', reason: 'presence', to: peer.openId }
+  }
+  return { kind: 'mine' }
+}
+
 // ---------------------------------------------------------------------------
 // 认领裁决 —— 复核段的判断。
 // ---------------------------------------------------------------------------
