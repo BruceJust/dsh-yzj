@@ -486,6 +486,22 @@ describe('板上的今天', () => {
     expect(events.map(event => event.eventId)).toEqual(['ev-next'])
   })
 
+  it('yzj-cli 0.1.6 的 { count, list } 形状下，今日会议不会悄悄变空', async () => {
+    /*
+      0.1.4 回裸数组，0.1.6 回 `{ count, list }`。只认数组，这一段的表现不是报错，
+      是板上「今日会议」**恰好为空**——一处会前那一眼从此看不见的退化。
+    */
+    ctx.provide('yzjBridge', {
+      run: (command: string[]) => Promise.resolve(
+        command[1] === 'event' && command[2] === 'list'
+          ? { ok: true, json: { count: 1, list: [{ id: 'ev-wrapped', title: '包着的那场', startDate: NOW + 3600_000, endDate: NOW + 7200_000 }] } }
+          : { ok: true, json: {} },
+      ),
+    })
+    const events = await eventsToday(ctx, NOW)
+    expect(events.map(event => event.eventId)).toEqual(['ev-wrapped'])
+  })
+
   it('图上没见过的会，说的是「还没挂过东西」', async () => {
     calendar([{ id: 'ev-new', title: '新会', startDate: NOW + 3600_000, endDate: NOW + 7200_000 }])
     const [event] = await eventsToday(ctx, NOW)

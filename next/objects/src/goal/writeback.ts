@@ -26,12 +26,12 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asNumber, asRecord, asString, type GraphEvent, type JsonValue } from '@yzj-next/graph'
+import { asNumber, asRecord, asString, type GraphEvent } from '@yzj-next/graph'
 import { failureOf } from '../bridge-error.ts'
 import { fenceLine } from '../fence.ts'
 import { waitingIdFor } from '../task/waiting.ts'
 import { goalCommitmentIdFor } from './family.ts'
-import { bodyMark, docIdOf, fenceOf } from './truth.ts'
+import { bodyMark, bodyPayload, docIdOf, fenceOf } from './truth.ts'
 
 /**
  * 回写从哪一条日志开始负责。
@@ -171,7 +171,7 @@ async function insert(ctx: Context, docId: string, lines: string[]): Promise<Wri
     { timeoutMs: 20_000 },
   )
   if (!result.ok) return { ok: false, why: failureOf(result, '写入失败') }
-  const version = asNumber(asRecord(asRecord(result.json as JsonValue)?.data)?.version)
+  const version = asNumber(bodyPayload(result.json).version)
   return { ok: true, ...(version === undefined ? {} : { version }) }
 }
 

@@ -98,7 +98,7 @@ async function fingerprint(
   const body = prefetched
     ?? await bridge.run(['doc', 'block', 'list', '--id', docId], { timeoutMs: 20_000 })
   if (body.ok) {
-    const version = asNumber(asRecord(asRecord(body.json as JsonValue)?.data)?.version)
+    const version = asNumber(bodyPayload(body.json).version)
     if (version !== undefined) return { mark: bodyMark(version), note: `正文版本 ${String(version)}` }
   }
 
@@ -270,10 +270,25 @@ export async function readGoalBody(ctx: Context, goalRef: string): Promise<Truth
  */
 export const EMPTY_BODY = '这份文档的正文是空的'
 
+/**
+ * `doc block list` / `doc block insert` 的业务体 —— **两层都认**。
+ *
+ * yzj-cli 0.1.4 直接透传接口原样 `{ data: { version, blocks } }`；0.1.6 外面再包一层
+ * `{ success, identity, data }`，桥接层剥掉之后**仍然**是 `{ data: { version, blocks } }`
+ * （实测 2026-09-03）。只认一层，等于赌这个形状从此不再变——而这次升级已经证明
+ * 它会变，变的形态还不是报错，是「读不到正文版本」这种安静的退化。
+ */
+export function bodyPayload(json: unknown): Record<string, JsonValue> {
+  const root = asRecord(json as JsonValue) ?? {}
+  const inner = asRecord(root.data)
+  if (inner !== undefined && (inner.blocks !== undefined || inner.version !== undefined)) return inner
+  return root
+}
+
 /** 把一次 `doc block list` 的回包读成正文。分出来，是为了让指纹和正文共用同一次读。 */
 function bodyOf(result: BridgeRead): TruthBody {
   if (!result.ok) return { ok: false, why: failureOf(result, '读不到这份文档的正文') }
-  const blocks = asRecord(asRecord(result.json as JsonValue)?.data)?.blocks
+  const blocks = bodyPayload(result.json).blocks
   if (!Array.isArray(blocks)) {
     return { ok: false, why: '这份文档没有可读的正文块（可能是上传的文件，不是在线文档）' }
   }

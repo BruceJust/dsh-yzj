@@ -1164,7 +1164,10 @@ export async function eventsToday(ctx: Context, now = Date.now()): Promise<reado
     ['calendar', 'event', 'list', '--start', today, '--end', next],
     { timeoutMs: 20_000 },
   )
-  if (!result.ok || !Array.isArray(result.json)) return []
+  // 0.1.4 回裸数组，0.1.6 回 { count, list }——只认数组，今日会议那一段就悄悄空了。
+  if (!result.ok) return []
+  const eventRows = listOf(result.json)
+  if (eventRows.length === 0) return []
 
   const viewer: GraphViewer = { kind: 'operator', openId: '' }
   /*
@@ -1183,8 +1186,8 @@ export async function eventsToday(ctx: Context, now = Date.now()): Promise<reado
     value === undefined || value.trim() === '' ? undefined : value
   )
   const out: BoardEvent[] = []
-  for (const row of result.json) {
-    const record = asRecord(row)
+  for (const row of eventRows) {
+    const record = asRecord(row as never)
     const eventId = asString(record?.id)
     if (eventId === undefined) continue
     const endAt = asNumber(record?.endDate)

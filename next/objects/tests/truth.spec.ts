@@ -391,3 +391,14 @@ describe('读真身正文', () => {
     expect(read.ledger).toBe('· 一条账')
   })
 })
+
+describe('doc block 回包的两层形状', () => {
+  it('0.1.4 的 { data: { version, blocks } } 与剥壳后同形，顶层平铺也认', async () => {
+    const { bodyPayload } = await import('../src/goal/truth.ts')
+    expect(bodyPayload({ data: { version: 4, blocks: [] } })).toEqual({ version: 4, blocks: [] })
+    expect(bodyPayload({ version: 4, blocks: [] })).toEqual({ version: 4, blocks: [] })
+    // 既不带 blocks 也不带 version 的 data 不算业务体（那可能是别的命令的回包）。
+    expect(bodyPayload({ data: { id: 'x' } })).toEqual({ data: { id: 'x' } })
+    expect(bodyPayload(undefined)).toEqual({})
+  })
+})
