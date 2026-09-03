@@ -1,8 +1,4 @@
-/**
- * 私账层的公共契约 —— 自知（决策 #64 / 分册 v3.1）。三个形状把宪法写成类型：
- * {@link PledgerViewer} 只有一个住客；{@link AnchoredText} 是唯一携锚形态（私账存照片
- * 不存链接）；{@link JudgWindow} 必填（全史聚合在 API 上不可构造）。
- */
+/** 私账层公共契约（#64 / 分册 v3.1）：PledgerViewer 单住客；AnchoredText 唯一携锚形态（存照片不存链接）；JudgWindow 必填（全史聚合不可构造）。 */
 import type { JsonValue, ObjectRef } from '@yzj-next/graph'
 import { asRecord, asString } from '@yzj-next/graph'
 
@@ -84,10 +80,7 @@ export const ATTRIBUTION_LABEL: Readonly<Record<Attribution, string>> = {
   q4: '错了 · 因世界',
 }
 
-/**
- * 候选注 —— 静态常量表，只给证据与假设，不给心理判词（§4.3）。
- * 第三格引用「当时就在卡上」的那一条，由渲染层从 `then[1]` 取标题填进 `{X}`。
- */
+/** 候选注——静态常量，只给证据与假设不给判词（§4.3）；第三格的 `{X}` 由渲染层从 `then[1]` 填。 */
 export const ATTRIBUTION_NOTE: Readonly<Record<Attribution, string>> = {
   q1: '你当时看到的，就是后来发生的',
   q2: '结果是好的，但不是因为你当时看到的那些',

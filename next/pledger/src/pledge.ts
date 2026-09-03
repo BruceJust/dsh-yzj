@@ -1,7 +1,4 @@
-/**
- * 人的动词 —— 押 / 撤回 / 补一句 / 归因 / 配对错了 / 换挡。全部由人在既有面上发起，
- * actor 恒为 operator；原话直存——这条路上没有模型（PTD-30）。
- */
+/** 人的动词——押 / 撤回 / 补一句 / 归因 / 配对错了 / 换挡：全由人在既有面上发起，actor 恒为 operator，原话直存，这条路上没有模型（PTD-30）。 */
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString } from '@yzj-next/graph'
 import {
@@ -40,10 +37,7 @@ const operatorActor = (ctx: Context): { kind: 'operator'; openId?: string } => {
 
 const when = (at: number): string => new Date(at).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
 
-/**
- * 押：锚到本会话最近一条人签发的裁决。没有 → 不猜不问；已押 → 先撤回，且撤回后不可再押。
- * ack 亮出锚与检验点，可纠。
- */
+/** 押：默认锚到本会话最近裁决（指名押走句柄）。没有 → 不猜不问；已押 → 先撤回，撤回后不可再押。ack 亮出锚与检验点。 */
 export async function pledge(ctx: Context, input: { readonly topicKey: string; readonly text: string; readonly anchor?: OrgAnchor }): Promise<string> {
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined || !pledger.ready) return '私账还没打开——云之家身份还没就绪。'

@@ -1,7 +1,4 @@
-/**
- * 「我的判断」取景框 —— 与承诺板同构（§5）：组织轴 = 裁决族，组头 = 2×2 + 两分母（近 90 天
- * 滚动派生，零存储），行 = 押 / 回执。组头返回类型无判词，排序按裁决数降序（机械）。
- */
+/** 「我的判断」取景框——与承诺板同构（§5）：组织轴 = 裁决族，组头 = 2×2 + 两分母（近 90 天派生，零存储），行 = 押 / 回执；无判词，按裁决数降序。 */
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString } from '@yzj-next/graph'
 import { familyLabel, familySpec } from './families.ts'

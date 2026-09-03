@@ -23,8 +23,8 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { CardDefinition } from '@yzj-next/cards'
-import type { GraphAppendInput } from '@yzj-next/graph'
+import type { CardDefinition, CardTransition } from '@yzj-next/cards'
+import { asRecord, asString, type GraphAppendInput } from '@yzj-next/graph'
 import { commitmentIdFor, commitmentIdemKeyFor } from '../commitment/family.ts'
 import {
   goalCommitmentIdFor, itemsFrom, proposalSettled,
@@ -35,6 +35,15 @@ const MARK: Record<ProposalDecision, string> = {
   confirmed: '✓ 已确认',
   rejected: '✗ 已驳回',
   held: '⏸ 已挂起',
+  transferred: '↗ 已转办',
+}
+
+/** 同一张卡四种模式：拆解/立目标（提案）、发现（裁决卡）、交付推断（提议卡）。动词按模式亮。 */
+const VERBS: Record<ProposalState['kind'], readonly string[]> = {
+  goal: ['confirmed', 'rejected', 'held', 'settle'],
+  breakdown: ['confirmed', 'rejected', 'held', 'settle'],
+  finding: ['confirmed', 'rejected', 'held', 'transferred', 'settle'],
+  delivery: ['confirmed', 'rejected', 'settle'],
 }
 
 function itemLine(item: ProposalItem, index: number, state: ProposalState): string {
@@ -45,6 +54,14 @@ function itemLine(item: ProposalItem, index: number, state: ProposalState): stri
   // — so the operator signed 「会以你的名义发到执行者所在的会话」 without being
   // told which conversation that was.
   const where = item.placeName ?? placeFor(item, state)
+  // 发现与交付推断：条目下面是依据，不是执行者与去向。
+  if (state.kind === 'finding' || state.kind === 'delivery') {
+    return [
+      `${String(index + 1)}. ${item.what}`,
+      item.evidence === undefined ? '' : `\n　 依据：${item.evidence}`,
+      decision === undefined ? '' : `　${MARK[decision]}`,
+    ].join('')
+  }
   return [
     `${String(index + 1)}. ${item.what}`,
     `　 ${who}${item.due === undefined ? '' : ` · ${item.due}`}`,
@@ -235,7 +252,7 @@ function decideAction(
     ...(verdict === undefined ? {} : { verdict }),
     needsInput: true,
     allowedActors: (actor, state) => isDecider(actor.openId, state),
-    available: state => !proposalSettled(state),
+    available: state => !proposalSettled(state) && VERBS[state.kind].includes(id),
   }
 }
 
@@ -267,6 +284,8 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
     // 驳回也是人签发的裁决终态：如实广播，判据留给听的人（私账侧的比值分子）。
     decideAction('rejected', '驳回', ['驳回'], 'danger', 'proposal-rejected'),
     decideAction('held', '挂起', ['挂起'], 'neutral'),
+    // 裁决卡第四动词：转办——对某条发现立一条 executor=人 的承诺，携证据锚与血缘 (v4.3)。
+    decideAction('transferred', '转办', ['转办'], 'neutral'),
     {
       id: 'settle',
       label: '收起',
@@ -304,7 +323,11 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
     body: [
       state.kind === 'goal'
         ? `【提案·立目标】${state.title}`
-        : `【提案·拆解】${state.title}`,
+        : state.kind === 'finding'
+          ? `【裁决卡·发现】${state.title}`
+          : state.kind === 'delivery'
+            ? `【交付推断】${state.title}`
+            : `【提案·拆解】${state.title}`,
       ...(state.goalName === undefined && state.goalRef === undefined
         ? []
         : [`目标：${state.goalName ?? state.goalRef ?? ''}`]),
@@ -324,7 +347,11 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
           ? '这是提案，不是目标——真身还不存在。回一句「建一份」让我把文档建好'
             + '（成功标准会写进正文），或者自己建完把链接跟「确认」一起发过来。'
           : '这是提案，不是目标。确认才算你签发。'
-        : '逐条裁决。确认即签发——确认后会以你的名义把登记消息发到执行者所在的会话。',
+        : state.kind === 'finding'
+          ? '逐条裁决：确认 = 这条发现成立（改动仍要过写确认）；驳回 / 挂起；转办 <编号> <姓名> = 给那个人立一条承诺，证据一起带过去。'
+          : state.kind === 'delivery'
+            ? '确认 = 以你的名义把「已交付」回到登记场所，那条承诺进入待验收；不是交付 = 这个文件与它无关，不再问。'
+            : '逐条裁决。确认即签发——确认后会以你的名义把登记消息发到执行者所在的会话。',
       `[card#proposal:${state.proposalId}]`,
     ].join('\n'),
     replyHints: proposalSettled(state)
@@ -343,7 +370,11 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
           没有真身的老提案照旧提示带链接——它们确实还缺那一样东西。
         */
         ? (state.goalRef === undefined ? ['确认 <真身链接>', '驳回', '收起'] : ['确认', '驳回', '收起'])
-        : ['确认 <编号>', '驳回 <编号>', '挂起 <编号>', '收起'],
+        : state.kind === 'finding'
+          ? ['确认 <编号>', '驳回 <编号>', '挂起 <编号>', '转办 <编号> <姓名>', '收起']
+          : state.kind === 'delivery'
+            ? (state.items.length === 1 ? ['确认', '不是交付'] : ['确认 <编号>', '不是交付'])
+            : ['确认 <编号>', '驳回 <编号>', '挂起 <编号>', '收起'],
   }),
 
   onResolved: (state) => {
@@ -351,6 +382,13 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
     const confirmed = state.items.filter(
       (_item, index) => decisions[String(index)] === 'confirmed',
     ).length
+    if (state.kind === 'delivery') {
+      return { echoText: confirmed > 0 ? `【交付推断·已确认】${state.title}` : `【交付推断·不是交付】${state.title}` }
+    }
+    if (state.kind === 'finding') {
+      const moved = state.items.filter((_item, index) => decisions[String(index)] === 'transferred').length
+      return { echoText: `【裁决卡·已裁决】${state.title}——成立 ${String(confirmed)} 条，转办 ${String(moved)} 条，其余未采纳。` }
+    }
     return {
       echoText: `【提案·已裁决】${state.title}——确认 ${String(confirmed)} 条，其余未采纳。`,
     }
@@ -367,6 +405,8 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
       }
     }
     const decision = action.id as ProposalDecision
+    if (state.kind === 'finding') return applyFinding(ctx, state, decision, actor, input)
+    if (state.kind === 'delivery') return applyDelivery(state, decision, actor, input)
     /*
       The input means two different things depending on the kind, so it is
       interpreted once, here, and never twice.
@@ -439,4 +479,109 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
     return { events }
   },
   }
+}
+
+
+/** 逐条裁决的裁决键：把条目带进去，第二条的裁决才不会被第一条的幂等锚吸收。 */
+function verdictKeyOf(decision: string, indices: readonly number[]): string {
+  return `${decision}:${indices.map(index => String(index)).join(',')}`
+}
+
+type Actor = Parameters<CardDefinition<ProposalState>['apply']>[2]
+
+/**
+ * 裁决卡（发现）的裁决：确认 / 驳回 / 挂起只记决定；**转办**给那个人立一条承诺，证据锚点
+ * 与血缘一起带过去（sourceAnchor 回指这张卡的这一条）。人名先在图上已有的执行者名录里认；
+ * 认不出就照名字立、标「未通知 · 请亲发」——宁可刺眼，不可静默。
+ */
+function applyFinding(ctx: Context, state: ProposalState, decision: ProposalDecision, actor: Actor, input: string | undefined): CardTransition {
+  const raw = (input ?? '').trim()
+  const [selector, ...rest] = decision === 'transferred' ? raw.split(/\s+/u) : [raw]
+  const { indices } = itemsFrom(selector, state)
+  const events: GraphAppendInput[] = []
+  const done: number[] = []
+  for (const index of indices) {
+    const item = state.items[index]
+    if (item === undefined || (state.decisions ?? {})[String(index)] === decision) continue
+    if (decision !== 'transferred') {
+      events.push({ type: 'proposal/item-decided', data: { proposalId: state.proposalId, index, decision }, actor })
+      done.push(index)
+      continue
+    }
+    const name = rest.join(' ').replace(/^@/u, '').trim()
+    if (name === '') continue
+    let openId: string | undefined
+    for (const event of ctx.yzjGraph.rawEvents(['commitment/opened'])) {
+      const executor = asRecord(asRecord(event.data)?.executor)
+      if (asString(executor?.name) === name && asString(executor?.openId) !== undefined) { openId = asString(executor?.openId); break }
+    }
+    const anchor = `${state.sourceAnchor}#proposal:${state.proposalId}:${String(index)}`
+    const what = `处理发现：${item.what}`
+    const commitmentId = commitmentIdFor(anchor, what)
+    events.push({
+      type: 'commitment/opened',
+      data: {
+        commitmentId,
+        what,
+        executor: { kind: 'human', openId: openId ?? `unresolved:${name}`, name },
+        sourceAnchor: anchor,
+        ...(state.decider === undefined || state.decider === '' ? {} : { delegatedBy: state.decider }),
+        idemKey: commitmentIdemKeyFor(anchor, what),
+        ...(state.topicKey === undefined ? {} : { topicKey: state.topicKey }),
+        ...(item.evidence === undefined ? {} : { criteria: `依据：${item.evidence}` }),
+        ...(state.placeKey === undefined ? { notified: 'failed' } : { notifyPlaceKey: state.placeKey }),
+      },
+      actor: { kind: 'agent' },
+    }, { type: 'proposal/item-decided', data: { proposalId: state.proposalId, index, decision, commitmentId }, actor })
+    done.push(index)
+  }
+  const kind = decision === 'confirmed' ? 'finding-confirm' : decision === 'rejected' ? 'finding-reject' : undefined
+  return { events, ...(kind === undefined || done.length === 0 ? {} : { verdict: { kind, key: verdictKeyOf(decision, done) } }) }
+}
+
+/**
+ * 交付推断提议卡：确认 = 以执行者名义登记回执 + 交付主张（承诺仍 open，进入待验收）；
+ * 「不是交付」= 驳回，配对入吸收态（同一文件不再问）。
+ */
+function applyDelivery(state: ProposalState, decision: ProposalDecision, actor: Actor, input: string | undefined): CardTransition {
+  const raw = (input ?? '').trim()
+  const { indices } = itemsFrom(state.items.length === 1 ? '' : raw, state)
+  const events: GraphAppendInput[] = []
+  const done: number[] = []
+  if (decision === 'rejected') {
+    for (const index of state.items.map((_item, at) => at)) {
+      if ((state.decisions ?? {})[String(index)] !== undefined) continue
+      events.push({ type: 'proposal/item-decided', data: { proposalId: state.proposalId, index, decision: 'rejected' }, actor })
+      done.push(index)
+    }
+    return { events, ...(done.length === 0 ? {} : { verdict: { kind: 'not-delivery', key: verdictKeyOf('rejected', done) } }) }
+  }
+  if (decision !== 'confirmed') return { events }
+  const chosen = indices[0]
+  const item = chosen === undefined ? undefined : state.items[chosen]
+  if (chosen === undefined || item?.commitmentId === undefined || state.artifact === undefined) return { events }
+  const at = Date.now()
+  events.push(
+    {
+      type: 'receipt/recorded',
+      data: {
+        objectRef: { kind: 'commitment', id: item.commitmentId },
+        kind: 'human-reply',
+        anchor: `yzj:${state.artifact.msgId}`,
+        text: `交付：${state.artifact.name}`,
+        proposedChange: { completed: true },
+      },
+      actor,
+    },
+    {
+      type: 'commitment/delivered',
+      data: { commitmentId: item.commitmentId, delivery: { claim: `交付：${state.artifact.name}`, at, anchor: `yzj:${state.artifact.msgId}` } },
+      actor,
+    },
+  )
+  for (const index of state.items.map((_item, position) => position)) {
+    if ((state.decisions ?? {})[String(index)] !== undefined) continue
+    events.push({ type: 'proposal/item-decided', data: { proposalId: state.proposalId, index, decision: index === chosen ? 'confirmed' : 'rejected', ...(index === chosen ? { commitmentId: item.commitmentId } : {}) }, actor })
+  }
+  return { events, verdict: { kind: 'delivery-confirm', key: verdictKeyOf('confirmed', [chosen]) } }
 }

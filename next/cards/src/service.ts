@@ -73,6 +73,8 @@ declare module '@deepseek-ai/cordis' {
       /** 组织自己的话说的裁决种类，来自 {@link CardAction.verdict}。 */
       kind: string
       actionId: string
+      /** 逐条裁决时带条目的裁决键（如 `confirmed:2`）；缺席 = actionId 就是键。 */
+      verdictKey?: string
       actor: GraphActor
       at: number
       /**
@@ -442,7 +444,8 @@ export class YzjCards extends Service {
 
       `titleText` 从**裁决之后**的状态取：那才是这次裁决盖章的那份东西的名字。
     */
-    if (action.verdict !== undefined) {
+    const declared = transition.verdict?.kind ?? action.verdict
+    if (declared !== undefined) {
       const settled = asRecord(next?.state)
       const titleText = asString(settled?.what)
         ?? asString(settled?.summary)
@@ -450,8 +453,9 @@ export class YzjCards extends Service {
       const decidedAt = Date.now()
       this.ctx.emit('yzj-cards/verdict-settled', {
         cardRef,
-        kind: action.verdict,
+        kind: declared,
         actionId,
+        ...(transition.verdict?.key === undefined ? {} : { verdictKey: transition.verdict.key }),
         actor,
         at: decidedAt,
         ...(titleText === undefined ? {} : { titleText }),

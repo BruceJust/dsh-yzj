@@ -13,7 +13,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, asRecord, asString } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { approvalCard, approvalFamily, assessmentFamily, commitmentFamily, createCommitmentCard, taskFamily, waitingFamily } from '@yzj-next/objects'
+import { approvalCard, approvalFamily, assessmentFamily, commitmentFamily, createCommitmentCard, proposalFamily, taskFamily, waitingFamily } from '@yzj-next/objects'
 import { YzjPledger } from '../src/service.ts'
 import { createDesk } from '../src/desk.ts'
 import { fileVerdict, filedVerdicts, isAlive } from '../src/verdicts.ts'
@@ -40,7 +40,7 @@ beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'yzj-next-pledger-'))
   ctx = new Context()
   graph = new YzjGraph(ctx, { root: join(root, 'graph') })
-  for (const family of [approvalFamily, assessmentFamily, commitmentFamily, taskFamily, waitingFamily]) graph.defineFamily(family)
+  for (const family of [approvalFamily, assessmentFamily, commitmentFamily, proposalFamily, taskFamily, waitingFamily]) graph.defineFamily(family)
   await graph.selectAccount('acct-1')
   cards = new YzjCards(ctx)
   cards.register(approvalCard)
@@ -475,5 +475,61 @@ describe('差距简报配对两行', () => {
     await settle()
     await brief('asm-2', 'met', '差异清单已经出了，条目 3 条')
     expect(types()).toEqual(['vindicated'])
+  })
+})
+
+describe('对账裁决 / 交付推断两族（裁决卡与提议卡的生产者落地后开门）', () => {
+  const findings = async (id: string): Promise<void> => {
+    await graph.append({
+      type: 'proposal/opened',
+      data: { proposalId: id, kind: 'finding', title: '7 月对账 · 3 处差异', items: [
+        { what: '第 12 行应收 1,200 与 ERP 1,020 不符', evidence: '对账单 L12 · ERP 单据 A-77' },
+        { what: '宏迈发票号缺失', evidence: '对账单 L88' },
+      ], sourceAnchor: 'yzj:m-f1', decider: 'op-1' },
+      actor: { kind: 'agent' },
+    })
+  }
+  const settled = (kind: string, actionId: string, verdictKey: string, cardRef: { kind: string; id: string }) => ({
+    cardRef, kind, actionId, verdictKey, actor: OPERATOR, at: Date.now(), openedAt: Date.now() - 1000, decidedAt: Date.now(),
+  })
+  const types = (): string[] => pledger.query('calibration').map(one => asString(asRecord(one.state)?.type) ?? '')
+
+  it('逐条裁决各自入账：裁决键带条目，第二条不被第一条的幂等锚吸收', async () => {
+    await findings('prp-f1')
+    await fileVerdict(ctx, settled('finding-confirm', 'confirmed', 'confirmed:0', { kind: 'proposal', id: 'prp-f1' }))
+    await fileVerdict(ctx, settled('finding-reject', 'rejected', 'rejected:1', { kind: 'proposal', id: 'prp-f1' }))
+    const filed = filedVerdicts(ctx)
+    expect(filed.map(one => [one.family, one.agree, one.itemIndex])).toEqual([['reconciliation', true, 0], ['reconciliation', false, 1]])
+  })
+
+  it('确认过的发现被墓碑回滚 → 反转执；驳回过的发现有外部回函回指 → 印证执', async () => {
+    await findings('prp-f2')
+    await fileVerdict(ctx, settled('finding-confirm', 'confirmed', 'confirmed:0', { kind: 'proposal', id: 'prp-f2' }))
+    await fileVerdict(ctx, settled('finding-reject', 'rejected', 'rejected:1', { kind: 'proposal', id: 'prp-f2' }))
+    await graph.append({ type: 'tombstone/appended', data: { targetSeq: 100, reason: '回滚：第 12 行应收 1,200 与 ERP 1,020 不符 的改数', by: 'op-1' }, actor: OPERATOR })
+    await settle()
+    expect(types()).toEqual(['reversed'])
+    await graph.append({ type: 'receipt/recorded', data: { objectRef: { kind: 'proposal', id: 'prp-f2' }, kind: 'external', anchor: 'mail:1', text: '宏迈回函：宏迈发票号缺失 一事属实，补开中' }, actor: OPERATOR })
+    await settle()
+    expect(types().sort()).toEqual(['reversed', 'vindicated'])
+  })
+
+  it('交付推断：认下的交付随后被打回 → 反转执', async () => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: { commitmentId: 'cmt-d1', what: '给财务出 8 月费用明细', executor: { kind: 'human', openId: 'op-1', name: '我' }, sourceAnchor: 'yzj:m-d0', topicKey: TOPIC, audience: [PLACE], idemKey: 'cmt:d1' },
+      actor: OPERATOR,
+    })
+    await graph.append({
+      type: 'proposal/opened',
+      data: { proposalId: 'prp-d1', kind: 'delivery', title: '这像是「给财务出 8 月费用明细」的交付——挂为交付回执？', items: [{ what: '给财务出 8 月费用明细', commitmentId: 'cmt-d1', evidence: '8月费用明细.xlsx' }], artifact: { msgId: 'm-d1', fileId: 'f-1', name: '8月费用明细.xlsx', placeKey: PLACE }, sourceAnchor: 'yzj:m-d1', decider: 'op-1' },
+      actor: { kind: 'system' },
+    })
+    await fileVerdict(ctx, settled('delivery-confirm', 'confirmed', 'confirmed:0', { kind: 'proposal', id: 'prp-d1' }))
+    expect(filedVerdicts(ctx).at(-1)?.family).toBe('delivery-inference')
+    await graph.append({ type: 'commitment/reopened', data: { commitmentId: 'cmt-d1', cause: '不是这份，缺了差旅' }, actor: OPERATOR })
+    await settle()
+    expect(types()).toEqual(['reversed'])
+    expect(JSON.stringify(asRecord(pledger.query('calibration')[0]?.state)?.later)).toContain('被打回')
   })
 })

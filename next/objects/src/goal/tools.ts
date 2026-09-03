@@ -349,6 +349,68 @@ export function applyGoalTools(ctx: Context): () => void {
   }))
 
   register(defineTool({
+    name: 'findings_report',
+    /*
+      裁决卡 (设计 O1 / v4.3 转办)：面向「agent 发现的事」——对账差异、异常清单。逐条证据锚点，
+      条目级 确认/驳回/挂起/转办。它复用提案族的状态机（主册：提案裁决 = 同状态机），
+      只是 kind 不同；人签发铁律不变：agent 只提出发现，改数、立承诺都要过人的手。
+    */
+    description: 'Hand the operator a VERDICT CARD of things you FOUND — reconciliation differences, anomalies, items that do not add up — one line per finding with the evidence you read it off (a message, a document, a row). Use it whenever you were asked to check something and NOT to change it ("差异逐条列出来给我裁决，不要直接改数"). They decide each line: 确认 (the finding stands; act on confirmed ones afterwards, still through the write gate), 驳回, 挂起, or 转办 <编号> <姓名> (opens a commitment for that person carrying the evidence). Never write the fix before the line is confirmed.',
+    presentCall: args => ({ card: 'generic', title: `裁决卡：${String(args.title)}`, kind: 'edit' }),
+    parameters: {
+      title: { type: 'string', required: true, description: 'What was checked, e.g. 「7 月对账 · 306 行 · 3 处差异」.' },
+      items: {
+        type: 'array', required: true,
+        description: 'One entry per finding.',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            what: { type: 'string', required: true, description: 'The finding, concretely: which row, which amount, what differs.' },
+            evidence: { type: 'string', required: true, description: 'Where you read it: a document link, a sheet row, a message quote. Empty evidence is not a finding.' },
+          },
+        },
+      },
+    },
+    output,
+    timeoutMs: 15_000,
+    isConcurrencySafe: () => false,
+    async execute(args, exec) {
+      const binding = bindingOf(ctx, exec.agent)
+      const anchor = anchorOf(binding, exec.agent)
+      const items = (args.items as { what: string; evidence: string }[]).filter(item => item.what.trim() !== '' && item.evidence.trim() !== '')
+      if (items.length === 0) return { content: '没有带依据的发现可裁决——每条发现都要说清读自哪里。' }
+      const fresh = freshProposalId(ctx, anchor, `发现:${args.title}`)
+      if (fresh.busy) return { content: '这份发现的裁决卡已经递过了，还等着逐条裁决。', proposalId: fresh.id }
+      const proposalId = fresh.id
+      await ctx.yzjGraph.append({
+        type: 'proposal/opened',
+        data: {
+          proposalId,
+          kind: 'finding',
+          title: String(args.title),
+          items: items.map(item => ({ what: item.what, evidence: item.evidence })),
+          sourceAnchor: anchor,
+          ...(binding?.topicKey === undefined ? {} : { topicKey: binding.topicKey }),
+          ...(binding?.placeKey === undefined ? {} : { placeKey: binding.placeKey }),
+          ...(binding?.audience === undefined ? {} : { audience: [...binding.audience] }),
+          ...(binding?.decider === undefined ? {} : { decider: binding.decider }),
+        },
+        actor: { kind: 'agent' },
+      })
+      const shown = await show(ctx, 'proposal', proposalId, proposalGoesTo(binding))
+      return {
+        content: [
+          `已递上 ${String(items.length)} 条发现，等人逐条裁决（确认 / 驳回 / 挂起 / 转办 <编号> <姓名>）。`,
+          shown ? '' : '（卡没能投出去，请在回复里把这几条连同依据原样列出来。）',
+          '确认之前不要动数据；确认了的那几条，改动仍要过写确认。',
+        ].filter(line => line !== '').join('\n'),
+        proposalId,
+      }
+    },
+  }))
+
+  register(defineTool({
     name: 'goal_evidence',
     description: 'Read what has actually happened under a goal: its success criteria, every commitment hanging off it with its terminal state, and the artifacts those produced. Read-only, all derived from the graph. Use it before answering "这个目标做到什么程度了" and always before goal_report — the point of this design is that an assessment cites real objects instead of asking somebody for a number. Omit goalRef to list the goals you can see here.',
     presentCall: args => ({

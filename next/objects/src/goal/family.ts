@@ -31,10 +31,10 @@ import { asNumber, asRecord, asString } from '@yzj-next/graph'
 // ---------------------------------------------------------------------------
 
 /** What a proposal is proposing: one goal, or the children of one. */
-export type ProposalKind = 'goal' | 'breakdown'
+export type ProposalKind = 'goal' | 'breakdown' | 'finding' | 'delivery'
 
 /** 逐条裁决 — three outcomes, because "not now" is not the same as "no". */
-export type ProposalDecision = 'confirmed' | 'rejected' | 'held'
+export type ProposalDecision = 'confirmed' | 'rejected' | 'held' | 'transferred'
 
 /**
  * One proposed commitment.
@@ -52,6 +52,10 @@ export interface ProposalItem {
   readonly due?: string
   readonly placeKey?: string
   readonly placeName?: string
+  /** 裁决卡（发现）：这条发现的证据锚点——一条消息、一份文档、一行数据。逐条裁决的依据必须在卡上。 */
+  readonly evidence?: string
+  /** 交付推断：这条候选对应的承诺。 */
+  readonly commitmentId?: string
 }
 
 export interface ProposalState {
@@ -64,6 +68,8 @@ export interface ProposalState {
   /** 磨出来的成功标准 — only on `kind: 'goal'`. */
   readonly criteria?: string
   readonly items: readonly ProposalItem[]
+  /** 交付推断：被认成交付的那个工件（消息锚 + 文件）。只在 `kind: 'delivery'` 上。 */
+  readonly artifact?: { readonly msgId: string; readonly fileId: string; readonly name: string; readonly placeKey: string }
   /** Item index (as a string key) → what was decided about it. */
   readonly decisions?: Readonly<Record<string, ProposalDecision>>
   /** Item index → the commitment its confirmation minted. */
@@ -92,6 +98,8 @@ const proposalItem = z.object({
   due: z.string().optional(),
   placeKey: z.string().optional(),
   placeName: z.string().optional(),
+  evidence: z.string().optional(),
+  commitmentId: z.string().optional(),
 })
 
 export const proposalFamily: GraphFamily = {
@@ -100,9 +108,10 @@ export const proposalFamily: GraphFamily = {
     'proposal/opened': {
       schema: z.object({
         proposalId: z.string().min(1),
-        kind: z.enum(['goal', 'breakdown']),
+        kind: z.enum(['goal', 'breakdown', 'finding', 'delivery']),
         title: z.string().min(1),
         items: z.array(proposalItem).min(1),
+        artifact: z.object({ msgId: z.string().min(1), fileId: z.string().min(1), name: z.string().min(1), placeKey: z.string().min(1) }).optional(),
         sourceAnchor: z.string().min(1),
         status: z.literal('open').default('open'),
         goalRef: z.string().optional(),
@@ -118,7 +127,7 @@ export const proposalFamily: GraphFamily = {
       schema: z.object({
         proposalId: z.string().min(1),
         index: z.number().int().min(0),
-        decision: z.enum(['confirmed', 'rejected', 'held']),
+        decision: z.enum(['confirmed', 'rejected', 'held', 'transferred']),
         /** The commitment a confirmation minted, so the card can point at it. */
         commitmentId: z.string().optional(),
       }),
@@ -163,7 +172,7 @@ export function proposalSettled(state: ProposalState): boolean {
   const decisions = state.decisions ?? {}
   return state.items.every((_item, index) => {
     const decision = decisions[String(index)]
-    return decision === 'confirmed' || decision === 'rejected'
+    return decision === 'confirmed' || decision === 'rejected' || decision === 'transferred'
   })
 }
 
@@ -182,7 +191,8 @@ export function itemsFrom(
   const open = state.items
     .map((_item, index) => index)
     .filter(index => (state.decisions ?? {})[String(index)] !== 'confirmed'
-      && (state.decisions ?? {})[String(index)] !== 'rejected')
+      && (state.decisions ?? {})[String(index)] !== 'rejected'
+      && (state.decisions ?? {})[String(index)] !== 'transferred')
   const raw = (input ?? '').trim()
   if (raw === '' || raw === '全部' || raw === 'all') return { indices: open, bad: [] }
   const indices: number[] = []

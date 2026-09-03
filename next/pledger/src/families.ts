@@ -42,6 +42,10 @@ export const FAMILIES: readonly VerdictFamilySpec[] = [
     clauses: false,
     leasable: false,
   },
+  // 裁决卡（agent 发现的事）逐条 确认/驳回；转办不是对发现真伪的判断，不入账。
+  { family: 'reconciliation', label: '对账裁决', kinds: { 'finding-confirm': () => true, 'finding-reject': () => false }, clauses: false, leasable: false },
+  // 交付推断提议卡：确认 = 替执行者说一句「已交付」；不是交付 = 偏离。
+  { family: 'delivery-inference', label: '交付推断', kinds: { 'delivery-confirm': () => true, 'not-delivery': () => false }, clauses: false, leasable: false },
 ]
 
 export function familyOfKind(kind: string): VerdictFamilySpec | undefined {

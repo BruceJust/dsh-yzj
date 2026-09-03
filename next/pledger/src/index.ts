@@ -1,6 +1,5 @@
 /**
- * `@yzj-next/pledger` — 私账层：自知（决策 #64 / 分册 v3.1）。零新场所、零 IM 消息、模型无写入工具。
- * 部署二值开关：`enabled: false` 不建目录、不注册工具、不订阅、不提供服务；关不删数据。
+ * `@yzj-next/pledger` — 私账层：自知（#64 / 分册 v3.1）。零新场所、零 IM 消息、模型无写入工具；`enabled:false` 整层不在，关不删数据。
  * @module @yzj-next/pledger
  */
 import { homedir } from 'node:os'

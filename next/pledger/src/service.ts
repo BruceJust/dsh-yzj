@@ -1,8 +1,4 @@
-/**
- * `ctx.yzjPledger` —— 私账的服务面：graph 内核的日志核 + 另一部宪法（托管律）。
- * ① viewer 单态（读取面无 viewer 参数）；② 审计导出不挂这个源；③ 目录自包含，本人可
- * 整体取走与销毁，destroy 是唯一删除路径。
- */
+/** `ctx.yzjPledger`——私账服务面：graph 日志核 + 托管律（viewer 单态；审计导出不挂；目录自包含、可整体取走，destroy 是唯一删除路径）。 */
 
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { join } from 'node:path'

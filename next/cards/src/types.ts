@@ -135,6 +135,12 @@ export const MODE_BADGE: Readonly<Record<AnswerableMode, string>> = {
 export interface CardTransition {
   /** State events to append, in order, after the answer has been recorded. */
   readonly events: readonly GraphAppendInput[]
+  /**
+   * 这一次落地是哪一种裁决——由 `apply` 按状态说，压过动作上静态声明的 {@link CardAction.verdict}。
+   * 同一张卡两种模式（拆解提案 vs 发现裁决）时，同一个「确认」动词是两种裁决；逐条裁决时
+   * `key` 把条目带进裁决键（`confirmed:2`），否则第二条的裁决会被第一条的幂等锚吸收。
+   */
+  readonly verdict?: { readonly kind: string; readonly key?: string }
 }
 
 /**

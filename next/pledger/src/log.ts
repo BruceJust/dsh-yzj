@@ -1,7 +1,4 @@
-/**
- * 第二存储域落盘：`<root>/<operatorOpenId>/pledger.jsonl` + 原子写的快照。
- * 归属键 = 人（不是实例）；目录自包含（拷走即取走全账）；destroy 是唯一删除路径。
- */
+/** 第二存储域：`<root>/<operatorOpenId>/pledger.jsonl` + 原子快照。归属键 = 人；目录自包含；destroy 是唯一删除路径。 */
 
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'

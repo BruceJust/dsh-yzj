@@ -19,12 +19,8 @@ export interface PairedFact {
   readonly factKey: string
 }
 
-/**
- * 回流配对表（P1）：族 × 同意与否 × 组织图事件形状 → 反转 / 印证。
- * 验收 accept 反转：`commitment/reopened`；转包子边；同目标同对话 7 日内新 opened（弱路径）；差距简报标为未达。
- * 验收 reject 印证：返工后 `commitment/closed` 且轮次 ≥ 1；差距简报标为已达。目标提案确认反转：子承诺 7 日内 voided。
- * 标准写确认 / 目标评估：无结构性来源，如实留空（正面证据只能靠押）。
- */
+/** 回流配对表（P1）：族 × 同意与否 × 组织图事件形状 → 反转 / 印证。验收：reopened/转包/同目标 7 日新 opened/简报未达 → 反转，返工后 closed·简报已达 → 印证；
+ * 目标提案：子承诺 7 日 voided → 反转；对账裁决：墓碑回滚 → 反转，外部回函 → 印证；交付推断：确认后被打回 → 反转；写确认/评估无结构性来源。 */
 export function pairFact(ctx: Context, verdict: FiledVerdict, event: GraphEvent): PairedFact | undefined {
   const data = asRecord(event.data)
   if (data === undefined || event.time < verdict.at) return undefined
@@ -79,6 +75,30 @@ export function pairFact(ctx: Context, verdict: FiledVerdict, event: GraphEvent)
     return undefined
   }
 
+  // 对账裁决：确认过的发现被回滚（墓碑说的是这条）→ 反转；驳回过的发现有外部回函回指 → 印证。弱路径：按发现原话点名。
+  if (verdict.family === 'reconciliation' && kind === 'proposal') {
+    const items = asRecord(ctx.get('yzjGraph')?.rawObject('proposal', id)?.state)?.items
+    const item = Array.isArray(items) && verdict.itemIndex !== undefined ? asRecord(items[verdict.itemIndex]) : undefined
+    const what = asString(item?.what)
+    if (what === undefined || event.time - verdict.at > WEEK_MS) return undefined
+    if (verdict.agree && event.type === 'tombstone/appended' && (asString(data.reason) ?? '').includes(what)) {
+      return shot('reversed', `你确认过的这条发现被回滚了：${asString(data.reason) ?? ''}`, { kind, id })
+    }
+    if (!verdict.agree && event.type === 'receipt/recorded' && asString(data.kind) === 'external' && (asString(data.text) ?? '').includes(what)) {
+      return shot('vindicated', `你驳回过的这条发现，外部回函回指了它：${asString(data.text) ?? ''}`, { kind, id })
+    }
+    return undefined
+  }
+  // 交付推断：确认之后那条交付被打回（回执被纠正）→ 反转。
+  if (verdict.family === 'delivery-inference' && verdict.agree && kind === 'proposal' && event.type === 'commitment/reopened') {
+    const items = asRecord(ctx.get('yzjGraph')?.rawObject('proposal', id)?.state)?.items
+    const item = Array.isArray(items) && verdict.itemIndex !== undefined ? asRecord(items[verdict.itemIndex]) : undefined
+    const target = asString(item?.commitmentId)
+    if (target !== undefined && asString(data.commitmentId) === target && event.time - verdict.at <= WEEK_MS) {
+      return shot('reversed', `你认下的这份交付被打回：${asString(data.cause) ?? ''}`, { kind: 'commitment', id: target })
+    }
+    return undefined
+  }
   if (verdict.family === 'proposal' && verdict.agree && event.type === 'commitment/voided') {
     const voided = asString(data.commitmentId)
     const born = asRecord(ctx.get('yzjGraph')?.rawObject('commitment', voided ?? '')?.state)
@@ -131,13 +151,7 @@ export async function reflowOnNotedFact(ctx: Context, event: GraphEvent): Promis
   await openReceipt(ctx, { verdict, type: 'pledged', fact: snapshot(`你补的：${text}`, undefined, event.time), factKey: `noted:${factId}` })
 }
 
-/**
- * 出一张回执，或追加到既有的那一张。
- *
- * 押过的裁决：不管事实是哪一支，都是 `pledged` 型；已有回执时事实走 `appended`。
- * 没押过的：只按配对表出 reversed / vindicated；补登的事实（noted）也出执——人自己说
- * 「这是那次裁决的后来」，那就是分子的证据。
- */
+/** 出一张回执或追加到既有那张：押过的一律 `pledged` 型（后到事实 appended）；没押过的只按配对表出 reversed/vindicated，补登事实也出执。 */
 export async function openReceipt(ctx: Context, input: {
   readonly verdict: FiledVerdict
   readonly type: ReceiptType
@@ -151,7 +165,7 @@ export async function openReceipt(ctx: Context, input: {
   const expectationState = asRecord(expectation?.state)
   const pledged = expectation !== undefined && asString(expectationState?.status) === 'testing'
   const type: ReceiptType = pledged ? 'pledged' : input.type
-  const existing = receiptOf(ctx, verdict.anchor)
+  const existing = receiptOf(ctx, verdict.anchor, verdict.verdictKey)
   if (existing !== undefined) {
     // 一份裁决一张执：后到的事实追加到「后来」栏；同一事实不追加两次。
     const later = Array.isArray(existing.later) ? existing.later : []
@@ -160,14 +174,16 @@ export async function openReceipt(ctx: Context, input: {
     await pledger.append({ type: 'calibration/appended', data: { calibrationId: existing.id, later: anchoredJson(input.fact) }, actor: { kind: 'system' } })
     return existing.id
   }
-  const idemKey = calibrationIdemKeyFor(verdict.anchor, input.factKey)
+  // 逐条裁决共用一张卡的锚：执按裁决键分（`proposal:x#confirmed:1`），不然第二条的执会并进第一条。
+  const keyed = verdict.itemIndex === undefined ? verdict.anchor : { ...verdict.anchor, id: `${verdict.anchor.id}#${String(verdict.itemIndex)}` }
+  const idemKey = calibrationIdemKeyFor(keyed, input.factKey)
   if (pledger.findByIdemKey(idemKey) !== undefined) return undefined
   const then: AnchoredText[] = [
     snapshot(`${verdict.agree ? '你签发了' : '你没同意'}「${verdict.verdict.text}」`, verdict.anchor, verdict.at),
     ...(pledged ? [snapshot(`你押的：「${asString(expectationState?.text) ?? ''}」`, undefined, Date.parse(asString(expectationState?.verdict === undefined ? '' : asString(asRecord(expectationState.verdict)?.at)) ?? '') || verdict.at)] : []),
     ...contextLines(ctx, verdict.anchor, verdict.at),
   ]
-  const calibrationId = calibrationIdFor(verdict.anchor, input.factKey)
+  const calibrationId = calibrationIdFor(keyed, input.factKey)
   await pledger.append({
     type: 'calibration/opened',
     data: {
@@ -178,6 +194,7 @@ export async function openReceipt(ctx: Context, input: {
       then: then.map(anchoredJson),
       later: input.factKey.startsWith('checkpoint:') ? [] : [anchoredJson(input.fact)],
       factKey: input.factKey,
+      verdictKey: verdict.verdictKey,
       ...(pledged && expectation !== undefined ? { expectationId: expectation.id } : {}),
       idemKey,
     },
@@ -187,13 +204,16 @@ export async function openReceipt(ctx: Context, input: {
 }
 
 /** 这次裁决已有的回执（一份裁决一张执）。 */
-export function receiptOf(ctx: Context, anchor: OrgAnchor): { id: string; later: unknown } | undefined {
+export function receiptOf(ctx: Context, anchor: OrgAnchor, verdictKey?: string): { id: string; later: unknown } | undefined {
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined || !pledger.ready) return undefined
   for (const object of pledger.query('calibration')) {
     const state = asRecord(object.state)
     const inner = asRecord(asRecord(state?.verdict)?.anchor)
-    if (asString(inner?.kind) === anchor.kind && asString(inner?.id) === anchor.id) return { id: object.id, later: state?.later }
+    if (asString(inner?.kind) !== anchor.kind || asString(inner?.id) !== anchor.id) continue
+    // 逐条裁决：同锚不同键的执是两张；没记键的旧执按锚认。
+    if (verdictKey !== undefined && asString(state?.verdictKey) !== undefined && asString(state?.verdictKey) !== verdictKey) continue
+    return { id: object.id, later: state?.later }
   }
   return undefined
 }

@@ -18,6 +18,8 @@ export interface FiledVerdict {
   readonly seq: number
   readonly dwellMs?: number
   readonly waitMs?: number
+  /** 逐条裁决时这一票落在第几条（从裁决键 `confirmed:2` 读出，0 起）。 */
+  readonly itemIndex?: number
 }
 
 /** 接缝① 的 payload（组织侧通用广播，它不知道有谁在听）。 */
@@ -31,6 +33,7 @@ export interface VerdictSettled {
   readonly decidedAt?: number
   readonly dwellMs?: number
   readonly actor?: { kind: string; openId?: string }
+  readonly verdictKey?: string
 }
 
 /** 组织对象此刻叫什么——**只在写入那一刻拍照用**。 */
@@ -74,10 +77,7 @@ function goalObjectOf(ctx: Context, goalRef: string): GraphObject | undefined {
   return undefined
 }
 
-/**
- * 接缝① 的落点：把一次人签发的裁决归档到私账（族、同意与否、两个分母）。
- * 不在族表里的种类（作废/移交…）不入账；同侪签发的裁决不入账（多操作者 §7）。
- */
+/** 接缝① 落点：归档一次人签发的裁决（族、同意与否、两分母）；不在族表的种类与同侪签发的不入账。 */
 export async function fileVerdict(ctx: Context, payload: VerdictSettled): Promise<string | undefined> {
   const pledger = ctx.get('yzjPledger')
   if (pledger === undefined || !pledger.ready) return undefined
@@ -86,7 +86,7 @@ export async function fileVerdict(ctx: Context, payload: VerdictSettled): Promis
   if (kind === undefined || spec === undefined) return undefined
   if (payload.actor?.openId !== undefined && payload.actor.openId !== pledger.owner) return undefined
   const anchor: OrgAnchor = { kind: payload.cardRef.kind, id: payload.cardRef.id }
-  const verdictKey = verdictKeyFor(anchor, payload.actionId)
+  const verdictKey = verdictKeyFor(anchor, payload.verdictKey ?? payload.actionId)
   if (pledger.findByIdemKey(`verdict:${verdictKey}`) !== undefined) return verdictKey
   const at = payload.decidedAt ?? payload.at ?? Date.now()
   const title = payload.titleText ?? labelOf(ctx, anchor.kind, anchor.id) ?? `${anchor.kind}:${anchor.id}`
@@ -125,6 +125,7 @@ export function filedVerdicts(ctx: Context): readonly FiledVerdict[] {
     const actionId = asString(state?.actionId)
     const family = asString(state?.family)
     if (verdict.anchor === undefined || key === undefined || kind === undefined || actionId === undefined || family === undefined) continue
+    const item = /:(\d+)(?:[,，]|$)/u.exec(key.slice(key.indexOf('#') + 1))
     out.push({
       verdictKey: key,
       anchor: verdict.anchor,
@@ -132,6 +133,7 @@ export function filedVerdicts(ctx: Context): readonly FiledVerdict[] {
       kind,
       actionId,
       family,
+      ...(item?.[1] === undefined ? {} : { itemIndex: Number(item[1]) }),
       agree: state?.agree === true,
       ...(asString(state?.topicKey) === undefined ? {} : { topicKey: asString(state?.topicKey) as string }),
       at: Date.parse(verdict.at) || object.createdAt,

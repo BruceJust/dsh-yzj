@@ -66,6 +66,7 @@ export {
   type GoalArtifact, type GoalChild, type GoalEvidence,
 } from './goal/evidence.ts'
 export { applyGoalTools } from './goal/tools.ts'
+export { applyDeliveryInference, candidatesFor, deliveryProposalIdFor, inferDelivery, looksLikeDelivery, type DeliveryCandidate, type FileSighting } from './delivery/inference.ts'
 export { createGoalBody, goalBodyLink, type GoalBodyMade } from './goal/body.ts'
 export { eventFamily, type EventState } from './event/family.ts'
 export {

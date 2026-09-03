@@ -74,6 +74,8 @@ function lastMessageTime(group: YzjGroup): number {
  * @param input - what the send is and where it is going.
  * @returns the one outcome this send is allowed to have.
  */
+
+
 export function deskSendPlan(input: {
   readonly addressesAgent: boolean
   readonly repliesToAgent: boolean
@@ -422,6 +424,24 @@ export class YzjPoller {
     const identity = this.identity
     if (identity === undefined) return
 
+    /*
+      交付推断的事实源 (v3.12 = v4.20 行为回执，P1 仅操作者本人)：操作者自己甩进来的文件
+      是一条**观测**，不是受话——分诊定序不动，这里只把它广播出去，识别归对象侧 watcher。
+      图片不算（截图不是交付物）；同侪与他人的文件在寄生期不识别（零越境零借身）。
+    */
+    if (message.msgType === 'file' && message.param.fileId !== undefined && message.param.ftype !== 1
+      && message.fromOpenId === identity.openId) {
+      this.ctx.emit('yzj-channel/file-seen', {
+        placeKey: placeKeyFor('group', group.groupId),
+        groupId: group.groupId,
+        msgId: message.msgId,
+        fromOpenId: message.fromOpenId,
+        fileId: message.param.fileId,
+        name: message.param.name ?? message.param.fileId,
+        ...(message.param.ext === undefined ? {} : { ext: message.param.ext }),
+        time: parseSendTime(message.sendTime) || Date.now(),
+      })
+    }
     // 署名协议：带落款的是实例出站——自己的或同侪的，都不是受话 (决策 #63)。
     const signature = readSignature(message.content)
     const outcome = triage({

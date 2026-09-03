@@ -16,6 +16,7 @@ import { applyCommitmentNotify } from './notify.ts'
 import { createProposalCard } from './proposal-card.ts'
 import { applyGoalTools } from './tools.ts'
 import { applyGoalWriteback } from './writeback.ts'
+import { applyDeliveryInference } from '../delivery/inference.ts'
 
 export const name = 'yzj-next-obj-goal'
 export const inject = ['yzjGraph', 'yzjCards', 'tools']
@@ -32,6 +33,8 @@ export function apply(ctx: Context): void {
       applyCommitmentNotify(ctx),
       // 同一条边的第二个听众：全组看的是云之家那份文档 (v4.9 生与死两时刻)。
       applyGoalWriteback(ctx),
+      // 行为回执：操作者自己甩的文件 → 交付推断提议卡（P1 仅本人）。
+      applyDeliveryInference(ctx),
     ]
     return () => {
       for (const dispose of disposers.reverse()) dispose()

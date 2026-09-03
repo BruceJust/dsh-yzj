@@ -1,8 +1,4 @@
-/**
- * 私账词汇 —— 只存在于 pgraph（分册 §3）。组织图零新族、零新字段。
- * 五族：预期 / 补登事实 / 校准回执 / 软合同句 / 裁决归档（接缝① 的落点：停留与等待只能在
- * 裁决那一刻拍下）。无 `expectation/updated`（改笔通道不存在）；无 settled / reopened（派生）。
- */
+/** 私账词汇——只在 pgraph（分册 §3）：预期 / 补登事实 / 校准回执 / 软合同句 / 裁决归档。无 updated（无改笔通道）、无 settled/reopened（派生）。 */
 import { z, type GraphFamily, type GraphEvent, type JsonValue } from '@yzj-next/graph'
 import { asRecord, asString } from '@yzj-next/graph'
 
@@ -89,6 +85,7 @@ export const calibrationFamily: GraphFamily = {
         then: z.array(anchoredText).default([]),
         later: z.array(anchoredText).default([]),
         /** `org:<锚>` / `noted:<factId>` / `checkpoint:<ts>`。 */
+        verdictKey: z.string().optional(),
         factKey: z.string().min(1),
         expectationId: z.string().optional(),
         status: z.literal('open').default('open'),
@@ -152,10 +149,7 @@ export const clauseFamily: GraphFamily = {
   reduce: merge,
 }
 
-/**
- * 裁决归档 —— 接缝① 的落点：`{ family, agree, dwellMs?, waitMs? }`。
- * 组头 2×2 的分母两数只在裁决那一刻拍得下；组织图上没有它们的位置，私账记。
- */
+/** 裁决归档——接缝① 落点：`{ family, agree, dwellMs?, waitMs? }`，两分母只在裁决那一刻拍得下。 */
 export const verdictFamily: GraphFamily = {
   kind: 'verdict',
   events: {
