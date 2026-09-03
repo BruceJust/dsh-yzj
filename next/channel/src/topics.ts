@@ -14,6 +14,7 @@
  * be out of order, and it is not allowed to look fresh.
  */
 
+import type { ServeScope } from './presence.ts'
 import { copyFile, mkdir, open, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -204,7 +205,7 @@ export interface DeskSend {
 /** 一个场所此刻的在岗图景 —— 本实例的范围与观察到的同侪 (决策 #63)。 */
 export interface PresenceView {
   /** 本实例：对群在岗 / 仅本人 / 不接单。 */
-  readonly self: 'all' | 'self' | 'off'
+  readonly self: ServeScope | 'off'
   /** 对群在岗时，那条向群发出的声明帖；没发出去是 `undefined`（面板要说）。 */
   readonly selfAnchor?: string
   readonly selfSince?: number
@@ -215,7 +216,7 @@ export interface PresenceView {
 /** 接单开关按下去之后的实话。 */
 export interface ServeOutcome {
   readonly served: boolean
-  readonly scope?: 'all' | 'self'
+  readonly scope?: ServeScope
   readonly groupName?: string
   /** 对群在岗声明帖发出去了没有——记了岗但群里不知道，是要说出来的状态。 */
   readonly announced?: boolean
@@ -309,7 +310,7 @@ export interface YzjTopics {
    * Takes effect without a restart (the allow-list is one live set), and is
    * durable (the decision outlives the process).
    */
-  setServed(placeKey: string, on: boolean, scope?: 'all' | 'self'): Promise<ServeOutcome>
+  setServed(placeKey: string, on: boolean, scope?: ServeScope): Promise<ServeOutcome>
   /** 这个场所的在岗图景：本实例的范围、同侪的在岗声明 (决策 #63)。 */
   presenceIn(placeKey: string): PresenceView
   /** 观察到的同侪实例——板上「本实例登记集」明标降级要它 (决策 #63 §7.4 P1)。 */
@@ -421,7 +422,7 @@ export class YzjTopicReader implements YzjTopics {
      * and the durable record of the decision have to move together, and they
      * both live where the channel is assembled. One writer, one place.
      */
-    private readonly serve: (groupId: string, on: boolean, scope?: 'all' | 'self') => Promise<ServeOutcome>,
+    private readonly serve: (groupId: string, on: boolean, scope?: ServeScope) => Promise<ServeOutcome>,
     /** Where fetched attachments are cached — the deployment's own workspace. */
     private readonly cacheDir: string,
     /** 在岗图景与同侪观测都住在轮询那一侧；这里只是把它们交给桌面。 */
@@ -553,7 +554,7 @@ export class YzjTopicReader implements YzjTopics {
     return { savedTo, size: cached.size }
   }
 
-  async setServed(placeKey: string, on: boolean, scope?: 'all' | 'self'): Promise<ServeOutcome> {
+  async setServed(placeKey: string, on: boolean, scope?: ServeScope): Promise<ServeOutcome> {
     const groupId = groupIdFromPlaceKey(placeKey)
     if (groupId === undefined) throw new Error('这不是一个可接入的会话')
     const outcome = await this.serve(groupId, on, scope)

@@ -27,7 +27,7 @@ import { YzjPoller } from './poller.ts'
 import { ChannelState } from './state.ts'
 import { accountKeyFor, type YzjIdentity } from './protocol.ts'
 import { applyServe } from './serve.ts'
-import { withdrawRequestDraft } from './presence.ts'
+import { type ServeScope, withdrawRequestDraft } from './presence.ts'
 import type { ServeOutcome } from './topics.ts'
 
 export { triage, parseCommand, type TriageOutcome, type TriageInput } from './triage.ts'
@@ -38,6 +38,7 @@ export {
   type YzjGroup, type YzjIdentity, type YzjMessage, type YzjTopicRoute,
 } from './protocol.ts'
 export { ChannelState, type ConversationRecord } from './state.ts'
+export { applyMirror, readMirror, mirrorIdFor, mirrorIdemKey, type MirrorSighting, type MirrorSource } from './mirror.ts'
 export { YzjChannelClient } from './client.ts'
 export { ChannelHealth } from './health.ts'
 export {
@@ -51,6 +52,7 @@ export {
   yieldNotice,
   type AckObservation, type ClaimTier, type ClaimVerdict, type Contender, type PeerSignal,
   type Resolution, type ResolveInput, type YieldReason,
+  type ServeScope,
 } from './presence.ts'
 export { applyServe, serveRecordFor, type ServeRecord } from './serve.ts'
 export { sourceFor, yzjSourceOf, type YzjNextMessageSource } from './source.ts'
@@ -233,7 +235,7 @@ export function apply(ctx: Context, config: Config): void {
         (openId, text) => poller.sendToPerson(openId, text),
         (groupId) => poller.allowed(groupId),
         aliases,
-        async (groupId: string, on: boolean, scope?: 'all' | 'self'): Promise<ServeOutcome> => {
+        async (groupId: string, on: boolean, scope?: ServeScope): Promise<ServeOutcome> => {
           /*
             **接单 = 人签发的身份/听众敏感动作** (决策 #63 §8 B5①)。
 
@@ -241,6 +243,7 @@ export function apply(ctx: Context, config: Config): void {
             审计面。接单前先读场所近史：已有同侪对群在岗 → **第二在岗押门**（P1 一个场所
             一个在岗），这一次不接，给两条出口——请对方退岗（拟稿亲发）/ 改为仅本人。
             仅本人（`self`）不声明、不算在岗：它只服务自己的操作者，与他人天然无冲突。
+            备岗（`standby`）同样不声明、不算在岗：无人应答时按备岗序等 1 + rank 个周期再接。
           */
           const wasOn = poller.allowed(groupId)
           const previousScope = state.scopeOf(groupId) ?? 'all'
@@ -291,7 +294,7 @@ export function apply(ctx: Context, config: Config): void {
           let memoryDraft: string | undefined
           if (on && nextScope === 'all' && !declared) {
             announced = await poller.declarePresence(groupId).catch((error: unknown) => { onError(error); return false })
-          } else if ((!on || nextScope === 'self') && declared) {
+          } else if ((!on || nextScope !== 'all') && declared) {
             announced = await poller.withdrawPresence(groupId).catch((error: unknown) => { onError(error); return false })
             /*
               在岗移交 = 退岗帖 + 接岗者的在岗帖；背景包里的**场所记忆**须人签发的脱密

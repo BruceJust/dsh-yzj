@@ -107,6 +107,12 @@ export function classifyPeerOutbound(content: string): PeerSignal {
 // 四级解析 —— 受话成立后、入队前。
 // ---------------------------------------------------------------------------
 
+/**
+ * 触发者范围（接单开关的第一个参数）：`all` 对群在岗（声明、算在岗）；`self` 仅本人（不声明、
+ * 不算在岗）；`standby` 备岗（不声明、不算在岗——无人应答时按备岗序等 k 个轮询周期再接，v3.23r 押门项）。
+ */
+export type ServeScope = 'all' | 'self' | 'standby'
+
 export type ClaimTier = 'speaker' | 'presence' | 'standby'
 export type YieldReason = 'object-owner' | 'speaker-instance' | 'presence' | 'ack-order'
 
@@ -132,9 +138,16 @@ export interface ResolveInput {
   /** 延迟之后看到发言者实例对本触发的 ack 了。 */
   readonly speakerAcked: boolean
   /** 本实例在此场所的触发者范围。`off` 不该走到这里——分诊之前就被服务名单挡了。 */
-  readonly selfScope: 'all' | 'self' | 'off'
+  readonly selfScope: ServeScope | 'off'
   /** 观察到的、此刻对群在岗的同侪实例。 */
   readonly peersOnDuty: readonly Contender[]
+  /**
+   * 备岗序（仅 `standby` 用）：`rank` = 本实例在本群备岗席位里的序号（openId 字典序，0 起），
+   * 等 `1 + rank` 个轮询周期；`waitedCycles` = 这条触发已经等过的周期数。
+   */
+  readonly standby?: { readonly rank: number; readonly waitedCycles: number }
+  /** 等待期间任何同侪对本触发的 ack（备岗只在无人应答时接）。 */
+  readonly peerAcked?: { readonly openId: string }
 }
 
 export type Resolution =
@@ -145,8 +158,8 @@ export type Resolution =
     readonly tiebreak: 'sole' | 'msgId'
     readonly contenders: readonly string[]
   }
-  /** 发言者有自己的实例：让它先。本实例延迟一个轮询周期再看。 */
-  | { readonly kind: 'wait'; readonly cycles: 1 }
+  /** 让高梯队先：发言者实例（1 周期）或备岗序（1 + rank 周期）。到点再看一次。 */
+  | { readonly kind: 'wait'; readonly cycles: number }
   /** 不是叫我。静默让位——没开口，无需撤，但要有账。 */
   | { readonly kind: 'yield'; readonly reason: YieldReason; readonly to?: string }
   /** 仅本人合同：他人的受话没人接。如实记账，不假装接了。 */
@@ -172,6 +185,17 @@ export function resolveAddressee(input: ResolveInput): Resolution {
     if (!input.waited) return { kind: 'wait', cycles: 1 }
     if (input.speakerAcked) return { kind: 'yield', reason: 'speaker-instance', to: input.speakerInstance.openId }
     // 他的实例没接（未 served 本场所、离线……）→ 视同无实例，往下走。
+  }
+
+  // 级 2′：备岗。不声明、不算在岗；只在无人应答时接——先按备岗序等 1 + rank 个周期，
+  // 期间任何同侪 ack 都让本实例静默让位；等完仍无人应答，才以 standby 梯队认领（复核仍走
+  // 认领协议：迟到的在岗 ack 梯队更高，本实例照样输并发让位帖）。
+  if (input.selfScope === 'standby') {
+    const need = 1 + (input.standby?.rank ?? 0)
+    const waited = input.standby?.waitedCycles ?? 0
+    if (waited < need) return { kind: 'wait', cycles: need - waited }
+    if (input.peerAcked !== undefined) return { kind: 'yield', reason: 'ack-order', to: input.peerAcked.openId }
+    return { kind: 'mine', tier: 'standby', tiebreak: 'msgId', contenders: input.peersOnDuty.map(peer => peer.openId) }
   }
 
   // 级 2：对群在岗。仅本人合同只服务自己的操作者。
@@ -206,7 +230,7 @@ export function resolveCommand(input: {
   readonly speakerOpenId: string
   readonly selfOpenId: string
   readonly speakerInstance?: Contender
-  readonly selfScope: 'all' | 'self' | 'off'
+  readonly selfScope: ServeScope | 'off'
   readonly peersOnDuty: readonly Contender[]
 }): { readonly kind: 'mine' } | { readonly kind: 'yield'; readonly reason: YieldReason; readonly to?: string } | { readonly kind: 'unserved' } {
   if (input.selfScope === 'off') return { kind: 'unserved' }
@@ -214,7 +238,8 @@ export function resolveCommand(input: {
   if (input.speakerInstance !== undefined) {
     return { kind: 'yield', reason: 'speaker-instance', to: input.speakerInstance.openId }
   }
-  if (input.selfScope === 'self') {
+  // 仅本人与备岗都不答他人的裸命令：命令不排队、不等，备岗序在这里没有周期可等。
+  if (input.selfScope === 'self' || input.selfScope === 'standby') {
     const peer = input.peersOnDuty[0]
     return peer === undefined ? { kind: 'unserved' } : { kind: 'yield', reason: 'presence', to: peer.openId }
   }

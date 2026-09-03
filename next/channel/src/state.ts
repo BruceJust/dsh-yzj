@@ -14,6 +14,7 @@
  * that message will come back looking exactly like a human reply.
  */
 
+import type { ServeScope } from './presence.ts'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { YzjGroup, YzjMessage, YzjTopicRoute } from './protocol.ts'
@@ -82,6 +83,8 @@ export interface ParkedTrigger {
   readonly group: YzjGroup
   readonly message: YzjMessage
   readonly readyAt: number
+  /** 到点时这条触发一共等过几个周期（备岗序按它数；缺席 = 旧账，按 1 算）。 */
+  readonly cycles?: number
 }
 
 /** 一条观察到的同侪出站（署名识别）。能派生就不落图，落运行态。 */
@@ -176,7 +179,7 @@ interface AccountState {
    * 和 `served` 分开存：接不接是一件事，接谁的话是另一件。缺席 = 旧记录，按 `all`
    * 读（那是它们一直以来的行为）。
    */
-  servedScope?: Record<string, 'all' | 'self'>
+  servedScope?: Record<string, ServeScope>
   /** 观察到的同侪实例：operatorOpenId → 名字与最后一次出现。 */
   peers?: Record<string, { name: string; lastSeen: number }>
   /** groupId → operatorOpenId → 在岗观测。 */
@@ -338,7 +341,7 @@ export class ChannelState {
     return this.active().served ?? {}
   }
 
-  setServed(groupId: string, on: boolean, scope?: 'all' | 'self'): void {
+  setServed(groupId: string, on: boolean, scope?: ServeScope): void {
     if (groupId === '') return
     const account = this.active()
     account.served ??= {}
@@ -350,7 +353,7 @@ export class ChannelState {
   }
 
   /** 触发者范围。缺席 = 从没选过，调用方按 `all` 读。 */
-  scopeOf(groupId: string): 'all' | 'self' | undefined {
+  scopeOf(groupId: string): ServeScope | undefined {
     return this.active().servedScope?.[groupId]
   }
 
@@ -381,6 +384,11 @@ export class ChannelState {
 
   peerMessageOf(msgId: string): PeerMessageRecord | undefined {
     return this.active().peerMessages?.find(entry => entry.msgId === msgId)
+  }
+
+  /** 在这个群里见过出站的同侪实例（备岗序的席位表：能派生就不落账）。 */
+  peersSeenIn(groupId: string): readonly string[] {
+    return [...new Set((this.active().peerMessages ?? []).filter(entry => entry.groupId === groupId).map(entry => entry.openId))]
   }
 
   /** 同侪对某条触发的 ack——按看到的顺序。 */

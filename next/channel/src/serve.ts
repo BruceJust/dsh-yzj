@@ -19,6 +19,7 @@
  * 图上记的是那个**动作**，方向单向（动作 → 图事件 → 物化）。
  */
 
+import type { ServeScope } from './presence.ts'
 import { placeKeyFor } from './protocol.ts'
 
 /** 一次接单/摘单动作在图上的样子。 */
@@ -31,11 +32,11 @@ export interface ServeRecord {
    * 触发者范围 (决策 #63)：`all` 对群在岗（会向群公告），`self` 仅本人（不公告、不算
    * 在岗）。摘单时不写——摘的是整个接单，范围随之消失。
    */
-  readonly scope?: 'all' | 'self'
+  readonly scope?: ServeScope
 }
 
 export function serveRecordFor(
-  groupId: string, on: boolean, name?: string, scope?: 'all' | 'self',
+  groupId: string, on: boolean, name?: string, scope?: ServeScope,
 ): ServeRecord {
   return {
     placeKey: placeKeyFor('group', groupId),
@@ -55,12 +56,12 @@ export async function applyServe(input: {
   readonly groupId: string
   readonly on: boolean
   /** 触发者范围。缺席 = 沿用旧行为（对群）。 */
-  readonly scope?: 'all' | 'self'
+  readonly scope?: ServeScope
   readonly allowedGroupIds: Set<string>
   readonly deniedGroupIds: Set<string>
   readonly record: (record: ServeRecord) => Promise<void>
   readonly nameOf?: (groupId: string) => string | undefined
-  readonly persist: (groupId: string, on: boolean, scope?: 'all' | 'self') => Promise<void>
+  readonly persist: (groupId: string, on: boolean, scope?: ServeScope) => Promise<void>
 }): Promise<void> {
   await input.record(serveRecordFor(input.groupId, input.on, input.nameOf?.(input.groupId), input.scope))
   /*

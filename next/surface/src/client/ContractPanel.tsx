@@ -45,7 +45,7 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
    * 触发者范围 (决策 #63)：对群在岗（会向群发在岗声明）/ 仅本人（不公告、不算在岗）。
    * 接单是身份/听众敏感的主权动作，范围是它的第一个参数，不是事后的设置。
    */
-  const [scope, setScope] = useState<'all' | 'self'>('all')
+  const [scope, setScope] = useState<'all' | 'self' | 'standby'>('all')
   /** 第二在岗押门：已有同侪对群在岗时，这一次没有接——两条出口在这儿。 */
   const [conflict, setConflict] = useState<
     { name: string; since: number; draft?: string } | undefined
@@ -93,7 +93,7 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                   <span className={`${css.tag} ${view.onDuty === false ? css.tagSoft : css.tagHard}`}>
                     {view.onDuty === false
                       ? '未接单'
-                      : view.presence?.self === 'self' ? '仅本人' : '对群在岗'}
+                      : view.presence?.self === 'self' ? '仅本人' : view.presence?.self === 'standby' ? '备岗' : '对群在岗'}
                   </span>
                 </div>
                 <div className={css.row}>
@@ -111,6 +111,11 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                           agent 在这里<b>只应答你自己</b>：同事 @ 它不由本机接（一个群一次受话
                           一个接单者；仅本人不声明、不算在岗，与别人的实例天然无冲突）。
                         </>
+                        : view.presence?.self === 'standby'
+                          ? <>
+                            agent 在这里<b>备岗</b>：你自己的 @ 立刻接；同事的 @ 先让在岗实例，
+                            无人应答时按备岗序等一到几个轮询周期再接。不公告、不算在岗。
+                          </>
                         : <>
                           agent 在这里<b>接受全群委派</b>：@ 它或回复它的消息都会起一个回合。
                           {view.presence?.selfAnchor === undefined
@@ -292,6 +297,15 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                                 />
                                 <b>仅本人</b>——只应答你自己的 @；不公告，和别人的实例天然无冲突。
                               </label>
+                              <label>
+                                <input
+                                  type="radio"
+                                  name="serve-scope"
+                                  checked={scope === 'standby'}
+                                  onChange={() => { setScope('standby') }}
+                                />
+                                <b>备岗</b>——无人应答时才接同事的 @（按备岗序多等一到几个轮询周期）；不公告、不算在岗。
+                              </label>
                             </div>
                           )}
                           <div className={css.confirmActs}>
@@ -367,7 +381,7 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                         {(view.servedChanges ?? []).map(item => (
                           <li key={`${String(item.time)}-${String(item.served)}`}>
                             {new Date(item.time).toLocaleString('zh-CN', { hour12: false })}
-                            {' · '}{item.served ? (item.scope === 'self' ? '接入（仅本人）' : '接入（对群在岗）') : '移出'}
+                            {' · '}{item.served ? (item.scope === 'self' ? '接入（仅本人）' : item.scope === 'standby' ? '接入（备岗）' : '接入（对群在岗）') : '移出'}
                             {item.by === undefined ? '' : ` · ${item.by}`}
                           </li>
                         ))}

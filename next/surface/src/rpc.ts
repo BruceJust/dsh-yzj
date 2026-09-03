@@ -295,7 +295,7 @@ export interface ContractView {
    */
   readonly servedChanges: readonly {
     readonly served: boolean; readonly by?: string; readonly time: number
-    readonly scope?: 'all' | 'self'
+    readonly scope?: 'all' | 'self' | 'standby'
   }[]
   /**
    * **「我的 agent 为什么没接」** (决策 #63)：这个场所最近几次让位——让给了谁、凭哪一级。
@@ -319,8 +319,8 @@ export interface ContractView {
 }
 
 /** 接单记录上的范围，认得出才带上——旧记录没有它，按对群读，但不替它编一个。 */
-function scopeOf(value: string | undefined): { scope?: 'all' | 'self' } {
-  return value === 'all' || value === 'self' ? { scope: value } : {}
+function scopeOf(value: string | undefined): { scope?: 'all' | 'self' | 'standby' } {
+  return value === 'all' || value === 'self' || value === 'standby' ? { scope: value } : {}
 }
 
 export function contractView(ctx: Context, placeKey: string): ContractView {
@@ -924,6 +924,11 @@ export interface BoardRow {
   /** True when the card can be re-delivered into the place that owns it. */
   readonly remindable: boolean
   /**
+   * 镜像行 (决策 #63 P1.5)：真身在同侪实例的图上，这一行是从群消息流物化的滞后镜像。
+   * 动词按主权不渲染；动作 = 文本传送门（去群里对那个实例说）。
+   */
+  readonly mirror?: { readonly operator: string; readonly handle: string }
+  /**
    * 三值状态 (v4.12): 有证据 / 无信号 / 信号过时。
    *
    * **观察型承诺不能画成确定性的。** 一条人欠的事登记完就没有下文,和一条有回执
@@ -1476,6 +1481,13 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     const signal = silent
       ? 'silent' as const
       : now - lastSignalAt > STALE_MS ? 'stale' as const : 'evidence' as const
+    const origin = asRecord(state?.origin)
+    const mirror = asString(origin?.kind) === 'foreign' && asString(origin?.operatorOpenId) !== undefined
+      ? {
+        operator: topics?.peers().find(peer => peer.openId === asString(origin?.operatorOpenId))?.name ?? asString(origin?.operatorOpenId) ?? '',
+        handle: asString(origin?.handle) ?? '',
+      }
+      : undefined
     rows.push({
       signal,
       lastSignalAt,
@@ -1518,7 +1530,8 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
         return to === undefined ? {} : { transferredTo: to }
       })(),
       overdue: status === 'open' && isOverdue(due, now),
-      remindable: status === 'open' && (object.audience?.length ?? 0) > 0,
+      remindable: mirror === undefined && status === 'open' && (object.audience?.length ?? 0) > 0,
+      ...(mirror === undefined ? {} : { mirror }),
       inferredGoal: asString(state?.attachedVia) === 'inferred',
       ...(asString(state?.attachedVia) === undefined
         ? {}
@@ -1726,8 +1739,8 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
   const peers = topics?.peers() ?? []
   const mirrorNote = peers.length === 0
     ? undefined
-    : `本机登记集：这块板只有本实例登记的承诺。${peers.map(peer => `云小助（${peer.name}）`).join('、')}`
-      + '登记的真身在它们各自的图上，镜像行尚未落地（多操作者试运行后开工）。'
+    : `${peers.map(peer => `云小助（${peer.name}）`).join('、')}登记的承诺，真身在它们各自的图上；`
+      + '这里标「镜像」的行是从群消息流物化的滞后镜像——只看，不改；要动它，去群里对那个实例说。'
   const desk = pledgerDesk(ctx)
   const judgMorning = desk?.morningCount()
   return {
@@ -3540,7 +3553,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (topics === undefined) return failure('云之家通道未就绪')
             // 触发者范围 (决策 #63)：对群在岗 / 仅本人。不给就沿用（旧行为 = 对群）。
             const scopeField = stringField(payload, 'scope')
-            const scope = scopeField === 'all' || scopeField === 'self' ? scopeField : undefined
+            const scope = scopeField === 'all' || scopeField === 'self' || scopeField === 'standby' ? scopeField : undefined
             try {
               return { ok: true, value: await topics.setServed(placeKey, on, scope) }
             } catch (error) {

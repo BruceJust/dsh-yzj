@@ -694,6 +694,11 @@ export function YzjBoard(props: BoardProps): ReactNode {
             </button>
           </>
         )}
+        {row.mirror !== undefined && (
+          <span className={css.unnotified} title={`真身在 云小助（${row.mirror.operator}）的图上；这一行是从群消息流物化的滞后镜像，只看不改。要动它，去群里对那个实例说。`}>
+            镜像 · 云小助（{row.mirror.operator}）登记
+          </span>
+        )}
         {row.notified === 'failed' && (
           <span className={css.unnotified} title="登记落库了，但这条消息没能发到执行者所在的会话——对方并不知道。请自己去说一声。">
             未通知 · 请亲发

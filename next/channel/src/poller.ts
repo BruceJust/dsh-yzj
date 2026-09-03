@@ -29,6 +29,7 @@ import {
 } from './protocol.ts'
 import { triage, triageOutbound, type TriageOutcome } from './triage.ts'
 import { parseSendTime, type DeskSend, type PresenceView } from './topics.ts'
+import { applyMirror, readMirror } from './mirror.ts'
 import {
   classifyPeerOutbound, looksLikeInstanceOutbound, presenceDeclaration, presenceWithdrawal,
   resolveAddressee, resolveCommand, type ClaimTier, type PeerSignal, type YieldReason,
@@ -530,7 +531,7 @@ export class YzjPoller {
           await this.runTrigger(group, message, batch, identity)
           return
         }
-        await this.resolveAndRun(group, message, batch, identity, false)
+        await this.resolveAndRun(group, message, batch, identity, 0)
     }
   }
 
@@ -563,6 +564,17 @@ export class YzjPoller {
       }).catch(this.onError)
     }
     this.state.rememberPeer(message.fromOpenId, signature?.operator ?? known ?? message.fromOpenId, time)
+    /*
+      镜像行 (决策 #63 P1.5)：同侪的承诺卡投影 / 终态回声 → 本图上一行滞后镜像。物化不等：
+      观测不该被一次图写拖住；写失败只记错，下一次同句柄的回声还会再来。
+    */
+    const sighting = readMirror(message.content)
+    if (sighting !== undefined) {
+      void applyMirror(this.ctx.yzjGraph, sighting, {
+        operatorOpenId: message.fromOpenId, msgId: message.msgId, placeKey: placeKeyFor('group', groupId), time,
+        ...(message.param.replyMsgId === undefined ? {} : { replyMsgId: message.param.replyMsgId }),
+      }).catch(this.onError)
+    }
     this.state.recordPeerMessage({
       msgId: message.msgId,
       groupId,
@@ -601,14 +613,14 @@ export class YzjPoller {
   /**
    * 四级解析：受话成立后、入队前，回答「叫的是哪一个」。
    *
-   * @param waited - 这条触发已经为发言者实例让过一个轮询周期。
+   * @param waitedCycles - 这条触发已经让过几个轮询周期（发言者实例 1 周期；备岗序 1 + rank 周期）。
    */
   private async resolveAndRun(
     group: YzjGroup,
     message: YzjMessage,
     batch: readonly YzjMessage[],
     identity: YzjIdentity,
-    waited: boolean,
+    waitedCycles: number,
   ): Promise<void> {
     const groupId = group.groupId
     const placeKey = placeKeyFor('group', groupId)
@@ -637,6 +649,10 @@ export class YzjPoller {
     const speakerPeer = message.fromOpenId === identity.openId
       ? undefined
       : this.state.peerOf(message.fromOpenId)
+    const peerAcks = this.state.peerAcksOn(groupId, message.msgId)
+    const firstPeerAck = peerAcks[0]
+    // 备岗序：席位表 = 本群里见过出站的同侪 ∪ 本实例，openId 字典序；能派生就不落账。
+    const seats = [...new Set([...this.state.peersSeenIn(groupId), identity.openId])].sort()
     const resolution = resolveAddressee({
       speakerOpenId: message.fromOpenId,
       selfOpenId: identity.openId,
@@ -645,11 +661,12 @@ export class YzjPoller {
       ...(speakerPeer === undefined
         ? {}
         : { speakerInstance: { openId: message.fromOpenId, name: speakerPeer.name } }),
-      waited,
-      speakerAcked: this.state.peerAcksOn(groupId, message.msgId)
-        .some(ack => ack.openId === message.fromOpenId),
+      waited: waitedCycles > 0,
+      speakerAcked: peerAcks.some(ack => ack.openId === message.fromOpenId),
       selfScope: this.allowed(groupId) ? (this.state.scopeOf(groupId) ?? 'all') : 'off',
       peersOnDuty: this.state.peersOnDutyIn(groupId),
+      standby: { rank: Math.max(0, seats.indexOf(identity.openId)), waitedCycles },
+      ...(firstPeerAck === undefined ? {} : { peerAcked: { openId: firstPeerAck.openId } }),
     })
     switch (resolution.kind) {
       case 'mine':
@@ -659,10 +676,14 @@ export class YzjPoller {
         return
       case 'wait':
         /*
-          发言者有自己的实例：让它先。**落盘**而不是留在内存——游标已经过了这条消息，
-          进程这时崩掉它就永远没人看了。不标 processed：一周期后它还要走一次入场。
+          让高梯队先（发言者实例 / 备岗序）。**落盘**而不是留在内存——游标已经过了这条消息，
+          进程这时崩掉它就永远没人看了。不标 processed：到点后它还要走一次入场。
         */
-        this.state.park({ group, message, readyAt: Date.now() + this.config.pollIntervalMs })
+        this.state.park({
+          group, message,
+          readyAt: Date.now() + resolution.cycles * this.config.pollIntervalMs,
+          cycles: waitedCycles + resolution.cycles,
+        })
         await this.state.save()
         return
       case 'yield':
@@ -691,7 +712,7 @@ export class YzjPoller {
       } catch (error) {
         this.onError(error)
       }
-      await this.resolveAndRun(parked.group, parked.message, batch, identity, true)
+      await this.resolveAndRun(parked.group, parked.message, batch, identity, parked.cycles ?? 1)
     }
   }
 

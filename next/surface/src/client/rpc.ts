@@ -166,7 +166,7 @@ export interface ContractViewWire {
   bannedTools: string[]
   revocations: { messageId: string; reason: string; time: number }[]
   /** 这个开关最近几次是谁按的（v3.15 裁决⑤：记下来而没人读得到，等于没记）。 */
-  servedChanges?: { served: boolean; by?: string; time: number; scope?: 'all' | 'self' }[]
+  servedChanges?: { served: boolean; by?: string; time: number; scope?: 'all' | 'self' | 'standby' }[]
   /** 「我的 agent 为什么没接」：这个场所最近几次让位 (决策 #63)。 */
   yields?: { time: number; reason: 'object-owner' | 'speaker-instance' | 'presence' | 'ack-order'; to?: string; loud: boolean }[]
   leasesAvailable: boolean
@@ -177,7 +177,7 @@ export interface ContractViewWire {
 /** 接单开关按下去之后的实话 (决策 #63)。 */
 export interface ServeOutcomeWire {
   served?: boolean
-  scope?: 'all' | 'self'
+  scope?: 'all' | 'self' | 'standby'
   groupName?: string
   /** 在岗声明帖发出去了没有。false = 记了岗，群里还不知道。 */
   announced?: boolean
@@ -274,7 +274,7 @@ export interface HandoffPrior {
 /** 一个场所此刻的在岗图景 (决策 #63)。 */
 export interface PresenceWire {
   /** 本实例：对群在岗 / 仅本人 / 不接单。 */
-  self: 'all' | 'self' | 'off'
+  self: 'all' | 'self' | 'standby' | 'off'
   /** 对群在岗时向群发出的声明帖；没发出去就没有——面板要说「群里还不知道」。 */
   selfAnchor?: string
   selfSince?: number
@@ -441,6 +441,7 @@ export interface BoardRowWire {
    * 显形，但**不自动作废**——目标死了不等于底下每件事都该停，那是人的判断。
    */
   parentRetired?: boolean
+  mirror?: { operator: string; handle: string }
 }
 
 /** One goal and the work serving it, joined by URI (v4.8). */
@@ -673,7 +674,7 @@ export interface SurfaceInject {
    * 不改仓库里的配置——一个会改写自己出厂配置的程序，会让「这套部署到底被
    * 允许碰什么」在仓库里查不出来）。
    */
-  setServed(placeKey: string, on: boolean, scope?: 'all' | 'self'): Promise<ServeOutcomeWire>
+  setServed(placeKey: string, on: boolean, scope?: 'all' | 'self' | 'standby'): Promise<ServeOutcomeWire>
   /** 就地展开: the last few lines of a topic, for a glance without navigating. */
   topicTail(sessionId: string): Promise<string[]>
   /**

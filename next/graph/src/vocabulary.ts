@@ -457,7 +457,7 @@ const contractFamily: GraphFamily = {
          * 敏感的主权动作，切开即向群发一次在岗声明帖；`self` = **仅本人**：只应答自己的
          * 操作者，与他人天然无冲突，不声明、不算在岗。缺席 = 旧记录，按 `all` 读。
          */
-        scope: z.enum(['all', 'self']).optional(),
+        scope: z.enum(['all', 'self', 'standby']).optional(),
       }),
     },
   },

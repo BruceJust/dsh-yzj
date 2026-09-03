@@ -1,6 +1,6 @@
 /**
  * 在岗图景上桌面 (决策 #63)：锚定条在按下之前说清由谁接单；合同面板说清本实例的范围与
- * 同侪的声明；板在多实例下如实标「本实例登记集」。
+ * 同侪的声明；板在多实例下如实说明镜像行（P1.5 已物化）。
  *
  * 每一格都从通道的同一个谓词读，不在桌面这一侧再算一遍——两处算出两个答案的那一天，
  * 桌面就是撒谎的那一个。
@@ -103,10 +103,10 @@ describe('承诺板：P1 明标降级', () => {
     expect(boardFrame(ctx).mirrorNote).toBeUndefined()
   })
 
-  it('观察到同侪实例：板如实标「本实例登记集」，并点名是谁的真身不在这里', () => {
+  it('观察到同侪实例：板如实说镜像行是滞后镜像、只看不改，并点名是谁的真身不在这里', () => {
     peers = [{ openId: 'op-zhang', name: '张三', lastSeen: 1 }]
     const note = boardFrame(ctx).mirrorNote
-    expect(note).toContain('本实例')
+    expect(note).toContain('镜像')
     expect(note).toContain('云小助（张三）')
   })
 })

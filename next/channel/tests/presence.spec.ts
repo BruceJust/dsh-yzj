@@ -617,3 +617,42 @@ describe('运行态：同侪观测与让位一周期都要落盘', () => {
     expect(reopened.parked()).toEqual([])
   })
 })
+
+describe('备岗序 (v3.23r 押门项落地)：无人应答时才接，按席位序多等周期', () => {
+  const base = {
+    speakerOpenId: LISI.openId, selfOpenId: BRUCE.openId, objectOwner: 'unknown' as const,
+    waited: false, speakerAcked: false, selfScope: 'standby' as const, peersOnDuty: [] as { openId: string; name: string }[],
+  }
+  it('本人的 @ 仍 0 延迟由本实例接——备岗不是不接单', () => {
+    expect(resolveAddressee({ ...base, speakerOpenId: BRUCE.openId })).toEqual({ kind: 'mine', tier: 'speaker', tiebreak: 'sole', contenders: [] })
+  })
+  it('席位 0 等 1 周期；席位 1 等 2 周期——两个备岗实例永不同时起跑', () => {
+    expect(resolveAddressee({ ...base, standby: { rank: 0, waitedCycles: 0 } })).toEqual({ kind: 'wait', cycles: 1 })
+    expect(resolveAddressee({ ...base, standby: { rank: 1, waitedCycles: 0 } })).toEqual({ kind: 'wait', cycles: 2 })
+    expect(resolveAddressee({ ...base, standby: { rank: 1, waitedCycles: 1 } })).toEqual({ kind: 'wait', cycles: 1 })
+  })
+  it('等完了没人应答：以 standby 梯队认领；在岗同侪即使没应答也进对手表，复核仍按梯队裁', () => {
+    expect(resolveAddressee({ ...base, standby: { rank: 0, waitedCycles: 1 } }))
+      .toEqual({ kind: 'mine', tier: 'standby', tiebreak: 'msgId', contenders: [] })
+    expect(resolveAddressee({ ...base, standby: { rank: 0, waitedCycles: 1 }, peersOnDuty: [ZHANG] }))
+      .toEqual({ kind: 'mine', tier: 'standby', tiebreak: 'msgId', contenders: [ZHANG.openId] })
+  })
+  it('等待期间任何同侪 ack 了：静默让位，有账无帖', () => {
+    expect(resolveAddressee({ ...base, standby: { rank: 0, waitedCycles: 1 }, peerAcked: { openId: ZHANG.openId } }))
+      .toEqual({ kind: 'yield', reason: 'ack-order', to: ZHANG.openId })
+  })
+  it('席位表从群里见过的同侪出站派生：openId 字典序，本实例的序号就是它的 rank', async () => {
+    const state = new ChannelState(join(await mkdtemp(join(tmpdir(), 'yzj-next-standby-')), 'state.json'))
+    await state.load()
+    state.selectAccount('acct-1')
+    state.recordPeerMessage({ msgId: 'p-1', groupId: 'g-1', openId: 'op-zhang', time: 1, signal: 'other' })
+    state.recordPeerMessage({ msgId: 'p-2', groupId: 'g-1', openId: 'op-alpha', time: 2, signal: 'other' })
+    state.recordPeerMessage({ msgId: 'p-3', groupId: 'g-2', openId: 'op-other', time: 3, signal: 'other' })
+    const seats = [...new Set([...state.peersSeenIn('g-1'), BRUCE.openId])].sort()
+    expect(seats).toEqual(['op-alpha', 'op-bruce', 'op-zhang'])
+    expect(seats.indexOf(BRUCE.openId)).toBe(1)
+  })
+  it('备岗也是一种接单范围：合同记录与运行态都认它，切到备岗不声明在岗', () => {
+    expect(serveRecordFor('g-1', true, '830 项目', 'standby')).toEqual({ placeKey: 'yzj-group-g-1', served: true, groupName: '830 项目', scope: 'standby' })
+  })
+})
