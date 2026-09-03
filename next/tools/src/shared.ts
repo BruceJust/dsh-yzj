@@ -89,6 +89,20 @@ export function asRecord(value: unknown): UnknownRecord {
   return typeof value === 'object' && value !== null ? value as UnknownRecord : {}
 }
 
+/**
+ * 列表类回包的行 —— **裸数组，或 `{ count, list }`**，两种都认。
+ *
+ * yzj-cli 0.1.4 的 list 类命令回裸数组；0.1.6 起回 `{ count, list, more? }`（信封由
+ * 桥接层剥掉，剥完剩下的就是这个对象）。消费者若只认数组，拿到对象时 `asArray`
+ * 回空——屏幕上是「(no workspaces)」这种恰好为空的东西，不是一句报错。
+ * 所以每一处按行读回包的地方都过这里，而不是各自猜形状。
+ */
+export function listOf(json: unknown): unknown[] {
+  if (Array.isArray(json)) return json
+  const record = asRecord(json)
+  return Array.isArray(record.list) ? record.list : []
+}
+
 export function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }

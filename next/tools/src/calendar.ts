@@ -8,7 +8,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import {
-  asArray, asNumber, asRecord, asString, clipJson, named, runValue, titled, yzjToolOutput,
+  asNumber, asRecord, asString, clipJson, named, runValue, titled, yzjToolOutput,
+  listOf,
   type YzjToolBudget,
 } from './shared.ts'
 
@@ -65,7 +66,7 @@ export function applyCalendarTools(ctx: Context, budget: YzjToolBudget): () => v
     async execute(args) {
       return runValue(ctx, budget, 'calendar event list',
         ['calendar', 'event', 'list', '--start', args.start, '--end', args.end], (json) => {
-          const events = asArray(json)
+          const events = listOf(json)
           const lines = events.map(eventLine)
           return {
             content: lines.length === 0 ? '(no events)' : lines.join('\n'),
@@ -207,7 +208,7 @@ export function applyCalendarTools(ctx: Context, budget: YzjToolBudget): () => v
     async execute(args) {
       return runValue(ctx, budget, 'calendar event participants',
         ['calendar', 'event', 'participants', '--id', args.id], (json) => {
-          const participants = asArray(json)
+          const participants = listOf(json)
           const lines = participants.map(record => namedLine(record, ['name', 'personName'], ['openId', 'openid']))
           return {
             content: lines.length === 0 ? '(no participants)' : lines.join('\n'),
@@ -233,7 +234,7 @@ export function applyCalendarTools(ctx: Context, budget: YzjToolBudget): () => v
       const command = ['calendar', 'room', 'find', '--start', args.start, '--end', args.end]
       if (args.openId !== undefined) command.push('--open-id', args.openId)
       return runValue(ctx, budget, 'calendar room find', command, (json) => {
-        const rooms = asArray(json)
+        const rooms = listOf(json)
         const lines = rooms.map(record => namedLine(record, ['name', 'roomName'], ['id', 'roomId']))
         return {
           content: lines.length === 0 ? '(no free rooms)' : lines.join('\n'),

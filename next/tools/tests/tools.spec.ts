@@ -508,3 +508,24 @@ describe('yzj-cli 0.1.6 带来的两条闭环', () => {
     expect(value.data.tokenStatus).toBe('valid')
   })
 })
+
+describe('yzj-cli 0.1.6 的 list 类回包（{ count, list }）', () => {
+  it('知识库列表 / 日程列表 / 通讯录搜索在两种形状下渲染同一行', async () => {
+    /*
+      0.1.4 回裸数组，0.1.6 回 `{ count, list }`。只认数组的读法在新形状上得到的是
+      「(no workspaces)」——**恰好为空**，而不是一句报错，所以这里两种都喂。
+    */
+    const workspace = { id: 'kb-1', name: '我的知识', bizType: 'my_knowledge', docCount: 7 }
+    for (const shape of [[workspace], { count: 1, list: [workspace] }]) {
+      const { tools } = mountFake(() => okResult(shape))
+      const value = await tools.get('yzj_doc_workspace_list')?.execute({}) as { content: string }
+      expect(value.content).toContain('我的知识')
+    }
+    const person = { name: '代少兵', openId: 'op-1', department: '灵基Chat' }
+    for (const shape of [[person], { count: 1, list: [person], more: false }]) {
+      const { tools } = mountFake(() => okResult(shape))
+      const value = await tools.get('yzj_contact_search')?.execute({ keyword: '代' }) as { content: string }
+      expect(value.content).toContain('代少兵')
+    }
+  })
+})

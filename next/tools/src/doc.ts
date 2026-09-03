@@ -13,6 +13,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import {
   asArray, asBool, asNumber, asRecord, asString, clipJson, counted, docLink, named, runValue,
   titled, yzjToolOutput,
+  listOf,
   type YzjToolBudget,
 } from './shared.ts'
 
@@ -100,7 +101,7 @@ export function applyDocTools(ctx: Context, budget: YzjToolBudget): () => void {
       const command = ['doc', 'workspace', 'list']
       if (args.type !== undefined) command.push('--type', args.type)
       return runValue(ctx, budget, 'doc workspace list', command, (json) => {
-        const workspaces = asArray(json)
+        const workspaces = listOf(json)
         const lines = workspaces.map(workspaceLine)
         return {
           content: lines.length === 0 ? '(no workspaces)' : lines.join('\n'),
@@ -171,7 +172,7 @@ export function applyDocTools(ctx: Context, budget: YzjToolBudget): () => void {
       const command = ['doc', 'list', '--workspace', args.workspace]
       if (args.parentId !== undefined) command.push('--parent-id', args.parentId)
       return runValue(ctx, budget, 'doc list', command, (json) => {
-        const nodes = asArray(json)
+        const nodes = listOf(json)
         const lines = nodes.map(nodeLine)
         return {
           content: lines.length === 0 ? '(no nodes)' : lines.join('\n'),
@@ -238,7 +239,7 @@ export function applyDocTools(ctx: Context, budget: YzjToolBudget): () => void {
       }
       if (args.lastVisitTime !== undefined) command.push('--last-visit-time', String(args.lastVisitTime))
       return runValue(ctx, budget, 'doc recent', command, (json) => {
-        const nodes = asArray(json)
+        const nodes = listOf(json)
         const lines = nodes.map((record) => {
           const node = asRecord(record)
           const kb = asString(node.kbName)
@@ -393,7 +394,7 @@ export function applyDocTools(ctx: Context, budget: YzjToolBudget): () => void {
       if (args.parentId !== undefined) command.push('--parent-id', args.parentId)
       command.push('--items', JSON.stringify(args.items))
       return runValue(ctx, budget, 'doc import', command, (json) => {
-        const nodes = asArray(json)
+        const nodes = listOf(json)
         if (nodes.length > 0) {
           const lines = nodes.map((record) => {
             const node = asRecord(record)

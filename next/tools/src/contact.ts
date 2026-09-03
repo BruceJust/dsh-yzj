@@ -7,7 +7,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import {
-  asArray, asRecord, asString, clipJson, counted, runValue, titled, yzjToolOutput,
+  asRecord, asString, clipJson, counted, runValue, titled, yzjToolOutput,
+  listOf,
   type YzjToolBudget,
 } from './shared.ts'
 
@@ -28,8 +29,7 @@ function contactLine(record: unknown): string {
 
 /** The user array from either a bare array or an object payload. */
 function usersOf(json: unknown): unknown[] {
-  const list = asArray(json)
-  return list.length > 0 ? list : asArray(asRecord(json).list)
+  return listOf(json)
 }
 
 /** Register the contact-domain tools. Returns the disposer for all of them. */

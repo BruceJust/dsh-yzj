@@ -26,7 +26,7 @@ import { placeKeyFor, type TopicDescriptor, type TopicMessage } from '@yzj-next/
 import type {
   Attribution, GearEffect, MirrorStrip, PledgeRefusal, TwoRead,
 } from '@yzj-next/pledger'
-import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS } from '@yzj-next/tools'
+import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS, listOf } from '@yzj-next/tools'
 import {
   commitmentIdFor, createGoalBody, eventHub, executorName, failureOf, goalCommitmentIdFor,
   nothingChanges, ownsCommitment, pendingDecisionsOn, placeOfEdge, readinessLine, reissuable,
@@ -3931,7 +3931,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             if (bridge === undefined) return failure('云之家通道未就绪')
             const result = await bridge.run(['doc', 'workspace', 'list'], { timeoutMs: 20_000 })
             if (!result.ok) return failure(failureOf(result, '知识库列不出来'))
-            const rows = Array.isArray(result.json) ? result.json : []
+            const rows = listOf(result.json)
             return {
               ok: true,
               value: {
@@ -4015,12 +4015,12 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               { timeoutMs: 15_000 },
             )
             if (!result.ok) return failure(failureOf(result, '通讯录搜不动'))
-            const rows = Array.isArray(result.json) ? result.json : []
+            const rows = listOf(result.json)
             return {
               ok: true,
               value: {
                 people: rows.flatMap((row) => {
-                  const person = asRecord(row)
+                  const person = asRecord(row as never)
                   const openId = asString(person?.openId)
                   const name = asString(person?.name) ?? asString(person?.userName)
                   if (openId === undefined || name === undefined) return []

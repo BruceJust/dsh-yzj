@@ -37,7 +37,7 @@ export {
 } from './guard.ts'
 export { applyLineage, LINEAGE_SPECS } from './lineage.ts'
 export {
-  clipJson, docLink, failureDigest, runValue, yzjToolOutput,
+  clipJson, docLink, failureDigest, listOf, runValue, yzjToolOutput,
   type YzjToolBudget, type YzjToolValue,
 } from './shared.ts'
 
