@@ -15,8 +15,9 @@
  * grey box was the fastest way to make every decision feel equally unimportant.
  */
 
-import { Fragment, useState, type ReactNode } from 'react'
-import type { StreamCard } from './rpc.ts'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import type { AnchoredTextWire, FamilyHeadWire, StreamCard, StripWire, SurfaceInject } from './rpc.ts'
+import { GearBox } from './Judg.tsx'
 import css from './card.module.css'
 
 const KIND_LABEL: Record<string, string> = {
@@ -88,7 +89,9 @@ function clock(value: unknown): string | undefined {
 export interface CardRowProps {
   card: StreamCard
   busy: boolean
-  act(kind: string, id: string, actionId: string, input?: string): void
+  act(kind: string, id: string, actionId: string, input?: string, dwellMs?: number): void
+  /** 私条上的动词走它。不给 = 这张卡长在没有私账的地方，私条整块不画。 */
+  inject?: SurfaceInject
 }
 
 interface Action {
@@ -130,10 +133,15 @@ function CardBody(props: CardRowProps): ReactNode {
   const state = record(card.state)
   const status = text(state.status)
   const actions = card.actions.filter(action => action.available)
-  const weight = card.gearEffect?.gear === 'weight'
+  /*
+    「先看」条在场 = 你定的规矩生效：不预选、无一键通过（决策 #64 §4.4 换挡生效面）。
+    停留从这张卡挂上屏那一刻起算——本人行为事实，随裁决广播只进私账。
+  */
+  const weight = (card.strips ?? []).some(strip => strip.kind === 'spread')
+  const mountedAt = useRef(Date.now())
 
   const run = (action: Action): void => {
-    act(card.kind, card.id, action.id, action.needsInput && input !== '' ? input : undefined)
+    act(card.kind, card.id, action.id, action.needsInput && input !== '' ? input : undefined, Date.now() - mountedAt.current)
     setInput('')
     setArming(undefined)
   }
@@ -608,63 +616,148 @@ function CardBody(props: CardRowProps): ReactNode {
 }
 
 /**
- * 私账长在这张卡旁边的那三样 —— **全部仅操作者可见，全部只在桌面** (接缝④⑤).
+ * 私条 —— 长在裁决卡下的四种条，**全部仅操作者可见，全部只在桌面**（接缝⑤）。
  *
- * - **后视镜条**（#61 回喂环的合环）：你在金库对这一族开了镜，此后该族卡片旁亮出
- *   你自己的判例。它是**你预先签发的私账规则**，不是 agent 临场的好意——所以文案
- *   里那句「判断仍由你下」跟着条走，而不是一句可选的礼貌。
- * - **条尾两读**（§7.1 语义扩员，**零新入口**）：既有的「设为租约›」那一位，分岔
- *   从一个出口扩成两个——这类裁决**不再需要你**（租约），或它**需要你更多**（负重）。
- * - **负重档提示**：档位生效了，说出来。一个悄悄变了行为的界面比一个没变的更糟。
- *
- * 三样在私账未启用、未开镜、族不认识时全部不渲染——不是灰，是不画。
+ * 押条 / 回执条（当时 × 后来两栏照片 + 归因四格 + 「这不是那件事的结果」+ 「以后这类事…」）
+ * / 「先看」摆开条（要求 × 交付）/ 「上次」判例条（同族判例 ≤2）。不在场时整块不画。
  */
 function PledgerTail(props: CardRowProps): ReactNode {
-  const { card } = props
-  const strip = card.strip
-  const twoRead = card.twoRead
-  const weight = card.gearEffect?.gear === 'weight'
-  if (strip === undefined && twoRead === undefined && !weight) return null
+  const { card, inject } = props
+  const strips = card.strips ?? []
+  const [note, setNote] = useState<string | undefined>(undefined)
+  const [busy, setBusy] = useState(false)
+  const [gearAt, setGearAt] = useState<string | undefined>(undefined)
+  const [gearHead, setGearHead] = useState<FamilyHeadWire | undefined>(undefined)
+  const [editing, setEditing] = useState<{ key: string; text: string } | undefined>(undefined)
+  const seen = useRef(new Set<string>())
+  const receipts = strips.filter((strip): strip is Extract<StripWire, { kind: 'receipt' }> => strip.kind === 'receipt')
+  useEffect(() => {
+    const fresh = receipts.filter(strip => !strip.row.seen && !seen.current.has(strip.row.calibrationId)).map(strip => strip.row.calibrationId)
+    if (fresh.length === 0 || inject === undefined) return
+    for (const id of fresh) seen.current.add(id)
+    void inject.markSeen(fresh)
+  }, [receipts, inject])
+  if (strips.length === 0 || inject === undefined) return null
+
+  const run = (action: () => Promise<{ error?: string; note?: string }>): void => {
+    setBusy(true)
+    void action().then((result) => { setNote(result.error ?? result.note); setEditing(undefined) }).finally(() => { setBusy(false) })
+  }
+  const tiny = (label: string, title: string, onClick: () => void): ReactNode => (
+    <button type="button" className={css.button} disabled={busy} title={title} onClick={onClick}>{label}</button>
+  )
+  const photo = (one: AnchoredTextWire, index: number): ReactNode => (
+    <div key={`${one.at}:${String(index)}`} className={css.mirrorCase}>{one.text}</div>
+  )
+  const openGear = (family: string, key: string): void => {
+    if (gearAt === key) { setGearAt(undefined); return }
+    void inject.judg().then((view) => {
+      setGearHead(view?.groups.find(group => group.head.family === family)?.head)
+      setGearAt(key)
+    })
+  }
+
   return (
     <div className={css.pledgerTail}>
-      {strip !== undefined && (
-        <div className={css.mirror}>
-          <span className={css.mirrorMark}>🪞</span>
-          <span className={css.mirrorBody}>
-            后视镜（仅你可见）：
-            {strip.cases.map(one => (
-              <span key={one.calibrationId} className={css.mirrorCase}>
-                「{one.thenText}」→ {one.factText}
+      {note !== undefined && <div className={css.gearNote}>{note}</div>}
+      {strips.map((strip, index) => {
+        if (strip.kind === 'pledge') {
+          const row = strip.row
+          return (
+            <div key={`pledge:${row.expectationId}`} className={css.mirror}>
+              <span className={css.mirrorMark}>🔒</span>
+              <span className={css.mirrorBody}>
+                <span className={css.mirrorNote}>只有你能看到 · 押</span>
+                「<b>{row.text}</b>」{row.status === 'settled' ? ' · 已见分晓' : row.premise === 'changed' ? ' · ⚠ 前提已变' : ` · ${row.checkpointText}见分晓`}
+                {row.status !== 'settled' && row.status !== 'withdrawn' && (
+                  <span className={css.twoReadLine}>
+                    {tiny('撤回', '撤回留痕不删史；撤回之后这条裁决不能再押', () => { setEditing({ key: `withdraw:${row.expectationId}`, text: '' }) })}
+                  </span>
+                )}
+                {editing?.key === `withdraw:${row.expectationId}` && (
+                  <span className={css.twoReadLine}>
+                    <input className={css.input} placeholder="为什么撤回？（留空也行）" value={editing.text} onChange={(event) => { setEditing({ key: editing.key, text: event.target.value }) }} />
+                    {tiny('记下', '', () => { run(() => inject.withdrawExpectation(row.expectationId, editing.text.trim())) })}
+                  </span>
+                )}
               </span>
-            ))}
-            <span className={css.mirrorNote}>{strip.note}</span>
-          </span>
-        </div>
-      )}
-      {weight && (
-        <div className={css.gearNote}>
-          负重档 · <b>{card.gearEffect?.family}</b> —— 证据摆开、不预选、无一键通过。
-          这是你在金库签发的档位，组织侧无人知晓。
-        </div>
-      )}
-      {twoRead !== undefined && (
-        <div className={css.twoRead}>
-          <span className={css.twoReadHead}>这类确认还需要你吗？</span>
-          <span className={css.twoReadBody}>
-            {twoRead.evidence.map(line => <span key={line} className={css.twoReadLine}>{line}</span>)}
-            <span className={css.twoReadLine}>
-              两种可能：这类裁决<b>不再需要你</b>（→ 租约，全自动），
-              或它<b>需要你更多</b>（→ 负重：摆开证据、不预选、无一键通过）。
+            </div>
+          )
+        }
+        if (strip.kind === 'receipt') {
+          const row = strip.row
+          const cellNote = (id: 'q1' | 'q2' | 'q3' | 'q4'): string => (
+            id === 'q1' ? '你当时看到的，就是后来发生的'
+              : id === 'q2' ? '结果是好的，但不是因为你当时看到的那些'
+                : id === 'q3' ? (row.then[1] === undefined ? '当时卡上有的，你没看' : `「${row.then[1].text}」当时就在卡上`)
+                  : '后来的事，当时看不到')
+          return (
+            <div key={`receipt:${row.calibrationId}`} className={css.twoRead} data-testid="strip-receipt">
+              <span className={css.twoReadHead}>🔒 只有你能看到 · 回执 · <b>{row.type === 'pledged' ? '押过的' : row.type === 'reversed' ? '同意了，被现实推翻' : '没同意，被现实印证'}</b></span>
+              <span className={css.twoReadBody}>
+                <span className={css.twoReadLine}><b>你当时</b> · {row.verdict.text}</span>
+                {row.then.map(photo)}
+                <span className={css.twoReadLine}><b>后来</b>{row.later.length === 0 ? ' · 还没有结果——到「我的判断」里补一句' : ''}</span>
+                {row.later.map(photo)}
+                {row.dismissed
+                  ? <span className={css.twoReadLine}>这不是那件事的结果——没记入。{(['q1', 'q2', 'q3', 'q4'] as const).map(id => tiny(ATTRIBUTION_LABEL[id], '记回来', () => { run(() => inject.attribute(row.calibrationId, id)) }))}</span>
+                  : row.attributionLabel !== undefined
+                    ? (
+                      <span className={css.twoReadLine}>
+                        <b>{row.attributionLabel}</b> · 已记 · 想改随时改
+                        {(['q1', 'q2', 'q3', 'q4'] as const).filter(id => id !== row.attribution).map(id => tiny(ATTRIBUTION_LABEL[id], cellNote(id), () => { run(() => inject.attribute(row.calibrationId, id)) }))}
+                        {tiny('以后这类事… ›', '先看本族的 2×2，再决定改不改规矩', () => { openGear(row.family, row.calibrationId) })}
+                      </span>
+                    )
+                    : (
+                      <span className={css.twoReadLine}>
+                        <b>这次算什么？</b>（你来定）
+                        {(['q1', 'q2', 'q3', 'q4'] as const).map(id => tiny(ATTRIBUTION_LABEL[id], cellNote(id), () => { run(() => inject.attribute(row.calibrationId, id)) }))}
+                        {tiny('这不是那件事的结果', '判例不入账；想记回来再按一格即可', () => { run(() => inject.dismissReceipt(row.calibrationId)) })}
+                      </span>
+                    )}
+                {gearAt === row.calibrationId && gearHead !== undefined && (
+                  <GearBox head={gearHead} inject={inject} busy={busy} done={(text) => { setGearAt(undefined); setNote(text) }} />
+                )}
+              </span>
+            </div>
+          )
+        }
+        if (strip.kind === 'spread') {
+          return (
+            <div key={`spread:${String(index)}`} className={css.twoRead} data-testid="strip-spread">
+              <span className={css.twoReadHead}>🔒 你定的规矩 · 先看 · 要求 × 交付</span>
+              <span className={css.twoReadBody}>
+                <span className={css.twoReadLine}><b>要求</b></span>
+                {strip.requirements.map(photo)}
+                <span className={css.twoReadLine}><b>交付</b></span>
+                {strip.delivery.map(photo)}
+                <span className={css.mirrorNote}>不预选、无一键通过——主动作要按两下。</span>
+              </span>
+            </div>
+          )
+        }
+        return (
+          <div key={`mirror:${String(index)}`} className={css.mirror} data-testid="strip-mirror">
+            <span className={css.mirrorMark}>🔒</span>
+            <span className={css.mirrorBody}>
+              <span className={css.mirrorNote}>你定的规矩 · 上次 · 你在{strip.family}上的结果：</span>
+              {strip.cases.map(one => (
+                <span key={one.calibrationId} className={css.mirrorCase}>
+                  {when(one.verdict.at)} · {one.attributionLabel ?? ''}：{one.verdict.text} → {one.later[0]?.text ?? ''}
+                </span>
+              ))}
             </span>
-            {!twoRead.leaseAvailable && twoRead.leaseNote !== undefined && (
-              <span className={css.twoReadLine}>{twoRead.leaseNote}</span>
-            )}
-            <span className={css.twoReadNote}>
-              {twoRead.note} · 换挡在金库（🔒 我的判断）——档位是你的私有设置
-            </span>
-          </span>
-        </div>
-      )}
+          </div>
+        )
+      })}
     </div>
   )
+}
+
+const ATTRIBUTION_LABEL = { q1: '对了 · 因判断', q2: '对了 · 因运气', q3: '错了 · 因判断', q4: '错了 · 因世界' } as const
+
+const when = (at: string): string => {
+  const parsed = Date.parse(at)
+  return Number.isFinite(parsed) ? new Date(parsed).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : at
 }

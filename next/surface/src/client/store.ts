@@ -52,13 +52,12 @@ export type Frame =
    */
   | { readonly kind: 'goal'; readonly goalRef: string; readonly goalName: string }
   /**
-   * 金库 —— 私账的对表面，**这个设计唯一新增的「面」**，而且它住在私语侧.
+   * 「我的判断」—— 第三取景框（跨裁决），与承诺板同构（决策 #64 零新场所）.
    *
-   * 和 `board` / `place` 同一种东西：一个 FRAME，不是一个 session。那里没有东西在
-   * 跑、没有东西可 steer——它是**你自己的账本的对账面**，不是一段和 agent 的对话。
-   * 立约与对表的**话语**在私语通道里说；这里只陈列判例与对表，结论你自己下。
+   * 一个 FRAME，不是一个 session：没有东西在跑、没有东西可 steer，也没有发送落点
+   * ——押与换挡的话语在任一会话的私语道里说。从承诺板透镜「我裁决的」进入，Back 回板。
    */
-  | { readonly kind: 'vault' }
+  | { readonly kind: 'judg' }
 
 let frame: Frame = { kind: 'session' }
 const listeners = new Set<() => void>()
@@ -229,7 +228,7 @@ export function currentFrame(): Frame {
 }
 
 export function setFrame(next: Frame): void {
-  const leavingVault = frame.kind === 'vault' && next.kind !== 'vault'
+  const leavingJudg = frame.kind === 'judg' && next.kind !== 'judg'
   frame = next
   /*
     **残留面 = 第四泄漏口**（继聚合面 / 导出面 / 搜索面之后，v2.2 对象面账本律②）.
@@ -244,7 +243,7 @@ export function setFrame(next: Frame): void {
     它落在这一个点上而不是十几个组件里，理由和隐身档同一条：**换账本只有这一处
     机械时刻**，写在这儿就不会有人忘记。
   */
-  if (leavingVault) setVaultSelection(undefined)
+  if (leavingJudg) setJudgSelection(undefined)
   /*
     切场景即收预览 (v4.11「切会话即收」).
 
@@ -300,28 +299,28 @@ export function subscribeSpotlight(listener: () => void): () => void {
   return () => { spotlightListeners.delete(listener) }
 }
 
-/* ——— 金库右栏此刻摆的是哪一行 —— 会话视图态，切离私账即毁（v2.2 账本律②） ——— */
+/* ——— 「我的判断」右栏此刻摆的是哪一行 —— 会话视图态，切离即毁（账本律） ——— */
 
 /** 选中的那一行。**没有「上次选中」这种东西**——切离即毁。 */
-export interface VaultSelection {
+export interface JudgSelection {
   readonly kind: 'calibration' | 'expectation'
   readonly id: string
 }
 
-let vaultSelection: VaultSelection | undefined
-const vaultSelectionListeners = new Set<() => void>()
+let judgSelection: JudgSelection | undefined
+const judgSelectionListeners = new Set<() => void>()
 
-export function currentVaultSelection(): VaultSelection | undefined {
-  return vaultSelection
+export function currentJudgSelection(): JudgSelection | undefined {
+  return judgSelection
 }
 
-export function setVaultSelection(next: VaultSelection | undefined): void {
-  if (vaultSelection === next) return
-  vaultSelection = next
-  for (const listener of vaultSelectionListeners) listener()
+export function setJudgSelection(next: JudgSelection | undefined): void {
+  if (judgSelection === next) return
+  judgSelection = next
+  for (const listener of judgSelectionListeners) listener()
 }
 
-export function subscribeVaultSelection(listener: () => void): () => void {
-  vaultSelectionListeners.add(listener)
-  return () => { vaultSelectionListeners.delete(listener) }
+export function subscribeJudgSelection(listener: () => void): () => void {
+  judgSelectionListeners.add(listener)
+  return () => { judgSelectionListeners.delete(listener) }
 }

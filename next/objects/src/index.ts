@@ -14,6 +14,7 @@ import * as objApproval from './approval/index.ts'
 import * as objCommitment from './commitment/index.ts'
 import * as objEvent from './event/index.ts'
 import * as objGoal from './goal/index.ts'
+import * as objLease from './lease/index.ts'
 import * as objMinutes from './minutes/index.ts'
 import * as objTask from './task/index.ts'
 import { applyGraphTools } from './graph-tools.ts'
@@ -23,6 +24,7 @@ export * as objApproval from './approval/index.ts'
 export * as objCommitment from './commitment/index.ts'
 export * as objEvent from './event/index.ts'
 export * as objGoal from './goal/index.ts'
+export * as objLease from './lease/index.ts'
 export * as objMinutes from './minutes/index.ts'
 export * as objTask from './task/index.ts'
 export { approvalCard } from './approval/card.ts'
@@ -79,6 +81,9 @@ export {
   ingestMinutes, pullAndIngest, type IngestOutcome, type YzjMinutesSource,
 } from './minutes/ingest.ts'
 export { applyCommitmentNotify } from './goal/notify.ts'
+export { leaseCard } from './lease/card.ts'
+export { leaseFamily, leaseIdFor, toolClassOf, type LeaseState, type LeaseStatus } from './lease/family.ts'
+export { activeLeases, leasesService, proposeLease, sweepExpired } from './lease/index.ts'
 export { applyGoalWriteback, lineFor, writebackIdFor } from './goal/writeback.ts'
 export { failureOf } from './bridge-error.ts'
 export {
@@ -132,6 +137,8 @@ export function apply(ctx: Context, config: Config): void {
     scoped.effect(() => applyMemoryTools(scoped))
   })
   ctx.plugin(objApproval, config.approval ?? {})
+  // 最小租约（§5.1）：guard 的租约命中放行有了坐席；强写永不被覆盖仍在 guard 里。
+  ctx.plugin(objLease)
   ctx.plugin(objTask)
   ctx.plugin(objCommitment)
   // After `objCommitment`: the goal plugin writes commitment events and listens

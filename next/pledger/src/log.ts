@@ -1,21 +1,6 @@
 /**
- * The SECOND store domain on disk (分册 §2).
- *
- * `~/.dsh-next/yzj-next/pledger/<operatorOpenId>/pledger.jsonl` plus an
- * atomically written snapshot. Same append-only shape as the graph kernel's
- * log, three deliberate differences:
- *
- * 1. **归属键 = operatorOpenId（人，非 accountKey）** — the ledger travels with
- *    the person, not with the deployment instance. 并存期切实例、迁移、多实例
- *    下账本唯一 (PTD-8).
- * 2. **目录自包含** — no external index, no reverse reference from the
- *    organization graph. Copying the directory IS taking the whole ledger
- *    (§2 policy③ / 断言⑪), and that is a property of the layout, not of an
- *    export routine somebody has to remember to write.
- * 3. **destroy 是唯一删除路径** — the deployment switch going false leaves the
- *    directory untouched (v1.1); there is no tombstone event in this ledger,
- *    because every correction here is an append and the only erasure is
- *    destroying the whole account.
+ * 第二存储域落盘：`<root>/<operatorOpenId>/pledger.jsonl` + 原子写的快照。
+ * 归属键 = 人（不是实例）；目录自包含（拷走即取走全账）；destroy 是唯一删除路径。
  */
 
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
@@ -138,14 +123,7 @@ export class PledgerLog {
     await rename(temporary, this.snapshotPath)
   }
 
-  /**
-   * 销毁 —— the ONLY deletion path in this ledger (§2, v1.1).
-   *
-   * Not a tombstone, not a soft flag: the directory goes. Everything else in
-   * here is append-only precisely so that this one verb is unambiguous, and it
-   * is gated behind a two-step confirmation at the entrance (不可逆人签发终态
-   * 同款门), never reachable from a model tool.
-   */
+  /** 销毁 —— the ONLY deletion path in this ledger (§2, v1.1). Not a tombstone, not a soft flag: the directory goes.  */
   async destroy(): Promise<void> {
     await rm(this.dir, { recursive: true, force: true })
   }

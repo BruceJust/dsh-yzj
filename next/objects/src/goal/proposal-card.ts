@@ -264,7 +264,8 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
       驳回与挂起不是终态——事情还在这张卡上，没有可对表的「后来」。
     */
     decideAction('confirmed', '确认', ['确认'], 'primary', 'delegation'),
-    decideAction('rejected', '驳回', ['驳回'], 'danger'),
+    // 驳回也是人签发的裁决终态：如实广播，判据留给听的人（私账侧的比值分子）。
+    decideAction('rejected', '驳回', ['驳回'], 'danger', 'proposal-rejected'),
     decideAction('held', '挂起', ['挂起'], 'neutral'),
     {
       id: 'settle',

@@ -1434,6 +1434,30 @@ export function YzjBoard(props: BoardProps): ReactNode {
           不改任何事实。
         */}
         <div className={css.lens}>
+          {/*
+            第四 chip「我裁决的」（决策 #64 零新场所）：它不是方向轴的一档，是**第三取景框**
+            的入口——按下去整屏换成「我的判断」（Back 回板）。只在私账层启用时出现；隐身档下不画。
+          */}
+          {view.judgEntry === true && (
+            <button
+              type="button"
+              className={css.lensBtn}
+              title="我的判断：你签发过的裁决，和后来发生的事——只有你能看到"
+              onClick={() => { pushFrame({ kind: 'judg' }, bodyRef.current?.scrollTop ?? 0) }}
+            >
+              🔒 我裁决的
+            </button>
+          )}
+          {view.judgMorning !== undefined && view.judgMorning > 0 && (
+            <button
+              type="button"
+              className={css.lensBtn}
+              title="你定的规矩：每天早上告诉我有几条结果等着看——只计数，只在这台桌面"
+              onClick={() => { pushFrame({ kind: 'judg' }, bodyRef.current?.scrollTop ?? 0) }}
+            >
+              🔒 {String(view.judgMorning)} 条结果等着看 ›
+            </button>
+          )}
           {([['all', '全部'], ['owed-to-me', '欠我的'], ['mine', '我欠的']] as const)
             .map(([id, label]) => (
               <button

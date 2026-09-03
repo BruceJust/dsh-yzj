@@ -33,7 +33,7 @@ import { YzjDecisionBar } from './DecisionBar.tsx'
 import { YzjBoard } from './Board.tsx'
 import { YzjGoalPage } from './GoalPage.tsx'
 import { YzjPlaceView } from './PlaceView.tsx'
-import { YzjVault } from './Vault.tsx'
+import { YzjJudg } from './Judg.tsx'
 import { YzjContractPanel } from './ContractPanel.tsx'
 import { YzjTracePanel } from './TracePanel.tsx'
 import { CopyButton, EmojiButton, ForwardPicker, MentionPicker } from './Compose.tsx'
@@ -194,7 +194,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     人随后自己把它收起来，是人的选择，不该被下一帧顶回去。
   */
   useEffect(() => {
-    if (frame.kind === 'vault') openDetails()
+    if (frame.kind === 'judg') openDetails()
   }, [frame.kind, openDetails])
   // A landing point belongs to the conversation it was chosen in.
   useEffect(() => { setReplyTo(undefined) }, [sessionId])
@@ -508,27 +508,28 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       })
       return
     }
-    // Mid-run words are steering; between runs they are the next instruction.
-    void prompt(sessionId, text, running ? 'steer' : 'queue')
-      .then(async (error) => {
-        if (error !== undefined) {
-          setToast(error)
-          return
-        }
-        /*
-          装载跟着「说出口」走，而不是跟着语态走.
-
-          The chip says 「这句发出去之后，这个话题就带着它了」 and rendered in
-          every voice, but arming lived only in the 公 branch — so carrying a
-          goal in and then deciding to ask the agent instead left the promise
-          silently unkept, and the next registration here inherited nothing.
-          挂接零操作 failing in the direction nobody can notice is the worst
-          direction available.
-        */
-        await armPending()
+    /*
+      私语道出站拦截（决策 #64 §4.1/§4.4）：「押：…」与「以后…」是人对自己账本的动词，
+      **不经 agent turn**。宿主认出来就记下并回一句 ack（锚与检验点可纠）；认不出来
+      这句话照常给 agent——拦截只认那两种形状。
+    */
+    void inject.privateSay(sessionId, text).then(async (said) => {
+      if (said.handled) {
+        setToast(said.ack ?? '记下了。只有你能看到。')
         setDraft('')
-      })
-      .finally(() => { setBusy(false) })
+        setBusy(false)
+        void refresh()
+        return
+      }
+      if (said.error !== undefined) setToast(said.error)
+      // Mid-run words are steering; between runs they are the next instruction.
+      const error = await prompt(sessionId, text, running ? 'steer' : 'queue')
+      if (error !== undefined) { setToast(error); setBusy(false); return }
+      await armPending()
+      setDraft('')
+      setBusy(false)
+    })
+    return
   }, [draft, busy, voice, sessionId, running, prompt, inject, refresh, replyTo, armPending])
 
   /**
@@ -584,9 +585,9 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     })
   }, [])
 
-  const act = useCallback((kind: string, id: string, actionId: string, input?: string): void => {
+  const act = useCallback((kind: string, id: string, actionId: string, input?: string, dwellMs?: number): void => {
     setBusy(true)
-    void inject.cardAct(kind, id, actionId, input).then((result) => {
+    void inject.cardAct(kind, id, actionId, input, dwellMs).then((result) => {
       setToast(result?.receipt ?? '这张卡没有回应，可能已经被别人答过了。')
       setBusy(false)
       void refresh()
@@ -681,14 +682,9 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     和承诺板同一级：一个 FRAME，不是一个 session。那里没有东西在跑、没有东西可 steer
     ——立约与对表的**话语**在私语通道里说，这里只陈列判例与对表。
   */
-  if (frame.kind === 'vault') {
-    /*
-      金库只是**中栏**（v2.2 对象面账本律①）。
-
-      右栏由对象面那个槽位按 frame 分派——`kind = vault` 时它整体换成私账证据面那一
-      棵树。所以「回真身 ↗」不在这里：它是物那一面的动作，长在右栏上。
-    */
-    return <YzjVault inject={inject} back={() => { setFrame({ kind: 'session' }) }} />
+  if (frame.kind === 'judg') {
+    // 「我的判断」只是中栏；右栏由对象面槽位按 frame 分派成证据面。Back 回承诺板。
+    return <YzjJudg inject={inject} back={() => { popFrame() }} />
   }
 
   /*
@@ -1157,7 +1153,9 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
             value={draft}
             disabled={busy}
             placeholder={
-              voice === 'place' ? '发到群里…' : voice === 'ask' ? '问一个数…' : '对 agent 说…'
+              voice === 'place' ? '发到群里…' : voice === 'ask' ? '问一个数…'
+                // 发现路 = 占位文字（PTD-32）：本会话最近裁决还没押过时才多这一句。不弹卡、不计数。
+                : `对 agent 说…${window_.privateHint ?? ''}`
             }
             onChange={(event) => { setDraft(event.target.value) }}
             onKeyDown={(event) => {
@@ -1202,7 +1200,7 @@ interface RowContext {
   now: number
   openWork: Record<string, boolean>
   toggleWork(key: string): void
-  act(kind: string, id: string, actionId: string, input?: string): void
+  act(kind: string, id: string, actionId: string, input?: string, dwellMs?: number): void
   busy: boolean
   placeName: string
   openTrace(): void
@@ -1562,7 +1560,7 @@ function renderRow(row: StreamRow, context: RowContext): ReactNode {
       return shell(row.key, 'private', (
         <>
           <div className={css.mhead}><span className={css.clock}>{clock}</span></div>
-          <CardRow card={row.card} busy={context.busy} act={context.act} />
+          <CardRow card={row.card} busy={context.busy} act={context.act} inject={context.inject} />
         </>
       ), `${row.card.kind}:${row.card.id}`)
   }

@@ -83,6 +83,14 @@ declare module '@deepseek-ai/cordis' {
        * 空壳」的成因。**携锚必携文**，从这条事件的 payload 就开始。
        */
       titleText?: string
+      /**
+       * 分母两数的原料（v3.24r = #64 v1.2）：这张卡开出来的时刻与裁决落地的时刻——
+       * 「等你多久」是组织付的摩擦；`dwellMs` 是桌面量到的停留（人的注意力成本），
+       * 由发起动作的那一面带来，总线只转达。仍然不携任何查询能力。
+       */
+      openedAt?: number
+      decidedAt?: number
+      dwellMs?: number
     }): void
   }
 }
@@ -354,12 +362,14 @@ export class YzjCards extends Service {
     actor: GraphActor,
     via: CardVia,
     input?: string,
+    /** 桌面量到的停留（毫秒）——只随裁决广播转达，不落组织图。 */
+    meta?: { readonly dwellMs?: number },
   ): Promise<CardActResult> {
     const key = refKeyOf(cardRef)
     const previous = this.gates.get(key) ?? Promise.resolve()
     const running = previous
       .catch(() => undefined)
-      .then(() => this.actExclusive(cardRef, actionId, actor, via, input))
+      .then(() => this.actExclusive(cardRef, actionId, actor, via, input, meta))
     this.gates.set(key, running)
     void running.catch(() => undefined).finally(() => {
       if (this.gates.get(key) === running) this.gates.delete(key)
@@ -373,6 +383,7 @@ export class YzjCards extends Service {
     actor: GraphActor,
     via: CardVia,
     input?: string,
+    meta?: { readonly dwellMs?: number },
   ): Promise<CardActResult> {
     const definition = this.definitions.get(cardRef.kind)
     if (definition === undefined) throw new Error(`unknown card type "${cardRef.kind}"`)
@@ -436,13 +447,17 @@ export class YzjCards extends Service {
       const titleText = asString(settled?.what)
         ?? asString(settled?.summary)
         ?? asString(settled?.reason)
+      const decidedAt = Date.now()
       this.ctx.emit('yzj-cards/verdict-settled', {
         cardRef,
         kind: action.verdict,
         actionId,
         actor,
-        at: Date.now(),
+        at: decidedAt,
         ...(titleText === undefined ? {} : { titleText }),
+        openedAt: object.createdAt,
+        decidedAt,
+        ...(meta?.dwellMs === undefined ? {} : { dwellMs: meta.dwellMs }),
       })
     }
 

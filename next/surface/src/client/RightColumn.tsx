@@ -5,7 +5,7 @@
  * 那个 `f` 的第一段——按当前 frame 的 kind 分派到哪一棵组件树：
  *
  * ```
- * kind = vault  → 私账证据面组件树（VaultObjectFace）
+ * kind = judg   → 私账证据面组件树（JudgObjectFace）
  * 其余一切会话  → 组织侧对象面组件树（ObjectFace）
  * ```
  *
@@ -25,7 +25,7 @@
 import { useSyncExternalStore, type ReactNode } from 'react'
 import type { SurfaceInject } from './rpc.ts'
 import { YzjObjectFace } from './ObjectFace.tsx'
-import { YzjVaultObjectFace } from './VaultObjectFace.tsx'
+import { YzjJudgObjectFace } from './JudgObjectFace.tsx'
 import { currentFrame, pushFrame, subscribeFrame } from './store.ts'
 
 export interface RightColumnProps {
@@ -38,9 +38,9 @@ export function YzjRightColumn(props: RightColumnProps): ReactNode {
   const { sessionId, inject, openSession } = props
   const frame = useSyncExternalStore(subscribeFrame, currentFrame)
 
-  if (frame.kind === 'vault') {
+  if (frame.kind === 'judg') {
     return (
-      <YzjVaultObjectFace
+      <YzjJudgObjectFace
         inject={inject}
         /*
           一跳回真身 = **会话级导航**：整屏换账本，而不是在这一栏里打开组织侧的活视图。

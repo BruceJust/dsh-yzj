@@ -33,8 +33,6 @@ import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
 import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
 import type { PlaceViewWire, SurfaceInject, TopicMessageWire } from './rpc.ts'
 import tokens from './tokens.module.css'
-import { PrivateCard } from './PrivateCard.tsx'
-import type { PrivateRowWire } from './rpc.ts'
 import css from './place.module.css'
 
 export interface PlaceViewProps {
@@ -65,16 +63,6 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const [earlierOpen, setEarlierOpen] = useState(false)
   /** Topic cards the reader asked to peek into (D13③: 展开是手势不是默认). */
   const [peeked, setPeeked] = useState<Record<string, string[]>>({})
-  /**
-   * 私语通道的两位新住客 —— 立约邀约与校准回执 (私账层 §7).
-   *
-   * **只在自聊里读，也只在自聊里画.** 私账内容离开桌面通道即事故，而离开自聊进入
-   * 任何一间有第二个人的屋子，是同一类事故的更糟版本。所以这一份既不在群视图里
-   * 取，也不会被取到——`selfChat` 为假时这个数组永远是空的。
-   */
-  const [privateRows, setPrivateRows] = useState<readonly PrivateRowWire[]>([])
-  const [privateBusy, setPrivateBusy] = useState(false)
-  const [privateNote, setPrivateNote] = useState<string | undefined>(undefined)
   const bodyRef = useRef<HTMLDivElement | null>(null)
   const boxRef = useRef<HTMLTextAreaElement | null>(null)
   /** Whether this room has already been scrolled to its newest message. */
@@ -172,23 +160,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     return () => { clearTimeout(timer) }
   }, [toast])
 
-  /*
-    私语通道的两位住客，只在自聊里读 (私账层 §7).
 
-    条件写在**取数**这一侧而不是渲染那一侧：一个「取回来了但不画」的实现，只要有人
-    改一次渲染分支就漏了；一个「群视图里根本没取」的实现，改渲染也漏不出去。
-  */
-  const selfChat = view.selfChat === true
-  const reloadPrivate = useCallback(async (): Promise<void> => {
-    if (!selfChat) { setPrivateRows([]); return }
-    setPrivateRows((await inject.privateRows()).rows)
-  }, [inject, selfChat])
-
-  useEffect(() => {
-    void reloadPrivate()
-    const timer = setInterval(() => { void reloadPrivate() }, 5_000)
-    return () => { clearInterval(timer) }
-  }, [reloadPrivate])
 
   /*
     私语流画哪些 —— 未答的，**加上刚答完的那一张**。
@@ -197,7 +169,6 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     （断言⑳ 入口不垄断）。服务端只给最近答完的一张挂合环行，所以这里不会堆积——
     这一刀在 desk 那一侧，两个客户端读的是同一个决定。
   */
-  const privateStream = privateRows.filter(row => !row.resolved || row.loopback !== undefined)
 
   /**
    * Enter a topic, remembering where we were.
@@ -627,48 +598,6 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
 
           未答的静躺在这里：不老化、不可催、不成欠账。
         */}
-        {selfChat && privateStream.length > 0 && (
-          <div className={css.privateStream}>
-            {privateNote !== undefined && <div className={css.privateNote}>{privateNote}</div>}
-            {privateStream.map(row => (
-              <PrivateCard
-                key={`${row.kind}:${row.id}`}
-                row={row}
-                busy={privateBusy}
-                /*
-                  **就地合环** —— 判断刚出炉、动机最热的那一刻就在这里 (断言⑳).
-
-                  金库是汇总处不是唯一入口。少了这一行，「开后视镜 / 调档」就只在
-                  金库里够得着，而那正是 #61 那条「凡只能在金库获得的能力即违规」
-                  说的事——那条法对它自己也生效。
-                */
-                loopback={async (family, patternKey, on, gear) => {
-                  setPrivateBusy(true)
-                  try {
-                    const result = patternKey === undefined
-                      ? await inject.shiftGear(family, gear ?? 'weight', 'receipt')
-                      : await inject.toggleMirror(family, patternKey, on, 'receipt')
-                    setPrivateNote(result.error)
-                    await reloadPrivate()
-                  } finally {
-                    setPrivateBusy(false)
-                  }
-                }}
-                act={async (actionId, input) => {
-                  setPrivateBusy(true)
-                  try {
-                    const result = await inject.pledgerAct(row.kind, row.id, actionId, input)
-                    // 回执原样带回来：每一句都指向不同的下一步，压成一句就得靠猜。
-                    setPrivateNote(result?.outcome === 'applied' ? undefined : result?.receipt)
-                    await reloadPrivate()
-                  } finally {
-                    setPrivateBusy(false)
-                  }
-                }}
-              />
-            ))}
-          </div>
-        )}
         {earlier.length > 0 && (
           <div className={css.earlier}>
             <button

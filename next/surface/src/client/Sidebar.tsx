@@ -467,15 +467,14 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
       新消息」，永远不是「有几件事没答」。未答的邀约与回执不老化、不可催、不成欠账，
       它们静躺在私语流里等你有空。
     */
-    const unread = stealth || (row.selfChat && inbox.pledger?.enabled !== true) ? 0 : row.unread
+    // 自聊行未读豁免（其可应答流量已在注意力 chips 里）；私账不产生任何消息（决策 #64）。
+    const unread = stealth || row.selfChat ? 0 : row.unread
     /*
       自聊行的标签**照实说**：私账层在，它是「审批与私语通道」；私账层不在（未启用，
       或隐身档下当作不在），它就只是审批通道——隐身档要的是私账层**整层**不上屏，
       一个写着「私语」的入口标签也是上屏的一部分。
     */
-    const note = row.selfChat
-      ? (inbox.pledger?.enabled === true ? '审批与私语通道' : '审批通道')
-      : stealth ? '' : row.preview
+    const note = row.selfChat ? '审批通道' : stealth ? '' : row.preview
 
     if (place !== undefined && row.onDuty) {
       const holds = closed && place.topics.some(entry => entry.sessionId === currentSessionId)
@@ -498,7 +497,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
                 <span className={css.itemPreview}>
                   {/* 自聊是审批与私语通道，即使它接单、即使它长出了话题。 */}
                   {row.selfChat
-                    ? `审批与私语通道 · ${String(place.topics.length + place.archived)} 个话题`
+                    ? `审批通道 · ${String(place.topics.length + place.archived)} 个话题`
                     : `主楼 · ${String(place.topics.length + place.archived)} 个话题`}
                 </span>
               </span>
@@ -859,18 +858,6 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
         >
           ◫
         </button>
-        {/* 收起态里金库同样在座，同样**没有徽标**——窄不是把它藏起来的理由。 */}
-        {inbox.pledger?.enabled === true && (
-          <button
-            type="button"
-            className={`${css.railBoard} ${frame.kind === 'vault' ? css.boardOn : ''}`}
-            title="我的判断（金库）· 仅你可见"
-            aria-label="我的判断"
-            onClick={() => { setFrame({ kind: frame.kind === 'vault' ? 'session' : 'vault' }) }}
-          >
-            🔒
-          </button>
-        )}
       </nav>
     )
   }
@@ -939,27 +926,6 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
           )}
       </button>
 
-      {/*
-        我的判断（金库）—— 私账的入口，**永远没有徽标** (私账层 接缝⑥).
-
-        它紧挨着承诺板，因为它们是同一句话的两半：组织的图记承诺的一生，金库记你的
-        判断的一生。可它和承诺板有一处**故意的不对称**——那一行右边有计数，这一行
-        右边永远什么都没有。三不入的意思就是它永远不在「有几件事等你」那套语法里：
-        未答的邀约与回执不老化、不可催、不成欠账，这本账的债主是你自己。
-
-        未启用私账层时这一行**不存在**（不是灰的，是不画）。
-      */}
-      {inbox.pledger?.enabled === true && (
-        <button
-          type="button"
-          className={`${css.board} ${frame.kind === 'vault' ? css.boardOn : ''}`}
-          title={'私账：仅你可见 · 不入组织图 · 组织不可导出、本人可取走 · 永不绩效 · 审计不可触及\n'
-            + '注意它永远没有徽标——私账不进任何可应答聚合'}
-          onClick={() => { setFrame({ kind: frame.kind === 'vault' ? 'session' : 'vault' }) }}
-        >
-          <span>🔒 我的判断 · 私账</span>
-        </button>
-      )}
 
       <div className={css.tree}>
         {/*

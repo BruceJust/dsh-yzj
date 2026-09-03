@@ -1,20 +1,7 @@
 /**
- * `ctx.yzjPledger` — the service face of the private ledger.
- *
- * It is the graph kernel's own log core with a DIFFERENT CONSTITUTION
- * (PTD-1): same fold, same idempotency-anchor collapse, same
- * durable-before-notify ordering — and three policy differences that are the
- * whole point of the second store:
- *
- * ① **viewer 单态.** Every read below takes NO viewer. There is no `place`
- *    query to reject because there is no `place` query to write (断言⑨).
- * ② **审计导出不可触及.** The audit export projection replays the ORGANIZATION
- *    store's sources. This service is never one of them — the second exception
- *    region of 对称保留律 is a fact about which sources the exporter walks, not
- *    a filter it applies (§2 policy②).
- * ③ **组织与他人不可导出、本人可取走与销毁.** The directory is self-contained
- *    and {@link directory} says where it is; {@link destroy} is the only
- *    deletion path there is (§2 policy③).
+ * `ctx.yzjPledger` —— 私账的服务面：graph 内核的日志核 + 另一部宪法（托管律）。
+ * ① viewer 单态（读取面无 viewer 参数）；② 审计导出不挂这个源；③ 目录自包含，本人可
+ * 整体取走与销毁，destroy 是唯一删除路径。
  */
 
 import { Service, type Context } from '@deepseek-ai/cordis'
@@ -85,14 +72,7 @@ export class YzjPledger extends Service {
     return { kind: 'operator', openId: this.operatorOpenId ?? '' }
   }
 
-  /**
-   * Open one operator's ledger.
-   *
-   * **归属键 = operatorOpenId（人，非 accountKey）** (PTD-8): the ledger travels
-   * with the person. Switching operators mid-run is the same circuit breaker
-   * the graph kernel has — the identity IS part of what this log means, so
-   * silently continuing under another one is worse than stopping.
-   */
+  /** Open one operator's ledger. 归属键 = operatorOpenId（人，非 accountKey）** (PTD-8): the ledger travels with the person */
   async open(operatorOpenId: string): Promise<void> {
     if (this.operatorOpenId === operatorOpenId) {
       await this.loading
@@ -125,13 +105,7 @@ export class YzjPledger extends Service {
     return this.operatorOpenId
   }
 
-  /**
-   * Where the ledger lives on disk — 「本人可取走」 made actionable.
-   *
-   * The directory is self-contained (no external index, no reverse reference
-   * from the organization graph), so copying it IS taking the whole ledger.
-   * 断言⑪ asserts exactly that: a copy of this path opens on its own.
-   */
+  /** Where the ledger lives on disk — 「本人可取走」 made actionable. The directory is self-contained (no external index,  */
   get directory(): string | undefined {
     return this.log?.directory
   }
@@ -145,12 +119,7 @@ export class YzjPledger extends Service {
     }
   }
 
-  /**
-   * Append one private event.
-   *
-   * Rejects an unregistered type outright — 宁缺勿脏 binds the write side here
-   * exactly as it does on the organization graph.
-   */
+  /** Append one private event. Rejects an unregistered type outright — 宁缺勿脏 binds the write side here exactly as it */
   async append<D extends JsonValue>(input: PledgerAppendInput<D>): Promise<GraphEvent> {
     const family = this.store.familyForType(input.type)
     if (family === undefined) throw new Error(`unknown pledger event type "${input.type}"`)
@@ -209,13 +178,7 @@ export class YzjPledger extends Service {
     return this.store.rawEvents(types)
   }
 
-  /**
-   * 销毁 —— two-step confirmation lives at the entrance, the erasure lives here.
-   *
-   * After this the service holds no ledger: it is not "emptied", it is closed.
-   * A later `open()` for the same person starts a genuinely new account, which
-   * is the honest meaning of destroying one.
-   */
+  /** 销毁 —— two-step confirmation lives at the entrance, the erasure lives here. After this the service holds no led */
   async destroy(): Promise<void> {
     await this.writes.catch(() => undefined)
     const log = this.log
