@@ -6,7 +6,7 @@
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { cp, mkdtemp, readFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -385,5 +385,33 @@ describe('pairFact 是表不是法', () => {
     const other = { ...verdict, family: 'write-confirm', agree: true }
     expect(pairFact(ctx, other, { ...stale, time: verdict.at + 1 })).toBeUndefined()
     expect(await openReceipt(ctx, { verdict, type: 'reversed', fact: snapshot('x', undefined, verdict.at + 1), factKey: 'org:test' })).toBeDefined()
+  })
+})
+
+describe('v2 旧行', () => {
+  it('旧形状的押/回执留在账本原件里，但不上「我的判断」，也不挂到卡下', async () => {
+    const root2 = await mkdtemp(join(tmpdir(), 'yzj-next-pledger-v2-'))
+    const dir = join(root2, 'pledger', 'op-1')
+    await mkdir(dir, { recursive: true })
+    const at = new Date().toISOString()
+    const v2 = [
+      { v: 1, sv: 1, seq: 1, time: Date.now(), type: 'expectation/opened', data: { expectationId: 'exp-v2', family: 'delivery-acceptance', verdict: { text: '旧押的裁决', at, anchor: { kind: 'commitment', id: 'cmt-v2' } }, thenText: '一轮过', status: 'testing', idemKey: 'v2:exp' }, actor: OPERATOR },
+      { v: 1, sv: 1, seq: 2, time: Date.now(), type: 'calibration/opened', data: { calibrationId: 'cal-v2', family: 'delivery-acceptance', verdict: { text: '旧裁决', at, anchor: { kind: 'commitment', id: 'cmt-v2' } }, fact: { text: '旧事实', at }, idemKey: 'v2:cal' }, actor: { kind: 'system' } },
+    ]
+    await writeFile(join(dir, 'pledger.jsonl'), v2.map(line => JSON.stringify(line)).join('\n') + '\n')
+    const ctx2 = new Context()
+    const graph2 = new YzjGraph(ctx2, { root: join(root2, 'graph') })
+    for (const family of [approvalFamily, commitmentFamily, taskFamily, waitingFamily]) graph2.defineFamily(family)
+    await graph2.selectAccount('acct-1')
+    const pledger2 = new YzjPledger(ctx2, { root: join(root2, 'pledger') })
+    await pledger2.open('op-1')
+    // 原件还在：不迁移、不改写。
+    expect(pledger2.query('expectation')).toHaveLength(1)
+    expect(pledger2.query('calibration')).toHaveLength(1)
+    // 但只认 v3 形状：旧族、无 checkpoint、无 then[] 的行不上屏。
+    const view = judgView(ctx2, DEFAULT_WINDOW)
+    expect(view.groups).toHaveLength(0)
+    expect(view.empty).toBe(true)
+    expect(stripsFor(ctx2, 'commitment', 'cmt-v2', true)).toHaveLength(0)
   })
 })
