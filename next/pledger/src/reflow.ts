@@ -75,8 +75,7 @@ export function pairFact(ctx: Context, verdict: FiledVerdict, event: GraphEvent)
     return undefined
   }
 
-  // 对账裁决：确认过的发现被回滚（墓碑说的是这条）→ 反转；驳回过的发现有外部回函回指 → 印证。弱路径：按发现原话点名。
-  if (verdict.family === 'reconciliation' && kind === 'proposal') {
+  if (verdict.family === 'reconciliation' && kind === 'proposal') { // 墓碑回滚点名这条发现 → 反转；外部回函回指 → 印证（弱路径：按原话）
     const items = asRecord(ctx.get('yzjGraph')?.rawObject('proposal', id)?.state)?.items
     const item = Array.isArray(items) && verdict.itemIndex !== undefined ? asRecord(items[verdict.itemIndex]) : undefined
     const what = asString(item?.what)
@@ -89,14 +88,15 @@ export function pairFact(ctx: Context, verdict: FiledVerdict, event: GraphEvent)
     }
     return undefined
   }
-  // 交付推断：确认之后那条交付被打回（回执被纠正）→ 反转。
-  if (verdict.family === 'delivery-inference' && verdict.agree && kind === 'proposal' && event.type === 'commitment/reopened') {
+  if (verdict.family === 'delivery-inference' && verdict.agree && kind === 'proposal') { // 打回（含镜像行的同侪打回回声）→ 反转；验收关掉 → 印证（v1.3）
     const items = asRecord(ctx.get('yzjGraph')?.rawObject('proposal', id)?.state)?.items
     const item = Array.isArray(items) && verdict.itemIndex !== undefined ? asRecord(items[verdict.itemIndex]) : undefined
     const target = asString(item?.commitmentId)
-    if (target !== undefined && asString(data.commitmentId) === target && event.time - verdict.at <= WEEK_MS) {
-      return shot('reversed', `你认下的这份交付被打回：${asString(data.cause) ?? ''}`, { kind: 'commitment', id: target })
+    if (target === undefined || asString(data.commitmentId) !== target || event.time - verdict.at > WEEK_MS) return undefined
+    if (event.type === 'commitment/reopened' || event.type === 'commitment/rework') {
+      return shot('reversed', `你认下的这份交付被打回：${asString(data.cause) ?? asString(data.reason) ?? ''}`, { kind: 'commitment', id: target })
     }
+    if (event.type === 'commitment/closed' && asString(data.cause) !== 'voided') return shot('vindicated', '你认下的这份交付被验收了', { kind: 'commitment', id: target })
     return undefined
   }
   if (verdict.family === 'proposal' && verdict.agree && event.type === 'commitment/voided') {

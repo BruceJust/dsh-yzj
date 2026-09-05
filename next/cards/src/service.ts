@@ -467,7 +467,8 @@ export class YzjCards extends Service {
     }
 
     if (next === undefined || !definition.isResolved(nextState)) {
-      return { outcome: 'applied', receipt: '已记录。' }
+      const updated = next === undefined ? undefined : definition.onUpdated?.(nextState, action)
+      return { outcome: 'applied', receipt: updated?.echoText ?? '已记录。' }
     }
     const echo = definition.onResolved?.(nextState)
     const projections = this.projectionsOf(cardRef)

@@ -407,7 +407,7 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
     }
     const decision = action.id as ProposalDecision
     if (state.kind === 'finding') return applyFinding(ctx, state, decision, actor, input)
-    if (state.kind === 'delivery') return applyDelivery(state, decision, actor, input)
+    if (state.kind === 'delivery') return applyDelivery(ctx, state, decision, actor, input)
     /*
       The input means two different things depending on the kind, so it is
       interpreted once, here, and never twice.
@@ -544,7 +544,7 @@ function applyFinding(ctx: Context, state: ProposalState, decision: ProposalDeci
  * 交付推断提议卡：确认 = 以执行者名义登记回执 + 交付主张（承诺仍 open，进入待验收）；
  * 「不是交付」= 驳回，配对入吸收态（同一文件不再问）。
  */
-function applyDelivery(state: ProposalState, decision: ProposalDecision, actor: Actor, input: string | undefined): CardTransition {
+function applyDelivery(ctx: Context, state: ProposalState, decision: ProposalDecision, actor: Actor, input: string | undefined): CardTransition {
   const raw = (input ?? '').trim()
   const { indices } = itemsFrom(state.items.length === 1 ? '' : raw, state)
   const events: GraphAppendInput[] = []
@@ -562,24 +562,26 @@ function applyDelivery(state: ProposalState, decision: ProposalDecision, actor: 
   const item = chosen === undefined ? undefined : state.items[chosen]
   if (chosen === undefined || item?.commitmentId === undefined || state.artifact === undefined) return { events }
   const at = Date.now()
-  events.push(
-    {
-      type: 'receipt/recorded',
-      data: {
-        objectRef: { kind: 'commitment', id: item.commitmentId },
-        kind: 'human-reply',
-        anchor: `yzj:${state.artifact.msgId}`,
-        text: `交付：${state.artifact.name}`,
-        proposedChange: { completed: true },
-      },
-      actor,
+  // 镜像行永不本地改写：交付主张落在对面的真身上（回流那句「已交付」到登记场所即可），这里只留自己的回执。
+  const mirror = asString(asRecord(asRecord(ctx.yzjGraph.rawObject('commitment', item.commitmentId)?.state)?.origin)?.kind) === 'foreign'
+  events.push({
+    type: 'receipt/recorded',
+    data: {
+      objectRef: { kind: 'commitment', id: item.commitmentId },
+      kind: 'human-reply',
+      anchor: `yzj:${state.artifact.msgId}`,
+      text: `交付：${state.artifact.name}`,
+      proposedChange: { completed: true },
     },
-    {
+    actor,
+  })
+  if (!mirror) {
+    events.push({
       type: 'commitment/delivered',
       data: { commitmentId: item.commitmentId, delivery: { claim: `交付：${state.artifact.name}`, at, anchor: `yzj:${state.artifact.msgId}` } },
       actor,
-    },
-  )
+    })
+  }
   for (const index of state.items.map((_item, position) => position)) {
     if ((state.decisions ?? {})[String(index)] !== undefined) continue
     events.push({ type: 'proposal/item-decided', data: { proposalId: state.proposalId, index, decision: index === chosen ? 'confirmed' : 'rejected', ...(index === chosen ? { commitmentId: item.commitmentId } : {}) }, actor })

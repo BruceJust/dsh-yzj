@@ -219,3 +219,49 @@ describe('交付推断：操作者自己甩的文件 → 提议卡 → 确认即
     expect(asRecord(state('commitment', 'cmt-1')?.delivery)).toBeUndefined()
   })
 })
+
+describe('执行者侧回执的结构性来源（设计册 v1.3：交付推断族的一档候选）', () => {
+  const mirror = async (id: string, what: string, executorName: string): Promise<void> => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id, what, executor: { kind: 'human', openId: `unresolved:${executorName}`, name: executorName },
+        sourceAnchor: 'yzj:m-peer-1', delegatedBy: 'op-zhang', audience: ['yzj-group-peer'],
+        origin: { kind: 'foreign', operatorOpenId: 'op-zhang', handle: `[card#commitment:${id}]`, msgAnchor: 'm-peer-1' },
+        idemKey: `mirror:op-zhang:[card#commitment:${id}]`,
+      },
+      actor: { kind: 'system' },
+    })
+  }
+  const file = (name: string, msgId = 'm-file-9') => ({ placeKey: PLACE, msgId, fromOpenId: 'op-1', fileId: 'f-9', name, time: Date.now() })
+
+  it('同事的实例转给我的事（镜像行，执行者只有我的名字）按名录解析成候选；名字不是我的不算', async () => {
+    cards.setDesktopActor(OPERATOR, '代少兵')
+    await mirror('mir-1', '给张三出 9 月对账差异表', '代少兵')
+    await mirror('mir-2', '给张三出 9 月对账差异表（李四版）', '李四')
+    expect(candidatesFor(ctx, file('9月对账差异表.xlsx')).map(one => one.commitmentId)).toEqual(['mir-1'])
+  })
+
+  it('确认镜像行的交付：不本地改写镜像（无 delivered），只留自己的回执，并把「已交付」回流到对面的登记场所', async () => {
+    cards.setDesktopActor(OPERATOR, '代少兵')
+    await mirror('mir-1', '给张三出 9 月对账差异表', '代少兵')
+    const id = (await inferDelivery(ctx, file('9月对账差异表.xlsx'))) ?? ''
+    await cards.act({ kind: 'proposal', id }, 'confirmed', OPERATOR, 'desktop')
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(verdicts).toEqual([{ kind: 'delivery-confirm', actionId: 'confirmed', verdictKey: 'confirmed:0' }])
+    expect(asRecord(state('commitment', 'mir-1')?.delivery)).toBeUndefined()
+    expect(graph.rawEvents(['receipt/recorded']).map(event => asString(asRecord(asRecord(event.data)?.objectRef)?.id))).toEqual(['mir-1'])
+    expect(said).toEqual([{ placeKey: 'yzj-group-peer', text: '已交付：给张三出 9 月对账差异表（9月对账差异表.xlsx）' }])
+  })
+
+  it('承诺卡的打回带句柄回声：同侪实例的镜像行靠它前进', async () => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: { commitmentId: 'cmt-own', what: '给财务出费用明细', executor: { kind: 'human', openId: 'op-lisi', name: '李四' }, sourceAnchor: 'yzj:m-own', delegatedBy: 'op-1', idemKey: 'cmt:own' },
+      actor: OPERATOR,
+    })
+    await graph.append({ type: 'commitment/delivered', data: { commitmentId: 'cmt-own', delivery: { claim: '交了', at: Date.now() } }, actor: { kind: 'agent' } })
+    const result = await cards.act({ kind: 'commitment', id: 'cmt-own' }, 'reject', OPERATOR, 'desktop', '少了差旅')
+    expect(result.receipt).toBe('【承诺·打回】给财务出费用明细（少了差旅）· 第 1 轮\n[card#commitment:cmt-own]')
+  })
+})

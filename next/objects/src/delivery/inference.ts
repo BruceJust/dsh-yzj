@@ -11,7 +11,7 @@
  */
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import { asRecord, asString } from '@yzj-next/graph'
+import { asRecord, asString, type JsonValue } from '@yzj-next/graph'
 
 export interface FileSighting {
   readonly placeKey: string
@@ -67,16 +67,42 @@ export function looksLikeDelivery(fileName: string, what: string): boolean {
   return false
 }
 
+/**
+ * 本人叫什么——名录解析同转办：通道给的显示名 + 图上凡 openId 是本人的执行者名字。
+ * 同事的实例把事转给我时，镜像行只知道我的名字（`unresolved:<名字>`），不知道 openId。
+ */
+function namesOf(ctx: Context, openId: string): ReadonlySet<string> {
+  const names = new Set<string>()
+  const shown = ctx.get('yzjCards')?.operatorName()
+  if (shown !== undefined && shown !== '') names.add(shown)
+  for (const event of ctx.yzjGraph.rawEvents(['commitment/opened'])) {
+    const executor = asRecord(asRecord(event.data)?.executor)
+    const name = asString(executor?.name)
+    if (asString(executor?.openId) === openId && name !== undefined) names.add(name)
+  }
+  return names
+}
+
+/** 这条承诺是不是本人欠的：本机登记的按 openId；同侪镜像行（origin:foreign）按名录解析（设计册 v1.3 一档候选）。 */
+export function owedByMe(state: Record<string, JsonValue> | undefined, openId: string, names: ReadonlySet<string>): boolean {
+  const executor = asRecord(state?.executor)
+  if (asString(executor?.kind) !== 'human') return false
+  const who = asString(executor?.openId) ?? ''
+  if (who === openId) return true
+  if (asString(asRecord(state?.origin)?.kind) !== 'foreign') return false
+  return who.startsWith('unresolved:') && names.has(who.slice('unresolved:'.length))
+}
+
 /** 操作者本人名下、还没交付主张的承诺里，像这个文件的那几条。 */
 export function candidatesFor(ctx: Context, sighting: FileSighting): readonly DeliveryCandidate[] {
   const out: DeliveryCandidate[] = []
+  const names = namesOf(ctx, sighting.fromOpenId)
   // 旧的在前：卡上的编号要稳定，人「确认 2」指的得是同一条。
   const open = [...ctx.yzjGraph.query({ kind: 'operator', openId: sighting.fromOpenId }, { kind: 'commitment', status: ['open'] })]
     .sort((left, right) => left.createdSeq - right.createdSeq)
   for (const object of open) {
     const state = asRecord(object.state)
-    const executor = asRecord(state?.executor)
-    if (asString(executor?.kind) !== 'human' || asString(executor?.openId) !== sighting.fromOpenId) continue
+    if (!owedByMe(state, sighting.fromOpenId, names)) continue
     if (asRecord(state?.delivery) !== undefined) continue
     const what = asString(state?.what) ?? ''
     if (looksLikeDelivery(sighting.name, what)) out.push({ commitmentId: object.id, what })

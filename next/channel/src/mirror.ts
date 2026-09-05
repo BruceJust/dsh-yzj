@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto'
 import type { YzjGraph } from '@yzj-next/graph'
 import { asRecord, asString } from '@yzj-next/graph'
 
-export type MirrorStatus = 'open' | 'closed' | 'voided' | 'merged' | 'transferred'
+export type MirrorStatus = 'open' | 'closed' | 'voided' | 'merged' | 'transferred' | 'rework'
 
 /** 一条同侪出站里读出来的承诺样子。`commitmentId` 缺席 = 只有终态回声、没有句柄，要按回复锚找。 */
 export interface MirrorSighting {
@@ -20,12 +20,15 @@ export interface MirrorSighting {
   readonly executor?: string
   readonly due?: string
   readonly cause?: string
+  /** 打回回声带的轮次；镜像只往前走，轮次不倒退。 */
+  readonly round?: number
 }
 
-const HEAD = /【承诺·(进行中|已完成|已作废|已合并|已移交)】(.+)/u
+const HEAD = /【承诺·(进行中|已完成|已作废|已合并|已移交|打回)】(.+)/u
 const HANDLE = /\[card#commitment:([^\]\s]+)\]/u
 const EXECUTOR = /^执行者：(.+?)(?:\s·\s期限\s(.+))?$/u
-const STATUS: Record<string, MirrorStatus> = { 进行中: 'open', 已完成: 'closed', 已作废: 'voided', 已合并: 'merged', 已移交: 'transferred' }
+const STATUS: Record<string, MirrorStatus> = { 进行中: 'open', 已完成: 'closed', 已作废: 'voided', 已合并: 'merged', 已移交: 'transferred', 打回: 'rework' }
+const ROUND = /\s*·\s*第\s*(\d+)\s*轮\s*$/u
 
 /** 只认承诺卡的投影形状（`【承诺·状态】…` 头 + 可选句柄）。别的实例出站一律不是镜像源。 */
 export function readMirror(content: string): MirrorSighting | undefined {
@@ -37,6 +40,9 @@ export function readMirror(content: string): MirrorSighting | undefined {
   if (head === null || status === undefined) return undefined
   let what = (head[2] ?? '').trim()
   let cause: string | undefined
+  const roundMatch = ROUND.exec(what)
+  const round = roundMatch?.[1] === undefined ? undefined : Number(roundMatch[1])
+  if (roundMatch !== null) what = what.slice(0, roundMatch.index).trim()
   const tail = /^(.*)（([^（）]*)）$/u.exec(what)
   if (tail !== null && status !== 'open') { what = (tail[1] ?? '').trim(); cause = (tail[2] ?? '').trim() }
   const handle = HANDLE.exec(content)?.[1]
@@ -48,6 +54,7 @@ export function readMirror(content: string): MirrorSighting | undefined {
     ...(executorLine?.[1] === undefined ? {} : { executor: executorLine[1].trim() }),
     ...(executorLine?.[2] === undefined ? {} : { due: executorLine[2].trim() }),
     ...(cause === undefined ? {} : { cause }),
+    ...(round === undefined ? {} : { round }),
   }
 }
 
@@ -109,6 +116,15 @@ export async function applyMirror(
   // 只往前走：已经终态的镜像不再被更晚（或更早、乱序到达）的回声改写。
   if (asString(asRecord(existing.state)?.status) !== 'open') return 'ignored'
   const commitmentId = existing.id
+  if (sighting.status === 'rework') {
+    // 打回：轮次只升不降——同一轮的回声再来一次不重复记。
+    const current = asRecord(existing.state)?.round
+    const round = sighting.round ?? 1
+    if (typeof current === 'number' && current >= round) return 'ignored'
+    const reason = `镜像：真身被打回${sighting.cause === undefined || sighting.cause === '' ? '' : `（${sighting.cause}）`}`
+    await graph.append({ type: 'commitment/rework', data: { commitmentId, reason, round }, actor: { kind: 'system' } })
+    return 'advanced'
+  }
   if (sighting.status === 'closed') {
     await graph.append({ type: 'commitment/closed', data: { commitmentId, cause: 'done' }, actor: { kind: 'system' } })
   } else {

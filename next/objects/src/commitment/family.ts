@@ -51,6 +51,8 @@ export type CommitmentExecutor =
   | { readonly kind: 'human'; readonly openId: string; readonly name?: string }
 
 export interface CommitmentState {
+  /** 最近一次打回的原因（`commitment/rework` 合进状态；打回回声用）。 */
+  readonly reason?: string
   readonly commitmentId: string
   readonly status: CommitmentStatus
   /**

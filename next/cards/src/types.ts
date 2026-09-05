@@ -207,6 +207,12 @@ export interface CardDefinition<S = JsonValue> {
    * Yunzhijia messages cannot be edited (F1), so without this the "please
    * confirm" call to action hangs forever after the decision (卡片三定律 ②).
    */
+  /**
+   * 一次**没有**走到终态的动作落地后，卡想对文字面说的话（回声）。缺席 = 「已记录。」。
+   * 用处：同侪实例的镜像行要靠带句柄的回声前进（#63 镜像行——打回不是终态，但对面的图得知道）。
+   */
+  onUpdated?(state: S, action: CardAction<S>): { readonly echoText: string } | undefined
+
   onResolved?(state: S): { echoText: string } | undefined
   /** Apply one authorized action to the current state. */
   apply(state: S, action: CardAction<S>, actor: GraphActor, input?: string): CardTransition

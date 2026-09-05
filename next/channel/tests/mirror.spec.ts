@@ -97,3 +97,32 @@ describe('applyMirror：物化、幂等、只往前走', () => {
     expect(await applyMirror(graph, readMirror('【承诺·已完成】把 7 月对账单差异列出来')!, source('m-2'))).toBe('ignored')
   })
 })
+
+describe('打回回声（设计册 v1.3 ②）：不是终态，但镜像行要前进', () => {
+  it('读得出打回头：原因与轮次', () => {
+    expect(readMirror('【承诺·打回】把 7 月对账单差异列出来（少了宏迈那页）· 第 2 轮\n[card#commitment:cmt-abc]')).toEqual({
+      commitmentId: 'cmt-abc', status: 'rework', what: '把 7 月对账单差异列出来', cause: '少了宏迈那页', round: 2,
+    })
+  })
+  it('打回让镜像行记一轮返工；同一轮再来不重复；轮次不倒退；终态之后不再动', async () => {
+    const source = (msgId: string) => ({ operatorOpenId: ZHANG, msgId, placeKey: PLACE, time: 1_000 })
+    await applyMirror(graph, readMirror(CARD)!, source('m-1'))
+    const id = mirrorIdFor(ZHANG, '[card#commitment:cmt-abc]')
+    const back = readMirror('【承诺·打回】把 7 月对账单差异列出来（少了宏迈那页）· 第 1 轮\n[card#commitment:cmt-abc]')!
+    expect(await applyMirror(graph, back, source('m-2'))).toBe('advanced')
+    expect(stateOf(id)?.round).toBe(1)
+    expect(asString(stateOf(id)?.reason)).toContain('少了宏迈那页')
+    expect(await applyMirror(graph, back, source('m-2-again'))).toBe('ignored')
+    const older = readMirror('【承诺·打回】把 7 月对账单差异列出来 · 第 1 轮\n[card#commitment:cmt-abc]')!
+    expect(await applyMirror(graph, older, source('m-3'))).toBe('ignored')
+    const second = readMirror('【承诺·打回】把 7 月对账单差异列出来（还是不对）· 第 2 轮\n[card#commitment:cmt-abc]')!
+    expect(await applyMirror(graph, second, source('m-4'))).toBe('advanced')
+    expect(stateOf(id)?.round).toBe(2)
+    expect(asString(stateOf(id)?.status)).toBe('open')
+    await applyMirror(graph, readMirror('【承诺·已完成】把 7 月对账单差异列出来')!, source('m-5'), )
+    await applyMirror(graph, readMirror('【承诺·已完成】把 7 月对账单差异列出来')!, { ...source('m-5'), replyMsgId: 'm-1' })
+    expect(asString(stateOf(id)?.status)).toBe('closed')
+    const late = readMirror('【承诺·打回】把 7 月对账单差异列出来 · 第 3 轮\n[card#commitment:cmt-abc]')!
+    expect(await applyMirror(graph, late, source('m-6'))).toBe('ignored')
+  })
+})

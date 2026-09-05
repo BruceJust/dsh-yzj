@@ -311,6 +311,11 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
     echoText: `【承诺·${statusLabel(state.status)}】${state.what}${state.cause === undefined ? '' : `（${state.cause}）`}`,
   }),
 
+  // 打回不是终态，但要带句柄回声：同侪实例的镜像行靠它前进（#63 镜像行 · 设计册 v1.3 ②）。
+  onUpdated: (state, action) => action.id !== 'reject'
+    ? undefined
+    : { echoText: `【承诺·打回】${state.what}（${state.reason ?? '未说明'}）· 第 ${String(state.round ?? 1)} 轮\n[card#commitment:${state.commitmentId}]` },
+
   apply: (state, action, actor, input) => {
     if (action.id === 'void') {
       return {

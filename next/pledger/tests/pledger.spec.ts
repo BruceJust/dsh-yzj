@@ -532,4 +532,28 @@ describe('对账裁决 / 交付推断两族（裁决卡与提议卡的生产者�
     expect(types()).toEqual(['reversed'])
     expect(JSON.stringify(asRecord(pledger.query('calibration')[0]?.state)?.later)).toContain('被打回')
   })
+
+  it('执行者侧（v1.3 一行配对）：认下的交付落在同侪镜像行上——同侪打回回声推进的 rework → 反转，镜像 closed → 印证', async () => {
+    const seed = async (id: string): Promise<void> => {
+      await graph.append({
+        type: 'commitment/opened',
+        data: { commitmentId: id, what: '给张三出 9 月差异表', executor: { kind: 'human', openId: 'unresolved:我', name: '我' }, sourceAnchor: 'yzj:m-peer', delegatedBy: 'op-zhang', audience: ['yzj-group-peer'], origin: { kind: 'foreign', operatorOpenId: 'op-zhang', handle: `[card#commitment:${id}]`, msgAnchor: 'm-peer' }, idemKey: `mirror:op-zhang:${id}` },
+        actor: { kind: 'system' },
+      })
+      await graph.append({
+        type: 'proposal/opened',
+        data: { proposalId: `prp-${id}`, kind: 'delivery', title: '这像是交付', items: [{ what: '给张三出 9 月差异表', commitmentId: id, evidence: '差异表.xlsx' }], artifact: { msgId: `m-${id}`, fileId: 'f', name: '差异表.xlsx', placeKey: PLACE }, sourceAnchor: `yzj:m-${id}`, decider: 'op-1' },
+        actor: { kind: 'system' },
+      })
+      await fileVerdict(ctx, settled('delivery-confirm', 'confirmed', 'confirmed:0', { kind: 'proposal', id: `prp-${id}` }))
+    }
+    await seed('mir-a')
+    await graph.append({ type: 'commitment/rework', data: { commitmentId: 'mir-a', reason: '镜像：真身被打回（少了一页）', round: 1 }, actor: { kind: 'system' } })
+    await settle()
+    expect(types()).toEqual(['reversed'])
+    await seed('mir-b')
+    await graph.append({ type: 'commitment/closed', data: { commitmentId: 'mir-b', cause: 'done' }, actor: { kind: 'system' } })
+    await settle()
+    expect(types().sort()).toEqual(['reversed', 'vindicated'])
+  })
 })
