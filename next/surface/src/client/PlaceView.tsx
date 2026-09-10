@@ -26,7 +26,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { avatarOf, clockOf, dayLabel } from './stream.ts'
+import { clockOf, dayLabel } from './stream.ts'
+import { Avatar } from './Avatar.tsx'
 import { pushFrame, setFrame, takeErrand } from './store.ts'
 import { YzjContractPanel } from './ContractPanel.tsx'
 import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
@@ -700,14 +701,18 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
               </div>
             )
           }
-          const avatar = avatarOf(row.message.fromName)
           return (
             <div
               className={`${css.row} ${flash === row.message.msgId ? css.flash : ''}`}
               key={row.key}
               data-msg={row.message.msgId}
             >
-              <span className={css.avatar} style={{ background: avatar.color }}>{avatar.text}</span>
+              <Avatar
+                name={row.message.fromName}
+                {...(row.message.fromAvatar === undefined ? {} : { photo: row.message.fromAvatar })}
+                className={css.avatar}
+                photoClassName={css.photo}
+              />
               <span className={css.rowBody}>
                 <span className={css.rowHead}>
                   <span className={css.name}>{row.message.fromName}</span>

@@ -14,6 +14,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
+import { avatarOf } from '../src/client/stream.ts'
 import {
   approvalCard, approvalFamily, assessmentCard, createCommitmentCard, commitmentFamily,
   conflictCard, memoriesFor, taskCard, taskFamily, waitingCard,
@@ -1472,5 +1473,39 @@ describe('正文里的图片占位符', () => {
 
   it('抹完只剩空行的，交给整条占位符那条路', () => {
     expect(isPlaceholderOnly(withoutImageMarks('[图片]\n[图片]', true), undefined)).toBe(true)
+  })
+})
+
+/**
+ * 头像 —— 用户报的「头像变成数字」就落在这一格。
+ *
+ * `fromName` 在通讯录那一趟没问成时会退回 openId（24 位十六进制），而头像取的是首字符
+ * ——于是屏幕上出现一个数字。**一个 id 的第一位不是任何人的缩写**，它只是碰巧是个数字；
+ * 画出来比留白更坏，因为它看起来像是关于这个人的信息。
+ */
+describe('名字缩写头像', () => {
+  it('有名字就取首字', () => {
+    expect(avatarOf('许康').text).toBe('许')
+    expect(avatarOf('zhang rui').text).toBe('Z')
+  })
+
+  it('是个 openId 就不画字 —— 不拿 id 的首位冒充人的缩写', () => {
+    expect(avatarOf('5d294a33e4b064934e3cdbe9').text).toBe('·')
+    // 大写十六进制同样是 id。
+    expect(avatarOf('5D294A33E4B064934E3CDBE9').text).toBe('·')
+  })
+
+  /*
+    只认「整串都是 24 位十六进制」。真名里恰好只有 abcdef 的人（比如「Ada」「Bebe」）
+    不该被当成 id 抹掉——宁可少认一个 id，不可把人的名字判成机器串。
+  */
+  it('长得像但不是 id 的名字照常取首字', () => {
+    expect(avatarOf('Ada').text).toBe('A')
+    expect(avatarOf('5d294a33e4b064934e3cdbe').text).toBe('5')
+    expect(avatarOf('5d294a33e4b064934e3cdbe99').text).toBe('5')
+  })
+
+  it('空名字给一个中性记号，不给空白', () => {
+    expect(avatarOf('   ').text).toBe('·')
   })
 })

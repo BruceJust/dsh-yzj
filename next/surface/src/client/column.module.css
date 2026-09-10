@@ -481,3 +481,6 @@
   border: 1px solid var(--yzj-amber-line); background: var(--yzj-amber-bg);
   font-size: 11px; line-height: 1.7; color: var(--yzj-amber);
 }
+
+/* 真人头像撑满头像框；取不到就退回缩写（见 Avatar.tsx）。 */
+.photo { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }

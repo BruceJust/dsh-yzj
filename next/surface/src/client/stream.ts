@@ -146,6 +146,8 @@ export type StreamRow =
     readonly key: string
     readonly time: number
     readonly who: string
+    /** 真人头像。通讯录给得出就有；没有就退回名字缩写。 */
+    readonly avatar?: string
     readonly text: string
     readonly mine: boolean
     readonly voice: Audibility
@@ -549,6 +551,7 @@ export function buildStream(
         key: `m:${message.msgId}`,
         time: message.time,
         who: message.fromName,
+        ...(message.fromAvatar === undefined ? {} : { avatar: message.fromAvatar }),
         text: message.content,
         mine: false,
         voice: 'public',
@@ -653,12 +656,31 @@ export function durationOf(ms: number): string {
 }
 
 /** Deterministic avatar colour, so the same person is the same colour. */
+/**
+ * 一个 openId 长什么样：24 位十六进制，没有别的。
+ *
+ * 认出它是为了**不拿它当名字用**。通讯录查不到人时，显示名会退回 openId——那时候取首
+ * 字符当头像，屏幕上就出现一个数字，而数字跟这个人没有任何关系。
+ */
+function looksLikeOpenId(value: string): boolean {
+  return /^[0-9a-f]{24}$/iu.test(value.trim())
+}
+
+/**
+ * 名字缩写头像 —— **只在真的有名字时才画字**。
+ *
+ * 用户报的「头像变成数字」就落在这一格：`fromName` 在通讯录查不到时退回 openId，而这里
+ * 照着取了首字符。**一个 id 的第一位不是任何人的缩写**，它只是碰巧是个数字；画出来比留
+ * 白更坏，因为它看起来像是关于这个人的信息。
+ *
+ * 认不出是谁就画一个中性记号：**不知道就说不知道**，不编一个像模像样的缩写。
+ */
 export function avatarOf(name: string): { text: string; color: string } {
   const palette = ['#2E63D9', '#6D4FA3', '#B45309', '#15803D', '#0E7490', '#B91C1C', '#4B5563']
   let hash = 0
   for (const char of name) hash = (hash * 31 + char.codePointAt(0)!) % 100_000
   return {
-    text: name.trim().slice(0, 1).toUpperCase() || '·',
+    text: looksLikeOpenId(name) ? '·' : name.trim().slice(0, 1).toUpperCase() || '·',
     color: palette[hash % palette.length] ?? '#4B5563',
   }
 }

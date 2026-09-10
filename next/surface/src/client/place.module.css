@@ -325,3 +325,6 @@
   background: #FBEDE9; border: 1px solid #E9C8BE; color: #8A3B22;
   font-size: 11px; line-height: 1.6;
 }
+
+/* 真人头像撑满头像框；取不到就退回缩写（见 Avatar.tsx）。 */
+.photo { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }

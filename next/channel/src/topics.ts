@@ -46,6 +46,8 @@ export interface TopicMessage {
   readonly fromOpenId: string
   /** Resolved display name; falls back to the openId when the directory is silent. */
   readonly fromName: string
+  /** 真人头像。通讯录给得出就带上；给不出就没有这一格，由界面退回名字首字。 */
+  readonly fromAvatar?: string
   readonly content: string
   readonly msgType: string
   /** Epoch milliseconds — the axis the fused timeline sorts on. */
@@ -389,6 +391,8 @@ export function parseSendTime(sendTime: string): number {
 export class YzjTopicReader implements YzjTopics {
   /** openId → display name. The directory is stable; one lookup is enough. */
   private readonly names = new Map<string, string>()
+  /** openId → 真人头像。同一趟通讯录查询顺回来的，不额外花一次往返。 */
+  private readonly photos = new Map<string, string>()
 
   constructor(
     private readonly ctx: Context,
@@ -860,18 +864,37 @@ export class YzjTopicReader implements YzjTopics {
   }
 
   /** Fill the display-name cache for any sender we have not seen before. */
+  /**
+   * Fill the display-name cache for any sender we have not seen before.
+   *
+   * **查询失败 ≠ 查无此人**（三值纪律）。这两件事此前挤在同一个兜底里：不管这一趟是
+   * 真的问到了「通讯录没这个人」，还是**根本没问成**（token 抖一下、传输解码失败——
+   * 这个部署的日志里两样都有），都会把 openId 当成名字写进缓存。
+   *
+   * 而这个缓存**是进程级的、只写一次**（下一轮 `unknown` 会把已在缓存里的人全过滤掉）。
+   * 于是一次偶然的网络失败，会让那一批人在**这个进程余生**里都显示成一串 24 位十六进制
+   * ——名字是它，头像取首字符就成了一个数字。用户看见的「头像变成数字」就是这条的末端。
+   *
+   * 现在只有**问成了**才敢记否定结果：真的没这个人，记下来不再问；没问成，就留着空白，
+   * 下一次渲染自然会再问一次。
+   */
   private async resolveNames(messages: readonly YzjMessage[]): Promise<void> {
     const unknown = [...new Set(messages.map(message => message.fromOpenId))]
       .filter(openId => openId !== '' && !this.names.has(openId))
     if (unknown.length === 0) return
+    let asked = false
     try {
       const users = await this.client.usersByOpenId(unknown)
-      for (const user of users) this.names.set(user.openId, user.name)
+      asked = true
+      for (const user of users) {
+        this.names.set(user.openId, user.name)
+        if (user.photoUrl !== undefined) this.photos.set(user.openId, user.photoUrl)
+      }
     } catch (error) {
       console.error('[yzj-next-channel] failed to resolve display names', error)
     }
-    // Negative results are cached too: a directory that does not know somebody
-    // will not learn them by being asked once per render.
+    // 问成了才记否定：通讯录确实不认识这个人，不必每次渲染都再问一遍。
+    if (!asked) return
     for (const openId of unknown) if (!this.names.has(openId)) this.names.set(openId, openId)
   }
 
@@ -919,6 +942,9 @@ export class YzjTopicReader implements YzjTopics {
       fromOpenId: message.fromOpenId,
       fromName: this.names.get(message.fromOpenId)
         ?? (message.fromOpenId === this.operatorOpenId ? '你' : message.fromOpenId),
+      ...(this.photos.get(message.fromOpenId) === undefined
+        ? {}
+        : { fromAvatar: this.photos.get(message.fromOpenId) as string }),
       content: message.content,
       msgType: message.msgType,
       time: parseSendTime(message.sendTime),

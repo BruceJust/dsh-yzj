@@ -28,6 +28,7 @@ import {
   avatarOf, buildStream, clockOf, durationOf,
   type LiveWork, type StreamRow, type TrajectoryNode,
 } from './stream.ts'
+import { Avatar } from './Avatar.tsx'
 import { CardRow } from './CardRow.tsx'
 import { YzjDecisionBar } from './DecisionBar.tsx'
 import { YzjBoard } from './Board.tsx'
@@ -1291,11 +1292,15 @@ function renderRow(row: StreamRow, context: RowContext): ReactNode {
       )
 
     case 'message': {
-      const avatar = avatarOf(row.who)
       return shell(row.key, row.voice, (
         <>
           <div className={css.mhead}>
-            <span className={css.avatar} style={{ background: avatar.color }}>{avatar.text}</span>
+            <Avatar
+              name={row.who}
+              {...(row.avatar === undefined ? {} : { photo: row.avatar })}
+              className={css.avatar}
+              photoClassName={css.photo}
+            />
             <span className={css.name}>{row.who}</span>
             <span className={css.clock}>{clock}</span>
             {/*

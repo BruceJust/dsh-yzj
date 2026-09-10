@@ -167,18 +167,31 @@ export class YzjChannelClient {
     )
   }
 
-  async usersByOpenId(openIds: readonly string[]): Promise<{ openId: string; name: string }[]> {
+  /**
+   * 通讯录里这些人叫什么、长什么样。
+   *
+   * `photoUrl` 一直都在回包里，只是没人取——于是每条消息旁边画的都是名字首字，而平台
+   * 明明给得出真人头像。取它不花一次额外往返：同一趟 `contact user get` 的同一行。
+   */
+  async usersByOpenId(
+    openIds: readonly string[],
+  ): Promise<{ openId: string; name: string; photoUrl?: string }[]> {
     if (openIds.length === 0) return []
     const command = ['contact', 'user', 'get']
     for (const openId of openIds) command.push('--open-id', openId)
     const json = await this.run(command, 'contact user get')
     const rows = Array.isArray(json) ? json : []
-    const out: { openId: string; name: string }[] = []
+    const out: { openId: string; name: string; photoUrl?: string }[] = []
     for (const row of rows) {
       const record = asRecord(row)
       const openId = asString(record.openId)
       if (openId === '') continue
-      out.push({ openId, name: asString(record.name) || openId })
+      const photoUrl = asString(record.photoUrl)
+      out.push({
+        openId,
+        name: asString(record.name) || openId,
+        ...(photoUrl === '' ? {} : { photoUrl }),
+      })
     }
     return out
   }

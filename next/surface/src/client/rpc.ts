@@ -11,6 +11,8 @@ export interface TopicMessageWire {
   msgId: string
   fromOpenId: string
   fromName: string
+  /** 真人头像。通讯录给得出就带上；给不出就没有这一格，界面退回名字缩写。 */
+  fromAvatar?: string
   content: string
   msgType: string
   time: number
