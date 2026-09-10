@@ -114,6 +114,14 @@ export interface TopicMessage {
   readonly file?: { fileId: string; name: string; ext?: string; size?: number }
 }
 
+/**
+ * 批量查询失败之后，最多逐个补问几个。
+ *
+ * 逐个问是一次一趟 CLI，所以有上限：一窗几十个发言人挨个问会把渲染拖成几秒。没问到的
+ * 留着不记，下一轮自然会再轮到它们——而通常一轮之后坏 id 就被记成否定，批量恢复正常。
+ */
+const RESOLVE_ONE_BY_ONE_MAX = 12
+
 /** Extensions that are pictures whatever the platform labelled them. */
 const PICTURE = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'heic', 'svg'])
 
@@ -882,20 +890,48 @@ export class YzjTopicReader implements YzjTopics {
     const unknown = [...new Set(messages.map(message => message.fromOpenId))]
       .filter(openId => openId !== '' && !this.names.has(openId))
     if (unknown.length === 0) return
-    let asked = false
-    try {
-      const users = await this.client.usersByOpenId(unknown)
-      asked = true
-      for (const user of users) {
-        this.names.set(user.openId, user.name)
-        if (user.photoUrl !== undefined) this.photos.set(user.openId, user.photoUrl)
-      }
-    } catch (error) {
-      console.error('[yzj-next-channel] failed to resolve display names', error)
+    const take = (user: { openId: string; name: string; photoUrl?: string }): void => {
+      this.names.set(user.openId, user.name)
+      if (user.photoUrl !== undefined) this.photos.set(user.openId, user.photoUrl)
     }
-    // 问成了才记否定：通讯录确实不认识这个人，不必每次渲染都再问一遍。
-    if (!asked) return
-    for (const openId of unknown) if (!this.names.has(openId)) this.names.set(openId, openId)
+    try {
+      for (const user of await this.client.usersByOpenId(unknown)) take(user)
+      // 整批问成了：没回来的就是通讯录确实不认识，记下来不再问。
+      for (const openId of unknown) if (!this.names.has(openId)) this.names.set(openId, openId)
+      return
+    } catch (error) {
+      console.error('[yzj-next-channel] batch name lookup failed, falling back', error)
+    }
+    /*
+      **一颗坏果子不能毁掉整筐** —— 逐个再问一遍。
+
+      平台对无效 openId 的回应是**整批报错**（`errorCode=1001001, Invalid openIds`），
+      不是「这一个没有」。而一窗消息里混进一个非自然人的 id 太容易了：自聊那间屋子的
+      群号里就带着一个、公众号是一个、离职销号的人也是一个。于是整窗的人一起解析不出来，
+      名字全变成十六进制、头像全变成一个点——**用户看见的就是这个**。
+    */
+    const asked = unknown.slice(0, RESOLVE_ONE_BY_ONE_MAX)
+    const rejected: string[] = []
+    let anyOk = false
+    for (const openId of asked) {
+      try {
+        for (const user of await this.client.usersByOpenId([openId])) take(user)
+        anyOk = true
+        if (!this.names.has(openId)) rejected.push(openId)
+      } catch {
+        rejected.push(openId)
+      }
+    }
+    /*
+      **有一个问成了，才敢说别的是「查无此人」**。
+
+      单问也会失败，而失败有两种：这个 id 真的无效，还是通道此刻不通。逐条看分不出来，
+      但**整轮**看得出来：只要这一轮有任何一个问成了，通道就是通的，剩下那些失败的就是
+      真的无效——记下来，下一轮的批量查询里没有它们，整筐也就不会再被毁掉（自愈）。
+      一个都没问成，就什么都不记：那是通道的事，不是这些人的事。
+    */
+    if (!anyOk) return
+    for (const openId of rejected) if (!this.names.has(openId)) this.names.set(openId, openId)
   }
 
   private render(message: YzjMessage, groupId: string, chainRootId?: string): TopicMessage {

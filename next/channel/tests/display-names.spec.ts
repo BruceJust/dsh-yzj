@@ -34,15 +34,16 @@ const MESSAGE = {
  * 「答了」和「没答成」正是这一组要分开的两件事。
  */
 async function readerWith(
-  directory: () => Promise<{ openId: string; name: string; photoUrl?: string }[]>,
+  directory: (ids: readonly string[]) => Promise<{ openId: string; name: string; photoUrl?: string }[]>,
+  messages: readonly typeof MESSAGE[] = [MESSAGE],
 ): Promise<{ topics: YzjTopicReader; calls: () => number }> {
   let calls = 0
   const client = {
-    messages: async () => [MESSAGE],
+    messages: async () => messages,
     olderPage: async () => ({ messages: [], more: false }),
-    usersByOpenId: async () => {
+    usersByOpenId: async (ids: readonly string[]) => {
       calls += 1
-      return directory()
+      return directory(ids)
     },
   }
   const state = {
@@ -95,6 +96,71 @@ describe('通讯录答得出来', () => {
 })
 
 /**
+ * **一颗坏果子不能毁掉整筐** —— 用户真正撞到的那一条。
+ *
+ * 平台对无效 openId 的回应是**整批报错**（`errorCode=1001001, Invalid openIds`），不是
+ * 「这一个没有」。实测：`代少兵` 单独问得出来，和自聊群号里那个非自然人的 id 一起问就
+ * 整批失败。而代码是**整窗一起问**的——于是一窗里混进一个公众号 / 离职销号 / 自聊群号，
+ * 整屏的人就一起变成十六进制，头像一起变成一个点。
+ */
+describe('批量里混进一个无效 id', () => {
+  const BAD = '67f334ade4b0b97fa155f48f'
+
+  /** 平台的真实行为：批量里只要有坏 id 就整批报错；单问好的那个照样答得出来。 */
+  const platform = (good: Record<string, string>) => async (ids: readonly string[]) => {
+    if (ids.some(id => !(id in good))) throw new Error('API error: errorCode=1001001, Invalid openIds')
+    return ids.map(id => ({ openId: id, name: good[id] as string }))
+  }
+
+  it('好的那些照样解析得出来，不被那颗坏的拖下水', async () => {
+    const good = { [MESSAGE.fromOpenId]: '许康' }
+    const { topics } = await readerWith(platform(good), [
+      MESSAGE, { ...MESSAGE, msgId: 'm-2', fromOpenId: BAD },
+    ])
+    const messages = await topics.messagesInPlace('yzj-group-g1')
+    expect(messages.find(one => one.msgId === 'm-1')?.fromName).toBe('许康')
+    // 坏的那个如实退回 openId——我们确实不知道它是谁。
+    expect(messages.find(one => one.msgId === 'm-2')?.fromName).toBe(BAD)
+  })
+
+  /*
+    **自愈**：坏 id 被记成否定之后，下一轮的批量里没有它，整筐恢复正常——不必每次渲染
+    都走一遍逐个补问。
+  */
+  it('第二轮批量恢复正常：坏 id 不再进查询', async () => {
+    const good = { [MESSAGE.fromOpenId]: '许康' }
+    const asked: number[] = []
+    const { topics } = await readerWith(async (ids) => {
+      asked.push(ids.length)
+      return platform(good)(ids)
+    }, [MESSAGE, { ...MESSAGE, msgId: 'm-2', fromOpenId: BAD }])
+    await topics.messagesInPlace('yzj-group-g1')
+    const afterFirst = asked.length
+    await topics.messagesInPlace('yzj-group-g1')
+    // 第二轮一次都不用问：两个人都已经有结论了。
+    expect(asked.length).toBe(afterFirst)
+  })
+
+  /*
+    通道整个不通时**一个都不记**：那是通道的事，不是这些人的事。判据是「这一轮有没有
+    任何一个问成」——逐条看分不出无效与不通，整轮看得出来。
+  */
+  it('通道全不通：什么都不记，下一轮还会再问', async () => {
+    let down = true
+    const { topics, calls } = await readerWith(async (ids) => {
+      if (down) throw new Error('transport error')
+      return ids.map(id => ({ openId: id, name: '许康' }))
+    })
+    await topics.messagesInPlace('yzj-group-g1')
+    const first = calls()
+    down = false
+    const [message] = await topics.messagesInPlace('yzj-group-g1')
+    expect(calls()).toBeGreaterThan(first)
+    expect(message?.fromName).toBe('许康')
+  })
+})
+
+/**
  * **这一组就是那个 bug 的复现。**
  */
 describe('通讯录没问成', () => {
@@ -105,10 +171,15 @@ describe('通讯录没问成', () => {
       return [{ openId: MESSAGE.fromOpenId, name: '许康', photoUrl: 'https://static.example/p' }]
     })
 
-    // 第一趟：通道挂了。名字只能退回 openId——那是如实，此刻我们确实不知道他叫什么。
+    /*
+      第一趟：通道挂了。名字只能退回 openId——那是如实，此刻我们确实不知道他叫什么。
+
+      问了两次：一次批量、一次逐个补问（批量失败之后的兜底，见「一颗坏果子」那一组）。
+      两次都没成，所以**什么都不记**。
+    */
     const [first] = await topics.messagesInPlace('yzj-group-g1')
     expect(first?.fromName).toBe(MESSAGE.fromOpenId)
-    expect(calls()).toBe(1)
+    expect(calls()).toBe(2)
 
     /*
       第二趟：通道好了。**关键就在这里**——旧实现把 openId 写进了缓存，于是这一批人
@@ -116,7 +187,7 @@ describe('通讯录没问成', () => {
     */
     failing = false
     const [second] = await topics.messagesInPlace('yzj-group-g1')
-    expect(calls()).toBe(2)
+    expect(calls()).toBe(3)
     expect(second?.fromName).toBe('许康')
     expect(second?.fromAvatar).toBe('https://static.example/p')
   })
