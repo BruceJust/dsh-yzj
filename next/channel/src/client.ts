@@ -11,7 +11,7 @@
 
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@yzj-next/bridge'
+import { listOf } from '@yzj-next/bridge'
 import { signOutbound } from '@yzj-next/objects'
 import {
   asArray, asRecord, asString, conversationKindForGroup, outboundFingerprint,
@@ -179,8 +179,13 @@ export class YzjChannelClient {
     if (openIds.length === 0) return []
     const command = ['contact', 'user', 'get']
     for (const openId of openIds) command.push('--open-id', openId)
-    const json = await this.run(command, 'contact user get')
-    const rows = Array.isArray(json) ? json : []
+    /*
+      **两种形状都认**（`listOf`）：0.1.4 回裸数组，0.1.6 回 `{ count, list }`。
+
+      这一行曾经只认数组——于是 3090 换上 0.1.6 之后，`contact user get` 的回包变成对象，
+      整窗的人一起解析不出来：名字退回 openId，头像退回一个点。**不报错，只是恰好为空**。
+    */
+    const rows = listOf(await this.run(command, 'contact user get'))
     const out: { openId: string; name: string; photoUrl?: string }[] = []
     for (const row of rows) {
       const record = asRecord(row)

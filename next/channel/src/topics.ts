@@ -895,7 +895,21 @@ export class YzjTopicReader implements YzjTopics {
       if (user.photoUrl !== undefined) this.photos.set(user.openId, user.photoUrl)
     }
     try {
-      for (const user of await this.client.usersByOpenId(unknown)) take(user)
+      const users = await this.client.usersByOpenId(unknown)
+      /*
+        **一个都没回来时留一行** —— 诊断口，不是调试残留。
+
+        名字解析失败在界面上只有一个末端症状（头像变成一个点），而中间任何一环出错都长成
+        同一个样子：token、传输、批量里的坏 id、**回包形状变了**。查这一类问题时唯一缺的
+        就是「问了谁、回了什么」——上一次为了拿到这一行，绕了整整一轮。
+      */
+      if (users.length === 0 && unknown.length > 0) {
+        console.error(
+          `[yzj-next-channel] name lookup returned nothing for ${String(unknown.length)} ids`
+          + ` (${unknown.slice(0, 3).join(',')})`,
+        )
+      }
+      for (const user of users) take(user)
       // 整批问成了：没回来的就是通讯录确实不认识，记下来不再问。
       for (const openId of unknown) if (!this.names.has(openId)) this.names.set(openId, openId)
       return

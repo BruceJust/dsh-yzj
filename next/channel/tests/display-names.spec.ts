@@ -18,6 +18,7 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { YzjChannelClient } from '../src/client.ts'
 import { YzjTopicReader } from '../src/topics.ts'
 
 const MESSAGE = {
@@ -190,5 +191,63 @@ describe('通讯录没问成', () => {
     expect(calls()).toBe(3)
     expect(second?.fromName).toBe('许康')
     expect(second?.fromAvatar).toBe('https://static.example/p')
+  })
+})
+
+/**
+ * **回包形状** —— 这一次真正的根因，而它此前一条用例都没有。
+ *
+ * `yzj-cli` 0.1.4 的 `contact user get` 回裸数组；**0.1.6 回 `{ count, list }`**（信封由桥接
+ * 层剥掉，剩下的就是这个对象）。3090 钉的是 0.1.6，而 `usersByOpenId` 只认数组——于是整窗
+ * 的人一起解析不出来：名字退回 openId、头像退回一个点。
+ *
+ * **它不报错，只是恰好为空**。这就是为什么前面几轮修的都是别处：症状一模一样，而每一层
+ * 都「看起来正常工作」。
+ *
+ * 断言打在 `YzjChannelClient` 上而不是话题读取器上——形状是**它**读的，上面那些用例把这个
+ * 方法整个替掉了，所以它们再多也盖不到这一层（第一版就是这么写错的）。
+ */
+describe('回包形状：裸数组与 { count, list } 都要认', () => {
+  const ROW = {
+    department: '灵基Chat',
+    name: '许康',
+    openId: '5d294a33e4b064934e3cdbe9',
+    photoUrl: 'https://static.example/p',
+  }
+
+  const clientWith = (json: unknown): YzjChannelClient => new YzjChannelClient(
+    { yzjBridge: { run: async () => ({ ok: true, exitCode: 0, stdout: '', stderr: '', json, truncated: false, timedOut: false, durationMs: 1 }) } } as never,
+    {} as never,
+    1_000,
+  )
+
+  it('0.1.4 的裸数组认得出来', async () => {
+    const users = await clientWith([ROW]).usersByOpenId([ROW.openId])
+    expect(users).toEqual([{ openId: ROW.openId, name: '许康', photoUrl: 'https://static.example/p' }])
+  })
+
+  /*
+    **这一条就是线上那个 bug**：只认数组时这里回空，于是整屏头像变成一个点。
+  */
+  it('0.1.6 的 { count, list } 也认得出来', async () => {
+    const users = await clientWith({ count: 1, list: [ROW] }).usersByOpenId([ROW.openId])
+    expect(users).toHaveLength(1)
+    expect(users[0]?.name).toBe('许康')
+    expect(users[0]?.photoUrl).toBe('https://static.example/p')
+  })
+
+  /*
+    形状完全认不出来时回空，而**空不等于「查无此人」**：调用方那一层据此不记否定缓存
+    （见上一组），所以下一轮还会再问。这里只钉「不崩、不编」。
+  */
+  it('认不出来的形状：回空，不抛也不编', async () => {
+    expect(await clientWith({ unexpected: 'shape' }).usersByOpenId([ROW.openId])).toEqual([])
+    expect(await clientWith(undefined).usersByOpenId([ROW.openId])).toEqual([])
+  })
+
+  it('没有头像的行不凭空补一个', async () => {
+    const users = await clientWith({ count: 1, list: [{ openId: ROW.openId, name: '许康' }] })
+      .usersByOpenId([ROW.openId])
+    expect(users[0]?.photoUrl).toBeUndefined()
   })
 })

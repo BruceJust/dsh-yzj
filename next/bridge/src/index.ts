@@ -63,6 +63,25 @@ export function unwrapEnvelope(json: unknown): unknown {
   return json
 }
 
+/**
+ * 按**行**读一次回包 —— 一份实现，所有消费者。
+ *
+ * 0.1.4 的 list 类命令回裸数组；0.1.6 起回 `{ count, list, more? }`（信封由上面那一步剥
+ * 掉，剩下的就是这个对象）。**只认数组的消费者拿到对象时得到的是空**——屏幕上不是一句
+ * 报错，而是「(no workspaces)」「整屏头像都是一个点」这种恰好为空的东西。
+ *
+ * 住在桥接层，因为它是**回包形状**的知识，而读回包的人分布在通道 / 工具 / 桌面 / 私账。
+ * 这一条曾经写在 `@yzj-next/tools` 里，而通道**依赖不到 tools**（方向相反）——于是通道
+ * 那一处就成了那个「忘掉一处」的地方：`usersByOpenId` 只认数组，0.1.6 之后整窗的人一起
+ * 解析不出来，名字全变十六进制、头像全变一个点。
+ */
+export function listOf(json: unknown): unknown[] {
+  if (Array.isArray(json)) return json
+  if (json === null || typeof json !== 'object') return []
+  const list = (json as Record<string, unknown>).list
+  return Array.isArray(list) ? list : []
+}
+
 /** Failed to launch the configured binary. */
 export class YzjSpawnError extends Error {}
 
