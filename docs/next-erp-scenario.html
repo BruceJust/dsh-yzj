@@ -161,7 +161,13 @@ tr.hist td{padding-top:0}
   .ev{grid-template-columns:57px 1fr}
   .day,.scene,.prompt,.settle{padding-left:66px}
   .prompt,.settle{margin-left:66px}
-  .band{grid-template-columns:90px 1fr 50px}
+  .band{grid-template-columns:auto 1fr 50px}
+  .band > span:first-child{white-space:nowrap}
+  .controls{padding:10px 14px}
+  .controls .status{font-size:12.5px;line-height:1.35}
+  .controls .hint{display:none}
+  .controls button{padding:8px 12px}
+  .controls button.primary{padding:8px 14px;font-size:15px}
 }
 @media (prefers-reduced-motion:reduce){
   .ev.fresh,tr.fresh td,.fresh .stamp,.page-left.flash{animation:none}
@@ -548,7 +554,7 @@ function render(){
 function renderConcepts(){
   const keys=['graph',...TABS];
   $('#concepts').innerHTML=keys.map(k=>`<button data-k="${k}" class="${k!=='graph'&&state.tab===k?'on':''}">${DEFS[k][0]}</button>`).join('')+'<span class="sep">点一个概念，右页翻到那一账</span>';
-  $('#concepts').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(k==='graph'){const lp=$('#leftpage');lp.classList.remove('flash');void lp.offsetWidth;lp.classList.add('flash');lp.scrollIntoView({behavior:'smooth',block:'start'});}else{state.tab=k;render();}});
+  $('#concepts').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(k==='graph'){const lp=$('#leftpage');lp.classList.remove('flash');void lp.offsetWidth;lp.classList.add('flash');lp.scrollIntoView({behavior:'smooth',block:'start'});}else{state.tab=k;render();if(window.innerWidth<=980)$('.page-right').scrollIntoView({behavior:'smooth',block:'start'});}});
 }
 function tagOf(e){
   const map={msg:['消息',''],fact:['事实',''],need:['判断需求',''],need_update:['判断需求',''],judgment:['判断','judg'],pledge:['承诺立账','pledge'],pledge_update:['承诺变动','pledge'],receipt:['回执','pledge'],return:['回程','ret'],handoff:['移交','ret'],judgment_update:['回看','judg']};
@@ -683,7 +689,7 @@ function renderControls(){
   else if(state.pending){n.disabled=true;n.textContent=`等 ${state.pending.prompt.who} 选`;}
   else{n.disabled=false;const i=nextIndex();n.textContent=i<SCENES.length?`下一步，${SCENES[i].t.replace(/^(\d+)\/(\d+)\s*/,(m,a,b)=>`${a} 月 ${b} 日 `)}`:'结算';}
   const d=state.decisions;const path=d.J1?({A:'接，不挤 B',B:'接，挤 B',C:'不接'}[d.J1]):'还没做第一个判断';
-  $('#status').innerHTML=`第 <b>${state.played.length-1}</b> 步。路线：${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}。左页点任何一件事，右页对应的账会亮起来。`;
+  $('#status').innerHTML=`第 <b>${state.played.length-1}</b> 步。路线：${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}。<span class="hint">左页点任何一件事，右页对应的账会亮起来。</span>`;
 }
 function nextIndex(){let i=state.cursor+1;while(i<SCENES.length&&SCENES[i].when&&!SCENES[i].when(state.decisions))i++;return i;}
 
