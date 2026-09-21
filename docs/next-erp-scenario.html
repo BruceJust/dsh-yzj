@@ -9,6 +9,7 @@
   --paper:#eeeee7; --page:#fbfbf7; --ink:#1e1e1c; --muted:#6a6a64;
   --rule:#c3cedf; --rule-strong:#3a5583; --red:#c4463a; --seal:#b4322b;
   --ok:#2d6b4d; --warn:#b3781c; --agent:#3a5583; --lit:#fff1bd; --ext:#8a6d3b;
+  --oldpage:#f4f4f1; --oldline:#cfcfc8; --ghost:#8c8c85;
   --song:"Songti SC","STSong","Noto Serif CJK SC","Source Han Serif SC","SimSun",serif;
   --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
 }
@@ -16,15 +17,32 @@
 html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;font-variant-numeric:tabular-nums}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--rule-strong);outline-offset:2px}
-a{color:inherit}
 
-.masthead{max-width:1360px;margin:0 auto;padding:28px 28px 14px}
-.masthead h1{font-family:var(--song);font-weight:600;font-size:34px;line-height:1.2;margin:0 0 6px;letter-spacing:.02em}
-.masthead .lede{font-family:var(--song);font-size:17px;margin:0 0 16px;color:#3a3a36;max-width:46em}
+.masthead{max-width:1360px;margin:0 auto;padding:26px 28px 0}
+.title-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.masthead h1{font-family:var(--song);font-weight:600;font-size:34px;line-height:1.2;margin:0 0 4px;letter-spacing:.02em}
+.modeswitch{display:inline-flex;border:1px solid var(--ink);padding:2px;background:var(--page)}
+.modeswitch button{font-family:var(--song);font-size:15px;padding:4px 14px}
+.modeswitch button.on{background:var(--ink);color:var(--page)}
+.masthead .lede{font-family:var(--song);font-size:17px;margin:0 0 14px;color:#3a3a36;max-width:46em}
 .concepts{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
 .concepts button{border:1px solid var(--ink);padding:4px 12px;border-radius:999px;font-size:14px;background:var(--page)}
 .concepts button.on{background:var(--ink);color:var(--page)}
+.concepts button .was{color:var(--muted);font-size:12.5px;margin-left:4px}
+.concepts button.on .was{color:#cfcfc7}
 .concepts .sep{color:var(--muted);font-size:13px;margin-left:6px}
+
+.rail{max-width:1360px;margin:14px auto 12px;padding:0 28px;overflow-x:auto}
+.rail-in{display:flex;align-items:flex-end;gap:0;min-width:max-content;border-bottom:1px solid var(--ink);padding-bottom:6px}
+.tick{display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 9px;position:relative;cursor:default}
+.tick .lbl{font-family:var(--song);font-size:12px;color:var(--muted);height:16px;white-space:nowrap}
+.tick .m{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ink);background:var(--page)}
+.tick.played .m{background:#b9b9b1;border-color:#b9b9b1}
+.tick.current .m{background:var(--ink);border-color:var(--ink);transform:scale(1.35)}
+.tick.judg .m{box-shadow:0 0 0 2px var(--page),0 0 0 3.5px var(--seal)}
+.tick.played,.tick.current{cursor:pointer}
+.tick .ttl{position:absolute;top:100%;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12px;color:var(--ink);background:var(--page);border:1px solid var(--rule);padding:2px 8px;margin-top:6px;display:none;z-index:3}
+.tick:hover .ttl{display:block}
 
 .book{max-width:1360px;margin:0 auto;padding:0 28px 110px;display:grid;grid-template-columns:minmax(380px,7fr) minmax(420px,8fr);gap:22px;align-items:start}
 .page{background:var(--page);border:1px solid #d9d9d0;box-shadow:0 1px 0 #d2d2c8;min-height:70vh}
@@ -32,23 +50,21 @@ a{color:inherit}
 .page-head{font-family:var(--song);font-size:16px;padding:14px 18px 10px;border-bottom:1px solid var(--rule-strong);display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .page-head .clock{font-size:14px;color:var(--muted)}
 
-/* left page: ruled ledger with red margin rule */
-.page-left{position:relative;background-image:linear-gradient(to right,transparent 74px,var(--red) 74px,var(--red) 75px,transparent 75px);background-size:100% 100%}
+.page-left{position:relative;background-image:linear-gradient(to right,transparent 74px,var(--red) 74px,var(--red) 75px,transparent 75px)}
 .page-left.flash{animation:flash .9s ease-out}
 @keyframes flash{0%{box-shadow:0 0 0 4px var(--lit)}100%{box-shadow:0 1px 0 #d2d2c8}}
 #stream{padding:6px 0 30px}
 .day{font-family:var(--song);font-size:13px;color:var(--rule-strong);padding:18px 18px 4px 88px;letter-spacing:.06em}
 .scene{padding:8px 18px 6px 88px}
-.scene-title{font-family:var(--song);font-weight:600;font-size:16px}
+.scene-title{font-family:var(--song);font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.bridge{font-family:var(--sans);font-weight:400;font-size:12.5px;color:var(--rule-strong);text-decoration:underline dotted;white-space:nowrap}
 .narr{margin:2px 0 4px;color:#33332f}
-.old{margin:0 0 4px;font-size:13px;color:var(--muted);border-left:2px solid #d6d6cc;padding-left:8px}
-.old b{font-weight:500;color:#8a8a82}
 .ev{display:grid;grid-template-columns:75px 1fr;border-bottom:1px solid var(--rule);cursor:pointer}
 .ev:hover{background:#f4f4ee}
 .ev.sel{background:var(--lit)}
 .ev .gutter{font-family:var(--song);font-size:13px;color:var(--muted);text-align:right;padding:10px 10px 0 0}
 .ev .body{padding:9px 18px 9px 13px}
-.who{display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:2px}
+.who{display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:2px;flex-wrap:wrap}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--ink);flex:none}
 .kind-agent .dot{background:var(--page);border:2px dashed var(--agent)}
 .kind-xagent .dot{background:var(--page);border:2px dashed var(--ext)}
@@ -78,13 +94,42 @@ a{color:inherit}
 .options button b{font-weight:600;font-family:var(--song);font-size:15.5px}
 .options button span{font-size:13px;color:var(--muted)}
 .wait{font-size:13px;color:var(--muted);margin-top:6px}
+.prompt.old-note{border-color:var(--ghost);background:#f7f7f4}
+.prompt.old-note .prompt-head{color:var(--ghost)}
 
-/* right page */
-.tabs{display:flex;border-bottom:1px solid var(--rule-strong);padding:10px 12px 0;gap:4px;flex-wrap:wrap}
-.tabs button{font-family:var(--song);font-size:15px;padding:7px 12px 6px;border:1px solid var(--rule);border-bottom:0;background:#f1f1ea;margin-bottom:-1px}
-.tabs button.on{background:var(--page);border-color:var(--rule-strong);position:relative}
+/* 旧 ERP 视角 */
+body.mode-old .page-left{background-image:none;background:var(--oldpage)}
+body.mode-old .day{color:var(--muted)}
+.doc{display:grid;grid-template-columns:75px 1fr;border-bottom:1px solid var(--oldline);cursor:pointer}
+.doc:hover{background:#efefeb}
+.doc.sel{background:var(--lit)}
+.doc .gutter{font-family:var(--song);font-size:13px;color:var(--muted);text-align:right;padding:10px 10px 0 0}
+.doc .body{padding:9px 18px 9px 13px}
+.doc .text{font-size:14.5px;line-height:1.6}
+.doc .meta{font-size:12.5px;color:var(--muted);margin-top:4px}
+.doc.fresh{animation:ink .5s ease-out}
+.module{font-size:12px;color:var(--page);background:#5c5c56;padding:0 6px;border-radius:2px;white-space:nowrap}
+.doc-title{font-family:var(--song);font-size:15px;font-weight:600}
+.counts{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+.counts b{font-weight:600;color:var(--ink)}
+.kind-ghost{border-left:3px dashed var(--ghost);margin-left:75px;grid-template-columns:1fr}
+.kind-ghost .body{padding-left:12px}
+.kind-ghost .who{color:var(--ghost)}
+.ghost-mark{width:10px;height:10px;border-radius:50%;border:1.5px dashed var(--ghost);flex:none}
+.kind-ghost .text{color:var(--ghost);font-family:var(--song)}
+.kind-ghost .meta{color:#5e5e58}
+.kind-lag .doc-title{color:var(--muted)}
+.lagnote{font-size:12px;color:var(--warn)}
+
+.tabs{display:flex;border-bottom:1px solid var(--rule-strong);padding:10px 12px 0;gap:4px;flex-wrap:wrap;align-items:flex-end}
+.tabs button{font-family:var(--song);font-size:15px;padding:7px 12px 6px;border:1px solid var(--rule);border-bottom:0;background:#f1f1ea;margin-bottom:-1px;position:relative}
+.tabs button.on{background:var(--page);border-color:var(--rule-strong)}
 .tabs button.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--page)}
 .tabs button .n{font-size:12px;color:var(--muted);margin-left:5px}
+.tabs button.changed::before{content:"";position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--seal)}
+.tabs .follow{margin-left:auto;font-family:var(--sans);font-size:12.5px;color:var(--muted);border:0;padding:6px 4px;background:none;margin-bottom:0}
+.tabs .follow .box{display:inline-block;width:11px;height:11px;border:1.5px solid var(--muted);vertical-align:-1px;margin-right:4px}
+.tabs .follow.on .box{background:var(--ink);border-color:var(--ink)}
 .tab-def{padding:12px 18px 6px;font-size:13.5px;color:#3a3a36;border-bottom:1px solid var(--rule)}
 .tab-def b{font-family:var(--song);font-weight:600;color:var(--ink)}
 #proj{padding:8px 18px 26px}
@@ -93,19 +138,24 @@ th{text-align:left;font-weight:500;color:var(--muted);font-size:12.5px;padding:8
 td{padding:8px 6px;border-bottom:1px solid var(--rule);vertical-align:top}
 td.num,th.num{text-align:right;font-family:var(--song);font-size:14.5px;white-space:nowrap}
 td.song{font-family:var(--song);font-size:14.5px}
+td.nw{white-space:nowrap}
 tr.lit td{background:var(--lit)}
 tr.fresh td{animation:ink .6s ease-out}
-tr[data-ref]{cursor:pointer}
+tr[data-ref],tr[data-ev]{cursor:pointer}
+tr.has-hist td{border-bottom:0;padding-bottom:2px}
+tr.hist td{padding-top:0}
+.hsep{color:var(--muted)}
 .sub{font-size:12px;color:var(--muted);margin-top:2px}
 .sub .ev-link{color:var(--rule-strong);text-decoration:underline dotted;cursor:pointer}
 .total td{border-top:1.5px solid var(--ink);border-bottom:0;font-weight:600}
 .total td.num{font-size:16px}
 .empty{padding:26px 6px;color:var(--muted);font-size:14px}
+.absent{padding:22px 6px;font-family:var(--song);font-size:16px;color:var(--ghost);border:1.5px dashed var(--ghost);margin-top:10px}
+.absent .sub{font-family:var(--sans);margin-top:8px;color:#5e5e58}
 
 .stamp{display:inline-block;font-family:var(--song);font-weight:700;color:var(--seal);border:1.5px solid var(--seal);border-radius:50%;width:2.5em;height:2.5em;line-height:2.35em;text-align:center;font-size:13px;transform:rotate(-11deg);opacity:.86;box-shadow:inset 0 0 0 1.5px var(--page),inset 0 0 0 2.5px var(--seal);letter-spacing:.02em;white-space:nowrap}
 .stamp.ink{color:var(--ink);border-color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--page),inset 0 0 0 2.5px var(--ink)}
 .stamp.gray{color:#8a8a82;border-color:#8a8a82;box-shadow:inset 0 0 0 1.5px var(--page),inset 0 0 0 2.5px #8a8a82}
-.stamp.wide{border-radius:4px;width:auto;padding:0 6px;height:1.7em;line-height:1.6em}
 .fresh .stamp{animation:press .5s cubic-bezier(.2,.9,.3,1.25)}
 @keyframes press{from{transform:rotate(-11deg) scale(1.9);opacity:0}to{transform:rotate(-11deg) scale(1);opacity:.86}}
 .st{font-size:13px;white-space:nowrap}
@@ -113,17 +163,14 @@ tr[data-ref]{cursor:pointer}
 .st.bad{color:var(--seal);font-weight:600}
 .st.wait{color:var(--muted)}
 .gates{display:inline-flex;gap:3px;vertical-align:middle}
-.gate{width:13px;height:13px;border:1.5px solid var(--ink);display:inline-block;position:relative}
+.gate{width:13px;height:13px;border:1.5px solid var(--ink);display:inline-block}
 .gate.on{background:var(--ink)}
 .gate.half{background:linear-gradient(90deg,var(--ink) 50%,transparent 50%)}
 .gates-h{font-size:11.5px;color:var(--muted);margin-left:4px;white-space:nowrap}
-td.nw{white-space:nowrap}
-tr.has-hist td{border-bottom:0;padding-bottom:2px}
-tr.hist td{padding-top:0}
-.hsep{color:var(--muted)}
 
 .bands{margin:10px 0 4px;display:grid;gap:6px}
 .band{display:grid;grid-template-columns:120px 1fr 60px;align-items:center;gap:10px;font-size:13px}
+.band > span:first-child{white-space:nowrap}
 .band .bar{height:10px;border:1px solid var(--ink);position:relative;background:var(--page)}
 .band .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
 .band .bar i.full{background:var(--seal)}
@@ -139,51 +186,61 @@ tr.hist td{padding-top:0}
 .file .row{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:3px 0;border-bottom:1px dotted var(--rule)}
 .file .row:last-child{border-bottom:0}
 .file .row .cnt{font-family:var(--song);white-space:nowrap}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13.5px;margin:6px 0 10px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-family:var(--song)}
 
-.controls{position:fixed;left:0;right:0;bottom:0;background:rgba(238,238,231,.94);backdrop-filter:blur(4px);border-top:1px solid #cfcfc5;padding:12px 28px;display:flex;align-items:center;gap:16px;z-index:5}
-.controls .inner{max-width:1360px;margin:0 auto;width:100%;display:flex;align-items:center;gap:16px}
+.controls{position:fixed;left:0;right:0;bottom:0;background:rgba(238,238,231,.94);backdrop-filter:blur(4px);border-top:1px solid #cfcfc5;padding:12px 28px;z-index:5}
+.controls .inner{max-width:1360px;margin:0 auto;width:100%;display:flex;align-items:center;gap:12px}
 .controls .status{flex:1;font-size:13.5px;color:#3a3a36}
 .controls .status b{font-family:var(--song);font-weight:600}
-.controls button{border:1px solid var(--ink);padding:8px 16px;background:var(--page)}
+.controls button{border:1px solid var(--ink);padding:8px 14px;background:var(--page);white-space:nowrap}
 .controls button.primary{background:var(--ink);color:var(--page);padding:8px 22px;font-family:var(--song);font-size:16px}
+.controls button.primary.go{background:var(--seal);border-color:var(--seal)}
 .controls button:disabled{opacity:.45;cursor:not-allowed}
 .settle{margin:14px 18px 8px 88px;border:1px solid var(--ink);padding:12px 14px;background:var(--page)}
 .settle .h{margin-top:0}
 .settle table{font-size:13.5px}
+.settle td.num{font-size:14px}
 
 @media (max-width:980px){
   .book{grid-template-columns:1fr;padding:0 14px 120px}
-  .masthead{padding:20px 14px 10px}
+  .masthead{padding:20px 14px 0}
   .masthead h1{font-size:26px}
+  .rail{padding:0 14px}
   .page{min-height:0}
   .page-right{position:static;max-height:none;overflow:visible}
   .page-left{background-image:linear-gradient(to right,transparent 56px,var(--red) 56px,var(--red) 57px,transparent 57px)}
-  .ev{grid-template-columns:57px 1fr}
+  .ev,.doc{grid-template-columns:57px 1fr}
+  .kind-ghost{margin-left:57px;grid-template-columns:1fr}
   .day,.scene,.prompt,.settle{padding-left:66px}
   .prompt,.settle{margin-left:66px}
   .band{grid-template-columns:auto 1fr 50px}
-  .band > span:first-child{white-space:nowrap}
   .controls{padding:10px 14px}
   .controls .status{font-size:12.5px;line-height:1.35}
   .controls .hint{display:none}
-  .controls button{padding:8px 12px}
-  .controls button.primary{padding:8px 14px;font-size:15px}
+  .controls button{padding:8px 10px}
+  .controls button.primary{padding:8px 12px;font-size:15px}
 }
 @media (prefers-reduced-motion:reduce){
-  .ev.fresh,tr.fresh td,.fresh .stamp,.page-left.flash{animation:none}
+  .ev.fresh,.doc.fresh,tr.fresh td,.fresh .stamp,.page-left.flash{animation:none}
 }
 </style>
 </head>
 <body>
 <header class="masthead">
-  <h1>恒测加急单</h1>
-  <p class="lede">旧 ERP 记这四周发生了什么。新 ERP 记这四周谁答应了什么、谁赌了什么、最后谁对。一家做压力传感器的公司，一张提前二十天的订单，你替老周、老陈、小林和小赵做决定，看五本账怎么从同一条事件流里长出来。</p>
+  <div class="title-row">
+    <h1>恒测加急单</h1>
+    <div class="modeswitch" id="modeswitch"><button data-mode="new" class="on">新账</button><button data-mode="old">旧 ERP</button></div>
+  </div>
+  <p class="lede" id="lede"></p>
   <nav class="concepts" id="concepts"></nav>
 </header>
+<div class="rail" id="rail"><div class="rail-in"></div></div>
 
 <main class="book">
   <section class="page page-left" id="leftpage">
-    <div class="page-head"><span>一张图，企业的事件流</span><span class="clock" id="clock"></span></div>
+    <div class="page-head"><span id="lefthead">一张图，企业的事件流</span><span class="clock" id="clock"></span></div>
     <div id="stream"></div>
   </section>
   <section class="page page-right">
@@ -196,6 +253,7 @@ tr.hist td{padding-top:0}
 <footer class="controls"><div class="inner">
   <button id="reset">重来</button>
   <div class="status" id="status"></div>
+  <button id="ff">快进到下一个判断</button>
   <button id="next" class="primary">下一步</button>
 </div></footer>
 
@@ -208,21 +266,20 @@ const XH=(name,role)=>({name,role,kind:'ext'});
 const XA=(name,role)=>({name,role,kind:'xagent'});
 const SYS={name:'系统',kind:'sys'};
 let _id=0; const E=o=>({id:'e'+(++_id),...o});
+const dnum=t=>{const m=t.match(/^(\d+)\/(\d+)/);return m?(+m[1])*100+(+m[2]):0;};
 
 const LEASES={
   '销售 agent':{by:'老周',scope:'读订单、库存、产能，拟回复',budget:'无支出权',until:'12 月 31 日'},
   '采购 agent':{by:'小林',scope:'询价、下单、催料',budget:'单笔不超过 10 万',until:'10 月 31 日'},
 };
-const PEOPLE={
-  '老周':{role:'销售总监',cap:4,base:2},
-  '小林':{role:'采购经理',cap:5,base:5},
-  '老陈':{role:'厂长',cap:3,base:1},
-};
-const PRIOR_FILE={
-  '老周':[{cat:'为续签牺牲单笔毛利',n:3,hit:2},{cat:'保毛利放弃增量',n:2,hit:1},{cat:'主动告知延期',n:4,hit:4}],
-};
+const PEOPLE={'老周':{role:'销售总监',cap:4,base:2},'小林':{role:'采购经理',cap:5,base:5},'老陈':{role:'厂长',cap:3,base:1}};
+const PRIOR_FILE={'老周':[{cat:'为续签牺牲单笔毛利',n:3,hit:2},{cat:'保毛利放弃增量',n:2,hit:1},{cat:'主动告知延期',n:4,hit:4}]};
 const CAT={J1A:'为续签牺牲单笔毛利',J1B:'为续签牺牲单笔毛利',J1C:'保毛利放弃增量',J4:'主动告知延期'};
 
+const LEDE={
+  new:'旧 ERP 记这四周发生了什么。新 ERP 记这四周谁答应了什么、谁赌了什么、最后谁对。一家做压力传感器的公司，一张提前二十天的订单，你替老周、老陈、小林和小赵做决定，看五本账怎么从同一条事件流里长出来。',
+  old:'同一条事件流，投到旧 ERP 上。旧 ERP 只能看见被人录进表单的事，看见得晚，记的是结果不记理由。左页是它能看见的单据，和它看不见的那些；右页是它的五个模块。你做的判断不变，账不一样。',
+};
 const DEFS={
   graph:['一张图','企业的全部活动落成一条事件流。右边每一页都是它的投影，每走一步整体重算。'],
   need:['计划对象','旧 MRP 把订单炸成物料需求。这里把订单炸成判断需求：哪些决定只能由人做，排在谁的判断带宽上。执行不排期。'],
@@ -231,11 +288,27 @@ const DEFS={
   money:['钱账','法定的第一本账，降级为投影。没有人录凭证，每个数字点回证据，证据点回一个人的判断。'],
   law:['恒等式','任何 agent 的行动链，末端必须是一个能担责的人。agent 只在租约下行动；责任不能委派，只能移交并签收。'],
 };
+const OLD={
+  graph:{title:'五个模块',def:'事件不进系统，单据才进。销售、计划、采购、生产、财务各记各的，模块之间靠人对。',tab:null},
+  need:{title:'物料需求',def:'MRP 每晚 02:00 跑一次，把订单炸成缺料清单。它排物料，不排判断。',tab:'mrp'},
+  judg:{title:'没有这本账',def:'判断发生在群聊和电话里。系统只留下结果单据，理由靠记忆。',tab:'judg'},
+  pledge:{title:'交期字段',def:'承诺只是订单上的一个日期。改了就覆盖，没有悬空，没有三门。',tab:'sales'},
+  money:{title:'月末凭证',def:'财务月底补录。毛利率要到月结才知道，而且没有算力科目。',tab:'fin'},
+  law:{title:'审批链',def:'每张单据几个人签字。人人签了，没有人对结果负责。',tab:'flow'},
+};
 const TABS=['need','pledge','judg','money','law'];
-
+const OLDTABS=[['sales','销售订单'],['mrp','计划采购'],['prod','生产工单'],['fin','财务凭证'],['flow','审批流'],['judg','判断账']];
+const OLDTABDEF={
+  sales:'销售模块里，承诺是订单上的交期字段。改过几次能数出来，为什么改在系统外。',
+  mrp:'计划员每晚等 MRP。采购申请单走三级审批，采购订单交期是采购员手填的。',
+  prod:'工单下达、报工完工。加班费下月工资才结算，进不了这张单。',
+  fin:'凭证月底补录。月结之前这一页是空的，毛利率不知道。',
+  flow:'每张单据的审批人。每个人都签了字。',
+  judg:'旧 ERP 里没有这一页。',
+};
 /* ---------- 剧本 ---------- */
 const SCENES=[
-{id:'pre',t:'8/20',title:'此前',narrative:'两张订单已经在账上。钱账里是 22% 的标准毛利，承诺板上是两条对客户的承诺。',old:'',
+{id:'pre',t:'8/20',title:'此前',focus:'pledge',narrative:'两张订单已经在账上。钱账里是 22% 的标准毛利，承诺板上是两条对客户的承诺。',old:'销售内勤录了两张销售订单。系统里有两个交期字段。',
  events:()=>[
   E({t:'8/20 10:00',actor:H('老周','销售总监'),type:'pledge',text:'A 客户订单立账：8,000 台压力传感器，10 月 30 日交付。',
     pledge:{id:'P0',who:'恒测',to:'A 客户',what:'8,000 台压力传感器',when:'10 月 30 日'},
@@ -244,10 +317,10 @@ const SCENES=[
     pledge:{id:'PB',who:'恒测',to:'B 客户',what:'3,000 台压力传感器',when:'10 月 15 日'}}),
  ]},
 
-{id:'s0',t:'9/15 09:12',title:'一句话进图',narrative:'这句话不是录入，是一个事件。它落进事件图，后面的一切都从它推导。',old:'销售在 ERP 里录订单变更单，走信用复核。客户等回复。',
+{id:'s0',t:'9/15 09:12',title:'一句话进图',narrative:'这句话不是录入，是一个事件。它落进事件图，后面的一切都从它推导。',old:'客户的话在微信里。销售看到了，ERP 没看到。要等销售录一张订单变更单，系统才知道这件事存在。',
  events:()=>[E({t:'9/15 09:12',actor:XH('王工','A 客户采购'),type:'msg',text:'原定 10 月 30 日交付的 8,000 台，能不能提前到 10 月 10 日？我们产线提前投产。'})]},
 
-{id:'s1',t:'9/15 09:20',title:'系统排的是判断，不是物料',narrative:'旧 MRP 到这里炸出物料需求。新系统炸出判断需求：这张单里哪些决定只能由人做，排在谁的判断带宽上。执行不排期，因为执行不稀缺。',old:'计划员等晚上 MRP 跑完才知道缺什么。缺料生成采购申请，进三级审批。',
+{id:'s1',t:'9/15 09:20',title:'系统排的是判断，不是物料',focus:'need',narrative:'旧 MRP 到这里炸出物料需求。新系统炸出判断需求：这张单里哪些决定只能由人做，排在谁的判断带宽上。执行不排期，因为执行不稀缺。',old:'计划员打开库存、在制、产能三个查询界面，手抄到 Excel。缺料要等今晚 02:00 的 MRP。没有人排"谁来决定"这件事。',
  events:()=>[
   E({t:'9/15 09:20',actor:AG('销售 agent'),type:'fact',text:'对应订单 SO-26-0912。成品加在制 3,500 台，缺口 4,500 台。瓶颈是 MCU 芯片：现有 3,000 颗，正常交期六周，加急两周溢价 12%。产线要么加班六天，要么挤占 B 客户 10 月 15 日的 3,000 台。'}),
   E({t:'9/15 09:21',actor:SYS,type:'need',text:'炸出三个判断需求。J1 归老周，J2 归小林，J3 归老陈。J2 和 J3 等 J1 的结果。',need:[
@@ -256,8 +329,8 @@ const SCENES=[
     {id:'J3',who:'老陈',q:'4,500 台的产能从哪来？',evidence:'上月加班时长，外协厂不良率',sched:'等 J1。今天 16:00',status:'等 J1'}]}),
  ]},
 
-{id:'s2',t:'9/15 15:10',title:'判断账：决定的那一刻立此存照',narrative:'老周在手机上看到取景框。他选的不只是一个方案，还有一条会在 12 月 20 日自己回来的判断。',old:'销售总监在群里拍板。ERP 里只留下一张改过日期的订单，看不出为什么改。',
- prompt:{kind:'judgment',who:'老周',role:'销售总监',nid:'J1',q:'接不接？接了，挤不挤 B 客户？',
+{id:'s2',t:'9/15 15:10',title:'判断账：决定的那一刻立此存照',narrative:'老周在手机上看到取景框。他选的不只是一个方案，还有一条会在 12 月 20 日自己回来的判断。',old:'销售总监在群里拍板。ERP 里只会出现一张改过日期的订单变更单，看不出为什么改。',
+ prompt:{kind:'judgment',who:'老周',role:'销售总监',nid:'J1',focus:'judg',q:'接不接？接了，挤不挤 B 客户？',
   evidence:['A 客户年框 2,000 万，12 月续签。对方产线提前投产，续签额度有翻倍的传闻。','B 客户合同：延期每日 0.5% 违约金，上限 15 万。B 年框 800 万。','历史准时率：A 客户 97%，B 客户 99%。','三个选项的毛利：不挤 B、加急加加班约 15%；挤 B 约 20%，若付违约金约 18%；不接 22%。'],
   options:[{key:'A',label:'接，不挤 B，加班加加急芯片',detail:'毛利约 15%，B 客户不受影响'},{key:'B',label:'接，挤 B 客户，不加急',detail:'毛利约 20%，B 客户的承诺要改签'},{key:'C',label:'不接，维持 10 月 30 日',detail:'毛利 22%，可能错过续签翻倍'}],
   resolve:(k,d)=>{d.J1=k;const t='9/15 15:10';
@@ -277,9 +350,9 @@ const SCENES=[
     E({t:'9/15 15:14',actor:SYS,type:'need_update',text:'J1 已判。J2 和 J3 不再需要。',nu:[{id:'J1',status:'已判',pick:'不接'},{id:'J2',status:'撤销'},{id:'J3',status:'撤销'}]})];
   }}},
 
-{id:'s3',t:'9/15 16:00',title:'老陈的判断',narrative:'每个判断都立账，不只是大的那个。老陈赌的是六天加班不伤质量。10 月 8 日会来对账。',old:'厂长口头安排加班。加班费月底才进成本，没人把它和这张订单连起来。',
+{id:'s3',t:'9/15 16:00',title:'老陈的判断',narrative:'每个判断都立账，不只是大的那个。老陈赌的是六天加班不伤质量。10 月 8 日会来对账。',old:'厂长口头安排加班，填一张加班申请单给人事。加班费月底才进成本，没人把它和这张订单连起来。',
  when:d=>d.J1==='A',
- prompt:{kind:'judgment',who:'老陈',role:'厂长',nid:'J3',q:'4,500 台要在 10 月 8 日前下线，产能从哪来？',
+ prompt:{kind:'judgment',who:'老陈',role:'厂长',nid:'J3',focus:'judg',q:'4,500 台要在 10 月 8 日前下线，产能从哪来？',
   evidence:['上月人均加班 38 小时，接近上限。','加班六天：约 19.8 万。','外协 1,500 台：约 22 万，外协厂上季度不良率 1.8%。'],
   options:[{key:'ot',label:'加班六天',detail:'约 19.8 万，质量可控，工人疲劳'},{key:'os',label:'外协 1,500 台',detail:'约 22 万，质量风险'}],
   resolve:(k,d)=>{d.J3=k;const t='9/15 16:05';
@@ -290,39 +363,38 @@ const SCENES=[
     E({t,actor:SYS,type:'need_update',text:'J3 已判。',nu:[{id:'J3',status:'已判',pick:k==='ot'?'加班六天':'外协'}]})];
   }}},
 
-{id:'s4',t:'9/16 09:00',title:'小林的判断：租约的边界',narrative:'采购 agent 能询价能下单，但这一笔超过了租约里的单笔上限。它停下来，把判断交回给人。',old:'采购申请单走三级审批，每一级都签字，没有一级真正对交期负责。',
+{id:'s4',t:'9/16 09:00',title:'小林的判断：租约的边界',focus:'law',narrative:'采购 agent 能询价能下单，但这一笔超过了租约里的单笔上限。它停下来，把判断交回给人。',old:'采购员电话询价，填采购申请单，走三级审批。每一级都签字，没有一级真正对交期负责。',
  when:d=>d.J1==='A',
  events:()=>[E({t:'9/16 08:40',actor:AG('采购 agent'),type:'fact',text:'询到加急芯片：4,500 颗，溢价 12%，约 33.5 万，9 月 28 日到料。超出租约单笔上限，等小林判断。'})],
- prompt:{kind:'judgment',who:'小林',role:'采购经理',nid:'J2',q:'加急芯片溢价约 33.5 万，付不付？',
+ prompt:{kind:'judgment',who:'小林',role:'采购经理',nid:'J2',focus:'pledge',q:'加急芯片溢价约 33.5 万，付不付？',
   evidence:['租约：单笔不超过 10 万。本笔 33.5 万。','备选第二家供应商：交期 10 月 3 日，溢价 15%。','不加急，10 月 10 日必定失约。'],
   options:[{key:'ok',label:'批准 33.5 万',detail:'9 月 28 日到料'},{key:'back',label:'打回，让 agent 再谈一轮',detail:'带着理由回声给 agent，再谈价与交期'}],
   resolve:(k,d)=>{d.J2=k;const evs=[];let prem=334800,when='9 月 28 日';
    if(k==='back'){prem=251100;when='9 月 29 日';
     evs.push(E({t:'9/16 09:05',actor:H('小林','采购经理'),type:'return',text:'打回：溢价高于上季度同款加急均价，再谈。'}));
     evs.push(E({t:'9/16 11:30',actor:AG('采购 agent'),type:'fact',text:'再谈一轮：供应商同意溢价 9%，约 25.1 万，交期 9 月 29 日。'}));}
-   evs.push(E({t:k==='back'?'9/16 11:40':'9/16 09:05',actor:H('小林','采购经理'),type:'judgment',text:`批准溢价约 ${F(prem/10000)} 万，${when}到料。`,j:{id:'J2',bet:`供应商 ${when} 全量到料 4,500 颗`,signal:`${when} 回执 4,500 颗`,review:when,cost:`溢价约 ${(prem/10000).toFixed(1)} 万`}}));
+   evs.push(E({t:k==='back'?'9/16 11:40':'9/16 09:05',actor:H('小林','采购经理'),type:'judgment',text:`批准溢价约 ${(prem/10000).toFixed(1)} 万，${when}到料。`,j:{id:'J2',bet:`供应商 ${when} 全量到料 4,500 颗`,signal:`${when} 回执 4,500 颗`,review:when,cost:`溢价约 ${(prem/10000).toFixed(1)} 万`}}));
    evs.push(E({t:k==='back'?'9/16 11:45':'9/16 09:10',actor:AG('采购 agent'),type:'pledge',text:`下单。采购欠生产 4,500 颗 MCU，${when}。`,pledge:{id:'P1',who:'采购 agent，小林租约下',to:'生产',what:'4,500 颗 MCU',when},money:[{id:'M2',acct:'采购成本',label:`芯片加急溢价 ${k==='back'?'9%':'12%'}`,amount:-prem}]}));
    evs.push(E({t:k==='back'?'9/16 11:45':'9/16 09:10',actor:XA('供应商 agent','对方账本：陈工，供应商销售经理'),type:'pledge',text:`供应商在自己账上立了同一条承诺：欠恒测 4,500 颗，${when}。两边看的是同一个条目。`,pledge:{id:'P2',who:'供应商',to:'恒测',what:'4,500 颗 MCU',when}}));
    evs.push(E({t:k==='back'?'9/16 11:46':'9/16 09:11',actor:SYS,type:'need_update',text:'J2 已判。',nu:[{id:'J2',status:'已判',pick:k==='back'?'打回后批准':'批准'}]}));
    return evs;}}},
-
-{id:'s5',t:'9/28 17:40',title:'回执面第一门：做了，但没做够',narrative:'承诺账不允许悬空的东西看起来像完成。到了 3,000 颗，承诺是 4,500 颗，这条就是悬空。小林赌全量到料，账上记推翻，不是记过。',old:'收货单录入 3,000 颗。缺的 1,500 要等下次 MRP 才显出来。',
+{id:'s5',t:'9/28 17:40',title:'回执面第一门：做了，但没做够',focus:'pledge',narrative:'承诺账不允许悬空的东西看起来像完成。到了 3,000 颗，承诺是 4,500 颗，这条就是悬空。小林赌全量到料，账上记推翻，不是记过。',old:'仓管录收货单 3,000 颗。缺的 1,500 颗要等明晚 MRP 才显出来。小林赌错了这件事，没有任何地方记着。',
  when:d=>d.J1==='A',
  events:d=>{const when=d.J2==='back'?'9 月 29 日':'9 月 28 日';const t=d.J2==='back'?'9/29 17:40':'9/28 17:40';return[
-  E({t,actor:XA('供应商 agent','对方账本：陈工'),type:'receipt',text:'到料 3,000 颗。剩余 1,500 颗排期中。'}),
+  E({t,actor:XA('供应商 agent','对方账本：陈工'),type:'receipt',text:'到料 3,000 颗。剩余 1,500 颗排期中。',qty:3000}),
   E({t,actor:SYS,type:'pledge_update',text:'供应商欠恒测：到 3,000 颗，承诺 4,500 颗，第一门未过，标为悬空。采购欠生产连带悬空。',pid:'P2',patch:{status:'悬空'},gates:{done:'half'},note:'到 3,000 / 4,500，第一门未过'}),
   E({t,actor:SYS,type:'pledge_update',text:'',pid:'P1',patch:{status:'悬空'},gates:{done:'half'},note:'上游悬空，连带',silent:true}),
   E({t,actor:SYS,type:'judgment_update',text:`小林 9 月 16 日的判断回看：赌 ${when} 全量到料，实到 3,000 颗。推翻。`,jid:'J2',status:'推翻',note:'实到 3,000 / 4,500'}),
  ];}},
 
-{id:'s6',t:'10/2 09:30',title:'恒等式：责任只能回到人身上',narrative:'agent 不能自己处理一下。改一条承诺不是执行，超出租约。事件回程到小林，小林在休假，于是移交。移交要有人签收，链条上任何时刻都能指着一个名字。',old:'采购员发邮件催，计划员口头通知车间。没有任何系统记录此刻谁负责这件事。',
+{id:'s6',t:'10/2 09:30',title:'恒等式：责任只能回到人身上',focus:'law',narrative:'agent 不能自己处理一下。改一条承诺不是执行，超出租约。事件回程到小林，小林在休假，于是移交。移交要有人签收，链条上任何时刻都能指着一个名字。',old:'供应商的邮件说晚几天。采购员发邮件催，计划员口头通知车间。小林休假，交接靠一条微信。没有任何系统记录此刻谁负责这件事。',
  when:d=>d.J1==='A',
  events:()=>[
   E({t:'10/2 09:30',actor:XA('供应商 agent','对方账本：陈工'),type:'msg',text:'剩余 1,500 颗 10 月 6 日到。'}),
   E({t:'10/2 09:31',actor:AG('采购 agent'),type:'return',text:'改一条承诺超出租约。回程到小林。'}),
   E({t:'10/2 09:31',actor:SYS,type:'handoff',text:'小林休假中。租约下的这条边重新签发给采购副经理小赵，等待签收。',lease:'采购 agent',from:'小林',to:'小赵',pending:true}),
  ],
- prompt:{kind:'action',who:'小赵',role:'采购副经理',q:'小林移交过来：采购 agent 租约下，供应商改期这件事。签不签收？',
+ prompt:{kind:'action',who:'小赵',role:'采购副经理',focus:'law',q:'小林移交过来：采购 agent 租约下，供应商改期这件事。签不签收？',
   evidence:['受领是三态的：签收、婉拒、待受领。责任没有被委派出去，它被移交并且有人接。','婉拒不会让事情悬空。备岗序列的下一位会收到同一条边。'],
   options:[{key:'ok',label:'签收',detail:'从此刻起，采购 agent 的租约归小赵'},{key:'no',label:'婉拒',detail:'手上三条承诺在途。走备岗序列'}],
   resolve:(k,d)=>{d.H=k;const who=k==='ok'?'小赵':'老吴';const evs=[];
@@ -334,13 +406,13 @@ const SCENES=[
    evs.push(E({t:'10/2 09:55',actor:SYS,type:'pledge_update',text:'',pid:'P1',patch:{when:'10 月 6 日',status:'已改签'},note:'随上游改签',silent:true}));
    return evs;}}},
 
-{id:'s7',t:'10/2 10:05',title:'承诺账是连着的',narrative:'采购欠生产一晃，恒测欠 A 客户跟着标黄，炸出新的判断需求，回到老周。承诺账里没有悄悄延期这回事。',old:'车间知道芯片晚到，销售不知道。客户 10 号打电话来才发现。',
+{id:'s7',t:'10/2 10:05',title:'承诺账是连着的',focus:'need',narrative:'采购欠生产一晃，恒测欠 A 客户跟着标黄，炸出新的判断需求，回到老周。承诺账里没有悄悄延期这回事。',old:'车间知道芯片晚到，销售不知道。销售订单上的交期字段还是 10 月 10 日。客户 10 号打电话来才发现。',
  when:d=>d.J1==='A',
  events:()=>[
   E({t:'10/2 10:05',actor:SYS,type:'pledge_update',text:'恒测欠 A 客户：上游改期，10 月 10 日只能有 6,500 台。标为悬空。',pid:'P0',patch:{status:'悬空'},note:'上游改期，10 月 10 日只能有 6,500 台'}),
   E({t:'10/2 10:05',actor:SYS,type:'need',text:'炸出 J4，归老周。排今天 11:00。',need:[{id:'J4',who:'老周',q:'10 月 10 日只能有 6,500 台。告不告诉 A 客户？',evidence:'A 客户逾期条款，A 客户产线前两天的实际需求，主动告知延期的历史记录',sched:'今天 11:00'}]}),
  ],
- prompt:{kind:'judgment',who:'老周',role:'销售总监',nid:'J4',q:'10 月 10 日只能有 6,500 台。告不告诉 A 客户？',
+ prompt:{kind:'judgment',who:'老周',role:'销售总监',nid:'J4',focus:'pledge',q:'10 月 10 日只能有 6,500 台。告不告诉 A 客户？',
   evidence:['A 客户合同：逾期扣款 2%，约 15.7 万。','A 客户产线 10 月 12 日才满产，前两天只需 5,000 台。','历史：主动告知的延期，A 客户从未追责。'],
   options:[{key:'tell',label:'分两批交，主动告知',detail:'10 月 10 日交 6,500，10 月 12 日交 1,500'},{key:'hide',label:'不告知，10 月 12 日一次交 8,000',detail:'承诺不改，赌客户不追究两天'}],
   resolve:(k,d)=>{d.J4=k;
@@ -355,7 +427,7 @@ const SCENES=[
     E({t:'10/2 11:06',actor:SYS,type:'need_update',text:'J4 已判。',nu:[{id:'J4',status:'已判',pick:'不告知'}]})];
   }}},
 
-{id:'sB2',t:'10/2 09:30',title:'对方账本上的人',narrative:'B 客户的 agent 婉拒签收，改期承诺在对方账上悬空。跨企业的承诺需要双方都认的账本，拒签也是一条回执。',old:'B 客户的采购打电话来骂。销售私下答应补偿，ERP 里什么都没有。',
+{id:'sB2',t:'10/2 09:30',title:'对方账本上的人',focus:'pledge',narrative:'B 客户的 agent 婉拒签收，改期承诺在对方账上悬空。跨企业的承诺需要双方都认的账本，拒签也是一条回执。',old:'B 客户的采购打电话来骂。销售私下答应补偿。ERP 里 B 客户的订单交期已经被改成 10 月 28 日，对方同不同意，系统不知道。',
  when:d=>d.J1==='B',
  events:()=>[
   E({t:'10/2 09:30',actor:XA('B 客户 agent','对方账本：B 客户采购部'),type:'receipt',text:'婉拒签收改期。要么维持 10 月 15 日，要么按合同付违约金 15 万。'}),
@@ -363,7 +435,7 @@ const SCENES=[
   E({t:'10/2 09:31',actor:SYS,type:'judgment_update',text:'老周 9 月 15 日的判断回看：赌 B 客户能接受延期。B 客户拒签。推翻。',jid:'J1',status:'推翻',note:'B 客户拒绝签收改期'}),
   E({t:'10/2 09:32',actor:SYS,type:'need',text:'炸出 J4，归老周。排今天 11:00。',need:[{id:'J4',who:'老周',q:'付违约金维持挤 B，还是撤回？',evidence:'B 客户合同违约金，A 客户对分批的接受度',sched:'今天 11:00'}]}),
  ],
- prompt:{kind:'judgment',who:'老周',role:'销售总监',nid:'J4',q:'付违约金 15 万维持挤 B，还是撤回？',
+ prompt:{kind:'judgment',who:'老周',role:'销售总监',nid:'J4',focus:'judg',q:'付违约金 15 万维持挤 B，还是撤回？',
   evidence:['违约金 15 万，B 客户 800 万年框 12 月续签。','撤回：恢复 B 客户 10 月 15 日；A 客户改成 10 月 10 日交 5,000、10 月 28 日交 3,000，需要 A 签收。','A 客户产线前两周只需 5,000 台。'],
   options:[{key:'pay',label:'付违约金 15 万，维持挤 B',detail:'赌 A 客户续签翻倍值这 15 万'},{key:'undo',label:'撤回，恢复 B 客户交期，A 客户改分批',detail:'需要 A 客户签收'}],
   resolve:(k,d)=>{d.J4=k;
@@ -382,15 +454,15 @@ const SCENES=[
     E({t:'10/2 11:41',actor:SYS,type:'need_update',text:'J4 已判。',nu:[{id:'J4',status:'已判',pick:'撤回'}]})];
   }}},
 
-{id:'s8',t:'10/6 15:00',title:'第三道门：核销',narrative:'承诺从账上销掉，不是从看板上拖走。三道门都过了，条目才关闭。',old:'',
+{id:'s8',t:'10/6 15:00',title:'第三道门：核销',focus:'pledge',narrative:'承诺从账上销掉，不是从看板上拖走。三道门都过了，条目才关闭。',old:'仓管录收货单，质检录质检单。采购订单在系统里变成"已收货"。',
  when:d=>d.J1==='A',
  events:()=>[
-  E({t:'10/6 15:00',actor:XA('供应商 agent','对方账本：陈工'),type:'receipt',text:'剩余 1,500 颗到料。'}),
+  E({t:'10/6 15:00',actor:XA('供应商 agent','对方账本：陈工'),type:'receipt',text:'剩余 1,500 颗到料。',qty:1500}),
   E({t:'10/6 15:20',actor:H('老陈','厂长'),type:'pledge_update',text:'生产验收 4,500 颗。供应商欠恒测核销，采购欠生产核销。',pid:'P2',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'全量到料，生产验收，核销'}),
   E({t:'10/6 15:20',actor:SYS,type:'pledge_update',text:'',pid:'P1',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'核销',silent:true}),
  ]},
 
-{id:'s9',t:'10/8 18:20',title:'老陈的账回来了',narrative:'老陈 9 月 15 日的判断到期。系统拿回执去对，不需要有人记得。',old:'',
+{id:'s9',t:'10/8 18:20',title:'老陈的账回来了',focus:'judg',narrative:'老陈 9 月 15 日的判断到期。系统拿回执去对，不需要有人记得。',old:'车间报工完工。加班费下月工资才结算，进不了这张单的成本。老陈那句"六天加班不伤质量"，没人记得他说过。',
  when:d=>d.J1==='A',
  events:d=>[
   E({t:'10/8 18:20',actor:H('老陈','厂长'),type:'receipt',text:d.J3==='ot'?'4,500 台下线，不良率 0.6%。':'4,500 台下线。外协批次不良率 1.1%，返工 30 台，按期。'}),
@@ -398,74 +470,74 @@ const SCENES=[
   E({t:'10/9 09:00',actor:SYS,type:'judgment_update',text:d.J3==='ot'?'老陈的判断回看：不良率 0.6%，出勤正常。印证。':'老陈的判断回看：不良率 1.1%，未压进 1%，但按期。未推翻。',jid:'J3',status:d.J3==='ot'?'印证':'未推翻',note:d.J3==='ot'?'不良率 0.6%':'不良率 1.1%，返工 30 台'}),
  ]},
 
-{id:'s10',t:'10/10 09:00',title:'到期那一刻',narrative:'',old:'',
+{id:'s10',t:'10/10 09:00',title:'到期那一刻',focus:'pledge',narrative:'',old:d=>d.J4==='tell'?'发货单 6,500 台。系统里不知道这是分批的第一批，只知道发了 6,500。':'10 月 10 日系统里什么都没发生。逾期订单报表里多了一行，如果有人去跑那张报表。',
  when:d=>d.J1==='A',
  events:d=>d.J4==='tell'?[
-  E({t:'10/10 09:00',actor:XH('王工','A 客户采购'),type:'receipt',text:'第一批 6,500 台收到，验收通过。'}),
+  E({t:'10/10 09:00',actor:XH('王工','A 客户采购'),type:'receipt',text:'第一批 6,500 台收到，验收通过。',qty:6500}),
   E({t:'10/10 09:05',actor:SYS,type:'pledge_update',text:'恒测欠 A 客户：第一批已验收，等第二批。',pid:'P0',gates:{done:'half',accept:'half'},note:'第一批 6,500 台已验收'}),
  ]:[
   E({t:'10/10 09:00',actor:SYS,type:'pledge_update',text:'10 月 10 日到期，交付 0。承诺逾期。逾期自己浮出来，不需要有人举报。',pid:'P0',patch:{status:'逾期'},note:'到期未交付'}),
   E({t:'10/10 09:40',actor:XH('王工','A 客户采购'),type:'msg',text:'货呢？产线明天要用。'}),
  ]},
 
-{id:'s11',t:'10/12 16:30',title:'核销，与老周的第二条账',narrative:'',old:'',
+{id:'s11',t:'10/12 16:30',title:'核销，与老周的第二条账',focus:'pledge',narrative:'',old:d=>d.J4==='tell'?'发货单、发票。两张发货单之间的关系，系统不知道。':'发货单、发票。财务把 2% 的销售折让录进去，要等月结。客户投诉到了采购总监那里，系统里没有这件事。',
  when:d=>d.J1==='A',
  events:d=>d.J4==='tell'?[
-  E({t:'10/12 16:30',actor:XH('王工','A 客户采购'),type:'receipt',text:'第二批 1,500 台收到，验收通过。'}),
+  E({t:'10/12 16:30',actor:XH('王工','A 客户采购'),type:'receipt',text:'第二批 1,500 台收到，验收通过。',qty:1500}),
   E({t:'10/12 16:35',actor:SYS,type:'pledge_update',text:'恒测欠 A 客户：三门过完，核销。',pid:'P0',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'8,000 台全部验收，核销'}),
   E({t:'10/12 16:36',actor:SYS,type:'judgment_update',text:'老周 10 月 2 日的判断回看：客户签收，无扣款。印证。',jid:'J4',status:'印证',note:'无扣款'}),
  ]:[
-  E({t:'10/12 16:30',actor:XH('王工','A 客户采购'),type:'receipt',text:'8,000 台收到。按合同扣款 2%。这事我们采购总监知道了。'}),
+  E({t:'10/12 16:30',actor:XH('王工','A 客户采购'),type:'receipt',text:'8,000 台收到。按合同扣款 2%。这事我们采购总监知道了。',qty:8000}),
   E({t:'10/12 16:35',actor:SYS,type:'pledge_update',text:'恒测欠 A 客户：逾期两天后核销，扣款在案。',pid:'P0',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'逾期两天，扣款 15.68 万',
     money:[{id:'M4',acct:'销售折让',label:'A 客户逾期扣款 2%',amount:-156800}]}),
   E({t:'10/12 16:36',actor:SYS,type:'judgment_update',text:'老周 10 月 2 日的判断回看：赌客户不追究，客户扣款并上报。推翻。',jid:'J4',status:'推翻',note:'扣款 15.68 万，客户投诉'}),
  ]},
 
-{id:'sB3',t:'10/10 09:00',title:'交付',narrative:'',old:'',
+{id:'sB3',t:'10/10 09:00',title:'交付',focus:'pledge',narrative:'',old:d=>d.J4==='pay'?'发货单 8,000 台。':'发货单 5,000 台。',
  when:d=>d.J1==='B',
  events:d=>d.J4==='pay'?[
-  E({t:'10/10 09:00',actor:XH('王工','A 客户采购'),type:'receipt',text:'8,000 台收到，验收通过。'}),
+  E({t:'10/10 09:00',actor:XH('王工','A 客户采购'),type:'receipt',text:'8,000 台收到，验收通过。',qty:8000}),
   E({t:'10/10 09:05',actor:SYS,type:'pledge_update',text:'恒测欠 A 客户核销。',pid:'P0',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'8,000 台验收，核销'}),
   E({t:'10/8 18:00',actor:SYS,type:'pledge_update',text:'老陈欠老周核销。',pid:'P3',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'下线验收',silent:true}),
  ]:[
-  E({t:'10/10 09:00',actor:XH('王工','A 客户采购'),type:'receipt',text:'第一批 5,000 台收到，验收通过。'}),
+  E({t:'10/10 09:00',actor:XH('王工','A 客户采购'),type:'receipt',text:'第一批 5,000 台收到，验收通过。',qty:5000}),
   E({t:'10/10 09:05',actor:SYS,type:'pledge_update',text:'恒测欠 A 客户：第一批已验收。',pid:'P0',gates:{done:'half',accept:'half'},note:'第一批 5,000 台已验收'}),
  ]},
 
-{id:'sB4',t:'10/15 10:00',title:'B 客户按期',narrative:'没被这张加急单碰过的承诺，照常走完三门。',old:'',
+{id:'sB4',t:'10/15 10:00',title:'B 客户按期',focus:'pledge',narrative:'没被这张加急单碰过的承诺，照常走完三门。',old:'发货单 3,000 台。',
  when:d=>d.J1==='A'||(d.J1==='B'&&d.J4==='undo'),
  events:()=>[
-  E({t:'10/15 10:00',actor:XA('B 客户 agent','对方账本'),type:'receipt',text:'3,000 台收到，验收通过。'}),
+  E({t:'10/15 10:00',actor:XA('B 客户 agent','对方账本'),type:'receipt',text:'3,000 台收到，验收通过。',qty:3000}),
   E({t:'10/15 10:05',actor:SYS,type:'pledge_update',text:'恒测欠 B 客户核销。',pid:'PB',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'按原期交付，核销'}),
  ]},
 
-{id:'sB5',t:'10/28 10:00',title:'延后的那一批',narrative:'',old:'',
+{id:'sB5',t:'10/28 10:00',title:'延后的那一批',focus:'pledge',narrative:'',old:d=>d.J4==='pay'?'发货单 3,000 台。B 客户延期两周，系统里只是交期字段改过一次。':'发货单 3,000 台。',
  when:d=>d.J1==='B',
  events:d=>d.J4==='pay'?[
-  E({t:'10/28 10:00',actor:XA('B 客户 agent','对方账本'),type:'receipt',text:'3,000 台收到。延期两周，验收通过。'}),
+  E({t:'10/28 10:00',actor:XA('B 客户 agent','对方账本'),type:'receipt',text:'3,000 台收到。延期两周，验收通过。',qty:3000}),
   E({t:'10/28 10:05',actor:SYS,type:'pledge_update',text:'恒测欠 B 客户核销。',pid:'PB',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'延期两周交付，核销'}),
  ]:[
   E({t:'10/26 18:00',actor:SYS,type:'pledge_update',text:'老陈欠老周核销。',pid:'P3',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'下线验收',silent:true}),
-  E({t:'10/28 10:00',actor:XH('王工','A 客户采购'),type:'receipt',text:'第二批 3,000 台收到，验收通过。'}),
+  E({t:'10/28 10:00',actor:XH('王工','A 客户采购'),type:'receipt',text:'第二批 3,000 台收到，验收通过。',qty:3000}),
   E({t:'10/28 10:05',actor:SYS,type:'pledge_update',text:'恒测欠 A 客户核销。',pid:'P0',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'8,000 台全部验收，核销'}),
  ]},
 
-{id:'sC1',t:'10/30 10:00',title:'不接也是一个判断',narrative:'不做同样立了账。10 月 30 日按原期交付，账上干净，判断要到 12 月才知道对不对。',old:'',
+{id:'sC1',t:'10/30 10:00',title:'不接也是一个判断',focus:'pledge',narrative:'不做同样立了账。10 月 30 日按原期交付，账上干净，判断要到 12 月才知道对不对。',old:'发货单 8,000 台，按原交期。系统里这张单从头到尾平平无奇，没人知道曾经有一个决定。',
  when:d=>d.J1==='C',
  events:()=>[
-  E({t:'10/30 10:00',actor:XH('王工','A 客户采购'),type:'receipt',text:'8,000 台收到，验收通过。'}),
+  E({t:'10/30 10:00',actor:XH('王工','A 客户采购'),type:'receipt',text:'8,000 台收到，验收通过。',qty:8000}),
   E({t:'10/30 10:05',actor:SYS,type:'pledge_update',text:'恒测欠 A 客户核销。',pid:'P0',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'按原期交付，核销'}),
   E({t:'10/15 10:05',actor:SYS,type:'pledge_update',text:'恒测欠 B 客户核销。',pid:'PB',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'按期交付，核销',silent:true}),
  ]},
 
-{id:'s12',t:'10/31 23:59',title:'钱账：投影，不是录入',narrative:'整个过程没有人录过一张凭证。溢价、加班、扣款、这张单上所有 agent 消耗的算力，各进各的科目。何总看到毛利率，点进去，落到老周 9 月 15 日 15:10 那条判断。',old:'月底财务补录凭证。成本分摊到下月才看清。没人能把毛利下降和某个决定连起来。',
- events:d=>{const e1=E({t:'10/31 18:00',actor:SYS,type:'fact',text:'月结。本单全部 agent 算力费用记入新科目。',money:[{id:'M5',acct:'算力费用',label:'本单 agent 消耗，销售 agent 与采购 agent 合计',amount:-1840}]});
+{id:'s12',t:'10/31 23:59',title:'钱账：投影，不是录入',focus:'money',narrative:'整个过程没有人录过一张凭证。溢价、加班、扣款、这张单上所有 agent 消耗的算力，各进各的科目。何总看到毛利率，点进去，落到老周 9 月 15 日 15:10 那条判断。',old:'月底财务补录凭证。成本分摊到下月才看清。没人能把毛利下降和某个决定连起来。何总看到的毛利率，比真实的高一点，因为算力没有科目。',
+ events:d=>{const e1=E({t:'10/31 18:00',actor:SYS,type:'fact',text:'月结。本单全部 agent 算力费用记入新科目。',close:true,money:[{id:'M5',acct:'算力费用',label:'本单 agent 消耗，销售 agent 与采购 agent 合计',amount:-1840}]});
   const pct=marginPct([...state.events,e1]);return[e1,
   E({t:'10/31 19:30',actor:H('何总','CFO'),type:'msg',text:`看本单毛利率 ${pct}。点进去，落到老周 9 月 15 日 15:10 的判断账。`}),
  ];}},
 
-{id:'s13',t:'12/20 09:00',title:'判断账自己回来了',narrative:'到期回看不靠人记得。老周的判断力档案多一条。下一次同类判断需求出现时，取景框会把他自己的历史摆进证据栏。',old:'年底复盘会，大家凭记忆讨论九月那单该不该接。',
- prompt:{kind:'action',who:'老周',role:'销售总监',q:'9 月 15 日那条判断到期。翻开回看。',evidence:['预期信号：12 月 15 日前 A 客户的续签意向。','三种结果：印证、推翻、未推翻。未推翻不是对，是信号没出现。'],
+{id:'s13',t:'12/20 09:00',title:'判断账自己回来了',focus:'judg',narrative:'到期回看不靠人记得。老周的判断力档案多一条。下一次同类判断需求出现时，取景框会把他自己的历史摆进证据栏。',old:'年底复盘会，大家凭记忆讨论九月那单该不该接。老周记得自己当时怎么想的，别人不记得。',
+ prompt:{kind:'action',who:'老周',role:'销售总监',focus:'judg',q:'9 月 15 日那条判断到期。翻开回看。',evidence:['预期信号：12 月 15 日前 A 客户的续签意向。','三种结果：印证、推翻、未推翻。未推翻不是对，是信号没出现。'],
   options:[{key:'open',label:'翻开回看',detail:'系统把 A 客户 12 月的动作拿来对账'}],
   resolve:(k,d)=>{
    if(d.J1==='A'&&d.J4==='tell')return[
@@ -486,9 +558,18 @@ const SCENES=[
 let state;
 function init(){
   _id=0;
-  state={played:[],events:[],decisions:{},pending:null,cursor:0,sel:null,tab:'need',fresh:new Set(),done:false};
-  playScene(SCENES[0]);
+  state={played:[],events:[],decisions:{},pending:null,cursor:0,sel:null,mode:'new',tab:'need',oldTab:'sales',follow:true,fresh:new Set(),changed:new Set(),done:false};
+  playScene(SCENES[0]);applyFocus(SCENES[0].focus,SCENES[0].events?state.events:[]);
   render();
+}
+function tabsOf(e){const s=[];if(e.type==='need'||e.type==='need_update')s.push('need');if(['pledge','pledge_update','receipt'].includes(e.type))s.push('pledge');if(e.type==='judgment'||e.type==='judgment_update')s.push('judg');if(e.money)s.push('money');if(e.actor.kind==='agent'||e.type==='handoff'||e.type==='return')s.push('law');return s;}
+function markChanged(evs){state.changed=new Set();for(const e of evs)for(const t of tabsOf(e))state.changed.add(t);}
+function applyFocus(f,evs){
+  if(!state.follow)return;
+  if(state.mode==='new'){if(f)state.tab=f;return;}
+  const firstDoc=(evs||[]).flatMap(e=>oldOf(e,state.decisions)).find(r=>r.kind!=='ghost');
+  const map={need:'mrp',judg:'judg',pledge:'sales',money:'fin',law:'flow'};
+  state.oldTab=firstDoc?firstDoc.module:(map[f]||state.oldTab);
 }
 function playScene(sc){
   const evs=sc.events?sc.events(state.decisions):[];
@@ -496,14 +577,17 @@ function playScene(sc){
   state.events.push(...evs);
   state.played.push({scene:sc,events:evs,resolved:[]});
   if(sc.prompt)state.pending=sc;
+  markChanged(evs);
+  return evs;
 }
-function advance(){
-  if(state.pending||state.done)return;
-  let i=state.cursor+1;
-  while(i<SCENES.length&&SCENES[i].when&&!SCENES[i].when(state.decisions))i++;
-  if(i>=SCENES.length){state.done=true;state.fresh=new Set();render();return;}
-  state.cursor=i;playScene(SCENES[i]);render();
-  scrollToBottom();
+function nextIndex(){let i=state.cursor+1;while(i<SCENES.length&&SCENES[i].when&&!SCENES[i].when(state.decisions))i++;return i;}
+function advance(opts={}){
+  if(state.pending||state.done)return false;
+  const i=nextIndex();
+  if(i>=SCENES.length){state.done=true;state.fresh=new Set();state.changed=new Set();if(!opts.silent){render();scrollToLast();}return false;}
+  state.cursor=i;const evs=playScene(SCENES[i]);applyFocus(SCENES[i].focus,evs);
+  if(!opts.silent){render();scrollToLast();}
+  return true;
 }
 function resolve(key){
   const sc=state.pending;if(!sc)return;
@@ -511,16 +595,21 @@ function resolve(key){
   state.fresh=new Set(evs.map(e=>e.id));
   state.events.push(...evs);
   state.played[state.played.length-1].resolved=evs;
-  state.pending=null;render();
-  scrollToBottom();
+  state.pending=null;markChanged(evs);applyFocus(sc.prompt.focus,evs);
+  render();scrollToLast();
 }
-function scrollToBottom(){
-  const el=document.getElementById('stream');
-  const last=el.lastElementChild;
-  if(last&&window.innerWidth>980)last.scrollIntoView({block:'nearest',behavior:'smooth'});
+function fastForward(){
+  if(state.pending||state.done)return;
+  const start=state.events.length;
+  while(!state.pending&&!state.done){if(!advance({silent:true}))break;}
+  const evs=state.events.slice(start);
+  state.fresh=new Set(evs.map(e=>e.id));markChanged(evs);
+  render();scrollToLast();
 }
+function scrollToLast(){const el=document.getElementById('stream');const last=el.lastElementChild;if(last)last.scrollIntoView({block:'nearest',behavior:'smooth'});}
+function clockNum(){return dnum(SCENES[state.cursor].t);}
 
-/* ---------- 投影：一切从 events 重算 ---------- */
+/* ---------- 新账投影：一切从 events 重算 ---------- */
 function build(events){
   const pledges=new Map(),needs=new Map(),judg=new Map(),money=[],holders={},agents=[],handoffs=[];
   for(const e of events){
@@ -539,22 +628,138 @@ function build(events){
   }
   return {pledges,needs,judg,money,holders,agents,handoffs};
 }
-function marginPct(events){const {money}=build(events);const rev=money.filter(m=>m.amount>0).reduce((a,m)=>a+m.amount,0);const gp=money.reduce((a,m)=>a+m.amount,0);return (gp/rev*100).toFixed(1)+'%';}
+function marginPct(events){const {money}=build(events);return pctOf(money);}
+function pctOf(money){const rev=money.filter(m=>m.amount>0).reduce((a,m)=>a+m.amount,0);const gp=money.reduce((a,m)=>a+m.amount,0);return (gp/rev*100).toFixed(1)+'%';}
+
+/* ---------- 旧 ERP 投影：同一条事件流，按"只看得见单据"的规则推导 ---------- */
+const MOD={sales:'销售',mrp:'计划采购',prod:'生产',fin:'财务',flow:'审批'};
+const doc=o=>({kind:'doc',screens:0,entries:0,approvers:[],...o});
+const ghost=why=>({kind:'ghost',why});
+const lag=o=>({kind:'lag',screens:0,entries:0,approvers:[],...o});
+function oldOf(e,d){
+  const a=e.actor,T=e.type;
+  if(e.silent)return[];
+  if(T==='msg'){
+    if(a.kind==='ext')return[ghost('客户的话在微信里。')];
+    if(a.kind==='xagent')return[ghost('供应商的通知在邮件里。')];
+    if(a.name==='何总')return[ghost('何总看的是月结后的报表。毛利率为什么低，报表不会告诉她。')];
+    return[ghost('回复客户走的是微信。')];
+  }
+  if(T==='fact'){
+    if(a.name==='销售 agent')return[doc({module:'mrp',title:'人工查库存、在制、产能',detail:'计划员打开三个查询界面，手抄到 Excel。',screens:3}),lag({module:'mrp',title:'MRP 运算结果',detail:'缺料 MCU 4,500 颗。它只知道缺什么，不知道谁来决定。',lagTo:'9/16',lagLabel:'9 月 16 日 02:00',screens:1})];
+    if(a.name==='采购 agent')return e.text.startsWith('再谈')?[ghost('采购员再打一轮电话。谈下来的 3% 没有单据。')]:[doc({module:'mrp',title:'采购申请单 录入',detail:'采购员电话询价后填单。金额 33.5 万，提交审批。',screens:1,entries:1})];
+    if(e.close)return[doc({module:'fin',title:'月结：补录凭证',detail:'财务把本月的溢价、加班、折让逐张录成凭证。',screens:2}),ghost('算力费用：没有这个科目。1,840 元散进"其他"，或者不入账。')];
+    return[ghost('这件事发生在系统外。')];
+  }
+  if(T==='need')return[ghost(e.need.some(n=>n.id==='J2')?'ERP 不排判断，只排物料。三个"谁来决定"没有位置，缺料清单要等今晚。':'ERP 不排判断。')];
+  if(T==='need_update')return[];
+  if(T==='judgment'){
+    const j=e.j.id;
+    if(j==='J1')return[ghost('销售总监在群里拍板。理由不进系统。')];
+    if(j==='J3')return d.J3==='ot'?[doc({module:'prod',title:'加班申请单',detail:'六天，约 19.8 万。人事签字。',entries:1,screens:1,approvers:['老陈','人事']})]:[doc({module:'prod',title:'外协申请单',detail:'1,500 台，约 22 万。',entries:1,screens:1,approvers:['老陈','采购','财务']})];
+    if(j==='J2')return[doc({module:'flow',title:'采购申请单 审批',detail:'三级审批。三个人签了字，理由栏写着"客户加急"。',screens:3,approvers:['小林','采购总监','财务']})];
+    if(j==='J4'){
+      if(d.J1==='B')return d.J4==='pay'?[doc({module:'fin',title:'违约金付款申请',detail:'15 万。',entries:1,screens:1,approvers:['老周','财务']})]:[ghost('老周打电话给两家客户。系统里只会出现改期的订单变更单。')];
+      return d.J4==='tell'?[ghost('老周打电话给客户。分批交付在系统里是两张发货单，看不出是主动告知还是被动。')]:[ghost('没有任何记录。')];
+    }
+  }
+  if(T==='pledge'){
+    const p=e.pledge.id;
+    if(p==='P0'||p==='PB')return[doc({module:'sales',title:'销售订单 录入',detail:`${e.pledge.what}，交期 ${e.pledge.when}。`,screens:1,entries:1})];
+    if(p==='P1')return[doc({module:'mrp',title:'采购订单 录入',detail:`采购员手工下单，交期字段填 ${e.pledge.when}。`,screens:1,entries:1})];
+    if(p==='P2')return[ghost('供应商在自己的系统里。两边各记各的，对不上靠电话。')];
+    if(p==='P3')return[doc({module:'prod',title:'生产工单 下达',detail:`4,500 台，计划完工 ${e.pledge.when}。`,screens:1,entries:1})];
+  }
+  if(T==='pledge_update'){
+    const p=e.pid,st=e.patch&&e.patch.status,when=e.patch&&e.patch.when;
+    if(p==='P0'||p==='PB'){
+      if(when)return[doc({module:'sales',title:'订单变更单 录入',detail:`交期改为 ${when}。信用复核签字。原来的日期被覆盖。`,screens:2,entries:1,approvers:['销售内勤','信用管理']})];
+      if(st==='悬空')return[ghost('ERP 没有悬空。交期字段照旧，没有人会被提醒。')];
+      if(st==='逾期')return[lag({module:'sales',title:'逾期订单报表里多了一行',detail:'如果有人去跑那张报表。',screens:1})];
+      if(st==='已核销')return[doc({module:'sales',title:'发货单、发票',detail:'出库、开票。订单状态变成已发货。',screens:2,entries:2})];
+      if(e.gates)return[doc({module:'sales',title:'发货单',detail:'部分发货。系统不知道还有第二批。',screens:1,entries:1})];
+      return[];
+    }
+    if(p==='P2'){
+      if(st==='已核销')return[doc({module:'mrp',title:'收货单、质检单',detail:'仓管录入，质检签字。采购订单变成已收货。',screens:2,entries:2})];
+      if(when)return[doc({module:'mrp',title:'采购订单 交期修改',detail:`采购员把交期字段改成 ${when}。改之前的日期没了。`,screens:1,entries:1})];
+      if(st==='悬空')return[ghost('采购订单上还是 4,500 颗、原交期。缺的 1,500 颗明晚 MRP 才知道。')];
+      return[];
+    }
+    if(p==='P3'){
+      if(st==='已核销')return[doc({module:'prod',title:'工单完工报工',detail:'车间报工 4,500 台。',screens:1,entries:1})];
+      if(when)return[doc({module:'prod',title:'工单计划完工日期修改',detail:`改为 ${when}。`,screens:1,entries:1})];
+      return[];
+    }
+    return[];
+  }
+  if(T==='receipt'){
+    if(a.name==='供应商 agent')return[doc({module:'mrp',title:'收货单 录入',detail:`仓管录 ${F(e.qty)} 颗。`,screens:1,entries:1})];
+    if(a.name==='老陈')return[];
+    if(!e.qty)return[ghost('对方的拒绝在邮件里。系统里 B 客户的交期已经改成 10 月 28 日。')];
+    return[ghost('客户那边的签收，ERP 看不见。发货单在我们这边已经是"已发货"。')];
+  }
+  if(T==='return')return[ghost(a.kind==='agent'?'agent 停下来等人，这个动作在 ERP 里没有对应物。采购员要么直接干，要么直接不干。':'打回在系统里是"审批退回"，理由是一个文本框。')];
+  if(T==='handoff')return e.pending?[ghost('休假交接靠一条微信。系统里没有"这件事现在归谁"。')]:[];
+  if(T==='judgment_update')return[ghost('没有回看这个概念。年底复盘靠记忆。')];
+  return[];
+}
+function buildOld(events,d,clock){
+  const recs=[];
+  for(const e of events)for(const r of oldOf(e,d)){r.ev=e;r.t=e.t;if(r.kind==='lag'&&r.lagTo)r.visible=clock>=dnum(r.lagTo);else r.visible=true;recs.push(r);}
+  const stats={screens:0,entries:0,approvals:0,ghosts:0,vouchers:0};
+  for(const r of recs){if(r.kind==='ghost'){stats.ghosts++;continue;}stats.screens+=r.screens||0;stats.entries+=r.entries||0;stats.approvals+=(r.approvers||[]).length;}
+  const closed=events.some(e=>e.close);
+  const P=build(events);
+  const vouchers=closed?P.money.filter(m=>m.id!=='M5'):[];
+  stats.vouchers=vouchers.length;stats.entries+=vouchers.length;
+  const runs=[];
+  if(events.some(e=>e.type==='need'&&e.need.some(n=>n.id==='J1'))){
+    runs.push({t:'9 月 16 日 02:00',day:916,result:d.J1==='A'?'缺料 MCU 4,500 颗，建议采购':d.J1==='B'?'无缺料。B 单的芯片被 A 单占用，MRP 不知道这是挤占':d.J1==='C'?'无缺料，订单未变':'缺料 MCU 4,500 颗，建议采购'});
+    if(events.some(e=>e.type==='receipt'&&e.qty===3000&&e.actor.name==='供应商 agent'))runs.push({t:(d.J2==='back'?'9 月 30 日':'9 月 29 日')+' 02:00',day:d.J2==='back'?930:929,result:'缺料 MCU 1,500 颗'});
+    if(events.some(e=>e.type==='receipt'&&e.qty===1500))runs.push({t:'10 月 7 日 02:00',day:1007,result:'无缺料'});
+  }
+  return {recs,stats,closed,vouchers,runs,...P};
+}
 
 /* ---------- 渲染 ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function dayOf(t){const m=t.match(/^(\d+)\/(\d+)/);return m?`${m[1]} 月 ${m[2]} 日`:t;}
 function hm(t){const m=t.match(/\d+:\d+$/);return m?m[0]:'';}
+const oldText=sc=>typeof sc.old==='function'?sc.old(state.decisions):(sc.old||'');
 
 function render(){
-  const P=build(state.events);
-  renderConcepts();renderStream(P);renderTabs(P);renderProj(P);renderControls();
+  document.body.classList.toggle('mode-old',state.mode==='old');
+  const P=build(state.events);const O=state.mode==='old'?buildOld(state.events,state.decisions,clockNum()):null;
+  $('#lede').textContent=LEDE[state.mode];
+  $('#lefthead').textContent=state.mode==='old'?'单据流，旧 ERP 看得见的和看不见的':'一张图，企业的事件流';
+  $('#modeswitch').querySelectorAll('button').forEach(b=>{b.classList.toggle('on',b.dataset.mode===state.mode);b.onclick=()=>switchMode(b.dataset.mode);});
+  renderConcepts();renderRail();
+  if(state.mode==='old'){renderOldStream(O);renderOldTabs(O);renderOldProj(O);}else{renderStream(P);renderTabs(P);renderProj(P);}
+  renderControls();
+}
+function anchorScene(){const blocks=[...document.querySelectorAll('.scene[id]')];const hit=blocks.find(b=>b.getBoundingClientRect().bottom>80);return hit?hit.id:null;}
+function switchMode(m,sceneId){
+  if(m===state.mode&&!sceneId)return;
+  const anchor=sceneId||anchorScene();
+  state.mode=m;state.fresh=new Set();
+  const last=state.played[state.played.length-1];applyFocus(last.scene.prompt&&last.resolved.length?last.scene.prompt.focus:last.scene.focus,[...last.events,...last.resolved]);
+  render();
+  if(anchor){const el=document.getElementById(anchor);if(el)el.scrollIntoView({block:'start'});}
 }
 function renderConcepts(){
-  const keys=['graph',...TABS];
-  $('#concepts').innerHTML=keys.map(k=>`<button data-k="${k}" class="${k!=='graph'&&state.tab===k?'on':''}">${DEFS[k][0]}</button>`).join('')+'<span class="sep">点一个概念，右页翻到那一账</span>';
-  $('#concepts').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(k==='graph'){const lp=$('#leftpage');lp.classList.remove('flash');void lp.offsetWidth;lp.classList.add('flash');lp.scrollIntoView({behavior:'smooth',block:'start'});}else{state.tab=k;render();if(window.innerWidth<=980)$('.page-right').scrollIntoView({behavior:'smooth',block:'start'});}});
+  const keys=['graph',...TABS];const old=state.mode==='old';
+  $('#concepts').innerHTML=keys.map(k=>{const on=old?(k!=='graph'&&OLD[k].tab===state.oldTab):(k!=='graph'&&state.tab===k);return `<button data-k="${k}" class="${on?'on':''}">${DEFS[k][0]}${old?`<span class="was">${OLD[k].title}</span>`:''}</button>`;}).join('')+`<span class="sep">${old?'新账的每个概念，在旧 ERP 里对应着什么':'点一个概念，右页翻到那一账'}</span>`;
+  $('#concepts').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(k==='graph'){const lp=$('#leftpage');lp.classList.remove('flash');void lp.offsetWidth;lp.classList.add('flash');lp.scrollIntoView({behavior:'smooth',block:'start'});return;}state.follow=false;if(old)state.oldTab=OLD[k].tab;else state.tab=k;state.fresh=new Set();render();if(window.innerWidth<=980)$('.page-right').scrollIntoView({behavior:'smooth',block:'start'});});
+}
+function renderRail(){
+  const d=state.decisions;let html='',lastDay='';
+  SCENES.forEach((sc,i)=>{const played=state.played.some(b=>b.scene===sc);const applicable=!sc.when||sc.when(d);if(!played&&!applicable)return;
+    const day=sc.t.replace(/\s.*$/,'');const lbl=day!==lastDay?day:'';lastDay=day;
+    html+=`<div class="tick ${played?'played':''} ${i===state.cursor?'current':''} ${sc.prompt?'judg':''}" data-sc="${sc.id}" data-played="${played}"><span class="lbl">${lbl}</span><span class="m"></span><span class="ttl">${esc(sc.title)}${sc.prompt?'，要你判断':''}</span></div>`;});
+  $('#rail .rail-in').innerHTML=html;
+  $('#rail').querySelectorAll('.tick[data-played="true"]').forEach(t=>t.onclick=()=>{const el=document.getElementById('sc-'+t.dataset.sc);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});
 }
 function tagOf(e){
   const map={msg:['消息',''],fact:['事实',''],need:['判断需求',''],need_update:['判断需求',''],judgment:['判断','judg'],pledge:['承诺立账','pledge'],pledge_update:['承诺变动','pledge'],receipt:['回执','pledge'],return:['回程','ret'],handoff:['移交','ret'],judgment_update:['回看','judg']};
@@ -565,64 +770,112 @@ function metaOf(e){
   if(e.actor.kind==='xagent')return e.actor.role||'';
   return '';
 }
+function sceneHead(sc,old){
+  const narr=old?oldText(sc):sc.narrative;
+  const bridge=old?`<button class="bridge" data-sc="${sc.id}" data-to="new">回到新账</button>`:`<button class="bridge" data-sc="${sc.id}" data-to="old">旧 ERP 此刻怎么样</button>`;
+  return `<div class="scene" id="sc-${sc.id}"><div class="scene-title"><span>${esc(sc.title)}</span>${bridge}</div>${narr?`<p class="narr">${esc(narr)}</p>`:''}</div>`;
+}
+function promptBlock(sc){
+  const p=sc.prompt,old=state.mode==='old';
+  return `<section class="prompt fresh ${old?'old-note':''}">
+    <div class="prompt-head"><span>${old?'这个判断在旧 ERP 里没有位置，它发生在群聊里':(p.kind==='judgment'?'取景框':'待受领')+'，等 '+p.who+' 的'+(p.kind==='judgment'?'判断':'动作')}</span><span>${esc(p.role)}${p.nid?'，'+p.nid:''}</span></div>
+    <p class="q">${esc(p.q)}</p>
+    ${old?'':`<div class="evidence-h">系统已取好景的证据</div><ul class="evidence">${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`}
+    ${old?`<p class="wait">证据要 ${p.who} 自己去翻：打开几个界面，问几个人。选完之后，系统里只会出现结果单据。</p>`:''}
+    <div class="options">${p.options.map(o=>`<button data-key="${o.key}"><b>${esc(o.label)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div>
+    <div class="wait">你替${p.who}做这个${p.kind==='judgment'?'判断':'动作'}。下一步在你选完之前不会走。</div>
+  </section>`;
+}
+function bindStream(){
+  $('#stream').querySelectorAll('.ev,.doc').forEach(el=>{el.onclick=()=>{state.sel=state.sel===el.dataset.id?null:el.dataset.id;state.fresh=new Set();render();};el.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();el.click();}}});
+  $('#stream').querySelectorAll('.options button').forEach(b=>b.onclick=()=>resolve(b.dataset.key));
+  $('#stream').querySelectorAll('.bridge').forEach(b=>b.onclick=ev=>{ev.stopPropagation();switchMode(b.dataset.to,'sc-'+b.dataset.sc);});
+  $('#clock').textContent=state.done?'12 月 20 日之后':SCENES[state.cursor].t.replace(/^(\d+)\/(\d+)\s*/,(m,a,b)=>`${a} 月 ${b} 日 `);
+}
 function renderStream(P){
   let html='',lastDay='';
   for(const blk of state.played){
-    const sc=blk.scene;
-    const d=dayOf(sc.t);
+    const sc=blk.scene,d=dayOf(sc.t);
     if(d!==lastDay){html+=`<div class="day">${d}</div>`;lastDay=d;}
-    html+=`<div class="scene"><div class="scene-title">${esc(sc.title)}</div>${sc.narrative?`<p class="narr">${esc(sc.narrative)}</p>`:''}${sc.old?`<p class="old"><b>旧 ERP 此刻</b> ${esc(sc.old)}</p>`:''}</div>`;
-    const evs=[...blk.events,...blk.resolved].filter(e=>!e.silent);
-    for(const e of evs){
+    html+=sceneHead(sc,false);
+    for(const e of [...blk.events,...blk.resolved].filter(e=>!e.silent)){
       html+=`<article class="ev kind-${e.actor.kind} ${state.fresh.has(e.id)?'fresh':''} ${state.sel===e.id?'sel':''}" data-id="${e.id}" tabindex="0">
-        <div class="gutter">${hm(e.t)}</div>
-        <div class="body">
+        <div class="gutter">${hm(e.t)}</div><div class="body">
           <div class="who"><span class="dot"></span><span>${esc(e.actor.name)}</span>${e.actor.role&&e.actor.kind!=='xagent'?`<span class="role">${esc(e.actor.role)}</span>`:''}${tagOf(e)}</div>
-          <div class="text">${esc(e.text)}</div>
-          ${metaOf(e)?`<div class="meta">${metaOf(e)}</div>`:''}
+          <div class="text">${esc(e.text)}</div>${metaOf(e)?`<div class="meta">${metaOf(e)}</div>`:''}
         </div></article>`;
     }
-    if(state.pending===sc){
-      const p=sc.prompt;
-      html+=`<section class="prompt fresh">
-        <div class="prompt-head"><span>${p.kind==='judgment'?'取景框':'待受领'}，等 ${p.who} 的${p.kind==='judgment'?'判断':'动作'}</span><span>${esc(p.role)}${p.nid?'，'+p.nid:''}</span></div>
-        <p class="q">${esc(p.q)}</p>
-        <div class="evidence-h">系统已取好景的证据</div>
-        <ul class="evidence">${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
-        <div class="options">${p.options.map(o=>`<button data-key="${o.key}"><b>${esc(o.label)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div>
-        <div class="wait">你替${p.who}做这个${p.kind==='judgment'?'判断':'动作'}。下一步在你选完之前不会走。</div>
-      </section>`;
-    }
+    if(state.pending===sc)html+=promptBlock(sc);
   }
-  if(state.done)html+=renderSettle(P);
-  $('#stream').innerHTML=html;
-  $('#stream').querySelectorAll('.ev').forEach(el=>{el.onclick=()=>{state.sel=state.sel===el.dataset.id?null:el.dataset.id;state.fresh=new Set();render();};el.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();el.click();}}});
-  $('#stream').querySelectorAll('.options button').forEach(b=>b.onclick=()=>resolve(b.dataset.key));
-  $('#clock').textContent=state.done?'12 月 20 日之后':(SCENES[state.cursor].t.replace(/^(\d+)\/(\d+)\s*/,(m,a,b)=>`${a} 月 ${b} 日 `));
+  if(state.done)html+=renderSettle();
+  $('#stream').innerHTML=html;bindStream();
 }
-function renderSettle(P){
+function renderOldStream(O){
+  let html='',lastDay='';const byEv=new Map();for(const r of O.recs){if(!byEv.has(r.ev.id))byEv.set(r.ev.id,[]);byEv.get(r.ev.id).push(r);}
+  for(const blk of state.played){
+    const sc=blk.scene,d=dayOf(sc.t);
+    if(d!==lastDay){html+=`<div class="day">${d}</div>`;lastDay=d;}
+    html+=sceneHead(sc,true);
+    for(const e of [...blk.events,...blk.resolved]){
+      for(const r of byEv.get(e.id)||[]){
+        const fresh=state.fresh.has(e.id)?'fresh':'',sel=state.sel===e.id?'sel':'';
+        if(r.kind==='ghost')html+=`<article class="doc kind-ghost ${fresh} ${sel}" data-id="${e.id}" tabindex="0"><div class="body"><div class="who"><span class="ghost-mark"></span>不在 ERP 里</div><div class="text">${esc(e.text)}</div><div class="meta">${esc(r.why)}</div></div></article>`;
+        else{const cnt=[r.screens?`屏幕 <b>${r.screens}</b>`:'',r.entries?`录入 <b>${r.entries}</b>`:'',r.approvers.length?`审批 <b>${r.approvers.length}</b>`:''].filter(Boolean).join('　');
+          html+=`<article class="doc kind-${r.kind} ${fresh} ${sel}" data-id="${e.id}" tabindex="0"><div class="gutter">${hm(e.t)}</div><div class="body">
+            <div class="who"><span class="module">${MOD[r.module]}</span><span class="doc-title">${esc(r.title)}</span><span class="counts">${cnt}</span></div>
+            <div class="text">${esc(r.detail||'')}${r.kind==='lag'?` <span class="lagnote">${r.visible?'已出现':'要等到 '+(r.lagLabel||'报表被人跑一次')}</span>`:''}</div>
+            ${r.approvers.length?`<div class="meta">审批：${r.approvers.map(x=>x+' 已签').join('、')}。责任人：无。</div>`:''}
+          </div></article>`;}
+      }
+    }
+    if(state.pending===sc)html+=promptBlock(sc);
+  }
+  if(state.done)html+=renderSettle();
+  $('#stream').innerHTML=html;bindStream();
+}
+function renderSettle(){
+  const P=build(state.events),O=buildOld(state.events,state.decisions,9999);
   const humanJ=state.events.filter(e=>e.type==='judgment').length;
+  const jDocs=state.events.filter(e=>e.type==='judgment').filter(e=>oldOf(e,state.decisions).some(r=>r.kind!=='ghost')).length;
   const signs=state.events.filter(e=>e.type==='handoff'&&!e.pending&&!e.declined).length;
-  const agentActs=P.agents.length;
-  const {money}=P;const rev=money.filter(m=>m.amount>0).reduce((a,m)=>a+m.amount,0);const gp=money.reduce((a,m)=>a+m.amount,0);
-  return `<div class="settle"><div class="h">结算：这四周里人做了什么</div>
-    <table><tr><td>人做的判断</td><td class="num">${humanJ} 次</td></tr>
-    <tr><td>移交签收</td><td class="num">${signs} 次</td></tr>
-    <tr><td>agent 动作，每条末端一个人名</td><td class="num">${agentActs} 条</td></tr>
-    <tr><td>打开的 ERP 界面</td><td class="num">0 个</td></tr>
-    <tr><td>录入的凭证</td><td class="num">0 张</td></tr>
-    <tr class="total"><td>本单毛利率</td><td class="num">${(gp/rev*100).toFixed(1)}%</td></tr></table>
-    <p class="note">旧 ERP 走完同一件事，按常规流程估算：屏幕十几个，审批人六位，凭证九张，对"答应了 10 月 10 日"负责的人，零位。点右页的概念标签，回头看每一本账现在的样子；点"重来"，换一条路走。</p></div>`;
+  const holder=P.holders['采购 agent']||'小林';
+  const oldPct=pctOf(P.money.filter(m=>m.id!=='M5'));
+  const row=(k,a,b)=>`<tr><td>${k}</td><td class="num">${a}</td><td class="num">${b}</td></tr>`;
+  return `<div class="settle"><div class="h">结算：同一件事，两本账</div>
+    <table><tr><th></th><th class="num">新账</th><th class="num">旧 ERP</th></tr>
+    ${row('人做的判断',humanJ+' 次',humanJ+' 次，留下单据的 '+jDocs+' 次')}
+    ${row('移交签收',signs+' 次','微信')}
+    ${row('agent 动作，每条末端一个人名',P.agents.length+' 条','0 条')}
+    ${row('打开的界面','0 个',O.stats.screens+' 个')}
+    ${row('录入','0 次',O.stats.entries+' 次')}
+    ${row('审批签字','0 人次',O.stats.approvals+' 人次')}
+    ${row('凭证','0 张手工',O.stats.vouchers+' 张手工')}
+    ${row('发生了但不在系统里的事','0 件',O.stats.ghosts+' 件')}
+    ${row('对 10 月 10 日负责的人','老周，采购租约在'+holder,'无')}
+    <tr class="total"><td>本单毛利率</td><td class="num">${pctOf(P.money)}</td><td class="num">${oldPct}，月结才知道</td></tr></table>
+    <p class="note">右边一列不是估算，是把左页同一条事件流按"只看得见单据"的规则推出来的。用顶上的开关来回切，或者点"重来"换一条路走。</p></div>`;
 }
 function renderTabs(P){
-  const cnt={need:[...P.needs.values()].filter(n=>n.status==='待判').length,pledge:[...P.pledges.values()].filter(p=>!['已核销'].includes(p.status)).length,judg:[...P.judg.values()].filter(j=>j.status==='待回看').length,money:P.money.length,law:P.agents.length};
-  $('#tabs').innerHTML=TABS.map(k=>`<button data-k="${k}" class="${state.tab===k?'on':''}">${DEFS[k][0]}<span class="n">${cnt[k]}</span></button>`).join('');
-  $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.k;state.fresh=new Set();render();});
+  const cnt={need:[...P.needs.values()].filter(n=>n.status==='待判').length,pledge:[...P.pledges.values()].filter(p=>p.status!=='已核销').length,judg:[...P.judg.values()].filter(j=>j.status==='待回看').length,money:P.money.length,law:P.agents.length};
+  $('#tabs').innerHTML=TABS.map(k=>`<button data-k="${k}" class="${state.tab===k?'on':''} ${state.changed.has(k)&&state.tab!==k?'changed':''}">${DEFS[k][0]}<span class="n">${cnt[k]}</span></button>`).join('')+followBtn();
+  bindTabs('tab');
   $('#tabdef').innerHTML=`<b>${DEFS[state.tab][0]}</b> ${DEFS[state.tab][1]}`;
+}
+function renderOldTabs(O){
+  const changedMods=new Set([...state.fresh].flatMap(id=>{const e=state.events.find(x=>x.id===id);return e?oldOf(e,state.decisions).filter(r=>r.kind!=='ghost').map(r=>r.module):[];}));
+  const cnt={sales:[...O.pledges.values()].filter(p=>['P0','PB'].includes(p.id)).length,mrp:O.runs.length,prod:O.pledges.has('P3')?1:0,fin:O.vouchers.length,flow:O.recs.filter(r=>r.approvers&&r.approvers.length).length,judg:0};
+  $('#tabs').innerHTML=OLDTABS.map(([k,n])=>`<button data-k="${k}" class="${state.oldTab===k?'on':''} ${changedMods.has(k)&&state.oldTab!==k?'changed':''}">${n}<span class="n">${cnt[k]}</span></button>`).join('')+followBtn();
+  bindTabs('oldTab');
+  $('#tabdef').innerHTML=`<b>${OLDTABS.find(x=>x[0]===state.oldTab)[1]}</b> ${OLDTABDEF[state.oldTab]}`;
+}
+function followBtn(){return `<button class="follow ${state.follow?'on':''}" id="follow"><span class="box"></span>跟着事件翻页</button>`;}
+function bindTabs(key){
+  $('#tabs').querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>{state[key]=b.dataset.k;state.follow=false;state.fresh=new Set();render();});
+  $('#follow').onclick=()=>{state.follow=!state.follow;render();};
 }
 function lit(ref){if(!state.sel)return '';const e=state.events.find(x=>x.id===state.sel);return e&&e.refs.includes(ref)?'lit':'';}
 function freshRow(ev){return state.fresh.has(ev)?'fresh':'';}
-function evLink(id,label){const e=state.events.find(x=>x.id===id);return e?`<span class="ev-link" data-ev="${id}">${label||hm(e.t)?dayOf(e.t)+' '+hm(e.t):e.t}</span>`:'';}
+function evLink(id){const e=state.events.find(x=>x.id===id);return e?`<span class="ev-link" data-ev="${id}">${dayOf(e.t)} ${hm(e.t)}</span>`:'';}
 function stamp(status){
   if(status==='已核销')return `<span class="stamp">核销</span>`;
   if(status==='印证')return `<span class="stamp">印证</span>`;
@@ -633,10 +886,7 @@ function stamp(status){
   if(status==='待回看'||status==='待签收'||status==='等 J1')return `<span class="st wait">${status}</span>`;
   return `<span class="st">${status}</span>`;
 }
-function gates(g){
-  const box=v=>`<span class="gate ${v===true?'on':v==='half'?'half':''}"></span>`;
-  return `<span class="gates">${box(g.done)}${box(g.accept)}${box(g.clear)}</span><span class="gates-h">做了 验收 核销</span>`;
-}
+function gates(g){const box=v=>`<span class="gate ${v===true?'on':v==='half'?'half':''}"></span>`;return `<span class="gates">${box(g.done)}${box(g.accept)}${box(g.clear)}</span><span class="gates-h">做了 验收 核销</span>`;}
 function renderProj(P){
   let html='';
   if(state.tab==='need'){
@@ -659,43 +909,89 @@ function renderProj(P){
     html+=`<div class="h">老周的判断力档案</div><div class="file">`+PRIOR_FILE['老周'].map(f=>{const c=cats[f.cat]||{n:0,hit:0,miss:0};return `<div class="row"><span>${f.cat}</span><span class="cnt">此前 ${f.n} 次，印证 ${f.hit}${c.n?`；本案 ${c.n} 次${c.hit?'，印证 '+c.hit:''}${c.miss?'，推翻 '+c.miss:''}`:''}</span></div>`;}).join('')+`</div><p class="note">档案记的是判断的理由和结果，不是功过。下一次同类判断需求出现，取景框会把这里摆进证据栏。</p>`;
   }
   if(state.tab==='money'){
-    const rows=P.money;const rev=rows.filter(m=>m.amount>0).reduce((a,m)=>a+m.amount,0);const gp=rows.reduce((a,m)=>a+m.amount,0);
+    const rows=P.money;
     html+=`<div class="h">本单钱账，SO-26-0912</div>`;
-    html+=`<table><tr><th>科目</th><th>摘要</th><th class="num">金额</th><th>证据</th></tr>`+rows.map(m=>`<tr data-ref="${m.id}" class="${lit(m.id)} ${freshRow(m.ev)}"><td>${esc(m.acct)}</td><td>${esc(m.label)}</td><td class="num">${F(m.amount)}</td><td class="sub">${evLink(m.ev)}</td></tr>`).join('')+`<tr class="total"><td>毛利</td><td>毛利率 ${(gp/rev*100).toFixed(1)}%，标准 22.0%</td><td class="num">${F(gp)}</td><td></td></tr></table>`;
+    html+=`<table><tr><th>科目</th><th>摘要</th><th class="num">金额</th><th>证据</th></tr>`+rows.map(m=>`<tr data-ref="${m.id}" class="${lit(m.id)} ${freshRow(m.ev)}"><td>${esc(m.acct)}</td><td>${esc(m.label)}</td><td class="num">${F(m.amount)}</td><td class="sub">${evLink(m.ev)}</td></tr>`).join('')+`<tr class="total"><td>毛利</td><td>毛利率 ${pctOf(rows)}，标准 22.0%</td><td class="num">${F(rows.reduce((a,m)=>a+m.amount,0))}</td><td></td></tr></table>`;
     html+=`<p class="note">每一行都是从事件流投影出来的，没有人录入。点证据一栏，左页会跳到那件事；从那件事，再点回一个人的判断。</p>`;
   }
   if(state.tab==='law'){
     const acts=P.agents;
     html+=`<div class="check">agent 动作 ${acts.length} 条。末端是一个人的：<b>${acts.length} 条</b>。</div><p class="note">这不是统计出来的，是结构保证的。agent 没有租约就不能动，租约一定由人签发，租约上的名字可以移交，但不能为空。</p>`;
     html+=`<div class="h">租约</div>`;
-    for(const [name,L] of Object.entries(LEASES)){
-      const chain=[L.by];for(const h of P.handoffs)if(h.lease===name&&!h.pending&&!h.declined)chain.push(`${h.to}，${dayOf(h.t)}签收`);
-      html+=`<div class="chain">${name}<span class="arrow">租约</span>${chain.join('<span class="arrow">移交</span>')}</div><div class="sub">${L.scope}。${L.budget}。至 ${L.until}。</div>`;
-    }
+    for(const [name,L] of Object.entries(LEASES)){const chain=[L.by];for(const h of P.handoffs)if(h.lease===name&&!h.pending&&!h.declined)chain.push(`${h.to}，${dayOf(h.t)}签收`);
+      html+=`<div class="chain">${name}<span class="arrow">租约</span>${chain.join('<span class="arrow">移交</span>')}</div><div class="sub">${L.scope}。${L.budget}。至 ${L.until}。</div>`;}
     html+=`<div class="h">agent 做过的每一件事</div>`;
     html+=acts.length?`<table><tr><th>何时</th><th>agent</th><th>做了什么</th><th>回程到谁</th></tr>`+acts.map(e=>`<tr data-ev="${e.id}" class="${state.sel===e.id?'lit':''} ${freshRow(e.id)}"><td class="sub">${dayOf(e.t)} ${hm(e.t)}</td><td>${e.actor.name}</td><td class="song">${esc(e.text)}</td><td class="song">${e.responsible}</td></tr>`).join('')+`</table>`:`<div class="empty">agent 还没有动过。</div>`;
     const x=state.events.filter(e=>e.actor.kind==='xagent');
     if(x.length)html+=`<p class="note">对方的 agent 出现了 ${x.length} 次。它们不在恒测的租约里，但在对方的账本上同样连着一个人。跨企业的承诺要两本账互认，这就是清算所的位置。</p>`;
   }
-  $('#proj').innerHTML=html;
+  $('#proj').innerHTML=html;bindProj();
+}
+function renderOldProj(O){
+  let html='';const d=state.decisions,clock=clockNum();
+  const chg=(pid)=>state.events.filter(e=>e.type==='pledge_update'&&e.pid===pid&&e.patch&&e.patch.when).length;
+  const ordSt=p=>p.gates.clear?'已发货':p.gates.done==='half'?'部分发货':'未发货';
+  if(state.oldTab==='sales'){
+    const rows=[['SO-26-0912','P0'],['SO-26-0918','PB']].filter(([,id])=>O.pledges.has(id)).map(([no,id])=>[no,O.pledges.get(id)]);
+    html+=`<div class="h">销售订单</div><table><tr><th>订单号</th><th>客户</th><th>数量</th><th>交期</th><th>状态</th><th>交期改过</th></tr>`+rows.map(([no,p])=>`<tr data-ref="${p.id}" class="${lit(p.id)}"><td class="song">${no}</td><td>${esc(p.to)}</td><td class="song">${esc(p.what)}</td><td class="song nw">${esc(p.when)}</td><td>${ordSt(p)}</td><td class="num">${chg(p.id)} 次</td></tr>`).join('')+`</table>`;
+    html+=`<p class="note">交期字段只有最新的值。改过几次能数出来，每次为什么改，谁答应的，对方认不认，都不在这里。没有悬空，没有逾期提醒，除非有人去跑逾期报表。</p>`;
+  }
+  if(state.oldTab==='mrp'){
+    const vis=O.runs.filter(r=>clock>=r.day);const pend=O.runs.find(r=>clock<r.day);
+    html+=`<div class="h">MRP 运算记录</div>`+(vis.length?`<table><tr><th>运算时间</th><th>结果</th></tr>`+vis.map(r=>`<tr><td class="song nw">${r.t}</td><td>${esc(r.result)}</td></tr>`).join('')+`</table>`:`<div class="empty">还没有运算过。</div>`)+(pend?`<p class="note">下次运算 ${pend.t}。在那之前，缺不缺料系统不知道。</p>`:'');
+    const j2=O.judg.get('J2');const m2=O.money.find(m=>m.id==='M2');
+    if(j2)html+=`<div class="h">采购申请单</div><table><tr><th>单号</th><th>事由</th><th class="num">金额</th><th>审批</th></tr><tr><td class="song">PR-0916-07</td><td>客户加急</td><td class="num">${F(-m2.amount)}</td><td>${d.J2==='back'?'退回 1 次，':''}小林、采购总监、财务 已签</td></tr></table>`;
+    const p1=O.pledges.get('P1');
+    if(p1)html+=`<div class="h">采购订单</div><table><tr><th>单号</th><th>物料</th><th>数量</th><th>交期</th><th>状态</th></tr><tr data-ref="P1" class="${lit('P1')}"><td class="song">PO-0916-12</td><td>MCU</td><td class="num">4,500</td><td class="song nw">${esc(p1.when)}</td><td>${p1.gates.clear?'已收货':p1.gates.done==='half'?'部分收货':'未收货'}</td></tr></table>`;
+    const rec=state.events.filter(e=>e.type==='receipt'&&e.actor.name==='供应商 agent');
+    if(rec.length)html+=`<div class="h">收货单</div><table><tr><th>日期</th><th class="num">数量</th></tr>`+rec.map(e=>`<tr data-ev="${e.id}"><td class="song nw">${dayOf(e.t)}</td><td class="num">${F(e.qty)}</td></tr>`).join('')+`</table>`;
+    if(!j2&&!p1)html+=`<p class="note">采购申请、采购订单、收货单，都要等人录进来。</p>`;
+  }
+  if(state.oldTab==='prod'){
+    const p3=O.pledges.get('P3');const j3=O.judg.get('J3');
+    html+=`<div class="h">生产工单</div>`+(p3?`<table><tr><th>工单号</th><th>数量</th><th>计划完工</th><th>状态</th></tr><tr data-ref="P3" class="${lit('P3')}"><td class="song">MO-0915-03</td><td class="num">4,500</td><td class="song nw">${esc(p3.when)}</td><td>${p3.gates.clear?'完工':'下达'}</td></tr></table>`:`<div class="empty">还没有工单。</div>`);
+    if(j3)html+=`<div class="h">${d.J3==='ot'?'加班申请单':'外协申请单'}</div><table><tr><th>内容</th><th>审批</th></tr><tr><td>${d.J3==='ot'?'六天，约 19.8 万':'1,500 台，约 22 万'}</td><td>${d.J3==='ot'?'老陈、人事':'老陈、采购、财务'} 已签</td></tr></table>`;
+    html+=`<p class="note">${d.J3==='ot'?'加班费下月工资才结算，进不了这张单的成本。':'工单只知道数量和日期。'}老陈说过的"不影响质量"，没有地方记。</p>`;
+  }
+  if(state.oldTab==='fin'){
+    if(!O.closed){const pending=O.money.filter(m=>!['M0','M1'].includes(m.id));
+      html+=`<div class="absent">月结之前这一页是空的。本月凭证 0 张。毛利率：不知道。<div class="sub">${pending.length?'已经发生、还没入账的：'+pending.map(m=>m.label+' '+F(m.amount)).join('；')+'。':'还没有额外的支出发生。'}</div></div>`;}
+    else{html+=`<div class="h">本月凭证，补录</div><table><tr><th>科目</th><th>摘要</th><th class="num">金额</th></tr>`+O.vouchers.map(m=>`<tr data-ref="${m.id}" class="${lit(m.id)}"><td>${esc(m.acct)}</td><td>${esc(m.label)}</td><td class="num">${F(m.amount)}</td></tr>`).join('')+`<tr class="total"><td>毛利</td><td>毛利率 ${pctOf(O.vouchers)}</td><td class="num">${F(O.vouchers.reduce((a,m)=>a+m.amount,0))}</td></tr></table>`;
+      html+=`<p class="note">不含算力费用 1,840 元，因为没有这个科目。每张凭证是财务月底手工录的，凭证上没有"为什么"，也没有指向任何一个决定。</p>`;}
+  }
+  if(state.oldTab==='flow'){
+    const rows=O.recs.filter(r=>r.approvers&&r.approvers.length);
+    html+=`<div class="h">审批流</div>`+(rows.length?`<table><tr><th>单据</th><th>审批人</th><th>责任人</th></tr>`+rows.map(r=>`<tr data-ev="${r.ev.id}" class="${state.sel===r.ev.id?'lit':''}"><td class="song">${esc(r.title)}</td><td>${r.approvers.map(x=>x+' 已签').join('、')}</td><td class="song">无</td></tr>`).join('')+`</table>`:`<div class="empty">还没有单据进审批。</div>`);
+    html+=`<div class="check">签字 ${O.stats.approvals} 人次。对 10 月 10 日负责的人：<b style="color:var(--seal)">0</b>。</div><p class="note">审批链的社会学功能是让所有人都签过字，于是没有任何人对结果负责。这和恒等式那一页正好相反：那里每条动作末端必须有一个名字。</p>`;
+  }
+  if(state.oldTab==='judg'){
+    const js=[...O.judg.values()];
+    html+=`<div class="absent">旧 ERP 里没有这一页。<div class="sub">${js.length?'发生了、没记的判断：'+js.map(j=>`${j.who} ${dayOf(j.t)}，${j.bet}`).join('；')+'。':'到目前为止还没有人做判断。'}</div></div>`;
+    html+=`<p class="note">判断发生在群聊和电话里。年底复盘会，大家凭记忆讨论九月那单该不该接。老周记得自己当时怎么想的，别人不记得，明年也没有人记得。</p>`;
+  }
+  $('#proj').innerHTML=html;bindProj();
+}
+function bindProj(){
   $('#proj').querySelectorAll('tr[data-ref]').forEach(tr=>tr.onclick=ev=>{if(ev.target.closest('.ev-link'))return;const ref=tr.dataset.ref;const e=[...state.events].reverse().find(x=>x.refs.includes(ref)&&!x.silent);if(e)jumpTo(e.id);});
   $('#proj').querySelectorAll('tr[data-ev]').forEach(tr=>tr.onclick=()=>jumpTo(tr.dataset.ev));
   $('#proj').querySelectorAll('.ev-link').forEach(a=>a.onclick=ev=>{ev.stopPropagation();jumpTo(a.dataset.ev);});
 }
-function jumpTo(id){state.sel=id;state.fresh=new Set();render();const el=document.querySelector(`.ev[data-id="${id}"]`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});}
+function jumpTo(id){state.sel=id;state.fresh=new Set();render();const el=document.querySelector(`[data-id="${id}"]`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});}
 function renderControls(){
-  const n=$('#next');
-  if(state.done){n.disabled=true;n.textContent='已到 12 月 20 日';}
-  else if(state.pending){n.disabled=true;n.textContent=`等 ${state.pending.prompt.who} 选`;}
-  else{n.disabled=false;const i=nextIndex();n.textContent=i<SCENES.length?`下一步，${SCENES[i].t.replace(/^(\d+)\/(\d+)\s*/,(m,a,b)=>`${a} 月 ${b} 日 `)}`:'结算';}
+  const n=$('#next'),ff=$('#ff');n.classList.remove('go');
+  if(state.done){n.disabled=true;n.textContent='已到 12 月 20 日';ff.disabled=true;}
+  else if(state.pending){n.disabled=false;n.classList.add('go');n.textContent=`去做${state.pending.prompt.who}的${state.pending.prompt.kind==='judgment'?'判断':'动作'}`;ff.disabled=true;}
+  else{n.disabled=false;const i=nextIndex();n.textContent=i<SCENES.length?`下一步，${SCENES[i].t.replace(/^(\d+)\/(\d+)\s*/,(m,a,b)=>`${a} 月 ${b} 日 `)}`:'结算';ff.disabled=false;}
   const d=state.decisions;const path=d.J1?({A:'接，不挤 B',B:'接，挤 B',C:'不接'}[d.J1]):'还没做第一个判断';
-  $('#status').innerHTML=`第 <b>${state.played.length-1}</b> 步。路线：${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}。<span class="hint">左页点任何一件事，右页对应的账会亮起来。</span>`;
+  const O=state.mode==='old'?buildOld(state.events,d,clockNum()):null;
+  $('#status').innerHTML=state.mode==='old'
+    ?`路线：${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}。到此刻旧 ERP：屏幕 <b>${O.stats.screens}</b>，录入 <b>${O.stats.entries}</b>，审批 <b>${O.stats.approvals}</b> 人次，不在系统里的事 <b>${O.stats.ghosts}</b> 件。`
+    :`第 <b>${state.played.length-1}</b> 步。路线：${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}。<span class="hint">左页点任何一件事，右页对应的账会亮起来。方向键右是下一步。</span>`;
 }
-function nextIndex(){let i=state.cursor+1;while(i<SCENES.length&&SCENES[i].when&&!SCENES[i].when(state.decisions))i++;return i;}
-
-$('#next').onclick=advance;
-$('#reset').onclick=()=>{init();window.scrollTo({top:0,behavior:'smooth'});};
-document.addEventListener('keydown',e=>{if(e.target.tagName==='BUTTON'&&e.key!=='ArrowRight')return;if(e.key==='ArrowRight'){e.preventDefault();advance();}});
+$('#next').onclick=()=>{if(state.pending){const p=document.querySelector('.prompt');if(p){p.scrollIntoView({behavior:'smooth',block:'center'});const b=p.querySelector('.options button');if(b)b.focus({preventScroll:true});}return;}advance();};
+$('#ff').onclick=fastForward;
+$('#reset').onclick=()=>{const m=state.mode;init();state.mode=m;render();window.scrollTo({top:0,behavior:'smooth'});};
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'&&!e.shiftKey){e.preventDefault();$('#next').click();}else if(e.key==='ArrowRight'&&e.shiftKey){e.preventDefault();fastForward();}});
 init();
 </script>
 </body>
