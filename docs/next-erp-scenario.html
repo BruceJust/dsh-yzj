@@ -83,7 +83,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--rule-stron
 
 .prompt{margin:10px 18px 14px 88px;border:1.5px solid var(--seal);padding:12px 14px 14px;background:#fffdf8}
 .prompt-head{font-family:var(--song);font-weight:600;font-size:15px;color:var(--seal);display:flex;justify-content:space-between;gap:10px}
-.prompt-head span{font-weight:400;color:var(--muted);font-size:13px}
+.prompt-head span{font-weight:400;color:var(--muted);font-size:13px;white-space:nowrap}
 .prompt .q{font-family:var(--song);font-size:17px;margin:6px 0 8px}
 .prompt .evidence{margin:0 0 12px;padding-left:18px;font-size:13.5px;color:#3a3a36}
 .prompt .evidence li{margin:2px 0}
@@ -220,7 +220,7 @@ tr.hist td{padding-top:0}
   .band{grid-template-columns:auto 1fr 50px}
   .controls{padding:8px 14px}
   .controls .inner{flex-wrap:wrap;gap:8px}
-  .controls .status{flex-basis:100%;font-size:12.5px;line-height:1.35}
+  .controls .status{flex-basis:100%;order:-1;font-size:12.5px;line-height:1.35}
   .controls button{flex:1}
   .controls #reset{flex:0 0 auto}
   .controls .hint{display:none}
