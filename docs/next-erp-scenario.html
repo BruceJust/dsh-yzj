@@ -218,8 +218,11 @@ tr.hist td{padding-top:0}
   .day,.scene,.prompt,.settle{padding-left:66px}
   .prompt,.settle{margin-left:66px}
   .band{grid-template-columns:auto 1fr 50px}
-  .controls{padding:10px 14px}
-  .controls .status{font-size:12.5px;line-height:1.35}
+  .controls{padding:8px 14px}
+  .controls .inner{flex-wrap:wrap;gap:8px}
+  .controls .status{flex-basis:100%;font-size:12.5px;line-height:1.35}
+  .controls button{flex:1}
+  .controls #reset{flex:0 0 auto}
   .controls .hint{display:none}
   .controls button{padding:8px 10px}
   .controls button.primary{padding:8px 12px;font-size:15px}
@@ -987,7 +990,7 @@ function renderControls(){
   const d=state.decisions;const path=d.J1?({A:'接，不挤 B',B:'接，挤 B',C:'不接'}[d.J1]):'还没做第一个判断';
   const O=state.mode==='old'?buildOld(state.events,d,clockNum()):null;
   $('#status').innerHTML=state.mode==='old'
-    ?`路线：${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}。到此刻旧 ERP：屏幕 <b>${O.stats.screens}</b>，录入 <b>${O.stats.entries}</b>，审批 <b>${O.stats.approvals}</b> 人次，不在系统里的事 <b>${O.stats.ghosts}</b> 件。`
+    ?`路线：${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}。<span class="hint">到此刻旧 ERP：屏幕 <b>${O.stats.screens}</b>，录入 <b>${O.stats.entries}</b>，审批 <b>${O.stats.approvals}</b> 人次，不在系统里的事 <b>${O.stats.ghosts}</b> 件。</span>`
     :`第 <b>${state.played.length-1}</b> 步。路线：${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}。<span class="hint">左页点任何一件事，右页对应的账会亮起来。方向键右是下一步。</span>`;
 }
 $('#next').onclick=()=>{if(state.pending){const p=document.querySelector('.prompt');if(p){p.scrollIntoView({behavior:'smooth',block:'center'});const b=p.querySelector('.options button');if(b)b.focus({preventScroll:true});}return;}advance();};
