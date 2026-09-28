@@ -404,11 +404,12 @@ td.old.g-wrong{background:#fbeceb}
 .fin-block h3{font-family:var(--song);font-size:16px;font-weight:600;margin:6px 0 2px}
 .fin-block .cap{font-size:12.5px;color:var(--muted);margin:0 0 8px}
 .fin-wide{grid-column:1/-1}
-.rib{display:grid;grid-template-columns:200px 1fr 150px;gap:6px 12px;align-items:center;font-size:13px}
+.rib{display:grid;grid-template-columns:200px 1fr 180px;gap:6px 12px;align-items:center;font-size:13px}
 .rib .bar{position:relative;height:14px;background:#dcdcd4}
 .rib .bar i{position:absolute;top:0;bottom:0}
 .rib .bar i.none{background:#a9a9a1}.rib .bar i.lag,.rib .bar i.off{background:#e3b25a}.rib .bar i.wrong{background:var(--seal)}
 .rib .axis{grid-column:2;display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+.rib .axis span{white-space:nowrap}
 .rib .sum{font-size:12px;color:#4d4d48}
 .lagt{width:100%;border-collapse:collapse;font-size:13px}
 .lagt td,.lagt th{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:middle}
@@ -455,6 +456,18 @@ td.old.g-wrong{background:#fbeceb}
   .rib{grid-template-columns:1fr}
   .rib .axis{grid-column:1}
 }
+
+.ev-d summary{cursor:pointer;margin-bottom:4px}
+.ev-d[open] summary{margin-bottom:2px}
+@media (max-width:1100px) and (min-width:761px){
+  .decide .opts{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+  .hero{padding-top:14px}
+}
+@media (max-width:760px){
+  .pane-new{overflow-x:auto}
+  #graph{min-width:470px}
+  .pane-new .legend,.pane-new .now{min-width:0}
+}
 @media (prefers-reduced-motion:reduce){
   .g-edge.draw,.g-edge.pulse,.g-need,.g-seal.fresh,.g-lease.lit,.chip.fresh,.qb td.fresh,.decide.fresh{animation:none}
   .g-edge.draw{stroke-dashoffset:0}
@@ -481,7 +494,7 @@ td.old.g-wrong{background:#fbeceb}
       </figure>
       <figure class="pane pane-new">
         <figcaption><b>新账看见的</b><span>一张图：谁欠谁，谁在判断，agent 回程到谁</span></figcaption>
-        <svg id="graph" viewBox="0 0 520 340" role="img" aria-label="责任图"></svg>
+        <svg id="graph" viewBox="0 0 520 356" role="img" aria-label="责任图"></svg>
         <div class="legend"><span><i></i>承诺</span><span><i class="pend"></i>待签收</span><span><i class="hang"></i>悬空</span><span><i class="late"></i>逾期</span><span><i class="done"></i>核销</span><span><i class="lease"></i>租约，agent 回程到人</span></div>
         <div class="now" id="now-new"></div>
       </figure>
@@ -1317,8 +1330,8 @@ function renderScene(C){
   if(C.live&&state.pending===sc){
     const p=sc.prompt;
     html+=`<section class="decide fresh" id="decide"><div class="dh"><b>${p.kind==='judgment'?'取景框':'待受领'}，等${p.who}${p.kind==='judgment'?'拍板':'签收'}</b><span>${esc(p.role)}${p.nid?'，'+p.nid:''}</span></div>
-      <p class="q">${esc(p.q)}</p><div class="eh">新账已经把证据取好景</div><ul>${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
-      <p class="oldway">在旧 ERP 里，这一步发生在群聊或电话里。证据要${p.who}自己翻，选完之后系统只会看到结果单据。</p>
+      <p class="q">${esc(p.q)}</p><details class="ev-d" ${window.innerWidth>1100?'open':''}><summary class="eh">新账已经把证据取好景，${p.evidence.length} 条</summary><ul>${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+      <p class="oldway">在旧 ERP 里，这一步发生在群聊或电话里。证据要${p.who}自己翻，选完之后系统只会看到结果单据。</p></details>
       <div class="opts">${p.options.map(o=>`<button data-key="${o.key}"><b>${esc(o.label)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div></section>`;
   }else if(!C.live){
     html+=`<div class="viewnote">这是回看。时间轴上点别的日子继续看，或者<button id="backnow2">回到此刻</button>。</div>`;
@@ -1363,7 +1376,7 @@ function renderERP(C){
 
 /* 新账：责任图 */
 const GN={A:{x:52,y:78,label:'A 客户'},B:{x:52,y:262,label:'B 客户'},sup:{x:484,y:262,label:'供应商'},
-  zhou:{x:190,y:150,name:'老周',role:'销售总监'},chen:{x:340,y:78,name:'老陈',role:'厂长'},lin:{x:345,y:238,name:'小林',role:'采购经理'},succ:{x:262,y:300,role:'接手人'},
+  zhou:{x:190,y:150,name:'老周',role:'销售总监'},chen:{x:340,y:78,name:'老陈',role:'厂长'},lin:{x:345,y:238,name:'小林',role:'采购经理'},succ:{x:262,y:296,role:'接手人'},
   sa:{x:190,y:258,label:'销售 agent'},pa:{x:420,y:160,label:'采购 agent'}};
 const GR={A:26,B:26,sup:26,zhou:17,chen:17,lin:17,succ:17,sa:13,pa:13};
 const EDGES={P0:['zhou','A'],PB:['zhou','B'],P3:['chen','zhou'],P1:['pa','chen'],P2:['sup','pa']};
@@ -1375,7 +1388,7 @@ function renderGraph(C){
   const holder=P.holders['采购 agent']||'小林';const ph=pendingHandoff(C.evs);
   const succName=holder!=='小林'?holder:(ph?ph.to:null);
   let s=`<defs>${['ink','warn','seal','done'].map(c=>`<marker id="ar-${c}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${c==='ink'?'#1e1e1c':c==='warn'?'#b3781c':c==='seal'?'#b4322b':'#b9b9b1'}"/></marker>`).join('')}</defs>`;
-  s+=`<rect class="g-bound" x="128" y="30" width="330" height="300" rx="10"/><text class="g-blabel" x="140" y="48">恒测</text>`;
+  s+=`<rect class="g-bound" x="128" y="30" width="330" height="318" rx="10"/><text class="g-blabel" x="140" y="48">恒测</text>`;
   /* 租约线 */
   const leaseTo={sa:'zhou',pa:holder==='小林'?'lin':'succ'};
   const acted=n=>freshEvs.some(e=>e.actor.kind==='agent'&&e.actor.name===GN[n].label);
