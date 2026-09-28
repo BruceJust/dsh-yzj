@@ -98,8 +98,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--rule-stron
 .prompt.old-note .prompt-head{color:var(--ghost)}
 
 /* 旧 ERP 视角 */
-body.mode-old .page-left{background-image:none;background:var(--oldpage)}
-body.mode-old .day{color:var(--muted)}
+.book.mode-old .page-left{background-image:none;background:var(--oldpage)}
+.book.mode-old .day{color:var(--muted)}
 .doc{display:grid;grid-template-columns:75px 1fr;border-bottom:1px solid var(--oldline);cursor:pointer}
 .doc:hover{background:#efefeb}
 .doc.sel{background:var(--lit)}
@@ -230,39 +230,292 @@ tr.hist td{padding-top:0}
 @media (prefers-reduced-motion:reduce){
   .ev.fresh,.doc.fresh,tr.fresh td,.fresh .stamp,.page-left.flash{animation:none}
 }
+/* ===== 重构：舞台 ===== */
+body{padding-bottom:84px}
+.hero{max-width:1400px;margin:0 auto;padding:22px 28px 6px;display:grid;grid-template-columns:auto 1fr;gap:6px 28px;align-items:baseline}
+.hero h1{font-family:var(--song);font-weight:600;font-size:30px;margin:0;letter-spacing:.02em;white-space:nowrap}
+.hero .thesis{font-family:var(--song);font-size:21px;line-height:1.45;margin:0;color:var(--ink)}
+.hero .sub{grid-column:2;margin:2px 0 0;font-size:14px;color:#4a4a45;max-width:62em}
+
+.tl{max-width:1400px;margin:10px auto 0;padding:0 28px;overflow-x:auto}
+.tl-in{position:relative;display:flex;align-items:flex-end;justify-content:space-between;min-width:max-content;padding:4px 0 8px;border-bottom:1px solid var(--ink)}
+.tl-t{display:flex;flex-direction:column;align-items:center;gap:5px;padding:0 10px;position:relative}
+.tl-t .d{font-family:var(--song);font-size:12.5px;color:var(--muted);height:17px;white-space:nowrap}
+.tl-t .m{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--ink);background:var(--page)}
+.tl-t.played .m{background:#b3b3aa;border-color:#b3b3aa}
+.tl-t.played{cursor:pointer}
+.tl-t.judg .m{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--seal)}
+.tl-t.here .m{background:var(--ink);border-color:var(--ink);transform:scale(1.4)}
+.tl-t.viewing .m{background:var(--rule-strong);border-color:var(--rule-strong);transform:scale(1.4)}
+.tl-t .tip{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;white-space:nowrap;font-size:12px;background:var(--page);border:1px solid var(--rule);padding:2px 8px;display:none;z-index:4}
+.tl-t:hover .tip,.tl-t:focus-visible .tip{display:block}
+
+.main{max-width:1400px;margin:0 auto;padding:14px 28px 0;display:grid;grid-template-columns:330px minmax(0,1fr);gap:20px;align-items:start}
+.scene-card{position:sticky;top:12px;background:var(--page);border:1px solid #d9d9d0;padding:14px 16px 16px;max-height:calc(100vh - 110px);overflow:auto}
+.sc-date{font-family:var(--song);font-size:13px;color:var(--rule-strong);letter-spacing:.04em}
+.sc-title{font-family:var(--song);font-weight:600;font-size:19px;line-height:1.35;margin:2px 0 8px}
+.sc-path{margin-top:12px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--rule);padding-top:8px}
+.sc-path b{font-weight:500;color:var(--ink)}
+.decide{border:1.5px solid var(--seal);padding:11px 12px 12px;background:#fffdf8;margin-top:4px}
+.decide .dh{font-family:var(--song);font-size:14px;color:var(--seal);display:flex;justify-content:space-between;gap:8px}
+.decide .dh span{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.decide .q{font-family:var(--song);font-size:17px;line-height:1.45;margin:6px 0 8px}
+.decide ul{margin:0 0 10px;padding-left:17px;font-size:13px;color:#3a3a36}
+.decide ul li{margin:2px 0}
+.decide .eh{font-size:12px;color:var(--muted)}
+.decide .oldway{font-size:12.5px;color:var(--ghost);border-left:2px dashed var(--ghost);padding-left:8px;margin:0 0 10px}
+.decide .opts{display:grid;gap:7px}
+.decide .opts button{text-align:left;border:1px solid var(--ink);padding:8px 11px;background:var(--page);display:grid;gap:1px}
+.decide .opts button:hover{background:var(--lit)}
+.decide .opts button b{font-family:var(--song);font-weight:600;font-size:15px}
+.decide .opts button span{font-size:12.5px;color:var(--muted)}
+.decide.fresh{animation:ink .6s ease-out}
+.viewnote{border:1px solid var(--rule-strong);padding:8px 10px;font-size:13px;color:var(--rule-strong);margin-top:6px}
+.viewnote button{text-decoration:underline;color:var(--rule-strong)}
+
+.stage{min-width:0}
+.viewing{display:none;margin:0 0 8px;padding:6px 12px;background:#e6ebf3;border:1px solid var(--rule);font-size:13px;color:var(--rule-strong)}
+.viewing.on{display:flex;justify-content:space-between;gap:10px}
+.viewing button{color:var(--rule-strong);text-decoration:underline}
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pane{margin:0;background:var(--page);border:1px solid #d9d9d0;display:flex;flex-direction:column;min-width:0}
+.pane figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px 14px 8px;border-bottom:1px solid var(--rule)}
+.pane figcaption b{font-family:var(--song);font-size:16px;font-weight:600}
+.pane figcaption span{font-size:12px;color:var(--muted);text-align:right}
+.pane-old{background:var(--oldpage)}
+.pane .now{margin-top:auto;padding:9px 14px 11px;border-top:1px solid var(--rule);font-size:13.5px;line-height:1.55;color:#33332f;min-height:64px}
+.pane .now i{font-style:normal;color:var(--muted);margin-right:4px}
+.pane-old .now{border-top-color:var(--oldline);color:#4d4d48}
+
+/* 旧 ERP 格子 */
+.erp{padding:10px 12px 8px;display:grid;gap:8px}
+.erp-sys{border:1.5px solid #6d6d66;padding:18px 8px 8px;position:relative}
+.erp-tag{position:absolute;top:-9px;left:10px;background:var(--oldpage);padding:0 6px;font-size:12px;color:#5c5c56}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.mod{background:#fbfbf9;border:1px solid var(--oldline);padding:6px 8px 7px;min-height:92px}
+.mod h4{margin:0 0 4px;font-size:12.5px;font-weight:600;color:var(--page);background:#5c5c56;display:flex;justify-content:space-between;padding:1px 6px;margin:-6px -8px 6px}
+.mod h4 span{font-weight:400;opacity:.85}
+.fld{font-size:12.5px;border:1px solid #d8d8d2;background:var(--page);padding:2px 6px;margin-bottom:3px;display:flex;justify-content:space-between;gap:6px}
+.fld b{font-weight:500;font-family:var(--song)}
+.fld.flash{animation:ink .8s ease-out}
+.fld .calm{color:var(--ghost);font-size:11.5px;white-space:nowrap}
+.mdocs{list-style:none;margin:4px 0 0;padding:0;font-size:12px;color:#5e5e58}
+.mdocs li{padding:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mdocs li.fresh{color:var(--ink);background:var(--lit)}
+.mdocs li.wait{color:var(--warn)}
+.mod .empty{padding:6px 0 0;font-size:12.5px;color:var(--ghost)}
+.erp-sign{margin-top:7px;font-size:12px;color:#5c5c56;display:flex;justify-content:space-between;gap:8px}
+.erp-sign b{color:var(--seal);font-weight:600}
+.erp-out{border:1.5px dashed var(--ghost);padding:16px 8px 8px;position:relative;min-height:62px}
+.erp-out .erp-tag{color:var(--ghost)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:12px;border:1px dashed var(--ghost);color:#5e5e58;padding:1px 7px;background:var(--oldpage);border-radius:10px}
+.chip.fresh{border-style:solid;border-color:#5e5e58;color:var(--ink);background:var(--page);animation:ink .6s ease-out}
+.chip-n{font-size:12px;color:var(--ghost);align-self:center}
+
+/* 新账图 */
+#graph{display:block;width:100%;height:auto;padding:4px 6px 0}
+.g-bound{fill:none;stroke:var(--rule);stroke-dasharray:3 4}
+.g-blabel{font-size:12px;fill:var(--rule-strong);font-family:var(--song)}
+.g-ext rect{fill:var(--page);stroke:var(--ext);stroke-width:1.5}
+.g-ext text{font-size:13px;fill:var(--ink);font-family:var(--song);text-anchor:middle;dominant-baseline:middle}
+.g-hum circle.body{fill:var(--ink)}
+.g-hum.dim circle.body{fill:#b9b9b1}
+.g-hum.ghost circle.body{fill:var(--page);stroke:var(--ink);stroke-dasharray:3 3}
+.g-name{font-size:13.5px;font-family:var(--song);text-anchor:middle;fill:var(--ink)}
+.g-role{font-size:11px;text-anchor:middle;fill:var(--muted)}
+.g-hum.dim .g-name{fill:var(--muted)}
+.g-agent circle{fill:var(--page);stroke:var(--agent);stroke-width:1.8;stroke-dasharray:3 2.5}
+.g-agent text{font-size:11.5px;text-anchor:middle;fill:var(--agent)}
+.g-lease{stroke:var(--agent);stroke-width:1.2;stroke-dasharray:1.5 3;fill:none;opacity:.7}
+.g-lease.lit{stroke-width:2.6;opacity:1;stroke-dasharray:6 4;animation:march 1.2s linear infinite}
+@keyframes march{to{stroke-dashoffset:-20}}
+.g-lease-t{font-size:10.5px;fill:var(--agent)}
+.g-edge{fill:none;stroke-width:1.8;stroke:var(--ink)}
+.g-edge.pending{stroke-dasharray:6 4}
+.g-edge.hang{stroke:var(--warn);stroke-width:3.2}
+.g-edge.late{stroke:var(--seal);stroke-width:3.2}
+.g-edge.done{stroke:#b9b9b1;stroke-width:1.4}
+.g-edge.draw{stroke-dasharray:400;stroke-dashoffset:400;animation:draw .9s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.g-edge.pulse{animation:pulse 1.3s ease-out 2}
+@keyframes pulse{0%{stroke-width:7;opacity:.4}100%{opacity:1}}
+.g-elabel{font-size:12px;font-family:var(--song);fill:var(--ink);paint-order:stroke;stroke:var(--page);stroke-width:4px;stroke-linejoin:round;text-anchor:middle}
+.g-elabel.hang{fill:var(--warn);font-weight:600}
+.g-elabel.late{fill:var(--seal);font-weight:600}
+.g-elabel.done{fill:#9a9a92}
+.g-need{fill:none;stroke:var(--seal);stroke-width:2;animation:ring 1.6s ease-out infinite}
+@keyframes ring{0%{r:20;opacity:1}100%{r:31;opacity:0}}
+.g-needt{font-size:11px;fill:var(--seal);font-weight:600}
+.g-seal{stroke-width:1.5}
+.g-seal.wait{fill:var(--page);stroke:var(--seal)}
+.g-seal.hit{fill:var(--seal);stroke:var(--seal)}
+.g-seal.miss{fill:var(--ink);stroke:var(--ink)}
+.g-seal.gray{fill:#a3a39b;stroke:#a3a39b}
+.g-seal.fresh{animation:seal .55s cubic-bezier(.2,.9,.3,1.3);transform-box:fill-box;transform-origin:center}
+@keyframes seal{from{transform:scale(2.6);opacity:0}to{transform:scale(1);opacity:1}}
+.g-sealt{font-size:9.5px;fill:var(--muted)}
+.g-flow{fill:none;stroke:var(--warn);stroke-width:2;stroke-dasharray:2 5;opacity:.8}
+.g-dot{fill:var(--warn)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;padding:4px 14px 8px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:18px;height:0;border-top:2px solid var(--ink);vertical-align:middle;margin-right:4px}
+.legend i.hang{border-top:3px solid var(--warn)}
+.legend i.late{border-top:3px solid var(--seal)}
+.legend i.done{border-top-color:#b9b9b1}
+.legend i.lease{border-top:2px dotted var(--agent)}
+.legend i.pend{border-top-style:dashed}
+
+/* 五问 */
+.qboard{margin-top:14px;background:var(--page);border:1px solid #d9d9d0}
+.qb-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 14px 6px;border-bottom:1px solid var(--rule-strong)}
+.qb-h b{font-family:var(--song);font-size:16px;font-weight:600}
+.qb-h span{font-size:12.5px;color:var(--muted)}
+.qb{width:100%;border-collapse:collapse;table-layout:fixed}
+.qb th{font-size:12px;color:var(--muted);font-weight:500;text-align:left;padding:6px 10px 4px;border-bottom:1px solid var(--rule)}
+.qb td{padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top;font-size:13.5px;line-height:1.5}
+.qb tr:last-child td{border-bottom:0}
+.qb .qq{font-family:var(--song);font-size:15px}
+.qb .qc{display:block;font-family:var(--sans);font-size:11.5px;color:var(--rule-strong)}
+.qb td.old{color:#4d4d48;background:#f6f6f2}
+.qb td.new{font-family:var(--song);font-size:14.5px}
+.qb td.fresh{animation:ink .7s ease-out}
+.grade{display:inline-block;margin-top:3px;font-size:11.5px;padding:0 6px;border-radius:2px;white-space:nowrap}
+.gr-ok{color:#5e5e58;border:1px solid #cfcfc8}
+.gr-none{color:#5e5e58;background:#e3e3dd}
+.gr-lag,.gr-off{color:#7a4f0c;background:#f6e3bd}
+.gr-wrong{color:var(--page);background:var(--seal)}
+td.old.g-wrong{background:#fbeceb}
+.hist{display:flex;flex-wrap:wrap;gap:2px;align-content:flex-start}
+.hc{width:11px;height:11px;border:1px solid transparent}
+.hc.ok{background:#dcdcd4}
+.hc.none{background:#a9a9a1}
+.hc.lag,.hc.off{background:#e3b25a}
+.hc.wrong{background:var(--seal)}
+.hc.na{border-color:#dcdcd4}
+.hc.cur{outline:1.5px solid var(--ink);outline-offset:1px}
+
+/* 结算 */
+.final{max-width:1400px;margin:22px auto 0;padding:0 28px}
+.final:empty{display:none}
+.fin{background:var(--page);border:1px solid var(--ink);padding:18px 22px 22px}
+.fin h2{font-family:var(--song);font-weight:600;font-size:22px;margin:0 0 4px}
+.fin .lead{font-family:var(--song);font-size:16px;color:#3a3a36;margin:0 0 14px;max-width:52em}
+.fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 28px}
+.fin-block h3{font-family:var(--song);font-size:16px;font-weight:600;margin:6px 0 2px}
+.fin-block .cap{font-size:12.5px;color:var(--muted);margin:0 0 8px}
+.fin-wide{grid-column:1/-1}
+.rib{display:grid;grid-template-columns:200px 1fr 150px;gap:6px 12px;align-items:center;font-size:13px}
+.rib .bar{position:relative;height:14px;background:#dcdcd4}
+.rib .bar i{position:absolute;top:0;bottom:0}
+.rib .bar i.none{background:#a9a9a1}.rib .bar i.lag,.rib .bar i.off{background:#e3b25a}.rib .bar i.wrong{background:var(--seal)}
+.rib .axis{grid-column:2;display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+.rib .sum{font-size:12px;color:#4d4d48}
+.lagt{width:100%;border-collapse:collapse;font-size:13px}
+.lagt td,.lagt th{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:middle}
+.lagt th{font-weight:500;color:var(--muted);font-size:12px}
+.lagt td.w{width:42%}
+.lbar{position:relative;height:12px}
+.lbar i{position:absolute;left:0;top:0;bottom:0;background:#6d6d66}
+.lbar i.never{background:repeating-linear-gradient(45deg,var(--seal) 0 4px,#f1c9c5 4px 8px);right:0}
+.lticks{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.tbar{display:flex;height:22px;border:1px solid var(--ink);margin:3px 0 2px}
+.tbar i{display:block;height:100%;border-right:1px solid var(--page);font-style:normal;font-size:11px;color:var(--page);white-space:nowrap;overflow:hidden;padding-left:4px;line-height:20px}
+.tl-row{display:grid;grid-template-columns:70px 1fr 90px;gap:10px;align-items:center;font-size:13px}
+.tl-row .v{font-family:var(--song);text-align:right}
+.seg-scr{background:#8c8c85}.seg-ent{background:#6d6d66}.seg-app{background:#4d4d48}.seg-out{background:#b0a07a}.seg-jud{background:var(--seal)}.seg-sig{background:var(--agent)}
+.keys{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:11.5px;color:var(--muted);margin-top:4px}
+.keys i{display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px}
+.fin .settle{margin:0;border:0;padding:0;background:none}
+.fin .settle .h{display:none}
+.coda{margin:18px 0 0;padding-top:14px;border-top:1px solid var(--rule)}
+.coda p{font-family:var(--song);font-size:17px;line-height:1.7;margin:0 0 6px;max-width:48em}
+
+/* 账簿原文 */
+.ledger{max-width:1400px;margin:22px auto 0;padding:0 28px 30px}
+.ledger-toggle{width:100%;text-align:left;border:1px solid var(--ink);background:var(--page);padding:10px 14px;font-family:var(--song);font-size:15px}
+.ledger-toggle[aria-expanded="true"]{background:var(--ink);color:var(--page)}
+.ledger-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0 10px}
+.ledger-head p{margin:0;font-size:13px;color:var(--muted)}
+.ledger .book{padding:0;max-width:none}
+.ledger #stream{max-height:72vh;overflow:auto}
+.ledger .page-right{max-height:80vh}
+
+@media (max-width:1100px){
+  .main{grid-template-columns:1fr}
+  .scene-card{position:static;max-height:none}
+  .fin-grid{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .hero{grid-template-columns:1fr;padding:16px 14px 4px}
+  .hero .sub{grid-column:1}
+  .hero .thesis{font-size:18px}
+  .tl,.main,.final,.ledger{padding-left:14px;padding-right:14px}
+  .panes{grid-template-columns:1fr}
+  .qb col.hcol,.qb th.hcol,.qb td.hcol{display:none}
+  .rib{grid-template-columns:1fr}
+  .rib .axis{grid-column:1}
+}
+@media (prefers-reduced-motion:reduce){
+  .g-edge.draw,.g-edge.pulse,.g-need,.g-seal.fresh,.g-lease.lit,.chip.fresh,.qb td.fresh,.decide.fresh{animation:none}
+  .g-edge.draw{stroke-dashoffset:0}
+}
+
 </style>
 </head>
 <body>
-<header class="masthead">
-  <div class="title-row">
-    <h1>恒测加急单</h1>
-    <div class="modeswitch" id="modeswitch"><button data-mode="new" class="on">新账</button><button data-mode="old">旧 ERP</button></div>
-  </div>
-  <p class="lede" id="lede"></p>
-  <nav class="concepts" id="concepts"></nav>
+<header class="hero">
+  <h1>恒测加急单</h1>
+  <p class="thesis">一个系统是什么，取决于它能回答什么问题，以及什么时候能回答。</p>
+  <p class="sub">同一个世界，两台相机。左边是旧 ERP 拍到的，右边是新账拍到的。一家做压力传感器的公司接到一张提前二十天的订单，你替老周、老陈、小林和小赵做决定，下面五个问题会在每一步同时去问两个系统。</p>
 </header>
-<div class="rail" id="rail"><div class="rail-in"></div></div>
-
-<main class="book">
-  <section class="page page-left" id="leftpage">
-    <div class="page-head"><span id="lefthead">一张图，企业的事件流</span><span class="clock" id="clock"></span></div>
-    <div id="stream"></div>
+<nav class="tl" id="tl" aria-label="时间轴"><div class="tl-in"></div></nav>
+<div class="main">
+  <aside class="scene-card" id="scene" aria-live="polite"></aside>
+  <section class="stage">
+    <div class="viewing" id="viewing"></div>
+    <div class="panes">
+      <figure class="pane pane-old">
+        <figcaption><b>旧 ERP 看见的</b><span>被录进表单的单据。系统外的事，它看不见</span></figcaption>
+        <div class="erp" id="erp"></div>
+        <div class="now" id="now-old"></div>
+      </figure>
+      <figure class="pane pane-new">
+        <figcaption><b>新账看见的</b><span>一张图：谁欠谁，谁在判断，agent 回程到谁</span></figcaption>
+        <svg id="graph" viewBox="0 0 520 340" role="img" aria-label="责任图"></svg>
+        <div class="legend"><span><i></i>承诺</span><span><i class="pend"></i>待签收</span><span><i class="hang"></i>悬空</span><span><i class="late"></i>逾期</span><span><i class="done"></i>核销</span><span><i class="lease"></i>租约，agent 回程到人</span></div>
+        <div class="now" id="now-new"></div>
+      </figure>
+    </div>
+    <div class="qboard" id="qboard"></div>
   </section>
-  <section class="page page-right">
-    <div class="tabs" id="tabs"></div>
-    <div class="tab-def" id="tabdef"></div>
-    <div id="proj"></div>
-  </section>
-</main>
-
+</div>
+<section class="final" id="final"></section>
+<section class="ledger">
+  <button class="ledger-toggle" id="ledgerToggle" aria-expanded="false">账簿原文：逐条事件、五本账的明细、旧 ERP 的每张单据</button>
+  <div id="ledgerBody" hidden>
+    <div class="ledger-head"><p>上面的每一个格子，都是从这里的事件流算出来的。</p><div class="modeswitch" id="modeswitch"><button data-mode="new" class="on">新账</button><button data-mode="old">旧 ERP</button></div></div>
+    <div class="book" id="book">
+      <section class="page page-left" id="leftpage">
+        <div class="page-head"><span id="lefthead">一张图，企业的事件流</span><span class="clock" id="clock"></span></div>
+        <div id="stream"></div>
+      </section>
+      <section class="page page-right">
+        <div class="tabs" id="tabs"></div>
+        <div class="tab-def" id="tabdef"></div>
+        <div id="proj"></div>
+      </section>
+    </div>
+  </div>
+</section>
 <footer class="controls"><div class="inner">
   <button id="reset">重来</button>
   <div class="status" id="status"></div>
+  <button id="play">自动播放</button>
   <button id="ff">快进到下一个判断</button>
   <button id="next" class="primary">下一步</button>
 </div></footer>
-
 <script>
+
 /* ---------- 基础 ---------- */
 const F=n=>(n<0?'−':'')+Math.abs(n).toLocaleString('zh-CN');
 const H=(name,role)=>({name,role,kind:'human'});
@@ -559,12 +812,13 @@ const SCENES=[
   }}},
 ];
 
+
 /* ---------- 状态与推进 ---------- */
-let state;
+let state,timer=null;
 function init(){
-  _id=0;
-  state={played:[],events:[],decisions:{},pending:null,cursor:0,sel:null,mode:'new',tab:'need',oldTab:'sales',follow:true,fresh:new Set(),changed:new Set(),done:false};
-  playScene(SCENES[0]);applyFocus(SCENES[0].focus,SCENES[0].events?state.events:[]);
+  _id=0;stopPlay();
+  state={played:[],events:[],decisions:{},pending:null,cursor:0,sel:null,mode:'new',tab:'need',oldTab:'sales',follow:true,fresh:new Set(),changed:new Set(),done:false,view:null};
+  const evs=playScene(SCENES[0]);applyFocus(SCENES[0].focus,evs);
   render();
 }
 function tabsOf(e){const s=[];if(e.type==='need'||e.type==='need_update')s.push('need');if(['pledge','pledge_update','receipt'].includes(e.type))s.push('pledge');if(e.type==='judgment'||e.type==='judgment_update')s.push('judg');if(e.money)s.push('money');if(e.actor.kind==='agent'||e.type==='handoff'||e.type==='return')s.push('law');return s;}
@@ -587,32 +841,44 @@ function playScene(sc){
 }
 function nextIndex(){let i=state.cursor+1;while(i<SCENES.length&&SCENES[i].when&&!SCENES[i].when(state.decisions))i++;return i;}
 function advance(opts={}){
+  if(state.view!=null){state.view=null;if(!opts.silent){render();return true;}}
   if(state.pending||state.done)return false;
   const i=nextIndex();
-  if(i>=SCENES.length){state.done=true;state.fresh=new Set();state.changed=new Set();if(!opts.silent){render();scrollToLast();}return false;}
+  if(i>=SCENES.length){state.done=true;state.fresh=new Set();state.changed=new Set();stopPlay();if(!opts.silent){render();revealFinal();}return false;}
   state.cursor=i;const evs=playScene(SCENES[i]);applyFocus(SCENES[i].focus,evs);
-  if(!opts.silent){render();scrollToLast();}
+  if(state.pending)stopPlay();
+  if(!opts.silent){render();bookScroll();}
   return true;
 }
 function resolve(key){
-  const sc=state.pending;if(!sc)return;
+  const sc=state.pending;if(!sc||state.view!=null)return;
   const evs=sc.prompt.resolve(key,state.decisions);
   state.fresh=new Set(evs.map(e=>e.id));
   state.events.push(...evs);
   state.played[state.played.length-1].resolved=evs;
   state.pending=null;markChanged(evs);applyFocus(sc.prompt.focus,evs);
-  render();scrollToLast();
+  render();bookScroll();
 }
 function fastForward(){
-  if(state.pending||state.done)return;
+  stopPlay();state.view=null;
+  if(state.pending||state.done){render();return;}
   const start=state.events.length;
   while(!state.pending&&!state.done){if(!advance({silent:true}))break;}
   const evs=state.events.slice(start);
   state.fresh=new Set(evs.map(e=>e.id));markChanged(evs);
-  render();scrollToLast();
+  render();bookScroll();if(state.done)revealFinal();
 }
-function scrollToLast(){const el=document.getElementById('stream');const last=el.lastElementChild;if(last)last.scrollIntoView({block:'nearest',behavior:'smooth'});}
+function startPlay(){
+  if(timer||state.done)return;
+  state.view=null;
+  if(state.pending){render();focusDecision();return;}
+  timer=setInterval(()=>{if(state.pending||state.done){stopPlay();render();if(state.pending)focusDecision();return;}advance();},2600);
+  advance();renderControls();
+}
+function stopPlay(){if(timer){clearInterval(timer);timer=null;}}
+function bookScroll(){const el=document.getElementById('stream');if(el&&!$('#ledgerBody').hidden)el.scrollTop=el.scrollHeight;}
 function clockNum(){return dnum(SCENES[state.cursor].t);}
+function viewAt(k){stopPlay();state.view=(k>=state.played.length-1)?null:k;render();}
 
 /* ---------- 新账投影：一切从 events 重算 ---------- */
 function build(events){
@@ -727,6 +993,68 @@ function buildOld(events,d,clock){
   return {recs,stats,closed,vouchers,runs,...P};
 }
 
+
+/* ---------- 此刻：同一个前缀，两台相机 ---------- */
+const tmin=t=>{const m=t.match(/^(\d+)\/(\d+)(?:\s+(\d+):(\d+))?/);return m?new Date(2026,+m[1]-1,+m[2],m[3]?+m[3]:0,m[4]?+m[4]:0).getTime()/60000:0;};
+const dnumT=t=>dnum(t);
+function prefixOf(k){return state.played.slice(0,k+1).flatMap(b=>[...b.events,...b.resolved]);}
+function ctx(){
+  const live=state.view==null;
+  const k=live?state.played.length-1:state.view;
+  const blk=state.played[k];const evs=prefixOf(k);
+  const own=[...blk.events,...blk.resolved];
+  const fresh=live?state.fresh:new Set(own.map(e=>e.id));
+  const day=Math.max(dnum(blk.scene.t),...own.map(e=>dnum(e.t)),0);
+  return {live,k,blk,sc:blk.scene,evs,fresh,day:live&&state.done?9999:day};
+}
+function pendingHandoff(evs){let p=null;for(const e of evs)if(e.type==='handoff'){if(e.pending)p=e;else if(!e.declined&&p&&e.to===p.to)p=null;}return p;}
+const shortWhen=w=>{const m=String(w).match(/(\d+) 月 (\d+) 日/);return m?`${m[1]}/${m[2]}`:w;};
+const shortWhat=w=>String(w).includes('，')?'分两批':((String(w).match(/[\d,]+ (台|颗)/)||[w])[0]);
+const QUESTIONS=[
+  {c:'承诺账',q:'对客户的承诺，现在稳吗？'},
+  {c:'恒等式',q:'出了事，此刻找谁？'},
+  {c:'钱账',q:'这张单现在赚多少？'},
+  {c:'判断账',q:'老周九月那个决定，对吗？'},
+  {c:'计划对象',q:'现在有什么在等人拍板？'},
+];
+function answers(evs,d,day){
+  const P=build(evs),O=buildOld(evs,d,day);
+  const out=[];
+  /* 一：承诺 */
+  const cs=[['P0','A'],['PB','B']].filter(([id])=>P.pledges.has(id)).map(([id,c])=>({c,p:P.pledges.get(id)}));
+  const lastNote=p=>p.hist.length?p.hist[p.hist.length-1].note:'';
+  const nw=p=>({'立账':`稳，${p.when}交`,'已改签':`已改签，${p.when}`,'待签收':'改期发出，对方还没签收','悬空':`悬空：${lastNote(p)}`,'逾期':`逾期：${lastNote(p)}`,'已核销':'三门过完，核销'}[p.status]||p.status);
+  const ship=p=>p.gates.clear?'已发货':p.gates.done==='half'?'部分发货':'未发货';
+  let g1='ok',n1='';
+  if(cs.some(x=>['悬空','待签收'].includes(x.p.status))){g1='wrong';n1='字段看起来一切正常';}
+  else if(cs.some(x=>x.p.status==='逾期')){g1='lag';n1='不报警，要有人去跑逾期报表';}
+  out.push({nw:cs.map(x=>`${x.c}：${nw(x.p)}`).join('；')||'还没有承诺',old:cs.map(x=>`${x.c}：交期 ${x.p.when}，${ship(x.p)}`).join('；')||'—',g:cs.length?g1:'na',why:n1});
+  /* 二：找谁 */
+  const holder=P.holders['采购 agent']||'小林';const ph=pendingHandoff(evs);
+  const hasP1=P.pledges.has('P1');
+  const signers=[...new Set(O.recs.flatMap(r=>r.approvers||[]))];
+  let g2='none',n2=signers.length?'有签字，没有责任人':'只有录单人';
+  const p1Open=hasP1&&P.pledges.get('P1').status!=='已核销';
+  if(p1Open&&holder!=='小林'){g2='wrong';n2='经办人在休假，系统不知道';}
+  out.push({nw:`客户单：老周${hasP1?(p1Open?`；芯片：${holder}${ph?`，移交中，等${ph.to}签收`:holder!=='小林'?'，接手自小林':''}`:`；芯片：已核销，归档在${holder}名下`):''}`,old:(signers.length?`签过字的 ${signers.length} 个人：${signers.join('、')}`:'订单上只有录单人')+(hasP1?'；采购订单经办：小林':''),g:g2,why:n2});
+  /* 三：钱 */
+  const extra=P.money.some(m=>!['M0','M1'].includes(m.id));
+  out.push({nw:`毛利率 ${pctOf(P.money)}${extra?'，标准 22.0%':''}`,old:O.closed?`毛利率 ${pctOf(O.vouchers)}，10 月 31 日月结才知道`:'月结才知道',g:O.closed?'ok':'none',why:O.closed?'':'这一刻答不了'});
+  /* 四：判断 */
+  const J1=P.judg.get('J1');
+  const jt=j=>j.status==='待回看'?`待回看，${j.review}回来对账`:`${j.status}：${j.result||''}`;
+  out.push({nw:J1?jt(J1)+(P.judg.size>1?`。账上共 ${P.judg.size} 条判断`:''):'还没有决定',old:J1?'没有记录这个决定':'—',g:J1?'none':'na',why:J1?'决定在群聊里，理由在人脑里':''});
+  /* 五：等谁拍板 */
+  const pend=[...P.needs.values()].filter(n=>['待判','等 J1'].includes(n.status));
+  const runs=O.runs.filter(r=>day>=r.day);const lastRun=runs[runs.length-1];
+  let o5='—',g5='na',n5='';
+  if(pend.length){if(lastRun){o5=`MRP：${lastRun.result}`;g5='off';n5='它只算物料，不排判断';}else{o5='要等夜里 MRP 运算';g5='none';n5='而且它只算物料';}}
+  else if(lastRun){o5=`MRP：${lastRun.result}`;g5='ok';}
+  out.push({nw:pend.length?pend.map(n=>`${n.id} ${n.who}${n.status==='等 J1'?'，等 J1 定了再判':'，待判'}`).join('；'):'没有',old:o5,g:g5,why:n5});
+  return out;
+}
+const GRADE={ok:'相符',none:'答不了',lag:'滞后',off:'答非所问',wrong:'与事实不符',na:''};
+
 /* ---------- 渲染 ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -734,16 +1062,6 @@ function dayOf(t){const m=t.match(/^(\d+)\/(\d+)/);return m?`${m[1]} 月 ${m[2]}
 function hm(t){const m=t.match(/\d+:\d+$/);return m?m[0]:'';}
 const oldText=sc=>typeof sc.old==='function'?sc.old(state.decisions):(sc.old||'');
 
-function render(){
-  document.body.classList.toggle('mode-old',state.mode==='old');
-  const P=build(state.events);const O=state.mode==='old'?buildOld(state.events,state.decisions,clockNum()):null;
-  $('#lede').textContent=LEDE[state.mode];
-  $('#lefthead').textContent=state.mode==='old'?'单据流，旧 ERP 看得见的和看不见的':'一张图，企业的事件流';
-  $('#modeswitch').querySelectorAll('button').forEach(b=>{b.classList.toggle('on',b.dataset.mode===state.mode);b.onclick=()=>switchMode(b.dataset.mode);});
-  renderConcepts();renderRail();
-  if(state.mode==='old'){renderOldStream(O);renderOldTabs(O);renderOldProj(O);}else{renderStream(P);renderTabs(P);renderProj(P);}
-  renderControls();
-}
 function anchorScene(){const blocks=[...document.querySelectorAll('.scene[id]')];const hit=blocks.find(b=>b.getBoundingClientRect().bottom>80);return hit?hit.id:null;}
 function switchMode(m,sceneId){
   if(m===state.mode&&!sceneId)return;
@@ -752,19 +1070,6 @@ function switchMode(m,sceneId){
   const last=state.played[state.played.length-1];applyFocus(last.scene.prompt&&last.resolved.length?last.scene.prompt.focus:last.scene.focus,[...last.events,...last.resolved]);
   render();
   if(anchor){const el=document.getElementById(anchor);if(el)el.scrollIntoView({block:'start'});}
-}
-function renderConcepts(){
-  const keys=['graph',...TABS];const old=state.mode==='old';
-  $('#concepts').innerHTML=keys.map(k=>{const on=old?(k!=='graph'&&OLD[k].tab===state.oldTab):(k!=='graph'&&state.tab===k);return `<button data-k="${k}" class="${on?'on':''}">${DEFS[k][0]}${old?`<span class="was">${OLD[k].title}</span>`:''}</button>`;}).join('')+`<span class="sep">${old?'新账的每个概念，在旧 ERP 里对应着什么':'点一个概念，右页翻到那一账'}</span>`;
-  $('#concepts').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(k==='graph'){const lp=$('#leftpage');lp.classList.remove('flash');void lp.offsetWidth;lp.classList.add('flash');lp.scrollIntoView({behavior:'smooth',block:'start'});return;}state.follow=false;if(old)state.oldTab=OLD[k].tab;else state.tab=k;state.fresh=new Set();render();if(window.innerWidth<=980)$('.page-right').scrollIntoView({behavior:'smooth',block:'start'});});
-}
-function renderRail(){
-  const d=state.decisions;let html='',lastDay='';
-  SCENES.forEach((sc,i)=>{const played=state.played.some(b=>b.scene===sc);const applicable=!sc.when||sc.when(d);if(!played&&!applicable)return;
-    const day=sc.t.replace(/\s.*$/,'');const lbl=day!==lastDay?day:'';lastDay=day;
-    html+=`<div class="tick ${played?'played':''} ${i===state.cursor?'current':''} ${sc.prompt?'judg':''}" data-sc="${sc.id}" data-played="${played}"><span class="lbl">${lbl}</span><span class="m"></span><span class="ttl">${esc(sc.title)}${sc.prompt?'，要你判断':''}</span></div>`;});
-  $('#rail .rail-in').innerHTML=html;
-  $('#rail').querySelectorAll('.tick[data-played="true"]').forEach(t=>t.onclick=()=>{const el=document.getElementById('sc-'+t.dataset.sc);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});
 }
 function tagOf(e){
   const map={msg:['消息',''],fact:['事实',''],need:['判断需求',''],need_update:['判断需求',''],judgment:['判断','judg'],pledge:['承诺立账','pledge'],pledge_update:['承诺变动','pledge'],receipt:['回执','pledge'],return:['回程','ret'],handoff:['移交','ret'],judgment_update:['回看','judg']};
@@ -810,9 +1115,9 @@ function renderStream(P){
           <div class="text">${esc(e.text)}</div>${metaOf(e)?`<div class="meta">${metaOf(e)}</div>`:''}
         </div></article>`;
     }
-    if(state.pending===sc)html+=promptBlock(sc);
+    if(state.pending===sc)html+=bookPromptNote(sc);
   }
-  if(state.done)html+=renderSettle();
+  
   $('#stream').innerHTML=html;bindStream();
 }
 function renderOldStream(O){
@@ -833,9 +1138,9 @@ function renderOldStream(O){
           </div></article>`;}
       }
     }
-    if(state.pending===sc)html+=promptBlock(sc);
+    if(state.pending===sc)html+=bookPromptNote(sc);
   }
-  if(state.done)html+=renderSettle();
+  
   $('#stream').innerHTML=html;bindStream();
 }
 function renderSettle(){
@@ -858,7 +1163,7 @@ function renderSettle(){
     ${row('发生了但不在系统里的事','0 件',O.stats.ghosts+' 件')}
     ${row('对 10 月 10 日负责的人','老周，采购租约在'+holder,'无')}
     <tr class="total"><td>本单毛利率</td><td class="num">${pctOf(P.money)}</td><td class="num">${oldPct}，月结才知道</td></tr></table>
-    <p class="note">右边一列不是估算，是把左页同一条事件流按"只看得见单据"的规则推出来的。用顶上的开关来回切，或者点"重来"换一条路走。</p></div>`;
+    <p class="note">旧 ERP 一列不是估算，是把同一条事件流按"只看得见单据"的规则推出来的。</p></div>`;
 }
 function renderTabs(P){
   const cnt={need:[...P.needs.values()].filter(n=>n.status==='待判').length,pledge:[...P.pledges.values()].filter(p=>p.status!=='已核销').length,judg:[...P.judg.values()].filter(j=>j.status==='待回看').length,money:P.money.length,law:P.agents.length};
@@ -981,22 +1286,285 @@ function bindProj(){
   $('#proj').querySelectorAll('tr[data-ev]').forEach(tr=>tr.onclick=()=>jumpTo(tr.dataset.ev));
   $('#proj').querySelectorAll('.ev-link').forEach(a=>a.onclick=ev=>{ev.stopPropagation();jumpTo(a.dataset.ev);});
 }
-function jumpTo(id){state.sel=id;state.fresh=new Set();render();const el=document.querySelector(`[data-id="${id}"]`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});}
-function renderControls(){
-  const n=$('#next'),ff=$('#ff');n.classList.remove('go');
-  if(state.done){n.disabled=true;n.textContent='已到 12 月 20 日';ff.disabled=true;}
-  else if(state.pending){n.disabled=false;n.classList.add('go');n.textContent=`去做${state.pending.prompt.who}的${state.pending.prompt.kind==='judgment'?'判断':'动作'}`;ff.disabled=true;}
-  else{n.disabled=false;const i=nextIndex();n.textContent=i<SCENES.length?`下一步，${SCENES[i].t.replace(/^(\d+)\/(\d+)\s*/,(m,a,b)=>`${a} 月 ${b} 日 `)}`:'结算';ff.disabled=false;}
-  const d=state.decisions;const path=d.J1?({A:'接，不挤 B',B:'接，挤 B',C:'不接'}[d.J1]):'还没做第一个判断';
-  const O=state.mode==='old'?buildOld(state.events,d,clockNum()):null;
-  $('#status').innerHTML=state.mode==='old'
-    ?`路线：${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}。<span class="hint">到此刻旧 ERP：屏幕 <b>${O.stats.screens}</b>，录入 <b>${O.stats.entries}</b>，审批 <b>${O.stats.approvals}</b> 人次，不在系统里的事 <b>${O.stats.ghosts}</b> 件。</span>`
-    :`第 <b>${state.played.length-1}</b> 步。路线：${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}。<span class="hint">左页点任何一件事，右页对应的账会亮起来。方向键右是下一步。</span>`;
+
+/* ---------- 渲染：舞台 ---------- */
+function render(){
+  const C=ctx();
+  renderTL(C);renderScene(C);renderERP(C);renderGraph(C);renderQB(C);renderControls();renderBook();
+  $('#now-old').innerHTML=`<i>此刻</i>${esc(oldText(C.sc)||'这一步，旧 ERP 里没有新的动静。')}`;
+  $('#now-new').innerHTML=`<i>此刻</i>${esc(C.sc.narrative||narrFallback(C))}`;
+  const v=$('#viewing');v.classList.toggle('on',!C.live);
+  v.innerHTML=C.live?'':`<span>你在回看 ${dayOf(C.sc.t)} 的样子。两边都只算到那一刻为止的事件。</span><button id="backnow">回到此刻</button>`;
+  if(!C.live)$('#backnow').onclick=()=>viewAt(99);
 }
-$('#next').onclick=()=>{if(state.pending){const p=document.querySelector('.prompt');if(p){p.scrollIntoView({behavior:'smooth',block:'center'});const b=p.querySelector('.options button');if(b)b.focus({preventScroll:true});}return;}advance();};
-$('#ff').onclick=fastForward;
+function narrFallback(C){const e=[...C.blk.events,...C.blk.resolved].filter(x=>!x.silent).pop();return e?e.text:'';}
+function renderTL(C){
+  const d=state.decisions;let html='',lastDay='';
+  SCENES.forEach(sc=>{
+    const pi=state.played.findIndex(b=>b.scene===sc);const played=pi>=0;
+    if(!played&&sc.when&&!sc.when(d))return;
+    const day=sc.t.replace(/\s.*$/,'');const lbl=day!==lastDay?day:'';lastDay=day;
+    const here=played&&pi===state.played.length-1&&C.live,viewing=played&&!C.live&&pi===C.k;
+    html+=`<div class="tl-t ${played?'played':''} ${here?'here':''} ${viewing?'viewing':''} ${sc.prompt?'judg':''}" ${played?`data-k="${pi}" tabindex="0" role="button"`:''}><span class="d">${lbl}</span><span class="m"></span><span class="tip">${esc(sc.title)}${sc.prompt?'，要你拍板':''}${played?'':'，还没到'}</span></div>`;
+  });
+  $('#tl .tl-in').innerHTML=html;
+  $('#tl').querySelectorAll('.tl-t[data-k]').forEach(t=>{t.onclick=()=>viewAt(+t.dataset.k);t.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();t.click();}};});
+}
+function renderScene(C){
+  const sc=C.sc,d=state.decisions;
+  const t=[...C.blk.events,...C.blk.resolved].map(e=>e.t).concat(sc.t)[0];
+  let html=`<div class="sc-date">${dayOf(sc.t)}${hm(t)?' '+hm(t):''}</div><h2 class="sc-title">${esc(sc.title)}</h2>`;
+  if(C.live&&state.pending===sc){
+    const p=sc.prompt;
+    html+=`<section class="decide fresh" id="decide"><div class="dh"><b>${p.kind==='judgment'?'取景框':'待受领'}，等${p.who}${p.kind==='judgment'?'拍板':'签收'}</b><span>${esc(p.role)}${p.nid?'，'+p.nid:''}</span></div>
+      <p class="q">${esc(p.q)}</p><div class="eh">新账已经把证据取好景</div><ul>${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+      <p class="oldway">在旧 ERP 里，这一步发生在群聊或电话里。证据要${p.who}自己翻，选完之后系统只会看到结果单据。</p>
+      <div class="opts">${p.options.map(o=>`<button data-key="${o.key}"><b>${esc(o.label)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div></section>`;
+  }else if(!C.live){
+    html+=`<div class="viewnote">这是回看。时间轴上点别的日子继续看，或者<button id="backnow2">回到此刻</button>。</div>`;
+  }else if(state.done){
+    html+=`<p class="sc-narr" style="margin:0">走完了。往下看结算：五个问题旧 ERP 答了多久答不上，同一件事两边各自什么时候知道，人的时间花在哪。</p>`;
+  }
+  const path=d.J1?({A:'接，不挤 B',B:'接，挤 B',C:'不接'}[d.J1]):'还没做第一个判断';
+  html+=`<div class="sc-path">路线：<b>${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}</b>。时间轴上的红圈是要你拍板的地方，灰点可以点回去看。</div>`;
+  $('#scene').innerHTML=html;
+  $('#scene').querySelectorAll('.opts button').forEach(b=>b.onclick=()=>resolve(b.dataset.key));
+  const bn=$('#backnow2');if(bn)bn.onclick=()=>viewAt(99);
+}
+function focusDecision(){const b=document.querySelector('#decide .opts button');if(b){$('#scene').scrollIntoView({behavior:'smooth',block:'nearest'});b.focus({preventScroll:true});}}
+
+/* 旧 ERP：四个模块，加一块系统外 */
+function renderERP(C){
+  const d=state.decisions,O=buildOld(C.evs,d,C.day),P=build(C.evs);
+  const docs=O.recs.filter(r=>r.kind!=='ghost');
+  const byM=m=>docs.filter(r=>(r.module===m)||(m==='mrp'&&r.module==='flow'&&/采购/.test(r.title))||(m==='prod'&&r.module==='flow'&&/加班|外协/.test(r.title))||(m==='fin'&&r.module==='flow'&&/违约金/.test(r.title)));
+  const li=r=>`<li class="${C.fresh.has(r.ev.id)?'fresh':''} ${r.kind==='lag'&&!r.visible?'wait':''}" title="${esc(r.detail||'')}">${esc(r.title)}${r.kind==='lag'&&!r.visible?`，要等 ${esc(r.lagLabel||'')}`:''}</li>`;
+  const tail=(arr,n)=>arr.slice(-n).map(li).join('');
+  const ship=p=>p.gates.clear?'已发货':p.gates.done==='half'?'部分发货':'未发货';
+  const freshP=id=>[...C.fresh].some(fid=>{const e=C.evs.find(x=>x.id===fid);return e&&e.refs&&e.refs.includes(id);});
+  const fld=(label,val,id,note)=>`<div class="fld ${id&&freshP(id)?'flash':''}"><span>${label} <b>${esc(val)}</b></span>${note?`<span class="calm">${note}</span>`:''}</div>`;
+  const hangs=new Set([...P.pledges.values()].filter(p=>['悬空','待签收'].includes(p.status)).map(p=>p.id));
+  let sales='';
+  if(P.pledges.has('P0')){const p=P.pledges.get('P0');sales+=fld('A 单交期',`${shortWhen(p.when)}，${ship(p)}`,'P0',hangs.has('P0')?'无提醒':'');}
+  if(P.pledges.has('PB')){const p=P.pledges.get('PB');sales+=fld('B 单交期',`${shortWhen(p.when)}，${ship(p)}`,'PB',hangs.has('PB')?'无提醒':'');}
+  let mrp='';const runs=O.runs.filter(r=>C.day>=r.day);
+  if(P.pledges.has('P1')){const p=P.pledges.get('P1');mrp+=fld('PO 芯片',`4,500，${shortWhen(p.when)}，${p.gates.clear?'已收货':p.gates.done==='half'?'部分收货':'未收货'}`,'P1',hangs.has('P1')?'无提醒':'');}
+  if(runs.length)mrp+=fld('MRP',runs[runs.length-1].result.slice(0,14),null,'');
+  let prod='';if(P.pledges.has('P3')){const p=P.pledges.get('P3');prod+=fld('工单',`4,500，${shortWhen(p.when)}，${p.gates.clear?'完工':'下达'}`,'P3','');}
+  const fin=O.closed?fld('本月凭证',`${O.vouchers.length} 张，毛利 ${pctOf(O.vouchers)}`,null,'月结后'):`<div class="empty">月结之前，这张单的实际成本在这里是空的。</div>`;
+  const mod=(name,m,fields,extra='')=>{const ds=byM(m);return `<section class="mod"><h4>${name}<span>${ds.length} 张</span></h4>${fields}${extra}<ul class="mdocs">${tail(ds,fields?2:3)}</ul></section>`;};
+  const ghosts=O.recs.filter(r=>r.kind==='ghost');const freshG=ghosts.filter(r=>C.fresh.has(r.ev.id));
+  const shortWhy=r=>r.why.split('。')[0];
+  const approvals=O.stats.approvals;
+  $('#erp').innerHTML=`<div class="erp-sys"><span class="erp-tag">系统内</span><div class="mods">${mod('销售','sales',sales)}${mod('计划采购','mrp',mrp)}${mod('生产','prod',prod)}${mod('财务','fin','',fin)}</div>
+    <div class="erp-sign"><span>审批签字 ${approvals} 人次</span><span>对结果负责的人 <b>0</b></span></div></div>
+    <div class="erp-out"><span class="erp-tag">系统外：微信、电话、邮件、群聊、人脑</span><div class="chips">${freshG.map(r=>`<span class="chip fresh">${esc(shortWhy(r))}</span>`).join('')}${ghosts.length-freshG.length>0?`<span class="chip-n">${freshG.length?'此前还有':'累计'} ${ghosts.length-freshG.length} 件发生在系统外</span>`:freshG.length?'':'<span class="chip-n">还没有</span>'}</div></div>`;
+}
+
+/* 新账：责任图 */
+const GN={A:{x:52,y:78,label:'A 客户'},B:{x:52,y:262,label:'B 客户'},sup:{x:484,y:262,label:'供应商'},
+  zhou:{x:190,y:150,name:'老周',role:'销售总监'},chen:{x:340,y:78,name:'老陈',role:'厂长'},lin:{x:345,y:238,name:'小林',role:'采购经理'},succ:{x:262,y:300,role:'接手人'},
+  sa:{x:190,y:258,label:'销售 agent'},pa:{x:420,y:160,label:'采购 agent'}};
+const GR={A:26,B:26,sup:26,zhou:17,chen:17,lin:17,succ:17,sa:13,pa:13};
+const EDGES={P0:['zhou','A'],PB:['zhou','B'],P3:['chen','zhou'],P1:['pa','chen'],P2:['sup','pa']};
+const ECLS={'立账':'ok','已改签':'ok','待签收':'pending','悬空':'hang','逾期':'late','已核销':'done'};
+function seg(a,b){const A=GN[a],B=GN[b];const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);const ra=GR[a]+2,rb=GR[b]+7;return {x1:A.x+dx/L*ra,y1:A.y+dy/L*ra,x2:B.x-dx/L*rb,y2:B.y-dy/L*rb,mx:(A.x+B.x)/2,my:(A.y+B.y)/2,nx:-dy/L,ny:dx/L};}
+function renderGraph(C){
+  const P=build(C.evs);const fresh=C.fresh;
+  const freshEvs=C.evs.filter(e=>fresh.has(e.id));
+  const holder=P.holders['采购 agent']||'小林';const ph=pendingHandoff(C.evs);
+  const succName=holder!=='小林'?holder:(ph?ph.to:null);
+  let s=`<defs>${['ink','warn','seal','done'].map(c=>`<marker id="ar-${c}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${c==='ink'?'#1e1e1c':c==='warn'?'#b3781c':c==='seal'?'#b4322b':'#b9b9b1'}"/></marker>`).join('')}</defs>`;
+  s+=`<rect class="g-bound" x="128" y="30" width="330" height="300" rx="10"/><text class="g-blabel" x="140" y="48">恒测</text>`;
+  /* 租约线 */
+  const leaseTo={sa:'zhou',pa:holder==='小林'?'lin':'succ'};
+  const acted=n=>freshEvs.some(e=>e.actor.kind==='agent'&&e.actor.name===GN[n].label);
+  for(const a of ['sa','pa']){const g=seg(a,leaseTo[a]);s+=`<line class="g-lease ${acted(a)?'lit':''}" x1="${g.x1}" y1="${g.y1}" x2="${g.x2+(GN[leaseTo[a]].x-GN[a].x)/Math.hypot(GN[leaseTo[a]].x-GN[a].x,GN[leaseTo[a]].y-GN[a].y)*5}" y2="${g.y2+(GN[leaseTo[a]].y-GN[a].y)/Math.hypot(GN[leaseTo[a]].x-GN[a].x,GN[leaseTo[a]].y-GN[a].y)*5}"><title>${GN[a].label}的租约归${a==='sa'?'老周':holder}。它做的每件事都回程到这个人。</title></line>`;}
+  if(ph&&holder==='小林'){const g=seg('pa','succ');s+=`<line class="g-lease" style="stroke:var(--warn);opacity:.9" x1="${g.x1}" y1="${g.y1}" x2="${g.x2}" y2="${g.y2}"/><text class="g-lease-t" style="fill:var(--warn)" x="${(GN.pa.x+GN.succ.x)/2+8}" y="${(GN.pa.y+GN.succ.y)/2+14}">移交中</text>`;}
+  /* 承诺边 */
+  let i=0;
+  for(const [id,[a,b]] of Object.entries(EDGES)){
+    const p=P.pledges.get(id);if(!p)continue;
+    const cls=ECLS[p.status]||'ok';const g=seg(a,b);
+    const created=freshEvs.some(e=>e.type==='pledge'&&e.pledge.id===id);
+    const changed=!created&&freshEvs.some(e=>e.type==='pledge_update'&&e.pid===id);
+    const mk=cls==='hang'?'warn':cls==='late'?'seal':cls==='done'?'done':'ink';
+    const delay=(i++)*0.25;
+    s+=`<line class="g-edge ${cls} ${created?'draw':''} ${changed&&(cls==='hang'||cls==='late')?'pulse':''}" style="animation-delay:${delay}s" x1="${g.x1}" y1="${g.y1}" x2="${g.x2}" y2="${g.y2}" marker-end="url(#ar-${mk})"><title>${esc(p.who)} 欠 ${esc(p.to)}：${esc(p.what)}，${esc(p.when)}。${esc(p.status)}${p.hist.length?'。'+p.hist.map(h=>h.note).join('；'):''}</title></line>`;
+    const tt={PB:.62}[id]||.5;const A0=GN[a],B0=GN[b];const lx=A0.x+(B0.x-A0.x)*tt+g.nx*11,ly=A0.y+(B0.y-A0.y)*tt+g.ny*11+4;
+    s+=`<text class="g-elabel ${cls}" x="${lx}" y="${ly}">${esc(shortWhat(p.what))} ${esc(shortWhen(p.when))}${cls==='hang'?' 悬空':cls==='late'?' 逾期':cls==='done'?' 核销':cls==='pending'?' 待签收':''}</text>`;
+  }
+  /* 传导：上游一晃，客户那条跟着黄 */
+  const cascade=freshEvs.some(e=>e.type==='pledge_update'&&e.pid==='P0'&&e.patch&&e.patch.status==='悬空')&&P.pledges.has('P2');
+  if(cascade){const pts=['sup','pa','chen','zhou','A'].map(n=>`${GN[n].x},${GN[n].y}`);const dpath='M'+pts.join(' L');
+    s+=`<path class="g-flow" d="${dpath}"/><circle class="g-dot" r="6"><animateMotion dur="2.2s" repeatCount="2" path="${dpath}"/></circle>`;}
+  /* 外部方 */
+  for(const n of ['A','B','sup']){const N=GN[n];const used=Object.entries(EDGES).some(([id,[a,b]])=>(a===n||b===n)&&P.pledges.has(id));
+    s+=`<g class="g-ext" opacity="${used?1:.45}"><rect x="${N.x-32}" y="${N.y-15}" width="64" height="30" rx="3"/><text x="${N.x}" y="${N.y+1}">${N.label}</text></g>`;}
+  /* agent */
+  for(const n of ['sa','pa']){const N=GN[n];s+=`<g class="g-agent"><circle cx="${N.x}" cy="${N.y}" r="${GR[n]}"/><text x="${N.x}" y="${N.y+GR[n]+13}">${N.label}</text></g>`;}
+  /* 人 */
+  const pendNeeds=[...P.needs.values()].filter(x=>x.status==='待判');
+  const people=[['zhou','老周'],['chen','老陈'],['lin','小林']];if(succName)people.push(['succ',succName]);
+  for(const [n,name] of people){
+    const N=GN[n];const dim=n==='lin'&&(holder!=='小林'||ph);const ghostNode=n==='succ'&&holder==='小林';
+    const need=pendNeeds.filter(x=>x.who===name);
+    const js=[...P.judg.values()].filter(j=>j.who===name);
+    s+=`<g class="g-hum ${dim?'dim':''} ${ghostNode?'ghost':''}">`;
+    if(need.length)s+=`<circle class="g-need" cx="${N.x}" cy="${N.y}" r="20"/><text class="g-needt" x="${N.x-GR[n]-9}" y="${N.y+4}" text-anchor="end">待判 ${need.map(x=>x.id).join(' ')}</text>`;
+    s+=`<circle class="body" cx="${N.x}" cy="${N.y}" r="${GR[n]}"><title>${name}${need.length?'，待判 '+need.map(x=>x.id).join('、'):''}</title></circle>`;
+    const up=n==='chen';const ny=up?N.y-GR[n]-8:N.y+GR[n]+15,ry=up?N.y-GR[n]-27:N.y+GR[n]+30;
+    s+=`<text class="g-name" x="${N.x}" y="${ny}">${name}${dim?'（休假）':''}</text><text class="g-role" x="${N.x}" y="${ry}">${n==='succ'?(ghostNode?'等签收':'接手采购租约'):N.role}</text>`;
+    js.forEach((j,ix)=>{const cx=N.x+GR[n]+10+ix*15,cy=N.y-GR[n]+2;const c=j.status==='印证'?'hit':j.status==='推翻'?'miss':j.status==='未推翻'?'gray':'wait';
+      const isFresh=freshEvs.some(e=>(e.type==='judgment'&&e.j.id===j.id)||(e.type==='judgment_update'&&e.jid===j.id));
+      s+=`<circle class="g-seal ${c} ${isFresh?'fresh':''}" cx="${cx}" cy="${cy}" r="6"><title>${j.id}，${name}，${j.t}：赌${j.bet}。${j.status}${j.result?'，'+j.result:''}</title></circle><text class="g-sealt" x="${cx}" y="${cy-9}" text-anchor="middle">${j.id}</text>`;});
+    s+=`</g>`;
+  }
+  $('#graph').innerHTML=s;
+}
+
+/* 五问 */
+function renderQB(C){
+  const d=state.decisions;
+  const now=answers(C.evs,d,C.day);
+  const prevAns=C.k>0?answers(prefixOf(C.k-1),d,Math.max(dnum(state.played[C.k-1].scene.t),...[...state.played[C.k-1].events,...state.played[C.k-1].resolved].map(e=>dnum(e.t)),0)):null;
+  const hist=[];for(let k=0;k<=C.k;k++){const b=state.played[k];const day=Math.max(dnum(b.scene.t),...[...b.events,...b.resolved].map(e=>dnum(e.t)),0);hist.push({t:b.scene.t,a:answers(prefixOf(k),d,day)});}
+  const wrongNow=now.filter(a=>a.g==='wrong').length,cant=now.filter(a=>['none','off','lag'].includes(a.g)).length;
+  let html=`<div class="qb-h"><b>同一刻，问两个系统五个问题</b><span>此刻旧 ERP：答不了或答偏 ${cant} 个，答错 ${wrongNow} 个。新账每个都答得上，因为它就是按这五个问题记的账。</span></div>
+  <table class="qb"><colgroup><col style="width:23%"><col style="width:29%"><col style="width:31%"><col class="hcol" style="width:17%"></colgroup>
+  <thead><tr><th>问系统</th><th>旧 ERP 答</th><th>新账答</th><th class="hcol">旧 ERP 一路答得怎样</th></tr></thead><tbody>`;
+  now.forEach((a,i)=>{
+    const ch=prevAns&&(prevAns[i].nw!==a.nw);const cho=prevAns&&(prevAns[i].old!==a.old||prevAns[i].g!==a.g);
+    html+=`<tr><td><span class="qc">${QUESTIONS[i].c}</span><span class="qq">${QUESTIONS[i].q}</span></td>
+      <td class="old g-${a.g} ${cho?'fresh':''}">${esc(a.old)}${a.g!=='na'?`<br><span class="grade gr-${a.g}">${GRADE[a.g]}${a.why?'：'+esc(a.why):''}</span>`:''}</td>
+      <td class="new ${ch?'fresh':''}">${esc(a.nw)}</td>
+      <td class="hcol"><div class="hist">${hist.map((h,k)=>`<span class="hc ${h.a[i].g} ${k===C.k?'cur':''}" title="${dayOf(h.t)}：${GRADE[h.a[i].g]||'还没开始'}"></span>`).join('')}</div></td></tr>`;
+  });
+  html+=`</tbody></table>`;
+  $('#qboard').innerHTML=html;
+}
+
+
+/* ---------- 结算：把整条事件流按真实时间过一遍 ---------- */
+const fmtDur=m=>m<60?`${Math.round(m)} 分钟`:m<1440?`${(m/60).toFixed(1).replace(/\.0$/,'')} 小时`:`${(m/1440).toFixed(1).replace(/\.0$/,'')} 天`;
+const dnumOfMin=x=>{const dt=new Date(x*60000);return (dt.getMonth()+1)*100+dt.getDate();};
+function sortedEvents(){return state.events.map((e,i)=>({e,i})).sort((a,b)=>tmin(a.e.t)-tmin(b.e.t)||a.i-b.i).map(x=>x.e);}
+const T0=()=>tmin('8/20 10:00'),T1=()=>tmin('12/20 09:00');
+function integrate(){
+  const d=state.decisions,evs=sortedEvents(),start=T0(),end=T1();
+  const pts=[...new Set(evs.map(e=>tmin(e.t)))].filter(t=>t<end).sort((a,b)=>a-b);
+  const segs=QUESTIONS.map(()=>[]),sum=QUESTIONS.map(()=>({ok:0,none:0,lag:0,off:0,wrong:0,na:0}));
+  pts.forEach((t,ix)=>{
+    const t2=ix+1<pts.length?pts[ix+1]:end;if(t2<=t)return;
+    const a=answers(evs.filter(e=>tmin(e.t)<=t),d,dnumOfMin(t));
+    a.forEach((x,q)=>{sum[q][x.g]+=t2-t;const s=segs[q];if(s.length&&s[s.length-1].g===x.g&&s[s.length-1].to===t)s[s.length-1].to=t2;else s.push({from:t,to:t2,g:x.g});});
+  });
+  return {segs,sum,start,end};
+}
+function lagFacts(){
+  const d=state.decisions,evs=sortedEvents();const f=p=>evs.find(p);const T=e=>e?tmin(e.t):null;const rows=[];
+  const ask=f(e=>e.type==='msg'&&e.actor.name==='王工'&&/提前/.test(e.text));
+  const chg=f(e=>e.type==='pledge_update'&&e.pid==='P0'&&e.patch&&e.patch.when);
+  rows.push({k:'客户要把交期提前',w:T(ask),o:T(chg),oh:chg?'订单变更单录入':'这件事从没进系统'});
+  const sh=f(e=>e.type==='fact'&&e.actor.name==='销售 agent');
+  rows.push({k:'缺 4,500 颗芯片',w:T(sh),o:d.J1==='A'?tmin('9/16 02:00'):null,oh:d.J1==='A'?'夜里 MRP':'订单没照这个改，MRP 不会算'});
+  const nd=f(e=>e.type==='need');
+  rows.push({k:'有三件事在等人拍板',w:T(nd),o:null,oh:'ERP 不排判断'});
+  const risk=f(e=>e.type==='pledge_update'&&['P0','PB'].includes(e.pid)&&e.patch&&e.patch.status==='悬空');
+  if(risk){const after=evs.find(e=>e!==risk&&tmin(e.t)>=tmin(risk.t)&&e.pid===risk.pid&&oldOf(e,d).some(r=>r.kind!=='ghost'&&/变更|逾期/.test(r.title)));
+    const how=after?(oldOf(after,d).some(r=>/逾期/.test(r.title))?'逾期报表，如果有人去跑':'老周拍板之后录的变更单'):'对方的拒绝在邮件里';
+    rows.push({k:risk.pid==='P0'?'A 单 10 月 10 日交不齐':'B 客户不同意改期',w:T(risk),o:T(after),oh:how});}
+  const s3=f(e=>e.type==='receipt'&&e.qty===3000&&e.actor.name==='供应商 agent');
+  if(s3)rows.push({k:'芯片只到了 3,000 颗',w:T(s3),o:T(s3),oh:'收货单当场录入'});
+  const cost=f(e=>e.money&&e.money.some(m=>!['M0','M1','M5'].includes(m.id)&&m.amount<0));
+  if(cost)rows.push({k:'这张单的毛利掉下来了',w:T(cost),o:T(f(e=>e.close)),oh:'月结'});
+  const sign=f(e=>e.type==='handoff'&&!e.pending&&!e.declined);
+  if(sign)rows.push({k:`芯片这条线归了${sign.to}`,w:T(sign),o:null,oh:'交接在微信里'});
+  const rev=f(e=>e.type==='judgment_update'&&e.jid==='J1');
+  if(rev)rows.push({k:'老周九月那个决定，是对是错',w:T(rev),o:null,oh:'年底复盘靠记忆'});
+  return rows;
+}
+function humanTime(){
+  const d=state.decisions,O=buildOld(state.events,d,9999);
+  const J=state.events.filter(e=>e.type==='judgment').length;
+  const signs=state.events.filter(e=>e.type==='handoff'&&!e.pending).length;
+  const out=O.recs.filter(r=>r.kind==='ghost'&&!['judgment','judgment_update','need'].includes(r.ev.type)).length;
+  return {old:[['scr','翻屏查询',O.stats.screens*2],['ent','录入',O.stats.entries*5],['app','审批签字',O.stats.approvals*10],['out','系统外沟通',out*15],['jud','判断',J*30]],
+          nw:[['jud','判断',J*10],['sig','签收移交',signs*2]],J,signs,out,O};
+}
+function renderFinal(){
+  const C=ctx();
+  if(!(state.done&&C.live)){$('#final').innerHTML='';return;}
+  const I=integrate(),span=I.end-I.start;
+  const pos=t=>((t-I.start)/span*100).toFixed(2);
+  const ticks=[['8/20 10:00','8 月 20 日'],['9/15 09:12','9 月 15 日'],['10/10 09:00','10 月 10 日'],['10/31 18:00','10 月 31 日'],['12/20 09:00','12 月 20 日']];
+  let rib=`<div class="rib">`;
+  QUESTIONS.forEach((q,i)=>{const s=I.sum[i];const bad=s.none+s.lag+s.off;
+    rib+=`<span>${q.q}</span><span class="bar">${I.segs[i].filter(x=>!['ok','na'].includes(x.g)).map(x=>`<i class="${x.g}" style="left:${pos(x.from)}%;width:${Math.max(.35,(x.to-x.from)/span*100).toFixed(2)}%" title="${GRADE[x.g]}：${fmtDur(x.to-x.from)}"></i>`).join('')}</span>
+      <span class="sum">${bad?`答不上 ${fmtDur(bad)}`:''}${bad&&s.wrong?'；':''}${s.wrong?`<b style="color:var(--seal)">答错 ${fmtDur(s.wrong)}</b>`:''}${!bad&&!s.wrong?'一直相符':''}</span>`;});
+  rib+=`<span class="axis" style="position:relative;display:block;height:16px">${ticks.map(([t,l])=>`<span style="position:absolute;left:${pos(tmin(t))}%;transform:translateX(${t.startsWith('8/')?'0':t.startsWith('12/')?'-100%':'-50%'})">${l}</span>`).join('')}</span></div>`;
+  rib+=`<div class="keys"><span><i style="background:#dcdcd4"></i>相符</span><span><i style="background:#a9a9a1"></i>答不了</span><span><i style="background:#e3b25a"></i>滞后或答非所问</span><span><i style="background:var(--seal)"></i>与事实不符</span></div>`;
+  const L=lagFacts();const lp=l=>l<=0?0:Math.min(1,Math.max(.03,(Math.log10(l)-1)/(Math.log10(86400)-1)));
+  let lag=`<table class="lagt"><tr><th>这件事</th><th>新账</th><th>旧 ERP</th><th class="w">旧 ERP 晚了多久，对数刻度</th></tr>`;
+  L.forEach(r=>{const l=r.o==null?null:r.o-r.w;
+    lag+=`<tr><td>${r.k}</td><td>当场</td><td>${l==null?'<b style="color:var(--seal)">永不</b>':l<=0?'同时':'晚 '+fmtDur(l)}<div class="sub">${r.oh}</div></td><td class="w"><div class="lbar">${l==null?'<i class="never"></i>':l>0?`<i style="width:${(lp(l)*100).toFixed(1)}%"></i>`:''}</div></td></tr>`;});
+  lag+=`<tr><td></td><td></td><td></td><td class="w"><div class="lticks"><span>10 分钟</span><span>1 小时</span><span>1 天</span><span>1 周</span><span>2 月</span></div></td></tr></table>`;
+  const H=humanTime();const tot=a=>a.reduce((s,x)=>s+x[2],0);const max=Math.max(tot(H.old),tot(H.nw));
+  const bar=a=>`<div class="tbar" style="width:${(tot(a)/max*100).toFixed(1)}%">${a.filter(x=>x[2]>0).map(x=>`<i class="seg-${x[0]}" style="width:${(x[2]/tot(a)*100).toFixed(1)}%" title="${x[1]}：${fmtDur(x[2])}">${x[1]}</i>`).join('')}</div>`;
+  const time=`<div class="tl-row"><span>旧 ERP</span>${bar(H.old)}<span class="v">约 ${fmtDur(tot(H.old))}</span></div><div class="tl-row"><span>新账</span>${bar(H.nw)}<span class="v">约 ${fmtDur(tot(H.nw))}</span></div>
+    <p class="cap" style="margin-top:8px">估算，规则摆在这里，可以不同意：翻一屏 2 分钟，录一张单 5 分钟，签一次字 10 分钟，一件系统外的沟通 15 分钟，一个判断自己翻证据 30 分钟、证据已取景 10 分钟，一次签收 2 分钟。判断的次数两边一样多，都是 ${H.J} 次。</p>`;
+  const never=L.filter(r=>r.o==null).length;const wrongQ=I.sum.filter(s=>s.wrong>0).length;
+  $('#final').innerHTML=`<div class="fin"><h2>走完了，把两台相机拍到的东西摊开</h2><p class="lead">下面的每个数，都是把左右两边同一条事件流，按真实时间从 8 月 20 日过到 12 月 20 日算出来的。换一条路线重来，数会变。</p>
+    <div class="fin-grid">
+      <div class="fin-block fin-wide"><h3>五个问题，旧 ERP 在这四个月里答得怎样</h3><p class="cap">一行一个问题，横轴是真实时间。灰的是答不了，黄的是晚了或答偏了，红的是答了但与事实不符。新账这五行从头到尾都答得上，所以不画。</p>${rib}</div>
+      <div class="fin-block"><h3>同一件事，两边各自什么时候知道</h3><p class="cap">新账每一行都是当场，因为事件一进图就被记进它该在的那本账。</p>${lag}</div>
+      <div class="fin-block"><h3>人的时间花在哪</h3><p class="cap">判断没有变少，变少的是判断之外的东西。</p>${time}<h3 style="margin-top:16px">数字对照</h3>${renderSettle()}</div>
+    </div>
+    <div class="coda">
+      <p>旧 ERP 记的是过去时：发生了什么。新账记的是将来时和虚拟语气：谁欠谁什么，谁赌了什么，最后谁对。</p>
+      <p>所以这不是一个更快的旧系统。同一个世界里，有 ${never} 件事旧 ERP 永远不会知道，有 ${wrongQ} 个问题它在某些时刻答错了，而且没有人会发现。</p>
+      <p>人的时间从翻屏、录入和签字挪到了判断上。执行交给 agent，每一条执行的末端都写着一个人的名字。这就是把计划对象从物料换成判断的意思。</p>
+    </div></div>`;
+}
+function revealFinal(){renderFinal();const f=$('#final');if(f.firstChild)setTimeout(()=>f.scrollIntoView({behavior:'smooth',block:'start'}),150);}
+
+/* ---------- 控件 ---------- */
+function renderControls(){
+  const n=$('#next'),ff=$('#ff'),pl=$('#play');n.classList.remove('go');
+  const C=ctx();
+  pl.textContent=timer?'暂停':'自动播放';pl.disabled=state.done&&C.live;
+  if(!C.live){n.disabled=false;n.textContent='往后看一步';ff.disabled=false;ff.textContent='回到此刻';}
+  else if(state.done){n.disabled=true;n.textContent='已到 12 月 20 日';ff.disabled=true;ff.textContent='快进到下一个判断';}
+  else if(state.pending){n.disabled=false;n.classList.add('go');n.textContent=`去做${state.pending.prompt.who}的${state.pending.prompt.kind==='judgment'?'判断':'动作'}`;ff.disabled=true;ff.textContent='快进到下一个判断';}
+  else{n.disabled=false;const i=nextIndex();n.textContent=i<SCENES.length?`下一步，${SCENES[i].t.replace(/^(\d+)\/(\d+)\s*/,(m,a,b)=>`${a} 月 ${b} 日 `)}`:'结算';ff.disabled=false;ff.textContent='快进到下一个判断';}
+  $('#status').innerHTML=`第 <b>${C.k}</b> 步${C.live?'':'，回看中'}。<span class="hint">方向键左右逐步前后看，Shift 加右快进到下一个判断。</span>`;
+}
+
+/* ---------- 账簿原文：沿用逐条账页 ---------- */
+function renderBook(){
+  renderFinal();
+  if($('#ledgerBody').hidden)return;
+  $('#book').classList.toggle('mode-old',state.mode==='old');
+  const P=build(state.events);const O=state.mode==='old'?buildOld(state.events,state.decisions,clockNum()):null;
+  $('#lefthead').textContent=state.mode==='old'?'单据流，旧 ERP 看得见的和看不见的':'一张图，企业的事件流';
+  $('#modeswitch').querySelectorAll('button').forEach(b=>{b.classList.toggle('on',b.dataset.mode===state.mode);b.onclick=()=>switchMode(b.dataset.mode);});
+  if(state.mode==='old'){renderOldStream(O);renderOldTabs(O);renderOldProj(O);}else{renderStream(P);renderTabs(P);renderProj(P);}
+}
+function bookPromptNote(sc){return `<div class="scene"><p class="narr" style="color:var(--seal)">等${sc.prompt.who}拍板。取景框在页面上方的场景卡里。</p></div>`;}
+function openLedger(){const b=$('#ledgerBody');if(b.hidden){b.hidden=false;$('#ledgerToggle').setAttribute('aria-expanded','true');}}
+function jumpTo(id){openLedger();state.sel=id;state.fresh=new Set();render();const el=document.querySelector(`#stream [data-id="${id}"]`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});}
+
+$('#ledgerToggle').onclick=()=>{const b=$('#ledgerBody');b.hidden=!b.hidden;$('#ledgerToggle').setAttribute('aria-expanded',String(!b.hidden));render();if(!b.hidden)bookScroll();};
+$('#next').onclick=()=>{const C=ctx();if(!C.live){viewAt(C.k+1);return;}if(state.pending){focusDecision();return;}stopPlay();advance();};
+$('#ff').onclick=()=>{if(state.view!=null){viewAt(99);return;}fastForward();};
+$('#play').onclick=()=>{if(timer){stopPlay();renderControls();}else startPlay();};
 $('#reset').onclick=()=>{const m=state.mode;init();state.mode=m;render();window.scrollTo({top:0,behavior:'smooth'});};
-document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'&&!e.shiftKey){e.preventDefault();$('#next').click();}else if(e.key==='ArrowRight'&&e.shiftKey){e.preventDefault();fastForward();}});
+document.addEventListener('keydown',e=>{
+  if(e.target.closest&&e.target.closest('input,textarea'))return;
+  if(e.key==='ArrowRight'&&e.shiftKey){e.preventDefault();$('#ff').click();}
+  else if(e.key==='ArrowRight'){e.preventDefault();$('#next').click();}
+  else if(e.key==='ArrowLeft'){e.preventDefault();const C=ctx();if(C.k>0)viewAt(C.k-1);}
+});
 init();
 </script>
 </body>
