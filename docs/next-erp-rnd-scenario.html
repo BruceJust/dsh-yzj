@@ -1,0 +1,1540 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小记的一个赌注：研发部的三本账</title>
+<style>
+:root{
+  --paper:#eeeee7; --page:#fbfbf7; --ink:#1e1e1c; --muted:#6a6a64;
+  --rule:#c3cedf; --rule-strong:#3a5583; --red:#c4463a; --seal:#b4322b;
+  --ok:#2d6b4d; --warn:#b3781c; --agent:#3a5583; --lit:#fff1bd; --ext:#8a6d3b;
+  --oldpage:#f4f4f1; --oldline:#cfcfc8; --ghost:#8c8c85;
+  --song:"Songti SC","STSong","Noto Serif CJK SC","Source Han Serif SC","SimSun",serif;
+  --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--rule-strong);outline-offset:2px}
+
+.masthead{max-width:1360px;margin:0 auto;padding:26px 28px 0}
+.title-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.masthead h1{font-family:var(--song);font-weight:600;font-size:34px;line-height:1.2;margin:0 0 4px;letter-spacing:.02em}
+.modeswitch{display:inline-flex;border:1px solid var(--ink);padding:2px;background:var(--page)}
+.modeswitch button{font-family:var(--song);font-size:15px;padding:4px 14px}
+.modeswitch button.on{background:var(--ink);color:var(--page)}
+.masthead .lede{font-family:var(--song);font-size:17px;margin:0 0 14px;color:#3a3a36;max-width:46em}
+.concepts{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.concepts button{border:1px solid var(--ink);padding:4px 12px;border-radius:999px;font-size:14px;background:var(--page)}
+.concepts button.on{background:var(--ink);color:var(--page)}
+.concepts button .was{color:var(--muted);font-size:12.5px;margin-left:4px}
+.concepts button.on .was{color:#cfcfc7}
+.concepts .sep{color:var(--muted);font-size:13px;margin-left:6px}
+
+.rail{max-width:1360px;margin:14px auto 12px;padding:0 28px;overflow-x:auto}
+.rail-in{display:flex;align-items:flex-end;gap:0;min-width:max-content;border-bottom:1px solid var(--ink);padding-bottom:6px}
+.tick{display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 9px;position:relative;cursor:default}
+.tick .lbl{font-family:var(--song);font-size:12px;color:var(--muted);height:16px;white-space:nowrap}
+.tick .m{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ink);background:var(--page)}
+.tick.played .m{background:#b9b9b1;border-color:#b9b9b1}
+.tick.current .m{background:var(--ink);border-color:var(--ink);transform:scale(1.35)}
+.tick.judg .m{box-shadow:0 0 0 2px var(--page),0 0 0 3.5px var(--seal)}
+.tick.played,.tick.current{cursor:pointer}
+.tick .ttl{position:absolute;top:100%;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12px;color:var(--ink);background:var(--page);border:1px solid var(--rule);padding:2px 8px;margin-top:6px;display:none;z-index:3}
+.tick:hover .ttl{display:block}
+
+.book{max-width:1360px;margin:0 auto;padding:0 28px 110px;display:grid;grid-template-columns:minmax(380px,7fr) minmax(420px,8fr);gap:22px;align-items:start}
+.page{background:var(--page);border:1px solid #d9d9d0;box-shadow:0 1px 0 #d2d2c8;min-height:70vh}
+.page-right{position:sticky;top:12px;max-height:calc(100vh - 100px);overflow:auto}
+.page-head{font-family:var(--song);font-size:16px;padding:14px 18px 10px;border-bottom:1px solid var(--rule-strong);display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.page-head .clock{font-size:14px;color:var(--muted)}
+
+.page-left{position:relative;background-image:linear-gradient(to right,transparent 74px,var(--red) 74px,var(--red) 75px,transparent 75px)}
+.page-left.flash{animation:flash .9s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 4px var(--lit)}100%{box-shadow:0 1px 0 #d2d2c8}}
+#stream{padding:6px 0 30px}
+.day{font-family:var(--song);font-size:13px;color:var(--rule-strong);padding:18px 18px 4px 88px;letter-spacing:.06em}
+.scene{padding:8px 18px 6px 88px}
+.scene-title{font-family:var(--song);font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.bridge{font-family:var(--sans);font-weight:400;font-size:12.5px;color:var(--rule-strong);text-decoration:underline dotted;white-space:nowrap}
+.narr{margin:2px 0 4px;color:#33332f}
+.ev{display:grid;grid-template-columns:75px 1fr;border-bottom:1px solid var(--rule);cursor:pointer}
+.ev:hover{background:#f4f4ee}
+.ev.sel{background:var(--lit)}
+.ev .gutter{font-family:var(--song);font-size:13px;color:var(--muted);text-align:right;padding:10px 10px 0 0}
+.ev .body{padding:9px 18px 9px 13px}
+.who{display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:2px;flex-wrap:wrap}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--ink);flex:none}
+.kind-agent .dot{background:var(--page);border:2px dashed var(--agent)}
+.kind-xagent .dot{background:var(--page);border:2px dashed var(--ext)}
+.kind-ext .dot{background:var(--page);border:2px solid var(--ext)}
+.kind-sys .dot{border-radius:1px;background:var(--rule-strong);width:8px;height:8px;margin:0 1px}
+.who .role{color:var(--muted)}
+.tag{margin-left:auto;font-size:12px;color:var(--rule-strong);border:1px solid var(--rule);padding:0 6px;border-radius:3px;white-space:nowrap}
+.tag.judg{color:var(--seal);border-color:#e3b3ae}
+.tag.pledge{color:var(--ok);border-color:#b8d4c5}
+.tag.ret{color:var(--warn);border-color:#e6cfa0}
+.ev .text{font-family:var(--song);font-size:15.5px;line-height:1.65}
+.ev .meta{font-size:12.5px;color:var(--muted);margin-top:4px}
+.ev .meta b{font-weight:500;color:var(--agent)}
+.ev.fresh{animation:ink .5s ease-out}
+@keyframes ink{from{background:var(--lit)}to{background:transparent}}
+
+.prompt{margin:10px 18px 14px 88px;border:1.5px solid var(--seal);padding:12px 14px 14px;background:#fffdf8}
+.prompt-head{font-family:var(--song);font-weight:600;font-size:15px;color:var(--seal);display:flex;justify-content:space-between;gap:10px}
+.prompt-head span{font-weight:400;color:var(--muted);font-size:13px;white-space:nowrap}
+.prompt .q{font-family:var(--song);font-size:17px;margin:6px 0 8px}
+.prompt .evidence{margin:0 0 12px;padding-left:18px;font-size:13.5px;color:#3a3a36}
+.prompt .evidence li{margin:2px 0}
+.prompt .evidence-h{font-size:12.5px;color:var(--muted);margin-bottom:2px}
+.options{display:grid;gap:8px}
+.options button{text-align:left;border:1px solid var(--ink);padding:9px 12px;background:var(--page);display:grid;gap:2px}
+.options button:hover{background:var(--lit)}
+.options button b{font-weight:600;font-family:var(--song);font-size:15.5px}
+.options button span{font-size:13px;color:var(--muted)}
+.wait{font-size:13px;color:var(--muted);margin-top:6px}
+.prompt.old-note{border-color:var(--ghost);background:#f7f7f4}
+.prompt.old-note .prompt-head{color:var(--ghost)}
+
+/* 旧 ERP 视角 */
+.book.mode-old .page-left{background-image:none;background:var(--oldpage)}
+.book.mode-old .day{color:var(--muted)}
+.doc{display:grid;grid-template-columns:75px 1fr;border-bottom:1px solid var(--oldline);cursor:pointer}
+.doc:hover{background:#efefeb}
+.doc.sel{background:var(--lit)}
+.doc .gutter{font-family:var(--song);font-size:13px;color:var(--muted);text-align:right;padding:10px 10px 0 0}
+.doc .body{padding:9px 18px 9px 13px}
+.doc .text{font-size:14.5px;line-height:1.6}
+.doc .meta{font-size:12.5px;color:var(--muted);margin-top:4px}
+.doc.fresh{animation:ink .5s ease-out}
+.module{font-size:12px;color:var(--page);background:#5c5c56;padding:0 6px;border-radius:2px;white-space:nowrap}
+.doc-title{font-family:var(--song);font-size:15px;font-weight:600}
+.counts{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+.counts b{font-weight:600;color:var(--ink)}
+.kind-ghost{border-left:3px dashed var(--ghost);margin-left:75px;grid-template-columns:1fr}
+.kind-ghost .body{padding-left:12px}
+.kind-ghost .who{color:var(--ghost)}
+.ghost-mark{width:10px;height:10px;border-radius:50%;border:1.5px dashed var(--ghost);flex:none}
+.kind-ghost .text{color:var(--ghost);font-family:var(--song)}
+.kind-ghost .meta{color:#5e5e58}
+.kind-lag .doc-title{color:var(--muted)}
+.lagnote{font-size:12px;color:var(--warn)}
+
+.tabs{display:flex;border-bottom:1px solid var(--rule-strong);padding:10px 12px 0;gap:4px;flex-wrap:wrap;align-items:flex-end}
+.tabs button{font-family:var(--song);font-size:15px;padding:7px 12px 6px;border:1px solid var(--rule);border-bottom:0;background:#f1f1ea;margin-bottom:-1px;position:relative}
+.tabs button.on{background:var(--page);border-color:var(--rule-strong)}
+.tabs button.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--page)}
+.tabs button .n{font-size:12px;color:var(--muted);margin-left:5px}
+.tabs button.changed::before{content:"";position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--seal)}
+.tabs .follow{margin-left:auto;font-family:var(--sans);font-size:12.5px;color:var(--muted);border:0;padding:6px 4px;background:none;margin-bottom:0}
+.tabs .follow .box{display:inline-block;width:11px;height:11px;border:1.5px solid var(--muted);vertical-align:-1px;margin-right:4px}
+.tabs .follow.on .box{background:var(--ink);border-color:var(--ink)}
+.tab-def{padding:12px 18px 6px;font-size:13.5px;color:#3a3a36;border-bottom:1px solid var(--rule)}
+.tab-def b{font-family:var(--song);font-weight:600;color:var(--ink)}
+#proj{padding:8px 18px 26px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:12.5px;padding:8px 6px 4px;border-bottom:1px solid var(--rule-strong);white-space:nowrap}
+td{padding:8px 6px;border-bottom:1px solid var(--rule);vertical-align:top}
+td.num,th.num{text-align:right;font-family:var(--song);font-size:14.5px;white-space:nowrap}
+td.song{font-family:var(--song);font-size:14.5px}
+td.nw{white-space:nowrap}
+tr.lit td{background:var(--lit)}
+tr.fresh td{animation:ink .6s ease-out}
+tr[data-ref],tr[data-ev]{cursor:pointer}
+tr.has-hist td{border-bottom:0;padding-bottom:2px}
+tr.hist td{padding-top:0}
+.hsep{color:var(--muted)}
+.sub{font-size:12px;color:var(--muted);margin-top:2px}
+.sub .ev-link{color:var(--rule-strong);text-decoration:underline dotted;cursor:pointer}
+.total td{border-top:1.5px solid var(--ink);border-bottom:0;font-weight:600}
+.total td.num{font-size:16px}
+.empty{padding:26px 6px;color:var(--muted);font-size:14px}
+.absent{padding:22px 6px;font-family:var(--song);font-size:16px;color:var(--ghost);border:1.5px dashed var(--ghost);margin-top:10px}
+.absent .sub{font-family:var(--sans);margin-top:8px;color:#5e5e58}
+
+.stamp{display:inline-block;font-family:var(--song);font-weight:700;color:var(--seal);border:1.5px solid var(--seal);border-radius:50%;width:2.5em;height:2.5em;line-height:2.35em;text-align:center;font-size:13px;transform:rotate(-11deg);opacity:.86;box-shadow:inset 0 0 0 1.5px var(--page),inset 0 0 0 2.5px var(--seal);letter-spacing:.02em;white-space:nowrap}
+.stamp.ink{color:var(--ink);border-color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--page),inset 0 0 0 2.5px var(--ink)}
+.stamp.gray{color:#8a8a82;border-color:#8a8a82;box-shadow:inset 0 0 0 1.5px var(--page),inset 0 0 0 2.5px #8a8a82}
+.fresh .stamp{animation:press .5s cubic-bezier(.2,.9,.3,1.25)}
+@keyframes press{from{transform:rotate(-11deg) scale(1.9);opacity:0}to{transform:rotate(-11deg) scale(1);opacity:.86}}
+.st{font-size:13px;white-space:nowrap}
+.st.warn{color:var(--warn);font-weight:600}
+.st.bad{color:var(--seal);font-weight:600}
+.st.wait{color:var(--muted)}
+.gates{display:inline-flex;gap:3px;vertical-align:middle}
+.gate{width:13px;height:13px;border:1.5px solid var(--ink);display:inline-block}
+.gate.on{background:var(--ink)}
+.gate.half{background:linear-gradient(90deg,var(--ink) 50%,transparent 50%)}
+.gates-h{font-size:11.5px;color:var(--muted);margin-left:4px;white-space:nowrap}
+
+.bands{margin:10px 0 4px;display:grid;gap:6px}
+.band{display:grid;grid-template-columns:120px 1fr 60px;align-items:center;gap:10px;font-size:13px}
+.band > span:first-child{white-space:nowrap}
+.band .bar{height:10px;border:1px solid var(--ink);position:relative;background:var(--page)}
+.band .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
+.band .bar i.full{background:var(--seal)}
+.band .n{font-family:var(--song);text-align:right}
+.h{font-family:var(--song);font-weight:600;font-size:15px;margin:16px 0 4px}
+.h:first-child{margin-top:6px}
+.note{font-size:13px;color:#3a3a36;margin:4px 0 8px}
+.chain{font-family:var(--song);font-size:14.5px;margin:4px 0}
+.chain .arrow{color:var(--muted);margin:0 6px}
+.check{font-family:var(--song);font-size:16px;margin:6px 0 2px}
+.check b{color:var(--ok)}
+.file{border:1px solid var(--rule);padding:10px 12px;margin-top:6px}
+.file .row{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:3px 0;border-bottom:1px dotted var(--rule)}
+.file .row:last-child{border-bottom:0}
+.file .row .cnt{font-family:var(--song);white-space:nowrap}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13.5px;margin:6px 0 10px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-family:var(--song)}
+
+.controls{position:fixed;left:0;right:0;bottom:0;background:rgba(238,238,231,.94);backdrop-filter:blur(4px);border-top:1px solid #cfcfc5;padding:12px 28px;z-index:5}
+.controls .inner{max-width:1360px;margin:0 auto;width:100%;display:flex;align-items:center;gap:12px}
+.controls .status{flex:1;font-size:13.5px;color:#3a3a36}
+.controls .status b{font-family:var(--song);font-weight:600}
+.controls button{border:1px solid var(--ink);padding:8px 14px;background:var(--page);white-space:nowrap}
+.controls button.primary{background:var(--ink);color:var(--page);padding:8px 22px;font-family:var(--song);font-size:16px}
+.controls button.primary.go{background:var(--seal);border-color:var(--seal)}
+.controls button:disabled{opacity:.45;cursor:not-allowed}
+.settle{margin:14px 18px 8px 88px;border:1px solid var(--ink);padding:12px 14px;background:var(--page)}
+.settle .h{margin-top:0}
+.settle table{font-size:13.5px}
+.settle td.num,.settle th.num{font-size:14px;white-space:normal;text-align:left}
+.settle td:first-child{white-space:nowrap;color:var(--muted)}
+.settle tr.total td:first-child{color:var(--ink)}
+
+@media (max-width:980px){
+  .book{grid-template-columns:1fr;padding:0 14px 120px}
+  .masthead{padding:20px 14px 0}
+  .masthead h1{font-size:26px}
+  .rail{padding:0 14px}
+  .page{min-height:0}
+  .page-right{position:static;max-height:none;overflow:visible}
+  .page-left{background-image:linear-gradient(to right,transparent 56px,var(--red) 56px,var(--red) 57px,transparent 57px)}
+  .ev,.doc{grid-template-columns:57px 1fr}
+  .kind-ghost{margin-left:57px;grid-template-columns:1fr}
+  .day,.scene,.prompt,.settle{padding-left:66px}
+  .prompt,.settle{margin-left:66px}
+  .band{grid-template-columns:auto 1fr 50px}
+  .controls{padding:8px 14px}
+  .controls .inner{flex-wrap:wrap;gap:8px}
+  .controls .status{flex-basis:100%;order:-1;font-size:12.5px;line-height:1.35}
+  .controls button{flex:1}
+  .controls #reset{flex:0 0 auto}
+  .controls .hint{display:none}
+  .controls button{padding:8px 10px}
+  .controls button.primary{padding:8px 12px;font-size:15px}
+}
+@media (prefers-reduced-motion:reduce){
+  .ev.fresh,.doc.fresh,tr.fresh td,.fresh .stamp,.page-left.flash{animation:none}
+}
+/* ===== 重构：舞台 ===== */
+body{padding-bottom:84px}
+.hero{max-width:1400px;margin:0 auto;padding:22px 28px 6px;display:grid;grid-template-columns:auto 1fr;gap:6px 28px;align-items:baseline}
+.hero h1{font-family:var(--song);font-weight:600;font-size:30px;margin:0;letter-spacing:.02em;white-space:nowrap}
+.hero .thesis{font-family:var(--song);font-size:21px;line-height:1.45;margin:0;color:var(--ink)}
+.hero .sub{grid-column:2;margin:2px 0 0;font-size:14px;color:#4a4a45;max-width:62em}
+
+.tl{max-width:1400px;margin:10px auto 0;padding:0 28px;overflow-x:auto}
+.tl-in{position:relative;display:flex;align-items:flex-end;justify-content:space-between;min-width:max-content;padding:4px 0 8px;border-bottom:1px solid var(--ink)}
+.tl-t{display:flex;flex-direction:column;align-items:center;gap:5px;padding:0 10px;position:relative}
+.tl-t .d{font-family:var(--song);font-size:12.5px;color:var(--muted);height:17px;white-space:nowrap}
+.tl-t .m{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--ink);background:var(--page)}
+.tl-t.played .m{background:#b3b3aa;border-color:#b3b3aa}
+.tl-t.played{cursor:pointer}
+.tl-t.judg .m{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--seal)}
+.tl-t.here .m{background:var(--ink);border-color:var(--ink);transform:scale(1.4)}
+.tl-t.viewing .m{background:var(--rule-strong);border-color:var(--rule-strong);transform:scale(1.4)}
+.tl-t .tip{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;white-space:nowrap;font-size:12px;background:var(--page);border:1px solid var(--rule);padding:2px 8px;display:none;z-index:4}
+.tl-t:hover .tip,.tl-t:focus-visible .tip{display:block}
+
+.main{max-width:1400px;margin:0 auto;padding:14px 28px 0;display:grid;grid-template-columns:330px minmax(0,1fr);gap:20px;align-items:start}
+.scene-card{position:sticky;top:12px;background:var(--page);border:1px solid #d9d9d0;padding:14px 16px 16px;max-height:calc(100vh - 110px);overflow:auto}
+.sc-date{font-family:var(--song);font-size:13px;color:var(--rule-strong);letter-spacing:.04em}
+.sc-title{font-family:var(--song);font-weight:600;font-size:19px;line-height:1.35;margin:2px 0 8px}
+.sc-path{margin-top:12px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--rule);padding-top:8px}
+.sc-path b{font-weight:500;color:var(--ink)}
+.decide{border:1.5px solid var(--seal);padding:11px 12px 12px;background:#fffdf8;margin-top:4px}
+.decide .dh{font-family:var(--song);font-size:14px;color:var(--seal);display:flex;justify-content:space-between;gap:8px}
+.decide .dh span{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.decide .q{font-family:var(--song);font-size:17px;line-height:1.45;margin:6px 0 8px}
+.decide ul{margin:0 0 10px;padding-left:17px;font-size:13px;color:#3a3a36}
+.decide ul li{margin:2px 0}
+.decide .eh{font-size:12px;color:var(--muted)}
+.decide .oldway{font-size:12.5px;color:var(--ghost);border-left:2px dashed var(--ghost);padding-left:8px;margin:0 0 10px}
+.decide .opts{display:grid;gap:7px}
+.decide .opts button{text-align:left;border:1px solid var(--ink);padding:8px 11px;background:var(--page);display:grid;gap:1px}
+.decide .opts button:hover{background:var(--lit)}
+.decide .opts button b{font-family:var(--song);font-weight:600;font-size:15px}
+.decide .opts button span{font-size:12.5px;color:var(--muted)}
+.decide.fresh{animation:ink .6s ease-out}
+.viewnote{border:1px solid var(--rule-strong);padding:8px 10px;font-size:13px;color:var(--rule-strong);margin-top:6px}
+.viewnote button{text-decoration:underline;color:var(--rule-strong)}
+
+.stage{min-width:0}
+.viewing{display:none;margin:0 0 8px;padding:6px 12px;background:#e6ebf3;border:1px solid var(--rule);font-size:13px;color:var(--rule-strong)}
+.viewing.on{display:flex;justify-content:space-between;gap:10px}
+.viewing button{color:var(--rule-strong);text-decoration:underline}
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pane{margin:0;background:var(--page);border:1px solid #d9d9d0;display:flex;flex-direction:column;min-width:0}
+.pane figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px 14px 8px;border-bottom:1px solid var(--rule)}
+.pane figcaption b{font-family:var(--song);font-size:16px;font-weight:600}
+.pane figcaption span{font-size:12px;color:var(--muted);text-align:right}
+.pane-old{background:var(--oldpage)}
+.pane .now{margin-top:auto;padding:9px 14px 11px;border-top:1px solid var(--rule);font-size:13.5px;line-height:1.55;color:#33332f;min-height:64px}
+.pane .now i{font-style:normal;color:var(--muted);margin-right:4px}
+.pane-old .now{border-top-color:var(--oldline);color:#4d4d48}
+
+/* 旧 ERP 格子 */
+.erp{padding:10px 12px 8px;display:grid;gap:8px}
+.erp-sys{border:1.5px solid #6d6d66;padding:18px 8px 8px;position:relative}
+.erp-tag{position:absolute;top:-9px;left:10px;background:var(--oldpage);padding:0 6px;font-size:12px;color:#5c5c56}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.mod{background:#fbfbf9;border:1px solid var(--oldline);padding:6px 8px 7px;min-height:92px}
+.mod h4{margin:0 0 4px;font-size:12.5px;font-weight:600;color:var(--page);background:#5c5c56;display:flex;justify-content:space-between;padding:1px 6px;margin:-6px -8px 6px}
+.mod h4 span{font-weight:400;opacity:.85}
+.fld{font-size:12.5px;border:1px solid #d8d8d2;background:var(--page);padding:2px 6px;margin-bottom:3px;display:flex;justify-content:space-between;gap:6px}
+.fld b{font-weight:500;font-family:var(--song)}
+.fld.flash{animation:ink .8s ease-out}
+.fld .calm{color:var(--ghost);font-size:11.5px;white-space:nowrap}
+.mdocs{list-style:none;margin:4px 0 0;padding:0;font-size:12px;color:#5e5e58}
+.mdocs li{padding:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mdocs li.fresh{color:var(--ink);background:var(--lit)}
+.mdocs li.wait{color:var(--warn)}
+.mod .empty{padding:6px 0 0;font-size:12.5px;color:var(--ghost)}
+.erp-sign{margin-top:7px;font-size:12px;color:#5c5c56;display:flex;justify-content:space-between;gap:8px}
+.erp-sign b{color:var(--seal);font-weight:600}
+.erp-out{border:1.5px dashed var(--ghost);padding:16px 8px 8px;position:relative;min-height:62px}
+.erp-out .erp-tag{color:var(--ghost)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:12px;border:1px dashed var(--ghost);color:#5e5e58;padding:1px 7px;background:var(--oldpage);border-radius:10px}
+.chip.fresh{border-style:solid;border-color:#5e5e58;color:var(--ink);background:var(--page);animation:ink .6s ease-out}
+.chip-n{font-size:12px;color:var(--ghost);align-self:center}
+
+/* 新账图 */
+#graph{display:block;width:100%;height:auto;padding:4px 6px 0}
+.g-bound{fill:none;stroke:var(--rule);stroke-dasharray:3 4}
+.g-blabel{font-size:12px;fill:var(--rule-strong);font-family:var(--song)}
+.g-ext rect{fill:var(--page);stroke:var(--ext);stroke-width:1.5}
+.g-ext text{font-size:13px;fill:var(--ink);font-family:var(--song);text-anchor:middle;dominant-baseline:middle}
+.g-hum circle.body{fill:var(--ink)}
+.g-hum.dim circle.body{fill:#b9b9b1}
+.g-hum.ghost circle.body{fill:var(--page);stroke:var(--ink);stroke-dasharray:3 3}
+.g-name{font-size:13.5px;font-family:var(--song);text-anchor:middle;fill:var(--ink)}
+.g-role{font-size:11px;text-anchor:middle;fill:var(--muted)}
+.g-hum.dim .g-name{fill:var(--muted)}
+.g-agent circle{fill:var(--page);stroke:var(--agent);stroke-width:1.8;stroke-dasharray:3 2.5}
+.g-agent text{font-size:11.5px;text-anchor:middle;fill:var(--agent)}
+.g-lease{stroke:var(--agent);stroke-width:1.2;stroke-dasharray:1.5 3;fill:none;opacity:.7}
+.g-lease.lit{stroke-width:2.6;opacity:1;stroke-dasharray:6 4;animation:march 1.2s linear infinite}
+@keyframes march{to{stroke-dashoffset:-20}}
+.g-lease-t{font-size:10.5px;fill:var(--agent)}
+.g-edge{fill:none;stroke-width:1.8;stroke:var(--ink)}
+.g-edge.pending{stroke-dasharray:6 4}
+.g-edge.hang{stroke:var(--warn);stroke-width:3.2}
+.g-edge.late{stroke:var(--seal);stroke-width:3.2}
+.g-edge.done{stroke:#b9b9b1;stroke-width:1.4}
+.g-edge.draw{stroke-dasharray:400;stroke-dashoffset:400;animation:draw .9s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.g-edge.pulse{animation:pulse 1.3s ease-out 2}
+@keyframes pulse{0%{stroke-width:7;opacity:.4}100%{opacity:1}}
+.g-elabel{font-size:12px;font-family:var(--song);fill:var(--ink);paint-order:stroke;stroke:var(--page);stroke-width:4px;stroke-linejoin:round;text-anchor:middle}
+.g-elabel.hang{fill:var(--warn);font-weight:600}
+.g-elabel.late{fill:var(--seal);font-weight:600}
+.g-elabel.done{fill:#9a9a92}
+.g-need{fill:none;stroke:var(--seal);stroke-width:2;animation:ring 1.6s ease-out infinite}
+@keyframes ring{0%{r:20;opacity:1}100%{r:31;opacity:0}}
+.g-needt{font-size:11px;fill:var(--seal);font-weight:600}
+.g-seal{stroke-width:1.5}
+.g-seal.wait{fill:var(--page);stroke:var(--seal)}
+.g-seal.hit{fill:var(--seal);stroke:var(--seal)}
+.g-seal.miss{fill:var(--ink);stroke:var(--ink)}
+.g-seal.gray{fill:#a3a39b;stroke:#a3a39b}
+.g-seal.fresh{animation:seal .55s cubic-bezier(.2,.9,.3,1.3);transform-box:fill-box;transform-origin:center}
+@keyframes seal{from{transform:scale(2.6);opacity:0}to{transform:scale(1);opacity:1}}
+.g-sealt{font-size:9.5px;fill:var(--muted)}
+.g-flow{fill:none;stroke:var(--warn);stroke-width:2;stroke-dasharray:2 5;opacity:.8}
+.g-dot{fill:var(--warn)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;padding:4px 14px 8px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:18px;height:0;border-top:2px solid var(--ink);vertical-align:middle;margin-right:4px}
+.legend i.hang{border-top:3px solid var(--warn)}
+.legend i.late{border-top:3px solid var(--seal)}
+.legend i.done{border-top-color:#b9b9b1}
+.legend i.lease{border-top:2px dotted var(--agent)}
+.legend i.pend{border-top-style:dashed}
+
+/* 五问 */
+.qboard{margin-top:14px;background:var(--page);border:1px solid #d9d9d0}
+.qb-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 14px 6px;border-bottom:1px solid var(--rule-strong)}
+.qb-h b{font-family:var(--song);font-size:16px;font-weight:600}
+.qb-h span{font-size:12.5px;color:var(--muted)}
+.qb{width:100%;border-collapse:collapse;table-layout:fixed}
+.qb th{font-size:12px;color:var(--muted);font-weight:500;text-align:left;padding:6px 10px 4px;border-bottom:1px solid var(--rule)}
+.qb td{padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top;font-size:13.5px;line-height:1.5}
+.qb tr:last-child td{border-bottom:0}
+.qb .qq{font-family:var(--song);font-size:15px}
+.qb .qc{display:block;font-family:var(--sans);font-size:11.5px;color:var(--rule-strong)}
+.qb td.old{color:#4d4d48;background:#f6f6f2}
+.qb td.new{font-family:var(--song);font-size:14.5px}
+.qb td.fresh{animation:ink .7s ease-out}
+.grade{display:inline-block;margin-top:3px;font-size:11.5px;padding:0 6px;border-radius:2px;white-space:nowrap}
+.gr-ok{color:#5e5e58;border:1px solid #cfcfc8}
+.gr-none{color:#5e5e58;background:#e3e3dd}
+.gr-lag,.gr-off{color:#7a4f0c;background:#f6e3bd}
+.gr-wrong{color:var(--page);background:var(--seal)}
+td.old.g-wrong{background:#fbeceb}
+.hist{display:flex;flex-wrap:wrap;gap:2px;align-content:flex-start}
+.hc{width:11px;height:11px;border:1px solid transparent}
+.hc.ok{background:#dcdcd4}
+.hc.none{background:#a9a9a1}
+.hc.lag,.hc.off{background:#e3b25a}
+.hc.wrong{background:var(--seal)}
+.hc.na{border-color:#dcdcd4}
+.hc.cur{outline:1.5px solid var(--ink);outline-offset:1px}
+
+/* 结算 */
+.final{max-width:1400px;margin:22px auto 0;padding:0 28px}
+.final:empty{display:none}
+.fin{background:var(--page);border:1px solid var(--ink);padding:18px 22px 22px}
+.fin h2{font-family:var(--song);font-weight:600;font-size:22px;margin:0 0 4px}
+.fin .lead{font-family:var(--song);font-size:16px;color:#3a3a36;margin:0 0 14px;max-width:52em}
+.fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 28px}
+.fin-block h3{font-family:var(--song);font-size:16px;font-weight:600;margin:6px 0 2px}
+.fin-block .cap{font-size:12.5px;color:var(--muted);margin:0 0 8px}
+.fin-wide{grid-column:1/-1}
+.rib{display:grid;grid-template-columns:200px 1fr 180px;gap:6px 12px;align-items:center;font-size:13px}
+.rib .bar{position:relative;height:14px;background:#dcdcd4}
+.rib .bar i{position:absolute;top:0;bottom:0}
+.rib .bar i.none{background:#a9a9a1}.rib .bar i.lag,.rib .bar i.off{background:#e3b25a}.rib .bar i.wrong{background:var(--seal)}
+.rib .axis{grid-column:2;display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+.rib .axis span{white-space:nowrap}
+.rib .sum{font-size:12px;color:#4d4d48}
+.lagt{width:100%;border-collapse:collapse;font-size:13px}
+.lagt td,.lagt th{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:middle}
+.lagt th{font-weight:500;color:var(--muted);font-size:12px}
+.lagt td.w{width:42%}
+.lbar{position:relative;height:12px}
+.lbar i{position:absolute;left:0;top:0;bottom:0;background:#6d6d66}
+.lbar i.never{background:repeating-linear-gradient(45deg,var(--seal) 0 4px,#f1c9c5 4px 8px);right:0}
+.lticks{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.tbar{display:flex;height:22px;border:1px solid var(--ink);margin:3px 0 2px}
+.tbar i{display:block;height:100%;border-right:1px solid var(--page);font-style:normal;font-size:11px;color:var(--page);white-space:nowrap;overflow:hidden;padding-left:4px;line-height:20px}
+.tl-row{display:grid;grid-template-columns:70px 1fr 90px;gap:10px;align-items:center;font-size:13px}
+.tl-row .v{font-family:var(--song);text-align:right}
+.seg-scr{background:#8c8c85}.seg-ent{background:#6d6d66}.seg-app{background:#4d4d48}.seg-out{background:#b0a07a}.seg-jud{background:var(--seal)}.seg-sig{background:var(--agent)}
+.keys{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:11.5px;color:var(--muted);margin-top:4px}
+.keys i{display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px}
+.fin .settle{margin:0;border:0;padding:0;background:none}
+.fin .settle .h{display:none}
+.coda{margin:18px 0 0;padding-top:14px;border-top:1px solid var(--rule)}
+.coda p{font-family:var(--song);font-size:17px;line-height:1.7;margin:0 0 6px;max-width:48em}
+
+/* 账簿原文 */
+.ledger{max-width:1400px;margin:22px auto 0;padding:0 28px 30px}
+.ledger-toggle{width:100%;text-align:left;border:1px solid var(--ink);background:var(--page);padding:10px 14px;font-family:var(--song);font-size:15px}
+.ledger-toggle[aria-expanded="true"]{background:var(--ink);color:var(--page)}
+.ledger-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0 10px}
+.ledger-head p{margin:0;font-size:13px;color:var(--muted)}
+.ledger .book{padding:0;max-width:none}
+.ledger #stream{max-height:72vh;overflow:auto}
+.ledger .page-right{max-height:80vh}
+
+@media (max-width:1100px){
+  .main{grid-template-columns:1fr}
+  .scene-card{position:static;max-height:none}
+  .fin-grid{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .hero{grid-template-columns:1fr;padding:16px 14px 4px}
+  .hero .sub{grid-column:1}
+  .hero .thesis{font-size:18px}
+  .tl,.main,.final,.ledger{padding-left:14px;padding-right:14px}
+  .panes{grid-template-columns:1fr}
+  .qb col.hcol,.qb th.hcol,.qb td.hcol{display:none}
+  .rib{grid-template-columns:1fr}
+  .rib .axis{grid-column:1}
+}
+
+.ev-d summary{cursor:pointer;margin-bottom:4px}
+.ev-d[open] summary{margin-bottom:2px}
+@media (max-width:1100px) and (min-width:761px){
+  .decide .opts{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+  .hero{padding-top:14px}
+}
+@media (max-width:760px){
+  .pane-new{overflow-x:auto}
+  #graph{min-width:470px}
+  .pane-new .legend,.pane-new .now{min-width:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .g-edge.draw,.g-edge.pulse,.g-need,.g-seal.fresh,.g-lease.lit,.chip.fresh,.qb td.fresh,.decide.fresh{animation:none}
+  .g-edge.draw{stroke-dashoffset:0}
+}
+
+.xlink{margin-left:8px;color:var(--rule-strong);text-decoration:underline dotted;white-space:nowrap}
+/* ===== 研发场景追加 ===== */
+.legend i.sig{border-top:2px dotted var(--seal)}
+.bd{display:block;width:100%;height:46px;margin:2px 0 4px}
+.bd .ideal{stroke:#b9b9b1;stroke-dasharray:3 3;fill:none}
+.bd .act{stroke:var(--ok);stroke-width:2;fill:none}
+.bd .ax{stroke:#cfcfc8}
+.bd text{font-size:9px;fill:var(--muted)}
+.bd .flag{font-size:9.5px;fill:var(--ok);font-weight:600}
+.g-sig{stroke:var(--seal);stroke-width:1.4;stroke-dasharray:1.5 4;fill:none;opacity:.55}
+.g-sig.lit{stroke-width:2.6;opacity:1;stroke-dasharray:6 4;animation:march 1.2s linear infinite}
+.g-sigt{font-size:10.5px;fill:var(--seal)}
+.g-sealid{font-size:8.5px;fill:var(--page);text-anchor:middle;dominant-baseline:central;font-weight:600;pointer-events:none}
+.g-seal.wait+.g-sealid{fill:var(--seal)}
+.money-sum{display:grid;grid-template-columns:repeat(3,auto);gap:4px 22px;justify-content:start;margin:10px 0 4px;font-size:13px}
+.money-sum b{font-family:var(--song);font-size:18px;font-weight:600;display:block}
+.xlink{margin-left:8px;color:var(--rule-strong);text-decoration:underline dotted;white-space:nowrap}
+</style>
+</head>
+<body>
+<header class="hero">
+  <h1>小记的一个赌注</h1>
+  <p class="thesis">研发生产的不是功能，是被检验过的判断。上线只是下注，读数出来才是结账。</p>
+  <p class="sub">小记是一个月活 320 万的记账 app。研发部答应公司，Q4 把新用户 D7 留存从 31% 拉到 35%。左边是旧系统看见的：需求、迭代燃尽、Git 和月底分摊。右边是新账看见的。你替林岚、老秦和小吴做决定，下面五个问题会在每一步同时去问两个系统。<a class="xlink" href="next-erp-scenario.html">制造的版本：恒测加急单</a></p>
+</header>
+<nav class="tl" id="tl" aria-label="时间轴"><div class="tl-in"></div></nav>
+<div class="main">
+  <aside class="scene-card" id="scene" aria-live="polite"></aside>
+  <section class="stage">
+    <div class="viewing" id="viewing"></div>
+    <div class="panes">
+      <figure class="pane pane-old">
+        <figcaption><b>旧系统看见的</b><span>需求、燃尽、Git、月底分摊。系统外的事，它看不见</span></figcaption>
+        <div class="erp" id="erp"></div>
+        <div class="now" id="now-old"></div>
+      </figure>
+      <figure class="pane pane-new">
+        <figcaption><b>新账看见的</b><span>一张图：谁欠谁，谁在赌，agent 回程到谁</span></figcaption>
+        <svg id="graph" viewBox="0 0 560 360" role="img" aria-label="责任图"></svg>
+        <div class="legend"><span><i></i>承诺</span><span><i class="hang"></i>悬空</span><span><i class="late"></i>未达</span><span><i class="done"></i>核销</span><span><i class="lease"></i>租约，agent 回程到人</span><span><i class="sig"></i>用户给出的读数</span></div>
+        <div class="now" id="now-new"></div>
+      </figure>
+    </div>
+    <div class="qboard" id="qboard"></div>
+  </section>
+</div>
+<section class="final" id="final"></section>
+<section class="ledger">
+  <button class="ledger-toggle" id="ledgerToggle" aria-expanded="false">账簿原文：逐条事件、五本账的明细、旧系统的每张单据</button>
+  <div id="ledgerBody" hidden>
+    <div class="ledger-head"><p>上面的每一个格子，都是从这里的事件流算出来的。</p><div class="modeswitch" id="modeswitch"><button data-mode="new" class="on">新账</button><button data-mode="old">旧系统</button></div></div>
+    <div class="book" id="book">
+      <section class="page page-left" id="leftpage">
+        <div class="page-head"><span id="lefthead">一张图，研发部的事件流</span><span class="clock" id="clock"></span></div>
+        <div id="stream"></div>
+      </section>
+      <section class="page page-right">
+        <div class="tabs" id="tabs"></div>
+        <div class="tab-def" id="tabdef"></div>
+        <div id="proj"></div>
+      </section>
+    </div>
+  </div>
+</section>
+<footer class="controls"><div class="inner">
+  <button id="reset">重来</button>
+  <div class="status" id="status"></div>
+  <button id="play">自动播放</button>
+  <button id="ff">快进到下一个判断</button>
+  <button id="next" class="primary">下一步</button>
+</div></footer>
+<script>
+/* ---------- 基础 ---------- */
+const F=n=>(n<0?'−':'')+Math.abs(n).toLocaleString('zh-CN');
+const H=(name,role)=>({name,role,kind:'human'});
+const AG=name=>({name,kind:'agent'});
+const XH=(name,role)=>({name,role,kind:'ext'});
+const XA=(name,role)=>({name,role,kind:'xagent'});
+const SYS={name:'系统',kind:'sys'};
+let _id=0; const E=o=>({id:'e'+(++_id),...o});
+const dnum=t=>{const m=t.match(/^(\d+)\/(\d+)/);return m?(+m[1])*100+(+m[2]):0;};
+const wan=x=>Math.abs(x)>=10000?(x/10000).toFixed(1).replace(/\.0$/,'')+' 万元':F(Math.round(x))+' 元';
+
+const LEASES={
+  '编码 agent':{by:'阿哲',scope:'客户端仓库里写代码、开 PR、补埋点',budget:'合并须过评审，灰度开关不超过 5%，token 每天不超过 800 元',until:'12 月 31 日'},
+  '实验 agent':{by:'林岚',scope:'开实验、读指标、写读数',budget:'只读线上数据，不改流量分配',until:'12 月 31 日'},
+  '评审 agent':{by:'老秦',scope:'审每一个 PR',budget:'核心模块只能提意见，不能放行',until:'长期'},
+};
+const PEOPLE={'林岚':{role:'产品负责人',cap:4,base:2},'老秦':{role:'研发总监',cap:3,base:1},'阿哲':{role:'客户端负责人',cap:3,base:1}};
+const REVIEW={'阿哲':{cap:6,base:4}};
+const PRIOR_FILE={'林岚':[{cat:'大注一次押满',n:3,hit:1},{cat:'小注并行，按门槛选',n:2,hit:2},{cat:'先做最小改动',n:4,hit:2},{cat:'事故时保实验',n:1,hit:1},{cat:'事故时保用户',n:2,hit:2}]};
+const CAT={J1A:'大注一次押满',J1B:'先做最小改动',J1C:'小注并行，按门槛选',J3F:'事故时保实验',J3R:'事故时保用户'};
+const PLAN={A:{pts:89,cards:13,end:'9/24'},C:{pts:55,cards:13,end:'9/24'},B:{pts:13,cards:3,end:'9/8'}};
+const LIFT={A:2.6,B:1.6,C:4.2};
+const NAMES={P0:'对公司',P1:'读数',P2:'OCR 接口',P3:'视觉云 SLA',P4:'拍照记账',P5:'模板',P6:'原型'};
+const SHORT={P0:'D7 35%',P1:'读数',P2:'OCR 接口',P3:'SLA',P4:'拍照记账',P5:'模板',P6:'原型'};
+const BETN={photo:'拍照记账',tpl:'模板',proto:'原型',all:'两注合计'};
+const LEDE={new:'',old:''};
+const DEFS={
+  graph:['一张图','研发部的全部活动落成一条事件流。每一页账都是它的投影。'],
+  need:['计划对象','旧系统把需求炸成 story 和点数，按迭代排。这里把需求炸成判断需求和评审带宽：哪些决定只能由人做，哪些代码必须由人看。写代码不排期。'],
+  judg:['判断账','一个需求就是一个赌注。立账时写下赌什么、看什么信号、哪天读数。读数回来自己对账，形成判断力档案。'],
+  pledge:['承诺账','谁欠谁一个交付：接口、灰度、读数、对公司的目标。上线只核销交付，赌注还开着。'],
+  money:['钱账','成本按赌注归集：人的小时、token、外部接口、事故。和换回来的点数放在一起，就是这一注的价钱。'],
+  law:['恒等式','代码大多是 agent 写的。每个 agent 在一个人的租约下干活，出了事一路指得到人。责任不能委派，只能移交并签收。'],
+};
+const TABS=['need','pledge','judg','money','law'];
+const OLDTABS=[['req','需求'],['iter','迭代'],['code','代码与告警'],['fin','研发费用'],['judg','判断账']];
+const OLDTABDEF={
+  req:'PRD、需求卡片、OKR 文档。需求的状态只有三种：待开发、开发中、已上线。',
+  iter:'story 点、燃尽图、迭代速度。它量的是做了多少。',
+  code:'Git、PR、发布单、告警。git blame 指到提交者，提交者多半是机器人账号。',
+  fin:'研发费用月底按人头分摊到项目组。token 账单记在"云服务"里。',
+  judg:'旧系统里没有这一页。',
+};
+const pathLabel=d=>{if(!d.J1)return '还没做第一个判断';const s=[{A:'押拍照记账',B:'只做模板',C:'双原型按门槛选'}[d.J1]];if(d.J2)s.push({core:'人审',outer:'机器审'}[d.J2]);if(d.H)s.push(d.H==='ok'?'小吴签收':'走备岗');if(d.J3)s.push({fix:'热修',rollback:'回滚'}[d.J3]);return s.join('，');};
+
+/* ---------- 剧本 ---------- */
+const SCENES=[
+{id:'pre',t:'8/28',title:'此前',focus:'pledge',narrative:'季度目标已经在账上：12 月新用户 D7 留存从 31% 到 35%。这是老秦对公司的一条承诺，有人欠，有日期，到期会自己回来结账。',old:'老秦在 OKR 文档里写下一行 KR，研发管理里建了一个 Q4 项目空间。',
+ events:()=>[E({t:'8/28 10:00',actor:H('老秦','研发总监'),type:'pledge',k:'okr',text:'Q4 目标立账：12 月新用户 D7 留存从 31.0% 到 35.0%。',pledge:{id:'P0',who:'老秦',to:'公司',what:'12 月新用户 D7 留存 35%',when:'12 月 31 日'}})]},
+
+{id:'s0',t:'9/1 09:30',title:'一个数字进图',focus:'judg',narrative:'实验 agent 每天读指标。它找到的不是一个 bug，是一个可以下注的地方。',old:'数据分析师周五做一页周报 PPT，下周一周会上讲。在那之前，这个数字只躺在 BI 里。',
+ events:()=>[E({t:'9/1 09:30',actor:AG('实验 agent'),type:'fact',k:'insight',text:'新用户 D7 留存 31.0%。首次记账超过 40 秒的用户，D7 只有 22%。63% 的流失发生在第一笔手动记账之后。'})]},
+
+{id:'s1',t:'9/1 10:00',title:'系统排的是判断，不是工单',focus:'need',narrative:'旧的做法到这里会写 PRD、开需求评审会、拆 story、估点、排迭代。新账先问：这件事里哪些决定只能由人做，哪些代码必须由人看。写代码本身不排期，它不稀缺了。',old:'林岚开始写 PRD。研发管理里，此刻还什么都没有。',
+ events:()=>[E({t:'9/1 10:00',actor:SYS,type:'need',text:'炸出两个判断需求。J1 归林岚：押什么。J2 归老秦：金额相关的新代码谁来审。J2 等 J1。',need:[
+   {id:'J1',who:'林岚',q:'押什么？拍照记账、首次记账模板，还是两个都做原型？',evidence:'流失分布，两个方向的历史实验，编码 agent 估的 token，阿哲的评审带宽',sched:'今天 15:00，林岚有半小时'},
+   {id:'J2',who:'老秦',q:'金额解析这块新代码，人审还是机器审？',evidence:'评审 agent 过去 90 天的漏检，阿哲的评审队列',sched:'等 J1',status:'等 J1'}]})]},
+
+{id:'s2',t:'9/1 15:00',title:'判断账：一个需求就是一个赌注',narrative:'林岚选的不只是做什么，还有赌什么、看什么、哪天算输赢。这条判断会在读数出来的那天自己回来。',old:'PRD 里写着做什么。为什么做、赌它带来多少、哪天算输，PRD 里没有这一栏。',
+ prompt:{kind:'judgment',who:'林岚',role:'产品负责人',nid:'J1',focus:'judg',q:'押什么？',
+  evidence:['拍照记账：首次记账从 40 秒降到 6 秒。依赖平台的 OCR 接口和外部的视觉云。编码 agent 估 token 约 1.3 万元。','首次记账模板：改动小，一周上线。同类引导实验历史上提升 1 到 2 个点。','两个都做原型：各三天，全员内测，开工前写下门槛，内测周留存过 60% 的才做下去。阿哲的评审量会翻倍。','阿哲当前评审队列 4 / 6。'],
+  options:[{key:'A',label:'押拍照记账，直接做完整版',detail:'一个大注，10 月 15 日读数'},{key:'C',label:'两个都做原型，按门槛选',detail:'两个小注，9 月 8 日内测读数决定去留'},{key:'B',label:'只做首次记账模板',detail:'最小改动，9 月 22 日读数'}],
+  resolve:(k,d)=>{d.J1=k;const t='9/1 15:00';
+   if(k==='A')return[
+    E({t,actor:H('林岚','产品负责人'),type:'judgment',text:'押拍照记账，直接做完整版。',j:{id:'J1',cat:CAT.J1A,bet:'拍照记账一注让 D7 提升不少于 4 个点',signal:'10 月 15 日实验读数',review:'10 月 15 日',cost:'约 6 周，token 约 1.3 万元'}}),
+    E({t:'9/1 15:10',actor:H('阿哲','客户端负责人'),type:'pledge',text:'阿哲受领：编码 agent 在他的租约下做，9 月 24 日灰度 5%。',pledge:{id:'P4',who:'阿哲',to:'林岚',what:'拍照记账灰度 5%',when:'9 月 24 日'}}),
+    E({t:'9/1 15:12',actor:H('林岚','产品负责人'),type:'pledge',text:'林岚对老秦立账：10 月 15 日交实验读数。',pledge:{id:'P1',who:'林岚',to:'老秦',what:'拍照记账实验读数',when:'10 月 15 日'}}),
+    E({t:'9/1 15:12',actor:SYS,type:'need_update',text:'J1 已判。J2 排 9 月 9 日，等 OCR 接口定下来。',nu:[{id:'J1',status:'已判',pick:'押拍照记账'},{id:'J2',status:'待判'}]})];
+   if(k==='C')return[
+    E({t,actor:H('林岚','产品负责人'),type:'judgment',text:'两个都做原型，按事先写下的门槛选。',j:{id:'J1',cat:CAT.J1C,bet:'两个小注合起来让 D7 提升不少于 4 个点',signal:'9 月 8 日内测周留存过 60%，10 月 15 日实验读数',review:'10 月 15 日',cost:'原型 token 约 0.3 万元，评审量翻倍'}}),
+    E({t:'9/1 15:10',actor:H('阿哲','客户端负责人'),type:'pledge',text:'阿哲受领：编码 agent 三天做两个原型，9 月 4 日全员内测。',pledge:{id:'P6',who:'阿哲',to:'林岚',what:'两个原型，全员内测',when:'9 月 4 日'}}),
+    E({t:'9/1 15:12',actor:H('林岚','产品负责人'),type:'pledge',text:'林岚对老秦立账：10 月 15 日交两个赌注的实验读数。',pledge:{id:'P1',who:'林岚',to:'老秦',what:'两个赌注的实验读数',when:'10 月 15 日'}}),
+    E({t:'9/1 15:12',actor:SYS,type:'need_update',text:'J1 已判。J2 等内测读数。',nu:[{id:'J1',status:'已判',pick:'双原型'}]})];
+   return[
+    E({t,actor:H('林岚','产品负责人'),type:'judgment',text:'只做首次记账模板。',j:{id:'J1',cat:CAT.J1B,bet:'最小改动先拿到不少于 2 个点',signal:'9 月 22 日实验读数',review:'9 月 22 日',cost:'约 1 周，token 约 0.2 万元'}}),
+    E({t:'9/1 15:10',actor:H('阿哲','客户端负责人'),type:'pledge',text:'阿哲受领：编码 agent 做模板，9 月 8 日上线。',pledge:{id:'P5',who:'阿哲',to:'林岚',what:'首次记账模板上线',when:'9 月 8 日'}}),
+    E({t:'9/1 15:12',actor:H('林岚','产品负责人'),type:'pledge',text:'林岚对老秦立账：9 月 22 日交模板的实验读数。',pledge:{id:'P1',who:'林岚',to:'老秦',what:'模板实验读数',when:'9 月 22 日'}}),
+    E({t:'9/1 15:12',actor:SYS,type:'need_update',text:'J1 已判。模板不碰金额解析，J2 不再需要。',nu:[{id:'J1',status:'已判',pick:'只做模板'},{id:'J2',status:'撤销'}]})];
+  }}},
+
+{id:'sC1',t:'9/4 18:00',title:'原型就是规格',focus:'pledge',narrative:'两个原型三天做完，发给全公司 412 人用。门槛开工前就写下了：内测周留存过 60% 才往下做。不需要再开一次会，到线就做，不到线就停。',old:'研发管理里没有原型这种东西。它要么是一张正式的需求卡，要么是群里的一个链接。',
+ when:d=>d.J1==='C',
+ events:()=>[
+  E({t:'9/4 18:00',actor:AG('编码 agent'),type:'fact',k:'proto',text:'两个原型完成，发给全员内测：拍照记账，首次记账模板。',money:[{id:'M1',acct:'token',bet:'proto',label:'两个原型，编码 agent',amount:-2860}]}),
+  E({t:'9/4 18:05',actor:H('林岚','产品负责人'),type:'pledge_update',text:'林岚验收：两个原型交付内测，核销。',pid:'P6',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'两个原型交付内测'}),
+  E({t:'9/8 10:00',actor:AG('实验 agent'),type:'fact',k:'dog',text:'内测读数：拍照记账周留存 71%，模板 64%，都过了 60% 的门槛。'}),
+  E({t:'9/8 10:10',actor:H('阿哲','客户端负责人'),type:'pledge',text:'两个都往下做。阿哲受领：模板 9 月 15 日上线，拍照记账 9 月 24 日灰度 5%。',pledge:{id:'P5',who:'阿哲',to:'林岚',what:'首次记账模板上线',when:'9 月 15 日'}}),
+  E({t:'9/8 10:10',actor:H('阿哲','客户端负责人'),type:'pledge',text:'',silent:true,pledge:{id:'P4',who:'阿哲',to:'林岚',what:'拍照记账灰度 5%',when:'9 月 24 日'}}),
+  E({t:'9/8 10:12',actor:SYS,type:'need_update',text:'J2 排 9 月 9 日。',nu:[{id:'J2',status:'待判'}]}),
+ ]},
+
+{id:'sA1',t:'9/5 18:00',title:'大注开工：速度从来不是问题',focus:'law',narrative:'编码 agent 四天写完了拍照记账的大半。旧系统会把这记成一次创纪录的迭代速度。新账不记速度，记的是还有什么没被验证：赌注还没读数，金额解析还没人决定怎么审。',old:'迭代燃尽图大幅超前：89 点四天烧掉 61 点，速度是去年的三倍多。周报写着"进展顺利"。',
+ when:d=>d.J1==='A',
+ events:()=>[E({t:'9/5 18:00',actor:AG('编码 agent'),type:'fact',k:'build',pts:61,prs:41,text:'拍照记账客户端完成大半：拍照、裁剪、识别结果确认页，合并 41 个 PR。',money:[{id:'M1',acct:'token',bet:'photo',label:'拍照记账第一段，编码 agent',amount:-7800}]})]},
+
+{id:'sB1',t:'9/8 17:00',title:'小注上线',focus:'pledge',narrative:'一周上线，旧系统会在这里画句号。新账里交付核销了，赌注还开着，9 月 22 日读数。',old:'需求状态改成"已上线"，迭代燃尽到零。这件事在研发管理里已经结束了。',
+ when:d=>d.J1==='B',
+ events:()=>[
+  E({t:'9/8 17:00',actor:AG('编码 agent'),type:'fact',k:'launch',pts:13,prs:9,text:'首次记账模板上线，实验组 50%。',money:[{id:'M1',acct:'token',bet:'tpl',label:'首次记账模板，编码 agent',amount:-1900}]}),
+  E({t:'9/8 17:10',actor:H('林岚','产品负责人'),type:'pledge_update',text:'林岚验收：模板上线，交付核销。赌注还开着。',pid:'P5',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'上线，林岚验收'}),
+ ]},
+
+{id:'s3',t:'9/9 11:00',title:'谁来审：评审带宽才是瓶颈',focus:'law',narrative:'代码大多是编码 agent 写的，人的时间花在审上。老秦要定的是哪些代码必须人审，哪些交给评审 agent。这本身就是一条要立账的判断。',old:'研发规范里写着"所有代码须经 Code Review"。PR 太多，实际上是谁有空谁点通过。',
+ when:d=>d.J1!=='B',
+ events:()=>[
+  E({t:'9/9 10:00',actor:H('周敏','平台负责人'),type:'pledge',text:'周敏受领：OCR 金额识别接口 9 月 12 日给阿哲。',pledge:{id:'P2',who:'周敏',to:'阿哲',what:'OCR 金额识别接口',when:'9 月 12 日'}}),
+  E({t:'9/9 10:05',actor:XA('视觉云 agent','对方账本：视觉云客户成功'),type:'pledge',text:'视觉云在自己账上立了同一条 SLA：P99 800 毫秒以内，准确率 98% 以上。两边看的是同一个条目。',pledge:{id:'P3',who:'视觉云',to:'周敏',what:'P99 800 毫秒，准确率 98%',when:'12 月 31 日'}}),
+  E({t:'9/9 10:40',actor:AG('评审 agent'),type:'fact',k:'evalhist',text:'过去 90 天审了 2,316 个 PR，事后发现漏检 11 个，没有一个在金额相关代码里。金额解析是新模块，没有历史。'}),
+ ],
+ prompt:{kind:'judgment',who:'老秦',role:'研发总监',nid:'J2',focus:'law',q:'金额解析这块新代码，人审还是机器审？',
+  evidence:['人审：阿哲是 code owner，评审队列会到 6 / 6 的上限，别的 PR 平均多等两天，拍照记账灰度推到 9 月 26 日。','机器审：按时 9 月 24 日灰度。评审 agent 在金额代码上没有漏检记录，也没有审过。','金额错了，用户的账就错了。'],
+  options:[{key:'core',label:'列为核心，阿哲必审',detail:'慢两天，评审队列满'},{key:'outer',label:'列为外层，评审 agent 全审',detail:'按时，赌机器审得住'}],
+  resolve:(k,d)=>{d.J2=k;
+   if(k==='core')return[
+    E({t:'9/9 11:10',actor:H('老秦','研发总监'),type:'judgment',text:'金额解析列为核心模块，阿哲必审。',rq:{who:'阿哲',d:2},j:{id:'J2',bet:'人审拦得住金额解析的错，值两天',signal:'灰度后 30 天金额类事故为 0',review:'10 月 26 日',cost:'灰度晚两天，别的 PR 平均多等两天'}}),
+    E({t:'9/9 11:12',actor:H('阿哲','客户端负责人'),type:'pledge_update',text:'阿哲把拍照记账灰度改签到 9 月 26 日，林岚签收。',pid:'P4',patch:{when:'9 月 26 日',status:'已改签'},note:'人审，灰度改为 9 月 26 日'}),
+    E({t:'9/9 11:12',actor:SYS,type:'need_update',text:'J2 已判。',nu:[{id:'J2',status:'已判',pick:'人审'}]})];
+   return[
+    E({t:'9/9 11:10',actor:H('老秦','研发总监'),type:'judgment',text:'金额解析列为外层，评审 agent 全审。',j:{id:'J2',bet:'评审 agent 审得住金额解析',signal:'灰度后 30 天金额类事故为 0',review:'10 月 24 日',cost:'无'}}),
+    E({t:'9/9 11:12',actor:SYS,type:'need_update',text:'J2 已判。',nu:[{id:'J2',status:'已判',pick:'机器审'}]})];
+  }}},
+
+{id:'s4',t:'9/12 16:00',title:'依赖到了：交付自己核销',focus:'pledge',narrative:'周敏的接口按时到了，这条承诺自己核销，不需要有人记得。编码 agent 接上接口继续写，金额解析按老秦定的规则过评审。',
+ old:d=>d.J2==='core'?'23 张卡移到"已完成"。代码评审里多了一条"请修改"。为什么改、拦下了什么，在评论里，以后没人会再看。':'23 张卡移到"已完成"。23 个 PR 被点了通过，点的是评审 agent 的机器人账号。',
+ when:d=>d.J1!=='B',
+ events:d=>[
+  E({t:'9/12 16:00',actor:H('周敏','平台负责人'),type:'pledge_update',text:'周敏交付 OCR 金额识别接口，阿哲验收，核销。',pid:'P2',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'按时交付'}),
+  E({t:'9/12 17:00',actor:AG('编码 agent'),type:'fact',k:'build',pts:d.J1==='A'?20:34,prs:23,text:'接上 OCR 接口，写完金额解析和识别确认页，开 23 个 PR。',money:[{id:'M2',acct:'token',bet:'photo',label:d.J1==='A'?'拍照记账第二段，编码 agent':'拍照记账，编码 agent',amount:d.J1==='A'?-4800:-8900}]}),
+  ...(d.J2==='core'?[
+   E({t:'9/12 19:30',actor:H('阿哲','客户端负责人'),type:'return',k:'review',rev:540,text:'阿哲审到金额解析：小票上的 "1,280.00" 会被解析成 1.28，千分位。打回给编码 agent。'}),
+   E({t:'9/13 11:00',actor:AG('编码 agent'),type:'fact',k:'fixrev',rq:{who:'阿哲',d:-2},text:'重写金额解析，补 46 个千分位用例，阿哲通过。'}),
+  ]:[
+   E({t:'9/12 17:20',actor:AG('评审 agent'),type:'fact',k:'review',text:'23 个 PR 全部通过。'}),
+  ]),
+  ...(d.J1==='C'?[
+   E({t:'9/15 10:00',actor:AG('编码 agent'),type:'fact',k:'launch',pts:21,prs:9,text:'首次记账模板上线，实验组 50%。',money:[{id:'M3',acct:'token',bet:'tpl',label:'首次记账模板，编码 agent',amount:-1700}]}),
+   E({t:'9/15 10:10',actor:H('林岚','产品负责人'),type:'pledge_update',text:'林岚验收：模板上线，交付核销。',pid:'P5',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'上线，林岚验收'}),
+  ]:[]),
+ ]},
+
+{id:'sB2',t:'9/22 10:00',title:'读数：结账的那一刻',focus:'judg',narrative:'小注读得快。没赌赢，但只花了三周和不到一万块，就知道这条路不够。判断账记的是推翻，不是过错。',old:'BI 看板上 D7 往上走了一点。需求状态还是"已上线"，没有人回来看它赌赢了没有。',
+ when:d=>d.J1==='B',
+ events:()=>[
+  E({t:'9/22 10:00',actor:AG('实验 agent'),type:'fact',k:'readout',text:'模板实验读数：实验组 D7 32.6%，对照组 31.0%，提升 1.6 个点。'}),
+  E({t:'9/22 10:05',actor:SYS,type:'judgment_update',text:'林岚 9 月 1 日的判断回看：赌不少于 2 个点，实际 1.6。推翻。',jid:'J1',status:'推翻',note:'提升 1.6 个点'}),
+  E({t:'9/22 10:10',actor:H('林岚','产品负责人'),type:'pledge_update',text:'林岚把读数交给老秦，核销。',pid:'P1',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'读数交付，提升 1.6 个点'}),
+  E({t:'9/22 10:20',actor:H('林岚','产品负责人'),type:'msg',text:'模板全量。差的点数下一注押拍照记账，排到 Q1。'}),
+ ]},
+
+{id:'s5',t:'9/24 10:00',title:'上线是下注，不是结账',focus:'judg',narrative:'旧系统到这里画上了句号：需求"已上线"。新账里，交付的承诺核销了，林岚的赌注还开着，要等读数。',old:'需求状态改成"已上线"，迭代燃尽到零，群里发了庆祝的表情。这件事在研发管理里已经结束了。',
+ when:d=>d.J1!=='B',
+ events:d=>{const t=d.J2==='core'?'9/26':'9/24';return[
+  E({t:t+' 10:00',actor:AG('编码 agent'),type:'fact',k:'launch',pts:d.J1==='A'?8:0,prs:4,text:'拍照记账灰度 5%，实验组每天 3,400 个新用户。'}),
+  E({t:t+' 10:10',actor:H('林岚','产品负责人'),type:'pledge_update',text:'林岚验收：灰度上线，交付核销。赌注还开着。',pid:'P4',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'灰度上线，林岚验收'}),
+  E({t:t+' 10:15',actor:AG('实验 agent'),type:'fact',k:'expstart',text:'实验开始。每组需要 2.8 万个新用户，读数日 10 月 15 日。'}),
+ ];}},
+
+{id:'s6',t:'10/3 21:10',title:'恒等式：国庆夜里，责任回到人',focus:'law',narrative:'视觉云在国庆峰值里慢了下来。编码 agent 想上线降级：识别超过 1.5 秒就退回手动记账。可是动灰度开关超出了它的租约。事件回程到阿哲，阿哲在休假，于是移交。',old:'告警在值班群里响了。值班表上是小吴，可小吴不知道拍照记账归谁、开关能不能动。他在群里 @ 阿哲，阿哲在飞机上。',
+ when:d=>d.J1!=='B',
+ events:()=>[
+  E({t:'10/3 21:10',actor:XA('视觉云 agent','对方账本：视觉云客户成功'),type:'msg',text:'国庆峰值，P99 升到 2.4 秒，预计 10 月 6 日扩容恢复。'}),
+  E({t:'10/3 21:11',actor:SYS,type:'pledge_update',text:'视觉云欠周敏：P99 2.4 秒，超出 800 毫秒，标为悬空。连带林岚欠老秦的读数：实验组首次记账变慢，读数会被污染。',pid:'P3',patch:{status:'悬空'},note:'P99 2.4 秒，超出 800 毫秒'}),
+  E({t:'10/3 21:11',actor:SYS,type:'pledge_update',text:'',silent:true,pid:'P1',patch:{status:'悬空'},note:'实验组变慢，读数会被污染'}),
+  E({t:'10/3 21:12',actor:AG('编码 agent'),type:'return',text:'降级要动灰度开关，超出租约。回程到阿哲。'}),
+  E({t:'10/3 21:12',actor:SYS,type:'handoff',text:'阿哲休假中。编码 agent 的租约重新签发给国庆值班的小吴，等待签收。',lease:'编码 agent',from:'阿哲',to:'小吴',pending:true}),
+ ],
+ prompt:{kind:'action',who:'小吴',role:'客户端工程师，国庆值班',focus:'law',q:'阿哲移交过来：编码 agent 的租约，和拍照记账降级这件事。签不签收？',
+  evidence:['签收之后，编码 agent 做的每一件事都回程到你，包括这次降级。','受领是三态的：签收、婉拒、待受领。婉拒不会让事情悬空，备岗序列的下一位是老冯。'],
+  options:[{key:'ok',label:'签收',detail:'从此刻起，编码 agent 的租约归小吴'},{key:'no',label:'婉拒',detail:'对拍照记账不熟，走备岗序列'}],
+  resolve:(k,d)=>{d.H=k;const who=k==='ok'?'小吴':'老冯';const role=k==='ok'?'客户端工程师':'客户端资深工程师';const evs=[];
+   if(k==='no'){
+    evs.push(E({t:'10/3 21:20',actor:H('小吴','客户端工程师'),type:'handoff',text:'婉拒：对拍照记账不熟。',lease:'编码 agent',from:'阿哲',to:'小吴',declined:true}));
+    evs.push(E({t:'10/3 21:21',actor:SYS,type:'handoff',text:'备岗序列下一位：老冯。重新签发，等待签收。',lease:'编码 agent',from:'阿哲',to:'老冯',pending:true}));
+    evs.push(E({t:'10/3 21:35',actor:H('老冯','客户端资深工程师'),type:'handoff',text:'老冯签收。编码 agent 租约下的事从此刻起归老冯。',lease:'编码 agent',from:'阿哲',to:'老冯'}));
+   }else evs.push(E({t:'10/3 21:20',actor:H('小吴','客户端工程师'),type:'handoff',text:'小吴签收。编码 agent 租约下的事从此刻起归小吴。',lease:'编码 agent',from:'阿哲',to:'小吴'}));
+   evs.push(E({t:'10/3 21:40',actor:H(who,role),type:'pledge_update',text:`${who}批准降级：识别超过 1.5 秒就退回手动记账。读数日不变。`,pid:'P1',patch:{status:'立账'},note:`${who}批准降级止血，读数日不变`}));
+   evs.push(E({t:'10/3 21:45',actor:AG('编码 agent'),type:'fact',k:'degrade',text:'降级开关上线。实验组首次记账回到 7 秒以内。'}));
+   return evs;}}},
+
+{id:'s7',t:'10/4 09:20',title:'事故：机器没审住的那一处',focus:'law',narrative:'金额解析有一个千分位的错，评审 agent 没拦住。新账一路指得到人：代码是编码 agent 在阿哲的租约下写的，放行它的是老秦定的评审规则。老秦九月那条判断，此刻推翻。',old:'git blame 指到机器人账号，合并人是阿哲。复盘会约在节后 10 月 9 日，十二个人参加。',
+ when:d=>d.J1!=='B'&&d.J2==='outer',
+ events:()=>[
+  E({t:'10/4 09:20',actor:AG('实验 agent'),type:'fact',k:'incident',text:'2,140 个用户的拍照记账金额被缩小了一千倍：小票上的 "1,280.00" 记成了 1.28。'}),
+  E({t:'10/4 09:21',actor:SYS,type:'judgment_update',text:'老秦 9 月 9 日的判断回看：赌评审 agent 审得住金额解析。推翻。',jid:'J2',status:'推翻',note:'金额类事故，2,140 个用户'}),
+  E({t:'10/4 09:22',actor:SYS,type:'need',text:'炸出 J3，归林岚。排今天 10:00。',need:[{id:'J3',who:'林岚',q:'回滚，还是热修加告知？',evidence:'影响用户数，修复是否就绪，实验被污染的范围',sched:'今天 10:00'}]}),
+ ],
+ prompt:{kind:'judgment',who:'林岚',role:'产品负责人',nid:'J3',focus:'judg',q:'回滚拍照记账，还是热修加主动告知？',
+  evidence:['回滚：用户不再受影响，实验要从头来，读数推到 10 月 29 日。','热修：编码 agent 已经写好修复和 46 个千分位用例。2,140 笔账可以自动改回，逐一告知。','实验组被污染两天，实验 agent 可以剔除这两天。'],
+  options:[{key:'fix',label:'热修，改回数据，逐一告知',detail:'实验继续，剔除两天'},{key:'rollback',label:'回滚，实验重来',detail:'最稳，读数推到 10 月 29 日'}],
+  resolve:(k,d)=>{d.J3=k;const comp={id:'M4',acct:'事故',bet:'photo',label:'补偿 2,140 人 7 天会员，客服加班',amount:-21400};
+   if(k==='fix')return[
+    E({t:'10/4 10:05',actor:H('林岚','产品负责人'),type:'judgment',text:'热修，改回数据，逐一告知。',money:[comp],j:{id:'J3',cat:CAT.J3F,bet:'热修后不再出金额事故，剔除两天不影响读数',signal:'10 月 15 日前金额类事故为 0',review:'10 月 15 日',cost:'补偿 2,140 人 7 天会员'}}),
+    E({t:'10/4 10:40',actor:AG('编码 agent'),type:'fact',k:'fix',prs:1,text:'修复上线。46 个千分位用例进了评审 agent 的 eval 集，这一类错以后由评审 agent 拦截。'}),
+    E({t:'10/4 11:30',actor:SYS,type:'fact',k:'data',text:'2,140 笔记账已改回，通知已逐一发出。'}),
+    E({t:'10/4 11:30',actor:SYS,type:'need_update',text:'J3 已判。',nu:[{id:'J3',status:'已判',pick:'热修'}]})];
+   return[
+    E({t:'10/4 10:05',actor:H('林岚','产品负责人'),type:'judgment',text:'回滚，实验重来。',money:[comp],j:{id:'J3',cat:CAT.J3R,bet:'回滚后重跑实验，读数仍赶得上 Q4 的决定',signal:'10 月 29 日读数',review:'10 月 29 日',cost:'读数晚两周，补偿 2,140 人 7 天会员'}}),
+    E({t:'10/4 10:20',actor:AG('编码 agent'),type:'fact',k:'rollback',text:'拍照记账回滚。'}),
+    E({t:'10/4 10:30',actor:H('林岚','产品负责人'),type:'pledge_update',text:'林岚把读数改签到 10 月 29 日，老秦签收。',pid:'P1',patch:{when:'10 月 29 日',status:'已改签'},note:'回滚，实验重来'}),
+    E({t:'10/4 11:30',actor:SYS,type:'fact',k:'data',text:'2,140 笔记账已改回，通知已逐一发出。'}),
+    E({t:'10/8 10:00',actor:AG('编码 agent'),type:'fact',k:'fix',prs:1,text:'修复上线，46 个千分位用例进了评审 agent 的 eval 集。拍照记账重新灰度，实验重来。'}),
+    E({t:'10/4 11:30',actor:SYS,type:'need_update',text:'J3 已判。',nu:[{id:'J3',status:'已判',pick:'回滚'}]})];
+  }}},
+
+{id:'s8',t:'10/6 12:00',title:'对方的账也回来了',focus:'pledge',narrative:'视觉云扩容完成，SLA 回到线内。它在自己的账上记下这次违约，按合同返还服务费。两边看的是同一个条目，不需要谁去对。节后，编码 agent 的租约移交回阿哲，同样要签收。',old:'视觉云发来一封邮件，说已恢复。SLA 违约返还，要采购下个月去翻合同。',
+ when:d=>d.J1!=='B',
+ events:()=>[
+  E({t:'10/6 12:00',actor:XA('视觉云 agent','对方账本：视觉云客户成功'),type:'receipt',k:'restore',text:'扩容完成，P99 回到 620 毫秒。按合同返还 9 月服务费的 10%。',money:[{id:'M6',acct:'外部接口',bet:'photo',label:'视觉云 SLA 违约返还',amount:684}]}),
+  E({t:'10/6 12:05',actor:SYS,type:'pledge_update',text:'视觉云欠周敏：回到线内。',pid:'P3',patch:{status:'立账'},note:'P99 620 毫秒，恢复；违约返还已入账'}),
+  ...(()=>{const st=state.events.filter(e=>e.type==='handoff'&&!e.pending&&!e.declined&&e.to!=='阿哲').pop();return st?[E({t:'10/8 09:30',actor:H('阿哲','客户端负责人'),type:'handoff',k:'back',text:`节后，${st.to}把编码 agent 的租约移交回阿哲，阿哲签收。`,lease:'编码 agent',from:st.to,to:'阿哲'})]:[];})(),
+ ]},
+
+{id:'s9',t:'10/15 10:00',title:'读数：结账的那一刻',focus:'judg',
+ narrative:d=>d.J1==='A'?'读数回来了：提升 2.6 个点，没到 4。林岚九月的赌注推翻。拍照记账照样全量，2.6 个点是真的，只是不够，差的要另押一注。':d.J3==='rollback'?'读数晚了两周回来：两个小注合起来提升 4.1 个点，过了 4。林岚九月的赌注印证，回滚的那条判断也印证。':'读数回来了：两个小注合起来提升 4.2 个点，过了 4。林岚九月的赌注印证。',
+ old:'BI 看板上 D7 往上走了一点。是哪个需求的功劳？几个需求同一周上线，看板分不出来。需求状态早就是"已完成"。',
+ when:d=>d.J1!=='B',
+ events:d=>{const late=d.J3==='rollback',A=d.J1==='A',t=late?'10/29':'10/15';const v=A?'33.6':late?'35.1':'35.2',dv=A?'2.6':late?'4.1':'4.2';return[
+  E({t:t+' 10:00',actor:AG('实验 agent'),type:'fact',k:'readout',text:A?`拍照记账实验读数：实验组 D7 ${v}%，对照组 31.0%，提升 ${dv} 个点。`:`实验读数：拍照记账加模板，实验组 D7 ${v}%，对照组 31.0%，提升 ${dv} 个点。`}),
+  E({t:t+' 10:05',actor:SYS,type:'judgment_update',text:A?`林岚 9 月 1 日的判断回看：赌不少于 4 个点，实际 ${dv}。推翻。`:`林岚 9 月 1 日的判断回看：赌合起来不少于 4 个点，实际 ${dv}。印证。`,jid:'J1',status:A?'推翻':'印证',note:`提升 ${dv} 个点`}),
+  E({t:t+' 10:10',actor:H('林岚','产品负责人'),type:'pledge_update',text:'林岚把读数交给老秦，核销。',pid:'P1',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:`读数交付，提升 ${dv} 个点`}),
+  ...(d.J2==='outer'?[E({t:t+' 10:12',actor:SYS,type:'judgment_update',text:late?'林岚 10 月 4 日的判断回看：重跑的读数赶上了。印证。':'林岚 10 月 4 日的判断回看：热修后金额类事故为 0，剔除两天后读数可用。印证。',jid:'J3',status:'印证',note:late?'读数晚两周，赶上了':'热修后事故为 0'})]:[]),
+  E({t:t+' 10:30',actor:H('林岚','产品负责人'),type:'msg',text:A?'拍照记账全量。差的 1.4 个点，下一注押首次记账模板，11 月初上线。':'两个都全量。'}),
+  ...(A?[E({t:t+' 10:40',actor:H('阿哲','客户端负责人'),type:'pledge',text:'阿哲受领：编码 agent 做模板，11 月 3 日上线。',pledge:{id:'P5',who:'阿哲',to:'林岚',what:'首次记账模板上线',when:'11 月 3 日'}})]:[]),
+  ...(d.J2==='core'?[E({t:'10/26 09:00',actor:SYS,type:'judgment_update',text:'老秦 9 月 9 日的判断回看：灰度后 30 天，金额类事故为 0。印证。',jid:'J2',status:'印证',note:'30 天金额类事故为 0'})]:[]),
+ ];}},
+
+{id:'s10',t:'10/31 18:00',title:'钱账：一注的价钱，不是一个部门的工资',focus:'money',narrative:'旧账里，研发费用是月底按人头分到项目组的一个数。新账按赌注归集：人的小时、token、外部接口、事故。和它换回来的点数放在一起，就是这一注的价钱。',old:'财务把 9、10 月研发费用 536 万按人头分摊到四个项目组。token 账单 8.4 万记在"云服务"里。拍照记账花了多少，没有人算得出来。',
+ events:d=>{const h=d.J1==='B'?11:(d.J1==='A'?45:51)+(d.J2==='core'?9:0);
+  const items=[{id:'M7',acct:'人力',bet:d.J1==='C'?'all':d.J1==='B'?'tpl':'photo',label:`人的小时：判断、验收、评审、接口，合计 ${h} 小时，每小时 420 元`,amount:-h*420}];
+  if(d.J1!=='B')items.push({id:'M8',acct:'外部接口',bet:'photo',label:'视觉云调用费，灰度上线到 10 月 31 日',amount:-6840});
+  const e1=E({t:'10/31 18:00',actor:SYS,type:'fact',k:'close',close:true,text:'月结。成本按赌注归集。',money:items});
+  return[e1,E({t:'10/31 19:00',actor:H('老秦','研发总监'),type:'msg',text:`看每一个点花了多少：${costPerPt([...state.events,e1],d)}。点进去，落到林岚 9 月 1 日那条判断。`})];}},
+
+{id:'s11',t:'12/31 18:00',title:'结账：老秦对公司的那一条',focus:'pledge',narrative:'到期回看不靠人记得。12 月新用户的 D7 出来了，老秦对公司的承诺自己结账，林岚的判断力档案多了一条。',old:'1 月的 OKR 复盘会上，大家凭记忆讨论拍照记账值不值。林岚记得自己当时怎么想的，别人不记得。',
+ prompt:{kind:'action',who:'老秦',role:'研发总监',focus:'pledge',q:'12 月新用户 D7 出来了。翻开老秦对公司的那一条。',evidence:['承诺：12 月新用户 D7 留存 35%。','新鲜感会退。上线时的读数，不一定是三个月后的样子。'],
+  options:[{key:'open',label:'翻开结账',detail:'系统拿 12 月的数据来对账'}],
+  resolve:(k,d)=>{
+   if(d.J1==='A')return[
+    E({t:'11/3 10:00',actor:H('林岚','产品负责人'),type:'pledge_update',text:'林岚验收：模板 11 月 3 日上线，交付核销。',pid:'P5',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'上线，林岚验收'}),
+    E({t:'12/31 18:00',actor:AG('实验 agent'),type:'fact',k:'final',text:'12 月新用户 D7 34.4%。拍照记账从 2.6 个点退到 2.2，新鲜感过去了；11 月补上的模板贡献 1.2。'}),
+    E({t:'12/31 18:05',actor:SYS,type:'pledge_update',text:'老秦对公司的承诺：差 0.6 个点，未达。',pid:'P0',patch:{status:'未达'},note:'12 月 D7 34.4%，差 0.6 个点'})];
+   if(d.J1==='C')return[
+    E({t:'12/31 18:00',actor:AG('实验 agent'),type:'fact',k:'final',text:'12 月新用户 D7 35.1%。拍照记账从 2.6 个点退到 2.2，模板没有退。两个小注合起来刚好过线。'}),
+    E({t:'12/31 18:05',actor:SYS,type:'pledge_update',text:'老秦对公司的承诺：35.1%，核销。',pid:'P0',patch:{status:'已核销'},gates:{done:true,accept:true,clear:true},note:'12 月 D7 35.1%'})];
+   return[
+    E({t:'12/31 18:00',actor:AG('实验 agent'),type:'fact',k:'final',text:'12 月新用户 D7 32.6%。模板的 1.6 个点没有退。拍照记账排在 Q1。'}),
+    E({t:'12/31 18:05',actor:SYS,type:'pledge_update',text:'老秦对公司的承诺：差 2.4 个点，未达。',pid:'P0',patch:{status:'未达'},note:'12 月 D7 32.6%，差 2.4 个点'})];
+  }}},
+];
+
+/* ---------- 状态与推进 ---------- */
+let state,timer=null;
+function init(){
+  _id=0;stopPlay();
+  state={played:[],events:[],decisions:{},pending:null,cursor:0,sel:null,mode:'new',tab:'need',oldTab:'req',follow:true,fresh:new Set(),changed:new Set(),done:false,view:null};
+  const evs=playScene(SCENES[0]);applyFocus(SCENES[0].focus,evs);
+  render();
+}
+function tabsOf(e){const s=[];if(e.type==='need'||e.type==='need_update')s.push('need');if(['pledge','pledge_update','receipt'].includes(e.type))s.push('pledge');if(e.type==='judgment'||e.type==='judgment_update')s.push('judg');if(e.money)s.push('money');if(e.actor.kind==='agent'||e.type==='handoff'||e.type==='return')s.push('law');return s;}
+function markChanged(evs){state.changed=new Set();for(const e of evs)for(const t of tabsOf(e))state.changed.add(t);}
+function applyFocus(f,evs){
+  if(!state.follow)return;
+  if(state.mode==='new'){if(f)state.tab=f;return;}
+  const firstDoc=(evs||[]).flatMap(e=>oldOf(e,state.decisions)).find(r=>r.kind!=='ghost');
+  const map={need:'iter',judg:'judg',pledge:'req',money:'fin',law:'code'};
+  state.oldTab=firstDoc?firstDoc.module:(map[f]||state.oldTab);
+}
+function playScene(sc){
+  const evs=sc.events?sc.events(state.decisions):[];
+  state.fresh=new Set(evs.map(e=>e.id));
+  state.events.push(...evs);
+  state.played.push({scene:sc,events:evs,resolved:[]});
+  if(sc.prompt)state.pending=sc;
+  markChanged(evs);
+  return evs;
+}
+function nextIndex(){let i=state.cursor+1;while(i<SCENES.length&&SCENES[i].when&&!SCENES[i].when(state.decisions))i++;return i;}
+function advance(opts={}){
+  if(state.view!=null){state.view=null;if(!opts.silent){render();return true;}}
+  if(state.pending||state.done)return false;
+  const i=nextIndex();
+  if(i>=SCENES.length){state.done=true;state.fresh=new Set();state.changed=new Set();stopPlay();if(!opts.silent){render();revealFinal();}return false;}
+  state.cursor=i;const evs=playScene(SCENES[i]);applyFocus(SCENES[i].focus,evs);
+  if(state.pending)stopPlay();
+  if(!opts.silent){render();bookScroll();}
+  return true;
+}
+function resolve(key){
+  const sc=state.pending;if(!sc||state.view!=null)return;
+  const evs=sc.prompt.resolve(key,state.decisions);
+  state.fresh=new Set(evs.map(e=>e.id));
+  state.events.push(...evs);
+  state.played[state.played.length-1].resolved=evs;
+  state.pending=null;markChanged(evs);applyFocus(sc.prompt.focus,evs);
+  render();bookScroll();
+}
+function fastForward(){
+  stopPlay();state.view=null;
+  if(state.pending||state.done){render();return;}
+  const start=state.events.length;
+  while(!state.pending&&!state.done){if(!advance({silent:true}))break;}
+  const evs=state.events.slice(start);
+  state.fresh=new Set(evs.map(e=>e.id));markChanged(evs);
+  render();bookScroll();if(state.done)revealFinal();
+}
+function startPlay(){
+  if(timer||state.done)return;
+  state.view=null;
+  if(state.pending){render();focusDecision();return;}
+  timer=setInterval(()=>{if(state.pending||state.done){stopPlay();render();if(state.pending)focusDecision();return;}advance();},2600);
+  advance();renderControls();
+}
+function stopPlay(){if(timer){clearInterval(timer);timer=null;}}
+function bookScroll(){const el=document.getElementById('stream');if(el&&!$('#ledgerBody').hidden)el.scrollTop=el.scrollHeight;}
+function clockNum(){return dnum(SCENES[state.cursor].t);}
+function viewAt(k){stopPlay();state.view=(k>=state.played.length-1)?null:k;render();}
+
+
+/* ---------- 新账投影：一切从 events 重算 ---------- */
+function build(events){
+  const pledges=new Map(),needs=new Map(),judg=new Map(),money=[],holders={},agents=[],handoffs=[];
+  for(const e of events){
+    e.refs=[];
+    if(e.actor.kind==='agent'){e.responsible=holders[e.actor.name]||LEASES[e.actor.name].by;agents.push(e);}
+    switch(e.type){
+      case 'pledge':pledges.set(e.pledge.id,{...e.pledge,status:e.pledge.status||'立账',gates:{done:false,accept:false,clear:false},hist:[],ev:e.id});e.refs.push(e.pledge.id);break;
+      case 'pledge_update':{const p=pledges.get(e.pid);if(p){Object.assign(p,e.patch||{});if(e.gates)Object.assign(p.gates,e.gates);if(e.note)p.hist.push({t:e.t,note:e.note,ev:e.id});}e.refs.push(e.pid);break;}
+      case 'need':for(const n of e.need){needs.set(n.id,{...n,status:n.status||'待判',ev:e.id});e.refs.push(n.id);}break;
+      case 'need_update':for(const u of e.nu){const n=needs.get(u.id);if(n){n.status=u.status;if(u.pick)n.pick=u.pick;}e.refs.push(u.id);}break;
+      case 'judgment':judg.set(e.j.id,{...e.j,who:e.actor.name,t:e.t,status:'待回看',ev:e.id});e.refs.push(e.j.id);break;
+      case 'judgment_update':{const j=judg.get(e.jid);if(j){j.status=e.status;j.result=e.note;j.rev=e.id;}e.refs.push(e.jid);break;}
+      case 'handoff':handoffs.push(e);if(!e.pending&&!e.declined)holders[e.lease]=e.to;break;
+    }
+    if(e.money)for(const m of e.money){money.push({...m,ev:e.id,t:e.t});e.refs.push(m.id);}
+  }
+  return {pledges,needs,judg,money,holders,agents,handoffs};
+}
+function marginPct(events){const {money}=build(events);return pctOf(money);}
+function pctOf(money){const rev=money.filter(m=>m.amount>0).reduce((a,m)=>a+m.amount,0);const gp=money.reduce((a,m)=>a+m.amount,0);return (gp/rev*100).toFixed(1)+'%';}
+
+
+
+/* ---------- 旧系统投影：同一条事件流，按"只看得见被录进系统的东西"推导 ---------- */
+const MOD={req:'需求',iter:'迭代',code:'代码',fin:'费用'};
+const doc=o=>({kind:'doc',screens:0,entries:0,approvers:[],meet:0,...o});
+const ghost=why=>({kind:'ghost',why});
+const lag=o=>({kind:'lag',screens:0,entries:0,approvers:[],meet:0,...o});
+function oldOf(e,d){
+  const a=e.actor,T=e.type,k=e.k;
+  if(e.silent)return[];
+  if(T==='msg'){if(a.kind==='xagent')return[ghost('供应商的通知在邮件里。')];if(a.name==='老秦')return[ghost('老秦看的是月底的部门费用表。一个点花多少，表上没有。')];return[ghost('在群里说的。')];}
+  if(T==='fact'){
+    if(k==='insight')return[lag({module:'req',title:'周报 PPT：新用户留存',detail:'分析师周五做，下周一周会上讲。',lagTo:'9/7',lagLabel:'9 月 7 日周会',screens:2})];
+    if(k==='build')return[doc({module:'iter',title:`${e.pts} 点移到"已完成"`,detail:`合并 ${e.prs} 个 PR，提交者是机器人账号。迭代速度创纪录。`,screens:1,entries:Math.ceil(e.prs/4),approvers:['阿哲']})];
+    if(k==='proto')return[ghost('原型不在迭代里，只是群里的一个链接。')];
+    if(k==='dog')return[ghost('内测反馈在群里，412 人回了 90 条消息。门槛没有地方写。')];
+    if(k==='launch')return[doc({module:'req',title:'需求状态：已上线',detail:'卡片关闭。这件事在系统里结束了。',screens:1,entries:2}),...(e.pts?[doc({module:'iter',title:`${e.pts} 点移到"已完成"`,detail:'燃尽到零。',entries:1})]:[])];
+    if(k==='expstart')return[ghost('实验平台里多了一个实验。它连着哪个需求、赌的是什么，实验平台不知道。')];
+    if(k==='evalhist')return[ghost('评审 agent 的漏检率没有人统计。')];
+    if(k==='review')return[doc({module:'code',title:'PR 通过 23 个',detail:'点通过的是评审 agent 的机器人账号。',approvers:['评审机器人'],screens:1})];
+    if(k==='fixrev')return[doc({module:'code',title:'PR 修改后通过',detail:'评论里写着"千分位"。',approvers:['阿哲'],screens:1})];
+    if(k==='degrade')return[doc({module:'code',title:'配置变更：降级开关',detail:'为什么改，在值班群里。',entries:1,screens:2})];
+    if(k==='incident')return[doc({module:'code',title:'告警：金额异常',detail:'值班群里响了。告警说的是"金额异常"，不是"哪个赌注出了事"。',screens:3}),lag({module:'code',title:'复盘会',detail:'十二个人，一个半小时。结论写进 Wiki。',lagTo:'10/9',lagLabel:'10 月 9 日复盘会',meet:18})];
+    if(k==='fix')return[doc({module:'code',title:'Hotfix 发布单',detail:'发布审批两人签字。',approvers:['值班','老秦'],entries:1,screens:2})];
+    if(k==='rollback')return[doc({module:'code',title:'回滚发布单',detail:'发布审批两人签字。',approvers:['值班','老秦'],entries:1,screens:2})];
+    if(k==='data')return[ghost('改回 2,140 笔账的脚本在一个人的电脑上。')];
+    if(k==='readout')return[doc({module:'req',title:'BI 看板：D7 往上走了一点',detail:'几个需求同一周上线，看板分不出是谁的功劳。',screens:3})];
+    if(k==='close')return[doc({module:'fin',title:'月结：研发费用分摊',detail:'9、10 月研发费用 536 万，按人头分到四个项目组。',screens:2,entries:4}),ghost('token 记在"云服务"里，视觉云的费用记在采购那边。这一注花了多少，没有科目。')];
+    if(k==='final')return[lag({module:'req',title:'OKR 复盘：KR 打分',detail:'1 月的复盘会上打分。',never:true,lagLabel:'1 月的 OKR 复盘会',meet:24})];
+    return[ghost('这件事发生在系统外。')];
+  }
+  if(T==='need')return[ghost(e.need.some(n=>n.id==='J1')?'研发管理不排判断，只排卡片。押什么、谁来审，没有位置。':'研发管理不排判断。')];
+  if(T==='need_update')return[];
+  if(T==='judgment'){
+    const j=e.j.id;
+    if(j==='J1'){const p=PLAN[d.J1];return[doc({module:'req',title:d.J1==='C'?'两份 PRD 与需求评审会':'PRD 与需求评审会',detail:`九个人两小时。拆出 ${p.cards} 张卡。写着做什么，没写赌什么。`,entries:p.cards,screens:2,meet:d.J1==='C'?36:18}),doc({module:'iter',title:`迭代计划会：估了 ${p.pts} 点`,detail:'八个人一个半小时，扑克牌估点。',meet:12,entries:p.cards})];}
+    if(j==='J2')return[ghost('老秦在规范文档里没改一个字。谁审，看谁有空。')];
+    if(j==='J3')return[ghost('事故群里拍板，三十条消息。')];
+  }
+  if(T==='pledge'){
+    const p=e.pledge.id;
+    if(p==='P0')return[doc({module:'req',title:'OKR 文档：一行 KR',detail:'D7 留存 35%。谁欠谁、哪天结账，文档里是一行字。',entries:1,screens:1})];
+    if(p==='P1')return[ghost('林岚答应老秦的读数日期，在一次一对一里。')];
+    if(p==='P2')return[ghost('接口约定在群里：周敏说"12 号给你"。')];
+    if(p==='P3')return[ghost('SLA 在合同附件里，归采购管。')];
+    if(p==='P4'||p==='P5')return[doc({module:'iter',title:'卡片截止日期',detail:`${e.pledge.when}。`,entries:1})];
+    if(p==='P6')return[ghost('原型的交付日期在群里。')];
+  }
+  if(T==='pledge_update'){
+    const p=e.pid,st=e.patch&&e.patch.status,when=e.patch&&e.patch.when;
+    if(p==='P0')return['已核销','未达'].includes(st)?[lag({module:'req',title:'OKR 复盘：KR 打分',detail:'1 月的复盘会上打分。',never:true,lagLabel:'1 月的 OKR 复盘会'})]:[];
+    if(p==='P2'&&st==='已核销')return[doc({module:'code',title:'接口文档更新',detail:'周敏改了 Wiki。',entries:1})];
+    if(p==='P3'&&st==='悬空')return[doc({module:'code',title:'告警：外部接口超时',detail:'告警当场响。它连着哪个承诺、哪个赌注，告警不知道。',screens:2})];
+    if(p==='P3')return[];
+    if((p==='P4'||p==='P5')&&when)return[doc({module:'iter',title:'卡片截止日期修改',detail:`改为 ${when}。原来的日期没了。`,entries:1})];
+    if(p==='P1'&&st==='悬空')return[ghost('读数会不会被污染，没有人会被提醒。')];
+    if(p==='P1'&&when)return[ghost('读数推迟，在一对一里说了。')];
+    if(p==='P1'&&st==='已核销')return[ghost('读数发在群里。')];
+    if(p==='P1')return[ghost('降级是值班的人拍的板，在群里。')];
+    return[];
+  }
+  if(T==='receipt')return[ghost('恢复的邮件。SLA 违约返还，要采购下个月去翻合同。')];
+  if(T==='return'){if(k==='review')return[doc({module:'code',title:'PR 评论：请修改',detail:'"千分位要处理"。',screens:1})];return[ghost('agent 停下来等人，这个动作在旧系统里没有对应物。')];}
+  if(T==='handoff')return e.pending?[ghost('值班交接在群里：@阿哲，阿哲在飞机上。')]:[];
+  if(T==='judgment_update')return[ghost('没有回看。年终绩效靠印象。')];
+  return[];
+}
+function buildOld(events,d,clock){
+  const recs=[];
+  for(const e of events)for(const r of oldOf(e,d)){r.ev=e;r.t=e.t;r.visible=r.never?false:(r.kind==='lag'&&r.lagTo?clock>=dnum(r.lagTo):true);recs.push(r);}
+  const stats={screens:0,entries:0,approvals:0,meet:0,ghosts:0};
+  for(const r of recs){if(r.kind==='ghost'){stats.ghosts++;continue;}if(!r.visible)continue;stats.screens+=r.screens||0;stats.entries+=r.entries||0;stats.approvals+=(r.approvers||[]).length;stats.meet+=r.meet||0;}
+  const closed=events.some(e=>e.close);
+  const burnDone=events.reduce((s,e)=>s+(e.pts||0),0);
+  const prs=events.reduce((s,e)=>s+(e.prs||0),0);
+  return {recs,stats,closed,burnDone,prs,plan:d.J1?PLAN[d.J1]:null,...build(events)};
+}
+
+/* ---------- 研发场景的几个读数 ---------- */
+function liftOf(evs){let v=null;for(const e of evs)if(e.type==='judgment_update'&&e.jid==='J1'){const m=String(e.note).match(/提升 ([\d.]+) 个点/);if(m)v=+m[1];}return v;}
+function costOf(evs){return -build(evs).money.reduce((s,m)=>s+m.amount,0);}
+function costPerPt(evs,d){const l=liftOf(evs);const c=costOf(evs);return l?`每个点约 ${wan(c/l)}`:'读数还没出来';}
+function reviewLoad(evs){let n=REVIEW['阿哲'].base;for(const e of evs)if(e.rq&&e.rq.who==='阿哲')n+=e.rq.d;return n;}
+
+/* ---------- 此刻：同一个前缀，两台相机 ---------- */
+const tmin=t=>{const m=t.match(/^(\d+)\/(\d+)(?:\s+(\d+):(\d+))?/);return m?new Date(2026,+m[1]-1,+m[2],m[3]?+m[3]:0,m[4]?+m[4]:0).getTime()/60000:0;};
+const dnumT=t=>dnum(t);
+function prefixOf(k){return state.played.slice(0,k+1).flatMap(b=>[...b.events,...b.resolved]);}
+function ctx(){
+  const live=state.view==null;
+  const k=live?state.played.length-1:state.view;
+  const blk=state.played[k];const evs=prefixOf(k);
+  const own=[...blk.events,...blk.resolved];
+  const fresh=live?state.fresh:new Set(own.map(e=>e.id));
+  const day=Math.max(dnum(blk.scene.t),...own.map(e=>dnum(e.t)),0);
+  return {live,k,blk,sc:blk.scene,evs,fresh,day:live&&state.done?9999:day};
+}
+function pendingHandoff(evs){let p=null;for(const e of evs)if(e.type==='handoff'){if(e.pending)p=e;else if(!e.declined&&p&&e.to===p.to)p=null;}return p;}
+const shortWhen=w=>{const m=String(w).match(/(\d+) 月 (\d+) 日/);return m?`${m[1]}/${m[2]}`:w;};
+const shortWhat=w=>String(w).includes('，')?'分两批':((String(w).match(/[\d,]+ (台|颗)/)||[w])[0]);
+
+const QUESTIONS=[
+  {c:'承诺账',q:'答应的交付，现在稳吗？'},
+  {c:'恒等式',q:'线上出了事，此刻找谁？'},
+  {c:'钱账',q:'这一注花了多少，换来多少？'},
+  {c:'判断账',q:'林岚九月那个判断，对吗？'},
+  {c:'计划对象',q:'现在有什么在等人拍板？'},
+];
+function answers(evs,d,day){
+  const P=build(evs),O=buildOld(evs,d,day);const out=[];
+  /* 一：承诺 */
+  const open=[...P.pledges.values()].filter(p=>p.status!=='已核销');
+  const rank={'悬空':0,'未达':0,'待签收':1,'已改签':2,'立账':3};
+  open.sort((a,b)=>(rank[a.status]??3)-(rank[b.status]??3));
+  const ps=p=>({'立账':`${shortWhen(p.when)}，稳`,'已改签':`改签到 ${shortWhen(p.when)}`,'悬空':'悬空','未达':'未达','待签收':'待签收'}[p.status]||p.status);
+  const shown=open.filter(p=>p.id!=='P0'||open.length===1).slice(0,3);
+  let nw1=shown.length?shown.map(p=>`${NAMES[p.id]}：${ps(p)}${['悬空','未达'].includes(p.status)&&p.hist.length?'，'+p.hist[p.hist.length-1].note:''}`).join('；'):'都已核销';
+  const p0=P.pledges.get('P0');if(p0&&p0.status==='已核销')nw1='都已核销，包括对公司的那一条';
+  let o1='—',g1='na',w1='';
+  if(O.plan){
+    o1=`迭代燃尽 ${O.burnDone} / ${O.plan.pts} 点${O.burnDone>=O.plan.pts?'，全部完成':''}`;
+    if(open.some(p=>['悬空','待签收'].includes(p.status))){g1='wrong';w1='燃尽图一片绿';}
+    else if(p0&&p0.status==='未达'){g1='wrong';w1='卡片全部完成，目标没达成';}
+    else g1='ok';
+  }else if(P.pledges.size){o1='OKR 文档里一行 KR';g1='ok';}
+  out.push({nw:nw1,old:o1,g:g1,why:w1});
+  /* 二：找谁 */
+  const holder=P.holders['编码 agent']||'阿哲';const ph=pendingHandoff(evs);
+  const hasCode=['P4','P5','P6'].some(id=>P.pledges.has(id));
+  let nw2,o2,g2,w2='';
+  if(!hasCode){nw2=P.pledges.size?'目标：老秦':'—';o2=P.pledges.size?'OKR 文档上写着老秦':'—';g2=P.pledges.size?'ok':'na';}
+  else{
+    nw2=`代码：${holder}${ph?`，移交中，等${ph.to}签收`:holder!=='阿哲'?'，接手自阿哲':''}；${P.judg.has('J2')?'评审规则：老秦；':''}赌注：林岚`;
+    const inc=evs.some(e=>e.k==='incident'||(e.type==='pledge_update'&&e.pid==='P3'&&e.patch&&e.patch.status==='悬空'));
+    o2=`git blame：机器人账号提交，阿哲合并${inc?'；值班表：小吴':''}`;
+    if(holder!=='阿哲'||ph){g2='wrong';w2='合并人在休假，值班的人不知道这是谁的';}else{g2='none';w2='只看得到谁点了合并';}
+  }
+  out.push({nw:nw2,old:o2,g:g2,why:w2});
+  /* 三：钱 */
+  const cost=costOf(evs),lift=liftOf(evs);
+  out.push({nw:P.money.length?`这一注已花 ${wan(cost)}${lift?`，换来 ${lift} 个点，每个点约 ${wan(cost/lift)}`:'，读数还没出来'}`:'还没花钱',
+    old:P.money.length?(O.closed?'9、10 月研发费用 536 万，按人头分到项目组':'月底按人头分摊'):'—',
+    g:P.money.length?(O.closed?'off':'none'):'na',why:P.money.length?(O.closed?'答的是部门，不是这一注':'这一刻答不了'):''});
+  /* 四：判断 */
+  const J1=P.judg.get('J1');const launched=evs.some(e=>e.k==='launch');
+  out.push({nw:J1?(J1.status==='待回看'?`待回看，${J1.review}读数`:`${J1.status}：${J1.result||''}`)+(P.judg.size>1?`。账上共 ${P.judg.size} 条判断`:''):'还没有决定',
+    old:J1?(launched?'需求状态：已上线，已完成':'需求状态：开发中'):'—',g:J1?'off':'na',why:J1?(launched?'上线不等于赌对':'它记做到哪了，不记赌了什么'):''});
+  /* 五：等谁拍板 */
+  const pend=[...P.needs.values()].filter(n=>['待判','等 J1'].includes(n.status));
+  const rl=reviewLoad(evs),cap=REVIEW['阿哲'].cap;
+  let o5='—',g5='na',w5='';
+  if(O.plan){const left=O.plan.cards-Math.round(Math.min(1,O.burnDone/O.plan.pts)*O.plan.cards);o5=`迭代待办 ${left} 张卡`;if(pend.length){g5='off';w5='它排工作，不排判断';}else g5='ok';}
+  else if(pend.length){o5='需求评审会还没开';g5='none';w5='而且它只排卡片';}
+  out.push({nw:(pend.length?pend.map(n=>`${n.id} ${n.who}${n.status==='等 J1'?'，等 J1':'，待判'}`).join('；'):'没有')+(hasCode&&rl>=cap?`；阿哲的评审队列满了，${rl} / ${cap}`:''),old:o5,g:g5,why:w5});
+  return out;
+}
+
+const GRADE={ok:'相符',none:'答不了',lag:'滞后',off:'答非所问',wrong:'与事实不符',na:''};
+
+/* ---------- 渲染 ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function dayOf(t){const m=t.match(/^(\d+)\/(\d+)/);return m?`${m[1]} 月 ${m[2]} 日`:t;}
+function hm(t){const m=t.match(/\d+:\d+$/);return m?m[0]:'';}
+const narrText=sc=>typeof sc.narrative==='function'?sc.narrative(state.decisions):(sc.narrative||'');
+const oldText=sc=>typeof sc.old==='function'?sc.old(state.decisions):(sc.old||'');
+
+function anchorScene(){const blocks=[...document.querySelectorAll('.scene[id]')];const hit=blocks.find(b=>b.getBoundingClientRect().bottom>80);return hit?hit.id:null;}
+function switchMode(m,sceneId){
+  if(m===state.mode&&!sceneId)return;
+  const anchor=sceneId||anchorScene();
+  state.mode=m;state.fresh=new Set();
+  const last=state.played[state.played.length-1];applyFocus(last.scene.prompt&&last.resolved.length?last.scene.prompt.focus:last.scene.focus,[...last.events,...last.resolved]);
+  render();
+  if(anchor){const el=document.getElementById(anchor);if(el)el.scrollIntoView({block:'start'});}
+}
+function tagOf(e){
+  const map={msg:['消息',''],fact:['事实',''],need:['判断需求',''],need_update:['判断需求',''],judgment:['判断','judg'],pledge:['承诺立账','pledge'],pledge_update:['承诺变动','pledge'],receipt:['回执','pledge'],return:['回程','ret'],handoff:['移交','ret'],judgment_update:['回看','judg']};
+  const [n,c]=map[e.type]||[e.type,''];return `<span class="tag ${c}">${n}</span>`;
+}
+function metaOf(e){
+  if(e.actor.kind==='agent'){const L=LEASES[e.actor.name];return `回程：<b>${e.responsible}</b>。租约由 ${L.by} 签发，${L.scope}，${L.budget}，至 ${L.until}`;}
+  if(e.actor.kind==='xagent')return e.actor.role||'';
+  return '';
+}
+function sceneHead(sc,old){
+  const narr=old?oldText(sc):narrText(sc);
+  const bridge=old?`<button class="bridge" data-sc="${sc.id}" data-to="new">回到新账</button>`:`<button class="bridge" data-sc="${sc.id}" data-to="old">旧系统 此刻怎么样</button>`;
+  return `<div class="scene" id="sc-${sc.id}"><div class="scene-title"><span>${esc(sc.title)}</span>${bridge}</div>${narr?`<p class="narr">${esc(narr)}</p>`:''}</div>`;
+}
+function promptBlock(sc){
+  const p=sc.prompt,old=state.mode==='old';
+  return `<section class="prompt fresh ${old?'old-note':''}">
+    <div class="prompt-head"><span>${old?'这个判断在旧系统 里没有位置，它发生在群聊里':(p.kind==='judgment'?'取景框':'待受领')+'，等 '+p.who+' 的'+(p.kind==='judgment'?'判断':'动作')}</span><span>${esc(p.role)}${p.nid?'，'+p.nid:''}</span></div>
+    <p class="q">${esc(p.q)}</p>
+    ${old?'':`<div class="evidence-h">系统已取好景的证据</div><ul class="evidence">${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`}
+    ${old?`<p class="wait">证据要 ${p.who} 自己去翻：打开几个界面，问几个人。选完之后，系统里只会出现结果单据。</p>`:''}
+    <div class="options">${p.options.map(o=>`<button data-key="${o.key}"><b>${esc(o.label)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div>
+    <div class="wait">你替${p.who}做这个${p.kind==='judgment'?'判断':'动作'}。下一步在你选完之前不会走。</div>
+  </section>`;
+}
+function bindStream(){
+  $('#stream').querySelectorAll('.ev,.doc').forEach(el=>{el.onclick=()=>{state.sel=state.sel===el.dataset.id?null:el.dataset.id;state.fresh=new Set();render();};el.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();el.click();}}});
+  $('#stream').querySelectorAll('.options button').forEach(b=>b.onclick=()=>resolve(b.dataset.key));
+  $('#stream').querySelectorAll('.bridge').forEach(b=>b.onclick=ev=>{ev.stopPropagation();switchMode(b.dataset.to,'sc-'+b.dataset.sc);});
+  $('#clock').textContent=state.done?'12 月 20 日之后':SCENES[state.cursor].t.replace(/^(\d+)\/(\d+)\s*/,(m,a,b)=>`${a} 月 ${b} 日 `);
+}
+function renderStream(P){
+  let html='',lastDay='';
+  for(const blk of state.played){
+    const sc=blk.scene,d=dayOf(sc.t);
+    if(d!==lastDay){html+=`<div class="day">${d}</div>`;lastDay=d;}
+    html+=sceneHead(sc,false);
+    for(const e of [...blk.events,...blk.resolved].filter(e=>!e.silent)){
+      html+=`<article class="ev kind-${e.actor.kind} ${state.fresh.has(e.id)?'fresh':''} ${state.sel===e.id?'sel':''}" data-id="${e.id}" tabindex="0">
+        <div class="gutter">${hm(e.t)}</div><div class="body">
+          <div class="who"><span class="dot"></span><span>${esc(e.actor.name)}</span>${e.actor.role&&e.actor.kind!=='xagent'?`<span class="role">${esc(e.actor.role)}</span>`:''}${tagOf(e)}</div>
+          <div class="text">${esc(e.text)}</div>${metaOf(e)?`<div class="meta">${metaOf(e)}</div>`:''}
+        </div></article>`;
+    }
+    if(state.pending===sc)html+=bookPromptNote(sc);
+  }
+  
+  $('#stream').innerHTML=html;bindStream();
+}
+function renderOldStream(O){
+  let html='',lastDay='';const byEv=new Map();for(const r of O.recs){if(!byEv.has(r.ev.id))byEv.set(r.ev.id,[]);byEv.get(r.ev.id).push(r);}
+  for(const blk of state.played){
+    const sc=blk.scene,d=dayOf(sc.t);
+    if(d!==lastDay){html+=`<div class="day">${d}</div>`;lastDay=d;}
+    html+=sceneHead(sc,true);
+    for(const e of [...blk.events,...blk.resolved]){
+      for(const r of byEv.get(e.id)||[]){
+        const fresh=state.fresh.has(e.id)?'fresh':'',sel=state.sel===e.id?'sel':'';
+        if(r.kind==='ghost')html+=`<article class="doc kind-ghost ${fresh} ${sel}" data-id="${e.id}" tabindex="0"><div class="body"><div class="who"><span class="ghost-mark"></span>不在 ERP 里</div><div class="text">${esc(e.text)}</div><div class="meta">${esc(r.why)}</div></div></article>`;
+        else{const cnt=[r.screens?`屏幕 <b>${r.screens}</b>`:'',r.entries?`录入 <b>${r.entries}</b>`:'',r.approvers.length?`审批 <b>${r.approvers.length}</b>`:''].filter(Boolean).join('　');
+          html+=`<article class="doc kind-${r.kind} ${fresh} ${sel}" data-id="${e.id}" tabindex="0"><div class="gutter">${hm(e.t)}</div><div class="body">
+            <div class="who"><span class="module">${MOD[r.module]}</span><span class="doc-title">${esc(r.title)}</span><span class="counts">${cnt}</span></div>
+            <div class="text">${esc(r.detail||'')}${r.kind==='lag'?` <span class="lagnote">${r.visible?'已出现':'要等到 '+(r.lagLabel||'报表被人跑一次')}</span>`:''}</div>
+            ${r.approvers.length?`<div class="meta">审批：${r.approvers.map(x=>x+' 已签').join('、')}。责任人：无。</div>`:''}
+          </div></article>`;}
+      }
+    }
+    if(state.pending===sc)html+=bookPromptNote(sc);
+  }
+  
+  $('#stream').innerHTML=html;bindStream();
+}
+function renderTabs(P){
+  const cnt={need:[...P.needs.values()].filter(n=>n.status==='待判').length,pledge:[...P.pledges.values()].filter(p=>p.status!=='已核销').length,judg:[...P.judg.values()].filter(j=>j.status==='待回看').length,money:P.money.length,law:P.agents.length};
+  $('#tabs').innerHTML=TABS.map(k=>`<button data-k="${k}" class="${state.tab===k?'on':''} ${state.changed.has(k)&&state.tab!==k?'changed':''}">${DEFS[k][0]}<span class="n">${cnt[k]}</span></button>`).join('')+followBtn();
+  bindTabs('tab');
+  $('#tabdef').innerHTML=`<b>${DEFS[state.tab][0]}</b> ${DEFS[state.tab][1]}`;
+}
+function renderOldTabs(O){
+  const changedMods=new Set([...state.fresh].flatMap(id=>{const e=state.events.find(x=>x.id===id);return e?oldOf(e,state.decisions).filter(r=>r.kind!=='ghost').map(r=>r.module):[];}));
+  const cnt=Object.fromEntries(OLDTABS.map(([k])=>[k,O.recs.filter(r=>r.kind!=='ghost'&&r.module===k).length]));
+  $('#tabs').innerHTML=OLDTABS.map(([k,n])=>`<button data-k="${k}" class="${state.oldTab===k?'on':''} ${changedMods.has(k)&&state.oldTab!==k?'changed':''}">${n}<span class="n">${cnt[k]}</span></button>`).join('')+followBtn();
+  bindTabs('oldTab');
+  $('#tabdef').innerHTML=`<b>${OLDTABS.find(x=>x[0]===state.oldTab)[1]}</b> ${OLDTABDEF[state.oldTab]}`;
+}
+function followBtn(){return `<button class="follow ${state.follow?'on':''}" id="follow"><span class="box"></span>跟着事件翻页</button>`;}
+function bindTabs(key){
+  $('#tabs').querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>{state[key]=b.dataset.k;state.follow=false;state.fresh=new Set();render();});
+  $('#follow').onclick=()=>{state.follow=!state.follow;render();};
+}
+function lit(ref){if(!state.sel)return '';const e=state.events.find(x=>x.id===state.sel);return e&&e.refs.includes(ref)?'lit':'';}
+function freshRow(ev){return state.fresh.has(ev)?'fresh':'';}
+function evLink(id){const e=state.events.find(x=>x.id===id);return e?`<span class="ev-link" data-ev="${id}">${dayOf(e.t)} ${hm(e.t)}</span>`:'';}
+function stamp(status){
+  if(status==='已核销')return `<span class="stamp">核销</span>`;
+  if(status==='印证')return `<span class="stamp">印证</span>`;
+  if(status==='推翻')return `<span class="stamp ink">推翻</span>`;
+  if(status==='未推翻')return `<span class="stamp gray">未推翻</span>`;
+  if(status==='悬空')return `<span class="st warn">悬空</span>`;
+  if(status==='逾期')return `<span class="st bad">逾期</span>`;
+  if(status==='未达')return `<span class="stamp ink">未达</span>`;
+  if(status==='待回看'||status==='待签收'||status==='等 J1')return `<span class="st wait">${status}</span>`;
+  return `<span class="st">${status}</span>`;
+}
+function gates(g){const box=v=>`<span class="gate ${v===true?'on':v==='half'?'half':''}"></span>`;return `<span class="gates">${box(g.done)}${box(g.accept)}${box(g.clear)}</span><span class="gates-h">做了 验收 核销</span>`;}
+function bindProj(){
+  $('#proj').querySelectorAll('tr[data-ref]').forEach(tr=>tr.onclick=ev=>{if(ev.target.closest('.ev-link'))return;const ref=tr.dataset.ref;const e=[...state.events].reverse().find(x=>x.refs.includes(ref)&&!x.silent);if(e)jumpTo(e.id);});
+  $('#proj').querySelectorAll('tr[data-ev]').forEach(tr=>tr.onclick=()=>jumpTo(tr.dataset.ev));
+  $('#proj').querySelectorAll('.ev-link').forEach(a=>a.onclick=ev=>{ev.stopPropagation();jumpTo(a.dataset.ev);});
+}
+
+
+/* ---------- 渲染：舞台 ---------- */
+function render(){
+  const C=ctx();
+  renderTL(C);renderScene(C);renderERP(C);renderGraph(C);renderQB(C);renderControls();renderBook();
+  $('#now-old').innerHTML=`<i>此刻</i>${esc(oldText(C.sc)||'这一步，旧系统 里没有新的动静。')}`;
+  $('#now-new').innerHTML=`<i>此刻</i>${esc(narrText(C.sc)||narrFallback(C))}`;
+  const v=$('#viewing');v.classList.toggle('on',!C.live);
+  v.innerHTML=C.live?'':`<span>你在回看 ${dayOf(C.sc.t)} 的样子。两边都只算到那一刻为止的事件。</span><button id="backnow">回到此刻</button>`;
+  if(!C.live)$('#backnow').onclick=()=>viewAt(99);
+}
+function narrFallback(C){const e=[...C.blk.events,...C.blk.resolved].filter(x=>!x.silent).pop();return e?e.text:'';}
+function renderTL(C){
+  const d=state.decisions;let html='',lastDay='';
+  SCENES.forEach(sc=>{
+    const pi=state.played.findIndex(b=>b.scene===sc);const played=pi>=0;
+    if(!played&&sc.when&&!sc.when(d))return;
+    const day=sc.t.replace(/\s.*$/,'');const lbl=day!==lastDay?day:'';lastDay=day;
+    const here=played&&pi===state.played.length-1&&C.live,viewing=played&&!C.live&&pi===C.k;
+    html+=`<div class="tl-t ${played?'played':''} ${here?'here':''} ${viewing?'viewing':''} ${sc.prompt?'judg':''}" ${played?`data-k="${pi}" tabindex="0" role="button"`:''}><span class="d">${lbl}</span><span class="m"></span><span class="tip">${esc(sc.title)}${sc.prompt?'，要你拍板':''}${played?'':'，还没到'}</span></div>`;
+  });
+  $('#tl .tl-in').innerHTML=html;
+  $('#tl').querySelectorAll('.tl-t[data-k]').forEach(t=>{t.onclick=()=>viewAt(+t.dataset.k);t.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();t.click();}};});
+}
+function renderScene(C){
+  const sc=C.sc,d=state.decisions;
+  const t=[...C.blk.events,...C.blk.resolved].map(e=>e.t).concat(sc.t)[0];
+  let html=`<div class="sc-date">${dayOf(sc.t)}${hm(t)?' '+hm(t):''}</div><h2 class="sc-title">${esc(sc.title)}</h2>`;
+  if(C.live&&state.pending===sc){
+    const p=sc.prompt;
+    html+=`<section class="decide fresh" id="decide"><div class="dh"><b>${p.kind==='judgment'?'取景框':'待受领'}，等${p.who}${p.kind==='judgment'?'拍板':'签收'}</b><span>${esc(p.role)}${p.nid?'，'+p.nid:''}</span></div>
+      <p class="q">${esc(p.q)}</p><details class="ev-d" ${window.innerWidth>1100?'open':''}><summary class="eh">新账已经把证据取好景，${p.evidence.length} 条</summary><ul>${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+      <p class="oldway">在旧系统 里，这一步发生在群聊或电话里。证据要${p.who}自己翻，选完之后系统只会看到结果单据。</p></details>
+      <div class="opts">${p.options.map(o=>`<button data-key="${o.key}"><b>${esc(o.label)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div></section>`;
+  }else if(!C.live){
+    html+=`<div class="viewnote">这是回看。时间轴上点别的日子继续看，或者<button id="backnow2">回到此刻</button>。</div>`;
+  }else if(state.done){
+    html+=`<p class="sc-narr" style="margin:0">走完了。往下看结算：五个问题旧系统 答了多久答不上，同一件事两边各自什么时候知道，人的时间花在哪。</p>`;
+  }
+  const path=pathLabel(d);
+  html+=`<div class="sc-path">路线：<b>${path}</b>。时间轴上的红圈是要你拍板的地方，灰点可以点回去看。</div>`;
+  $('#scene').innerHTML=html;
+  $('#scene').querySelectorAll('.opts button').forEach(b=>b.onclick=()=>resolve(b.dataset.key));
+  const bn=$('#backnow2');if(bn)bn.onclick=()=>viewAt(99);
+}
+function focusDecision(){const b=document.querySelector('#decide .opts button');if(b){$('#scene').scrollIntoView({behavior:'smooth',block:'nearest'});b.focus({preventScroll:true});}}
+
+/* 旧系统：四个模块，加一块系统外 */
+
+function renderQB(C){
+  const d=state.decisions;
+  const now=answers(C.evs,d,C.day);
+  const prevAns=C.k>0?answers(prefixOf(C.k-1),d,Math.max(dnum(state.played[C.k-1].scene.t),...[...state.played[C.k-1].events,...state.played[C.k-1].resolved].map(e=>dnum(e.t)),0)):null;
+  const hist=[];for(let k=0;k<=C.k;k++){const b=state.played[k];const day=Math.max(dnum(b.scene.t),...[...b.events,...b.resolved].map(e=>dnum(e.t)),0);hist.push({t:b.scene.t,a:answers(prefixOf(k),d,day)});}
+  const wrongNow=now.filter(a=>a.g==='wrong').length,cant=now.filter(a=>['none','off','lag'].includes(a.g)).length;
+  let html=`<div class="qb-h"><b>同一刻，问两个系统五个问题</b><span>此刻旧系统：答不了或答偏 ${cant} 个，答错 ${wrongNow} 个。新账每个都答得上，因为它就是按这五个问题记的账。</span></div>
+  <table class="qb"><colgroup><col style="width:23%"><col style="width:29%"><col style="width:31%"><col class="hcol" style="width:17%"></colgroup>
+  <thead><tr><th>问系统</th><th>旧系统 答</th><th>新账答</th><th class="hcol">旧系统 一路答得怎样</th></tr></thead><tbody>`;
+  now.forEach((a,i)=>{
+    const ch=prevAns&&(prevAns[i].nw!==a.nw);const cho=prevAns&&(prevAns[i].old!==a.old||prevAns[i].g!==a.g);
+    html+=`<tr><td><span class="qc">${QUESTIONS[i].c}</span><span class="qq">${QUESTIONS[i].q}</span></td>
+      <td class="old g-${a.g} ${cho?'fresh':''}">${esc(a.old)}${a.g!=='na'?`<br><span class="grade gr-${a.g}">${GRADE[a.g]}${a.why?'：'+esc(a.why):''}</span>`:''}</td>
+      <td class="new ${ch?'fresh':''}">${esc(a.nw)}</td>
+      <td class="hcol"><div class="hist">${hist.map((h,k)=>`<span class="hc ${h.a[i].g} ${k===C.k?'cur':''}" title="${dayOf(h.t)}：${GRADE[h.a[i].g]||'还没开始'}"></span>`).join('')}</div></td></tr>`;
+  });
+  html+=`</tbody></table>`;
+  $('#qboard').innerHTML=html;
+}
+
+
+
+
+/* 旧系统：四个模块，加一块系统外 */
+function burnSVG(evs,d,W=150,Hh=46){
+  const plan=d.J1?PLAN[d.J1]:null;if(!plan)return '<div class="empty">还没有迭代。</div>';
+  const t0=tmin('9/1 10:00'),t1=tmin('9/30 18:00');const X=t=>((Math.min(Math.max(t,t0),t1)-t0)/(t1-t0)*(W-20)+18).toFixed(1);const Y=p=>(4+(1-p/plan.pts)*(Hh-16)).toFixed(1);
+  let rem=plan.pts,path=`M${X(t0)},${Y(plan.pts)}`;
+  const ev=evs.filter(e=>e.pts).sort((a,b)=>tmin(a.t)-tmin(b.t));
+  for(const e of ev){const t=tmin(e.t);path+=` L${X(t)},${Y(rem)}`;rem-=e.pts;path+=` L${X(t)},${Y(plan.pts-(plan.pts-rem))}`;}
+  const tl=Math.min(t1,Math.max(...evs.map(e=>tmin(e.t)),t0));path+=` L${X(tl)},${Y(rem)}`;
+  const done=plan.pts-rem;
+  return `<svg class="bd" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none"><line class="ax" x1="18" y1="${Hh-12}" x2="${W-2}" y2="${Hh-12}"/><path class="ideal" d="M${X(t0)},${Y(plan.pts)} L${X(tmin(plan.end+' 18:00'))},${Y(0)}"/><path class="act" d="${path}"/><text x="0" y="10">${plan.pts}</text><text x="18" y="${Hh-2}">9/1</text><text x="${W-26}" y="${Hh-2}">9/30</text>${done>=plan.pts?`<text class="flag" x="${(+X(tl)-34).toFixed(0)}" y="${Hh-15}">燃尽到零</text>`:''}</svg>`;
+}
+function renderERP(C){
+  const d=state.decisions,O=buildOld(C.evs,d,C.day),P=build(C.evs);
+  const docs=O.recs.filter(r=>r.kind!=='ghost');
+  const li=r=>`<li class="${C.fresh.has(r.ev.id)?'fresh':''} ${r.kind==='lag'&&!r.visible?'wait':''}" title="${esc(r.detail||'')}">${esc(r.title)}${r.kind==='lag'&&!r.visible?`，要等 ${esc(r.lagLabel||'')}`:''}</li>`;
+  const fld=(label,val,note,fl)=>`<div class="fld ${fl?'flash':''}"><span>${label} <b>${esc(val)}</b></span>${note?`<span class="calm">${note}</span>`:''}</div>`;
+  const freshK=k=>C.evs.some(e=>C.fresh.has(e.id)&&e.k===k);
+  const st=id=>{const p=P.pledges.get(id);if(!p)return null;const launched=C.evs.some(e=>e.k==='launch'&&((id==='P5'&&/模板/.test(e.text))||(id==='P4'&&/拍照/.test(e.text))));return launched?'已上线':'开发中';};
+  let req='';
+  if(P.pledges.has('P0'))req+=fld('KR','D7 35%','','');
+  if(st('P4'))req+=fld('拍照记账',st('P4'),st('P4')==='已上线'?'已完成':'',freshK('launch'));
+  if(st('P5'))req+=fld('模板',st('P5'),st('P5')==='已上线'?'已完成':'',freshK('launch'));
+  const elapsed=Math.max(1,(Math.max(...C.evs.filter(e=>e.pts).map(e=>tmin(e.t)),tmin('9/2 10:00'))-tmin('9/1 10:00'))/1440);
+  const vel=O.plan&&O.burnDone?(O.burnDone/elapsed/4.5):0;
+  let iter=O.plan?burnSVG(C.evs,d)+(vel?fld('速度',`去年的 ${vel.toFixed(1)} 倍`,'',freshK('build')||freshK('launch')):''):'';
+  let code=O.prs?fld('合并 PR',`${O.prs} 个`,'九成是机器人提交',freshK('build')):'';
+  const alarms=docs.filter(r=>r.module==='code'&&/告警/.test(r.title));if(alarms.length)code+=fld('告警',`${alarms.length} 条`,'不知道连着谁',freshK('incident'));
+  const fin=O.closed?fld('研发费用','536 万，按人头分摊','月结后',freshK('close'))+fld('token','8.4 万，记在云服务','',''):`<div class="empty">月结之前，这一注的成本在这里是空的。月结之后，也只有部门的数。</div>`;
+  const mod=(name,m,fields,n=2)=>{const ds=docs.filter(r=>r.module===m);return `<section class="mod"><h4>${name}<span>${ds.length} 张</span></h4>${fields}<ul class="mdocs">${ds.slice(-n).map(li).join('')}</ul></section>`;};
+  const ghosts=O.recs.filter(r=>r.kind==='ghost');const freshG=ghosts.filter(r=>C.fresh.has(r.ev.id));
+  const shortWhy=r=>r.why.split('。')[0];
+  $('#erp').innerHTML=`<div class="erp-sys"><span class="erp-tag">系统内</span><div class="mods">${mod('需求','req',req)}${mod('迭代','iter',iter,1)}${mod('代码与告警','code',code)}${mod('研发费用','fin',fin,1)}</div>
+    <div class="erp-sign"><span>PR 点通过 ${O.stats.approvals} 次，会议 ${O.stats.meet} 人时</span><span>对赌注输赢负责的人 <b>0</b></span></div></div>
+    <div class="erp-out"><span class="erp-tag">系统外：群聊、一对一、邮件、合同附件、人脑</span><div class="chips">${freshG.map(r=>`<span class="chip fresh">${esc(shortWhy(r))}</span>`).join('')}${ghosts.length-freshG.length>0?`<span class="chip-n">${freshG.length?'此前还有':'累计'} ${ghosts.length-freshG.length} 件发生在系统外</span>`:freshG.length?'':'<span class="chip-n">还没有</span>'}</div></div>`;
+}
+
+/* 新账：责任图 */
+const GN={
+  co:{x:45,y:70,label:'公司'},user:{x:52,y:300,label:'用户'},vend:{x:505,y:120,label:'视觉云'},
+  qin:{x:195,y:70,name:'老秦',role:'研发总监',lp:'above',nl:[-26,24,'end'],sl:[26,22]},
+  lan:{x:205,y:200,name:'林岚',role:'产品负责人',lp:'left',nl:[-24,-20,'end'],sl:[-20,37]},
+  zhe:{x:370,y:200,name:'阿哲',role:'客户端负责人',lp:'right',nl:[24,-20,'start'],sl:[24,-22]},
+  zhou:{x:420,y:105,name:'周敏',role:'平台负责人',lp:'above',nl:[24,-20,'start'],sl:[24,22]},
+  succ:{x:470,y:252,role:'接手人',lp:'below',nl:[24,-20,'start'],sl:[24,-22]},
+  rev:{x:330,y:52,label:'评审 agent'},exp:{x:195,y:300,label:'实验 agent'},code:{x:370,y:300,label:'编码 agent'}};
+const GR={co:26,user:26,vend:26,qin:17,lan:17,zhe:17,zhou:17,succ:17,rev:13,exp:13,code:13};
+const EDGES={P0:['qin','co',0],P1:['lan','qin',0],P2:['zhou','zhe',0,-1],P3:['vend','zhou',0],P4:['zhe','lan',10],P5:['zhe','lan',-10],P6:['zhe','lan',0]};
+const ECLS={'立账':'ok','已改签':'ok','待签收':'pending','悬空':'hang','逾期':'late','未达':'late','已核销':'done'};
+function seg(a,b,o=0){const A=GN[a],B=GN[b];const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);const nx=-dy/L,ny=dx/L;const ra=GR[a]+2,rb=GR[b]+7;return {x1:A.x+dx/L*ra+nx*o,y1:A.y+dy/L*ra+ny*o,x2:B.x-dx/L*rb+nx*o,y2:B.y-dy/L*rb+ny*o,mx:(A.x+B.x)/2+nx*o,my:(A.y+B.y)/2+ny*o,nx,ny};}
+function line(a,b,cls,extra=''){const g=seg(a,b);const A=GN[a],B=GN[b],L=Math.hypot(B.x-A.x,B.y-A.y);return `<line class="${cls}" x1="${g.x1}" y1="${g.y1}" x2="${g.x2+(B.x-A.x)/L*5}" y2="${g.y2+(B.y-A.y)/L*5}">${extra}</line>`;}
+function renderGraph(C){
+  const P=build(C.evs);const freshEvs=C.evs.filter(e=>C.fresh.has(e.id));
+  const holder=P.holders['编码 agent']||'阿哲';const ph=pendingHandoff(C.evs);
+  const succName=holder!=='阿哲'?holder:(ph?ph.to:null);
+  const away=holder!=='阿哲'||!!ph;
+  let s=`<defs>${['ink','warn','seal','done'].map(c=>`<marker id="ar-${c}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${c==='ink'?'#1e1e1c':c==='warn'?'#b3781c':c==='seal'?'#b4322b':'#b9b9b1'}"/></marker>`).join('')}</defs>`;
+  s+=`<rect class="g-bound" x="118" y="18" width="352" height="336" rx="10"/><text class="g-blabel" x="128" y="346">研发部</text>`;
+  /* 用户给出的读数 */
+  const sigLit=freshEvs.some(e=>e.actor.name==='实验 agent'&&['insight','dog','readout','final','incident'].includes(e.k));
+  s+=line('user','exp',`g-sig ${sigLit?'lit':''}`,'<title>用户的行为是研发唯一的外部裁判。实验 agent 把它读成数。</title>')+`<text class="g-sigt" x="124" y="292" text-anchor="middle">读数</text>`;
+  /* 租约 */
+  const acted=n=>freshEvs.some(e=>e.actor.kind==='agent'&&e.actor.name===GN[n].label);
+  const leaseTo={exp:'lan',rev:'qin',code:away&&!ph?'succ':'zhe'};
+  for(const a of ['exp','rev','code'])s+=line(a,leaseTo[a],`g-lease ${acted(a)?'lit':''}`,`<title>${GN[a].label}的租约归${a==='code'?holder:LEASES[GN[a].label].by}。它做的每件事都回程到这个人。</title>`);
+  if(ph){const g=seg('code','succ');s+=`<line class="g-lease" style="stroke:var(--warn);opacity:.9" x1="${g.x1}" y1="${g.y1}" x2="${g.x2}" y2="${g.y2}"/><text class="g-lease-t" style="fill:var(--warn);text-anchor:end" x="${(GN.code.x+GN.succ.x)/2-6}" y="${(GN.code.y+GN.succ.y)/2-10}">移交中</text>`;}
+  /* 承诺边 */
+  let i=0;
+  for(const [id,[a,b,o,ls]] of Object.entries(EDGES)){
+    const p=P.pledges.get(id);if(!p)continue;
+    const cls=ECLS[p.status]||'ok';const g=seg(a,b,o);
+    const created=freshEvs.some(e=>e.type==='pledge'&&e.pledge.id===id);
+    const changed=!created&&freshEvs.some(e=>e.type==='pledge_update'&&e.pid===id);
+    const mk=cls==='hang'?'warn':cls==='late'?'seal':cls==='done'?'done':'ink';
+    s+=`<line class="g-edge ${cls} ${created?'draw':''} ${changed&&(cls==='hang'||cls==='late')?'pulse':''}" style="animation-delay:${(i++)*0.25}s" x1="${g.x1}" y1="${g.y1}" x2="${g.x2}" y2="${g.y2}" marker-end="url(#ar-${mk})"><title>${esc(p.who)} 欠 ${esc(p.to)}：${esc(p.what)}，${esc(p.when)}。${esc(p.status)}${p.hist.length?'。'+p.hist.map(h=>h.note).join('；'):''}</title></line>`;
+    const shared=Object.entries(EDGES).filter(([id2,[a2,b2]])=>id2!==id&&a2===a&&b2===b&&P.pledges.has(id2)).length;
+    if(cls==='done'&&shared&&!o)continue;
+    const sg=ls||(o<0?-1:1),off=sg*(Math.abs(o)+12);const lx=(GN[a].x+GN[b].x)/2+g.nx*off,ly=(GN[a].y+GN[b].y)/2+g.ny*off+4;
+    const anc=g.nx*sg>0.6?'start':g.nx*sg<-0.6?'end':'middle';
+    s+=`<text class="g-elabel ${cls}" x="${lx}" y="${ly}" style="text-anchor:${anc}">${SHORT[id]} ${esc(shortWhen(p.when))}${cls==='hang'?' 悬空':cls==='late'?' 未达':cls==='done'?' 核销':cls==='pending'?' 待签收':''}</text>`;
+  }
+  /* 传导 */
+  if(freshEvs.some(e=>e.type==='pledge_update'&&e.pid==='P3'&&e.patch&&e.patch.status==='悬空')){const dp='M'+['vend','zhou','zhe','lan','qin','co'].map(n=>`${GN[n].x},${GN[n].y}`).join(' L');s+=`<path class="g-flow" d="${dp}"/><circle class="g-dot" r="6"><animateMotion dur="2.4s" repeatCount="2" path="${dp}"/></circle>`;}
+  /* 外部方与 agent */
+  for(const n of ['co','user','vend']){const N=GN[n];const used=n==='user'?true:Object.entries(EDGES).some(([id,[a,b]])=>(a===n||b===n)&&P.pledges.has(id));s+=`<g class="g-ext" opacity="${used?1:.45}"><rect x="${N.x-28}" y="${N.y-15}" width="56" height="30" rx="3"/><text x="${N.x}" y="${N.y+1}">${N.label}</text></g>`;}
+  for(const n of ['rev','exp','code']){const N=GN[n];s+=`<g class="g-agent"><circle cx="${N.x}" cy="${N.y}" r="${GR[n]}"/><text x="${N.x}" y="${N.y+GR[n]+13}">${N.label}</text></g>`;}
+  /* 人 */
+  const pendNeeds=[...P.needs.values()].filter(x=>x.status==='待判');
+  const people=[['qin','老秦'],['lan','林岚'],['zhe','阿哲'],['zhou','周敏']];if(succName)people.push(['succ',succName]);
+  for(const [n,name] of people){
+    const N=GN[n],r=GR[n];const dim=n==='zhe'&&away;const ghostNode=n==='succ'&&!!ph&&holder==='阿哲';
+    const need=pendNeeds.filter(x=>x.who===name);const js=[...P.judg.values()].filter(j=>j.who===name);
+    s+=`<g class="g-hum ${dim?'dim':''} ${ghostNode?'ghost':''}">`;
+    if(need.length)s+=`<circle class="g-need" cx="${N.x}" cy="${N.y}" r="20"/><text class="g-needt" x="${N.x+N.nl[0]}" y="${N.y+N.nl[1]}" style="text-anchor:${N.nl[2]}">待判 ${need.map(x=>x.id).join(' ')}</text>`;
+    s+=`<circle class="body" cx="${N.x}" cy="${N.y}" r="${r}"><title>${name}${need.length?'，待判 '+need.map(x=>x.id).join('、'):''}</title></circle>`;
+    const role=n==='succ'?(ghostNode?'等签收':'接手编码 agent'):N.role;const nm=name+(dim?'（休假）':'');
+    if(N.lp==='above')s+=`<text class="g-name" x="${N.x}" y="${N.y-r-8}">${nm}</text><text class="g-role" x="${N.x}" y="${N.y-r-28}">${role}</text>`;
+    else if(N.lp==='below')s+=`<text class="g-name" x="${N.x}" y="${N.y+r+15}">${nm}</text><text class="g-role" x="${N.x}" y="${N.y+r+32}">${role}</text>`;
+    else{const dx=N.lp==='left'?-(r+7):r+7,anc=N.lp==='left'?'end':'start';s+=`<text class="g-name" x="${N.x+dx}" y="${N.y+2}" style="text-anchor:${anc}">${nm}</text><text class="g-role" x="${N.x+dx}" y="${N.y+20}" style="text-anchor:${anc}">${role}</text>`;}
+    js.forEach((j,ix)=>{const cx=N.x+N.sl[0]+ix*(N.sl[0]<0?-19:19),cy=N.y+N.sl[1];const c=j.status==='印证'?'hit':j.status==='推翻'?'miss':j.status==='未推翻'?'gray':'wait';
+      const isFresh=freshEvs.some(e=>(e.type==='judgment'&&e.j.id===j.id)||(e.type==='judgment_update'&&e.jid===j.id));
+      s+=`<circle class="g-seal ${c} ${isFresh?'fresh':''}" cx="${cx}" cy="${cy}" r="8.5"><title>${j.id}，${name}，${j.t}：赌${j.bet}。${j.status}${j.result?'，'+j.result:''}</title></circle><text class="g-sealid" x="${cx}" y="${cy}">${j.id}</text>`;});
+    s+=`</g>`;
+  }
+  $('#graph').innerHTML=s;
+}
+
+/* ---------- 结算：把整条事件流按真实时间过一遍 ---------- */
+const fmtDur=m=>m<60?`${Math.round(m)} 分钟`:m<1440?`${(m/60).toFixed(1).replace(/\.0$/,'')} 小时`:`${(m/1440).toFixed(1).replace(/\.0$/,'')} 天`;
+const dnumOfMin=x=>{const dt=new Date(x*60000);return (dt.getMonth()+1)*100+dt.getDate();};
+function sortedEvents(){return state.events.map((e,i)=>({e,i})).sort((a,b)=>tmin(a.e.t)-tmin(b.e.t)||a.i-b.i).map(x=>x.e);}
+const T0=()=>tmin('8/28 10:00'),T1=()=>tmin('12/31 18:00');
+function integrate(){
+  const d=state.decisions,evs=sortedEvents(),start=T0(),end=T1();
+  const pts=[...new Set(evs.map(e=>tmin(e.t)))].filter(t=>t<end).sort((a,b)=>a-b);
+  const segs=QUESTIONS.map(()=>[]),sum=QUESTIONS.map(()=>({ok:0,none:0,lag:0,off:0,wrong:0,na:0}));
+  pts.forEach((t,ix)=>{
+    const t2=ix+1<pts.length?pts[ix+1]:end;if(t2<=t)return;
+    const a=answers(evs.filter(e=>tmin(e.t)<=t),d,dnumOfMin(t));
+    a.forEach((x,q)=>{sum[q][x.g]+=t2-t;const s=segs[q];if(s.length&&s[s.length-1].g===x.g&&s[s.length-1].to===t)s[s.length-1].to=t2;else s.push({from:t,to:t2,g:x.g});});
+  });
+  return {segs,sum,start,end};
+}
+
+function revealFinal(){renderFinal();const f=$('#final');if(f.firstChild)setTimeout(()=>f.scrollIntoView({behavior:'smooth',block:'start'}),150);}
+
+
+/* ---------- 研发场景的结算 ---------- */
+function lagFacts(){
+  const d=state.decisions,evs=sortedEvents();const f=p=>evs.find(p);const T=e=>e?tmin(e.t):null;const rows=[];
+  const jan=new Date(2027,0,8,10,0).getTime()/60000;
+  const ins=f(e=>e.k==='insight');rows.push({k:'新用户在第一笔手动记账后流失',w:T(ins),o:tmin('9/7 10:00'),oh:'下周一周会'});
+  const j1=f(e=>e.type==='judgment'&&e.j.id==='J1');if(j1)rows.push({k:'这一注赌的是什么',w:T(j1),o:null,oh:'PRD 写做什么，不写赌什么'});
+  const nd=f(e=>e.type==='need');rows.push({k:'有判断在等人拍板',w:T(nd),o:null,oh:'研发管理不排判断'});
+  const sla=f(e=>e.type==='pledge_update'&&e.pid==='P3'&&e.patch&&e.patch.status==='悬空');if(sla)rows.push({k:'视觉云违约连着哪个赌注',w:T(sla),o:null,oh:'告警当场响，但不知道连着什么'});
+  const inc=f(e=>e.k==='incident');if(inc)rows.push({k:'金额事故该归到谁',w:T(inc),o:tmin('10/9 15:00'),oh:'节后复盘会'});
+  const sign=f(e=>e.type==='handoff'&&!e.pending&&!e.declined);if(sign)rows.push({k:`编码 agent 的租约归了${sign.to}`,w:T(sign),o:null,oh:'值班交接在群里'});
+  const ro=f(e=>e.type==='judgment_update'&&e.jid==='J1');if(ro)rows.push({k:'这一注赌赢了没有',w:T(ro),o:jan,oh:'1 月的 OKR 复盘会'});
+  const cl=f(e=>e.close);if(cl)rows.push({k:'这一注花了多少钱',w:T(cl),o:null,oh:'只有部门分摊，没有这一注'});
+  rows.push({k:'林岚的判断准不准',w:T(evs[evs.length-1]),o:null,oh:'年终绩效靠印象'});
+  return rows;
+}
+function humanTime(){
+  const d=state.decisions,O=buildOld(state.events,d,9999);
+  const J=state.events.filter(e=>e.type==='judgment').length;
+  const signs=state.events.filter(e=>e.type==='handoff'&&!e.pending).length;
+  const rev=state.events.reduce((s,e)=>s+(e.rev||0),0);
+  const acc=state.events.filter(e=>e.type==='pledge_update'&&e.actor.kind==='human'&&e.gates&&e.gates.clear).length;
+  const out=O.recs.filter(r=>r.kind==='ghost'&&!['judgment','judgment_update','need'].includes(r.ev.type)).length;
+  const stand=d.J1==='B'?8*15*6:8*15*18;
+  return {old:[['scr','会议',O.stats.meet*60+stand],['ent','估点、改卡、填工时',O.stats.entries*5],['app','点通过',O.stats.approvals*6+rev],['out','系统外沟通',out*15],['jud','判断',J*30]],
+          nw:[['jud','判断',J*10],['app','人审该审的代码',rev],['sig','验收与签收',acc*10+signs*2]],J,stand};
+}
+function renderSettle(){
+  const d=state.decisions,P=build(state.events),O=buildOld(state.events,d,9999);
+  const J=state.events.filter(e=>e.type==='judgment').length;
+  const signs=state.events.filter(e=>e.type==='handoff'&&!e.pending&&!e.declined).length;
+  const holder=P.holders['编码 agent']||'阿哲';const rev=state.events.reduce((s,e)=>s+(e.rev||0),0);
+  const lift=liftOf(state.events),cost=costOf(state.events);
+  const row=(k,a,b)=>`<tr><td>${k}</td><td class="num">${a}</td><td class="num">${b}</td></tr>`;
+  return `<div class="settle"><table><tr><th></th><th class="num">新账</th><th class="num">旧系统</th></tr>
+    ${row('人做的判断',J+' 次',J+' 次，留下记录的 0 次')}
+    ${row('移交签收',signs?signs+' 次':'没有发生','群里')}
+    ${row('agent 动作，每条末端一个人名',P.agents.length+' 条','0 条')}
+    ${row('会议','0 人时',O.stats.meet+' 人时，另有站会')}
+    ${row('估点、改卡、填工时','0 次',O.stats.entries+' 次')}
+    ${row('评审',rev?`人审 ${rev/60} 小时，其余机器审`:'机器审，人看规则',`点通过 ${O.stats.approvals} 次`)}
+    ${row('发生了但不在系统里的事','0 件',O.stats.ghosts+' 件')}
+    ${row('对赌注输赢负责的人',`林岚；代码归${holder}`,'无')}
+    <tr class="total"><td>这一注每个点的成本</td><td class="num">${lift?wan(cost/lift):'—'}</td><td class="num">算不出</td></tr></table></div>`;
+}
+function renderFinal(){
+  const C=ctx();
+  if(!(state.done&&C.live)){$('#final').innerHTML='';return;}
+  const I=integrate(),span=I.end-I.start;const pos=t=>((t-I.start)/span*100).toFixed(2);
+  const ticks=[['8/28 10:00','8 月 28 日'],['9/24 10:00','9 月 24 日'],['10/15 10:00','10 月 15 日'],['10/31 18:00','10 月 31 日'],['12/31 18:00','12 月 31 日']];
+  let rib=`<div class="rib">`;
+  QUESTIONS.forEach((q,i)=>{const s=I.sum[i];const bad=s.none+s.lag+s.off;
+    rib+=`<span>${q.q}</span><span class="bar">${I.segs[i].filter(x=>!['ok','na'].includes(x.g)).map(x=>`<i class="${x.g}" style="left:${pos(x.from)}%;width:${Math.max(.35,(x.to-x.from)/span*100).toFixed(2)}%" title="${GRADE[x.g]}：${fmtDur(x.to-x.from)}"></i>`).join('')}</span>
+      <span class="sum">${bad?`答不上或答偏 ${fmtDur(bad)}`:''}${bad&&s.wrong?'；':''}${s.wrong?`<b style="color:var(--seal)">答错 ${fmtDur(s.wrong)}</b>`:''}${!bad&&!s.wrong?'一直相符':''}</span>`;});
+  rib+=`<span class="axis" style="position:relative;display:block;height:16px">${ticks.map(([t,l])=>`<span style="position:absolute;left:${pos(tmin(t))}%;transform:translateX(${t.startsWith('8/')?'0':t.startsWith('12/')?'-100%':'-50%'})">${l}</span>`).join('')}</span></div>`;
+  rib+=`<div class="keys"><span><i style="background:#dcdcd4"></i>相符</span><span><i style="background:#a9a9a1"></i>答不了</span><span><i style="background:#e3b25a"></i>滞后或答非所问</span><span><i style="background:var(--seal)"></i>与事实不符</span></div>`;
+  const L=lagFacts();const lp=l=>l<=0?0:Math.min(1,Math.max(.03,(Math.log10(l)-1)/(Math.log10(172800)-1)));
+  let lag=`<table class="lagt"><tr><th>这件事</th><th>新账</th><th>旧系统</th><th class="w">旧系统晚了多久，对数刻度</th></tr>`;
+  L.forEach(r=>{const l=r.o==null?null:r.o-r.w;
+    lag+=`<tr><td>${r.k}</td><td>当场</td><td>${l==null?'<b style="color:var(--seal)">永不</b>':l<=0?'同时':'晚 '+fmtDur(l)}<div class="sub">${r.oh}</div></td><td class="w"><div class="lbar">${l==null?'<i class="never"></i>':l>0?`<i style="width:${(lp(l)*100).toFixed(1)}%"></i>`:''}</div></td></tr>`;});
+  lag+=`<tr><td></td><td></td><td></td><td class="w"><div class="lticks"><span>10 分钟</span><span>1 小时</span><span>1 天</span><span>1 周</span><span>4 月</span></div></td></tr></table>`;
+  const fmtH=m=>m<60?`${Math.round(m)} 分钟`:`${Math.round(m/60)} 小时`;const Hh=humanTime();const tot=a=>a.reduce((s,x)=>s+x[2],0);const max=Math.max(tot(Hh.old),tot(Hh.nw));
+  const bar=a=>`<div class="tbar" style="width:${(tot(a)/max*100).toFixed(1)}%">${a.filter(x=>x[2]>0).map(x=>`<i class="seg-${x[0]}" style="width:${(x[2]/tot(a)*100).toFixed(1)}%" title="${x[1]}：${fmtH(x[2])}">${x[1]}</i>`).join('')}</div>`;
+  const time=`<div class="tl-row"><span>旧系统</span>${bar(Hh.old)}<span class="v">约 ${fmtH(tot(Hh.old))}</span></div><div class="tl-row"><span>新账</span>${bar(Hh.nw)}<span class="v">约 ${fmtH(tot(Hh.nw))}</span></div>
+    <p class="cap" style="margin-top:8px">估算，规则摆在这里，可以不同意：会议按人时算，八个人每天十五分钟站会；估点、改卡、填工时一次 5 分钟；点一次通过 6 分钟；一件系统外的沟通 15 分钟；一个判断自己翻证据 30 分钟、证据已取景 10 分钟；一次验收 10 分钟。人审金额解析的那 9 小时两边都算。判断的次数两边一样多，都是 ${Hh.J} 次。</p>`;
+  const never=L.filter(r=>r.o==null).length;const wrongQ=I.sum.filter(s=>s.wrong>0).length;
+  $('#final').innerHTML=`<div class="fin"><h2>走完了，把两台相机拍到的东西摊开</h2><p class="lead">下面的每个数，都是把同一条事件流按真实时间从 8 月 28 日过到 12 月 31 日算出来的。换一条路线重来，数会变。</p>
+    <div class="fin-grid">
+      <div class="fin-block fin-wide"><h3>五个问题，旧系统在这四个月里答得怎样</h3><p class="cap">一行一个问题，横轴是真实时间。灰的是答不了，黄的是晚了或答偏了，红的是答了但与事实不符。新账这五行从头到尾都答得上，所以不画。</p>${rib}</div>
+      <div class="fin-block"><h3>同一件事，两边各自什么时候知道</h3><p class="cap">新账每一行都是当场，因为事件一进图就被记进它该在的那本账。</p>${lag}</div>
+      <div class="fin-block"><h3>人的时间花在哪</h3><p class="cap">判断没有变少，人审该审的代码也没有变少。变少的是会议、估点和点通过。</p>${time}<h3 style="margin-top:16px">数字对照</h3>${renderSettle()}</div>
+    </div>
+    <div class="coda">
+      <p>研发的旧账记的是做了多少：story 点、燃尽、合并了多少 PR。写代码几乎免费之后，这些数会一起变好看，什么也说明不了。</p>
+      <p>研发真正生产的是被检验过的判断。一个需求是一个赌注，上线只是下注，读数出来才是结账。这一路上有 ${never} 件事旧系统永远不会知道，有 ${wrongQ} 个问题它在某些时刻答错了，而且没有人会发现。</p>
+      <p>人的时间从开会、估点和点通过，挪到了两件事上：拍板，和认真审该审的代码。账本记的就是这两件事。</p>
+    </div></div>`;
+}
+
+
+/* ---------- 账簿原文：新账五页、旧系统五页 ---------- */
+function renderProj(P){
+  let html='';const evs=state.events;
+  if(state.tab==='need'){
+    const rows=[...P.needs.values()];
+    html+=`<div class="h">判断带宽</div><div class="bands">`+Object.entries(PEOPLE).map(([n,p])=>{const open=p.base+rows.filter(r=>r.who===n&&r.status==='待判').length;return `<div class="band"><span>${n}，${p.role}</span><span class="bar"><i class="${open>=p.cap?'full':''}" style="width:${Math.min(100,open/p.cap*100)}%"></i></span><span class="n">${open} / ${p.cap}</span></div>`;}).join('');
+    const rl=reviewLoad(evs),rc=REVIEW['阿哲'].cap;
+    html+=`<div class="band"><span>阿哲，评审队列</span><span class="bar"><i class="${rl>=rc?'full':''}" style="width:${Math.min(100,rl/rc*100)}%"></i></span><span class="n">${rl} / ${rc}</span></div></div><p class="note">写代码不占这两条带宽。人的稀缺在两处：拍板，和认真审该审的代码。满了的人，新的只能排队。</p>`;
+    html+=`<div class="h">判断需求</div>`+(rows.length?`<table><tr><th></th><th>谁做</th><th>问题</th><th>证据已取景</th><th>排在</th><th>状态</th></tr>`+rows.map(r=>`<tr data-ref="${r.id}" class="${lit(r.id)} ${freshRow(r.ev)}"><td class="song">${r.id}</td><td>${r.who}</td><td class="song">${esc(r.q)}</td><td>${esc(r.evidence)}</td><td>${esc(r.sched)}</td><td>${r.status==='已判'?`<span class="st">已判，${esc(r.pick||'')}</span>`:r.status==='撤销'?'<span class="st wait">撤销</span>':stamp(r.status)}</td></tr>`).join('')+`</table>`:`<div class="empty">还没有判断需求。</div>`);
+  }
+  if(state.tab==='pledge'){
+    const rows=[...P.pledges.values()];
+    html+=`<div class="h">承诺板，也是对账面</div><table><tr><th>谁</th><th>欠谁</th><th>什么</th><th>何时</th><th>三门</th><th>状态</th></tr>`+rows.map(p=>{const cls=`${lit(p.id)} ${freshRow(p.hist.length?p.hist[p.hist.length-1].ev:p.ev)}`;return `<tr data-ref="${p.id}" class="${cls} ${p.hist.length?'has-hist':''}"><td class="song">${esc(p.who)}</td><td class="song">${esc(p.to)}</td><td class="song">${esc(p.what)}</td><td class="song nw">${esc(p.when)}</td><td>${gates(p.gates)}</td><td>${stamp(p.status)}</td></tr>`+(p.hist.length?`<tr data-ref="${p.id}" class="hist ${cls}"><td colspan="6"><div class="sub">${p.hist.map(h=>`${evLink(h.ev)} ${esc(h.note)}`).join('<span class="hsep">；</span>')}</div></td></tr>`:'');}).join('')+`</table>`;
+    html+=`<p class="note">交付上线就核销，赌注不跟着核销。读数是另一条承诺：林岚欠老秦。对公司的那一条，要等 12 月的数。</p>`;
+  }
+  if(state.tab==='judg'){
+    const rows=[...P.judg.values()];
+    html+=`<div class="h">判断账</div>`+(rows.length?`<table><tr><th>谁，何时</th><th>赌什么</th><th>预期信号</th><th>回看</th><th>代价</th><th>结果</th></tr>`+rows.map(j=>`<tr data-ref="${j.id}" class="${lit(j.id)} ${freshRow(j.rev||j.ev)}"><td>${j.who}<div class="sub">${evLink(j.ev)}</div></td><td class="song">${esc(j.bet)}</td><td>${esc(j.signal)}</td><td>${esc(j.review)}</td><td>${esc(j.cost)}</td><td>${stamp(j.status)}${j.result?`<div class="sub">${esc(j.result)}</div>`:''}</td></tr>`).join('')+`</table>`:`<div class="empty">还没有判断。</div>`);
+    const cats={};for(const j of rows)if(j.who==='林岚'&&j.cat){const c=cats[j.cat]=cats[j.cat]||{n:0,hit:0,miss:0};c.n++;if(j.status==='印证')c.hit++;if(j.status==='推翻')c.miss++;}
+    html+=`<div class="h">林岚的判断力档案</div><div class="file">`+PRIOR_FILE['林岚'].map(f=>{const c=cats[f.cat]||{n:0};return `<div class="row"><span>${f.cat}</span><span class="cnt">此前 ${f.n} 次，印证 ${f.hit}${c.n?`；本季 ${c.n} 次${c.hit?'，印证 '+c.hit:''}${c.miss?'，推翻 '+c.miss:''}`:''}</span></div>`;}).join('')+`</div><p class="note">档案记的是哪一类赌注她押得准，不是功过。下一次同类判断需求出现，取景框会把这里摆进证据栏。</p>`;
+  }
+  if(state.tab==='money'){
+    const rows=P.money;const cost=costOf(evs),lift=liftOf(evs);
+    html+=`<div class="money-sum"><span>这一注已花<b>${wan(cost)}</b></span><span>换来<b>${lift?lift+' 个点':'读数未出'}</b></span><span>每个点<b>${lift?wan(cost/lift):'—'}</b></span></div>`;
+    html+=`<table><tr><th>科目</th><th>赌注</th><th>摘要</th><th class="num">金额</th><th>证据</th></tr>`+rows.map(m=>`<tr data-ref="${m.id}" class="${lit(m.id)} ${freshRow(m.ev)}"><td>${esc(m.acct)}</td><td>${BETN[m.bet]||''}</td><td>${esc(m.label)}</td><td class="num">${F(m.amount)}</td><td class="sub">${evLink(m.ev)}</td></tr>`).join('')+`</table>`;
+    html+=`<p class="note">没有一行是录入的。token 从编码 agent 的动作上来，人的小时从判断、验收和评审上来，事故的钱从林岚的那个判断上来。点证据，左页跳到那件事。</p>`;
+  }
+  if(state.tab==='law'){
+    const acts=P.agents;
+    html+=`<div class="check">agent 动作 ${acts.length} 条。末端是一个人的：<b>${acts.length} 条</b>。</div><p class="note">这不是统计出来的，是结构保证的。agent 没有租约就不能动，租约一定由人签发，租约上的名字可以移交，但不能为空。</p><div class="h">租约</div>`;
+    for(const [name,L] of Object.entries(LEASES)){const chain=[L.by];for(const h of P.handoffs)if(h.lease===name&&!h.pending&&!h.declined)chain.push(`${h.to}，${dayOf(h.t)}签收`);html+=`<div class="chain">${name}<span class="arrow">租约</span>${chain.join('<span class="arrow">移交</span>')}</div><div class="sub">${L.scope}。${L.budget}。至 ${L.until}。</div>`;}
+    html+=`<div class="h">agent 做过的每一件事</div>`+(acts.length?`<table><tr><th>何时</th><th>agent</th><th>做了什么</th><th>回程到谁</th></tr>`+acts.map(e=>`<tr data-ev="${e.id}" class="${state.sel===e.id?'lit':''} ${freshRow(e.id)}"><td class="sub">${dayOf(e.t)} ${hm(e.t)}</td><td>${e.actor.name}</td><td class="song">${esc(e.text)}</td><td class="song">${e.responsible}</td></tr>`).join('')+`</table>`:`<div class="empty">agent 还没有动过。</div>`);
+  }
+  $('#proj').innerHTML=html;bindProj();
+}
+function renderOldProj(O){
+  let html='';const k=state.oldTab;
+  if(k==='judg'){const js=[...O.judg.values()];html+=`<div class="absent">旧系统里没有这一页。<div class="sub">${js.length?'发生了、没记的判断：'+js.map(j=>`${j.who} ${dayOf(j.t)}，赌${j.bet}`).join('；')+'。':'到目前为止还没有人做判断。'}</div></div><p class="note">判断发生在评审会、群聊和一对一里。需求卡片只记"做什么"和"做到哪"，不记"赌什么"和"赌赢没有"。</p>`;}
+  else if(k==='fin'&&!O.closed){html+=`<div class="absent">月结之前这一页是空的。<div class="sub">月结之后，也只会有部门的研发费用，按人头分摊。这一注花了多少，没有科目。</div></div>`;}
+  else{
+    if(k==='iter')html+=`<div class="h">燃尽图</div>${burnSVG(state.events,state.decisions,420,90)}`;
+    const rows=O.recs.filter(r=>r.kind!=='ghost'&&r.module===k);
+    html+=`<div class="h">${OLDTABS.find(x=>x[0]===k)[1]}里的单据</div>`+(rows.length?`<table><tr><th>日期</th><th>单据</th><th>内容</th><th>屏幕、录入、通过</th></tr>`+rows.map(r=>`<tr data-ev="${r.ev.id}" class="${state.sel===r.ev.id?'lit':''}"><td class="song nw">${dayOf(r.t)}</td><td class="song">${esc(r.title)}</td><td>${esc(r.detail||'')}${r.kind==='lag'?` <span class="lagnote">${r.visible?'已出现':'要等 '+(r.lagLabel||'')}</span>`:''}</td><td class="sub">${r.screens||0}，${r.entries||0}，${(r.approvers||[]).length}${r.meet?`；会议 ${r.meet} 人时`:''}</td></tr>`).join('')+`</table>`:`<div class="empty">还没有单据。</div>`);
+    html+=`<p class="note">${OLDTABDEF[k]}</p>`;
+  }
+  $('#proj').innerHTML=html;bindProj();
+}
+
+/* ---------- 控件 ---------- */
+function renderControls(){
+  const n=$('#next'),ff=$('#ff'),pl=$('#play');n.classList.remove('go');
+  const C=ctx();
+  pl.textContent=timer?'暂停':'自动播放';pl.disabled=state.done&&C.live;
+  if(!C.live){n.disabled=false;n.textContent='往后看一步';ff.disabled=false;ff.textContent='回到此刻';}
+  else if(state.done){n.disabled=true;n.textContent='已到 12 月 31 日';ff.disabled=true;ff.textContent='快进到下一个判断';}
+  else if(state.pending){n.disabled=false;n.classList.add('go');n.textContent=`去做${state.pending.prompt.who}的${state.pending.prompt.kind==='judgment'?'判断':'动作'}`;ff.disabled=true;ff.textContent='快进到下一个判断';}
+  else{n.disabled=false;const i=nextIndex();n.textContent=i<SCENES.length?`下一步，${SCENES[i].t.replace(/^(\d+)\/(\d+)\s*/,(m,a,b)=>`${a} 月 ${b} 日 `)}`:'结算';ff.disabled=false;ff.textContent='快进到下一个判断';}
+  $('#status').innerHTML=`第 <b>${C.k}</b> 步${C.live?'':'，回看中'}。<span class="hint">方向键左右逐步前后看，Shift 加右快进到下一个判断。</span>`;
+}
+
+/* ---------- 账簿原文：沿用逐条账页 ---------- */
+function renderBook(){
+  renderFinal();
+  if($('#ledgerBody').hidden)return;
+  $('#book').classList.toggle('mode-old',state.mode==='old');
+  const P=build(state.events);const O=state.mode==='old'?buildOld(state.events,state.decisions,clockNum()):null;
+  $('#lefthead').textContent=state.mode==='old'?'单据流，旧系统 看得见的和看不见的':'一张图，研发部的事件流';
+  $('#modeswitch').querySelectorAll('button').forEach(b=>{b.classList.toggle('on',b.dataset.mode===state.mode);b.onclick=()=>switchMode(b.dataset.mode);});
+  if(state.mode==='old'){renderOldStream(O);renderOldTabs(O);renderOldProj(O);}else{renderStream(P);renderTabs(P);renderProj(P);}
+}
+function bookPromptNote(sc){return `<div class="scene"><p class="narr" style="color:var(--seal)">等${sc.prompt.who}拍板。取景框在页面上方的场景卡里。</p></div>`;}
+function openLedger(){const b=$('#ledgerBody');if(b.hidden){b.hidden=false;$('#ledgerToggle').setAttribute('aria-expanded','true');}}
+function jumpTo(id){openLedger();state.sel=id;state.fresh=new Set();render();const el=document.querySelector(`#stream [data-id="${id}"]`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});}
+
+$('#ledgerToggle').onclick=()=>{const b=$('#ledgerBody');b.hidden=!b.hidden;$('#ledgerToggle').setAttribute('aria-expanded',String(!b.hidden));render();if(!b.hidden)bookScroll();};
+$('#next').onclick=()=>{const C=ctx();if(!C.live){viewAt(C.k+1);return;}if(state.pending){focusDecision();return;}stopPlay();advance();};
+$('#ff').onclick=()=>{if(state.view!=null){viewAt(99);return;}fastForward();};
+$('#play').onclick=()=>{if(timer){stopPlay();renderControls();}else startPlay();};
+$('#reset').onclick=()=>{const m=state.mode;init();state.mode=m;render();window.scrollTo({top:0,behavior:'smooth'});};
+document.addEventListener('keydown',e=>{
+  if(e.target.closest&&e.target.closest('input,textarea'))return;
+  if(e.key==='ArrowRight'&&e.shiftKey){e.preventDefault();$('#ff').click();}
+  else if(e.key==='ArrowRight'){e.preventDefault();$('#next').click();}
+  else if(e.key==='ArrowLeft'){e.preventDefault();const C=ctx();if(C.k>0)viewAt(C.k-1);}
+});
+init();
+</script>
+</body>
+</html>
