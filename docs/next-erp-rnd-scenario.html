@@ -475,6 +475,44 @@ td.old.g-wrong{background:#fbeceb}
 
 .xlink{margin-left:8px;color:var(--rule-strong);text-decoration:underline dotted;white-space:nowrap}
 @media (max-width:760px){#play{display:none}}
+/* ===== 这一步 ===== */
+.steptab{background:var(--page);border:1px solid #d9d9d0;margin:0 0 14px}
+.st-h{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:10px 14px 6px;border-bottom:1px solid var(--rule-strong)}
+.st-h b{font-family:var(--song);font-size:17px;font-weight:600;white-space:nowrap}
+.st-h span{font-size:12.5px;color:var(--muted);text-align:right}
+.stt{width:100%;border-collapse:collapse;table-layout:fixed}
+.stt th{font-size:12px;color:var(--muted);font-weight:500;text-align:left;padding:6px 12px 4px;border-bottom:1px solid var(--rule)}
+.stt td{padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top;font-size:13px;line-height:1.5}
+.stt td.w{font-family:var(--song);font-size:15px;line-height:1.55}
+.stt .sw{display:block;font-family:var(--sans);font-size:12px;color:var(--muted);margin-bottom:1px}
+.stt tr.fr td{background:#fffbea}
+.stt tr.div td{font-size:12.5px;color:var(--seal);padding:5px 12px;background:#fbf2f1;border-bottom:1px solid #ecd2cf}
+.stt tbody tr:last-child td{border-bottom:0}
+.bk,.ob{display:block;margin:0 0 4px}
+.bk:last-child,.ob:last-child{margin-bottom:0}
+.bk b,.ob b{display:inline-block;font-weight:500;font-size:11px;line-height:17px;padding:0 5px;margin-right:6px;border-radius:2px;color:var(--page);vertical-align:1px;white-space:nowrap}
+.bk-pledge b{background:var(--ok)}.bk-judg b{background:var(--seal)}.bk-need b{background:var(--rule-strong)}.bk-money b{background:#5c5c56}.bk-law b{background:var(--agent)}.bk-graph b{background:#a3a39b}
+.ob{color:#4d4d48}.ob b{background:#7a7a73}
+.ob.wait{color:var(--warn)}
+.ob.ghost{color:#77776f;font-family:var(--song)}
+.ob.ghost::before{content:"";display:inline-block;width:9px;height:9px;border:1.5px dashed var(--ghost);border-radius:50%;margin-right:6px;vertical-align:-1px}
+.stt .none{color:#b9b9b1}
+.sc-narr{font-family:var(--song);font-size:15px;line-height:1.6;color:#33332f;margin:0 0 10px}
+#graph [data-sp],#erp .mod,#erp .erp-out{transition:opacity .25s}
+#graph .sp-out{opacity:.14}
+#erp .sp-out{opacity:.38}
+.pane:hover #graph .sp-out,.pane:hover #erp .sp-out{opacity:1}
+.qb tr.same td{opacity:.42}
+.qb tr.chg td:first-child{box-shadow:inset 3px 0 0 var(--seal)}
+.qboard:hover .qb tr.same td{opacity:1}
+@media (max-width:760px){
+  .st-h{flex-direction:column;gap:2px}.st-h span{text-align:left}
+  .stt colgroup,.stt thead{display:none}
+  .stt tr{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--rule)}
+  .stt td{border-bottom:0}.stt td.w{grid-column:1/-1;padding-bottom:2px}
+  .stt tr.div{display:block}
+}
+@media (prefers-reduced-motion:reduce){#graph [data-sp],#erp .mod,#erp .erp-out{transition:none}}
 /* ===== 研发场景追加 ===== */
 .legend i.sig{border-top:2px dotted var(--seal)}
 .bd{display:block;width:100%;height:46px;margin:2px 0 4px}
@@ -505,17 +543,16 @@ td.old.g-wrong{background:#fbeceb}
   <aside class="scene-card" id="scene" aria-live="polite"></aside>
   <section class="stage">
     <div class="viewing" id="viewing"></div>
+    <div class="steptab" id="step"></div>
     <div class="panes">
       <figure class="pane pane-old">
         <figcaption><b>旧系统看见的</b><span>需求、燃尽、Git、月底分摊。系统外的事，它看不见</span></figcaption>
         <div class="erp" id="erp"></div>
-        <div class="now" id="now-old"></div>
       </figure>
       <figure class="pane pane-new">
         <figcaption><b>新账看见的</b><span>一张图：谁欠谁，谁在赌，agent 回程到谁</span></figcaption>
         <svg id="graph" viewBox="0 0 560 360" role="img" aria-label="责任图"></svg>
         <div class="legend"><span><i></i>承诺</span><span><i class="hang"></i>悬空</span><span><i class="late"></i>未达</span><span><i class="done"></i>核销</span><span><i class="lease"></i>租约，agent 回程到人</span><span><i class="sig"></i>用户给出的读数</span></div>
-        <div class="now" id="now-new"></div>
       </figure>
     </div>
     <div class="qboard" id="qboard"></div>
@@ -1178,9 +1215,8 @@ function bindProj(){
 /* ---------- 渲染：舞台 ---------- */
 function render(){
   const C=ctx();
-  renderTL(C);renderScene(C);renderERP(C);renderGraph(C);renderQB(C);renderControls();renderBook();
-  $('#now-old').innerHTML=`<i>此刻</i>${esc(oldText(C.sc)||'这一步，旧系统 里没有新的动静。')}`;
-  $('#now-new').innerHTML=`<i>此刻</i>${esc(narrText(C.sc)||narrFallback(C))}`;
+  const S=C.live?{...C,fresh:new Set([...C.blk.events,...C.blk.resolved].map(e=>e.id))}:C;
+  renderTL(C);renderScene(C);renderStep(C);renderERP(S);spotlightERP();renderGraph(C);spotlightGraph(S);renderQB(C);renderControls();renderBook();
   const v=$('#viewing');v.classList.toggle('on',!C.live);
   v.innerHTML=C.live?'':`<span>你在回看 ${dayOf(C.sc.t)} 的样子。两边都只算到那一刻为止的事件。</span><button id="backnow">回到此刻</button>`;
   if(!C.live)$('#backnow').onclick=()=>viewAt(99);
@@ -1201,7 +1237,7 @@ function renderTL(C){
 function renderScene(C){
   const sc=C.sc,d=state.decisions;
   const t=[...C.blk.events,...C.blk.resolved].map(e=>e.t).concat(sc.t)[0];
-  let html=`<div class="sc-date">${dayOf(sc.t)}${hm(t)?' '+hm(t):''}</div><h2 class="sc-title">${esc(sc.title)}</h2>`;
+  let html=`<div class="sc-date">${dayOf(sc.t)}${hm(t)?' '+hm(t):''}</div><h2 class="sc-title">${esc(sc.title)}</h2>`+(state.done&&C.live?'':`<p class="sc-narr">${esc(narrText(sc))}</p>`);
   if(C.live&&state.pending===sc){
     const p=sc.prompt;
     html+=`<section class="decide fresh" id="decide"><div class="dh"><b>${p.kind==='judgment'?'取景框':'待受领'}，等${p.who}${p.kind==='judgment'?'拍板':'签收'}</b><span>${esc(p.role)}${p.nid?'，'+p.nid:''}</span></div>
@@ -1222,6 +1258,78 @@ function renderScene(C){
 function focusDecision(){const b=document.querySelector('#decide .opts button');if(b){$('#scene').scrollIntoView({behavior:'smooth',block:'nearest'});b.focus({preventScroll:true});}}
 
 /* 旧系统：四个模块，加一块系统外 */
+/* ---------- 这一步：每件事，两本账各记下了什么 ---------- */
+const LEDN={pledge:'承诺账',judg:'判断账',need:'计划对象',money:'钱账',law:'恒等式',graph:'一张图'};
+function newBook(e,P){
+  const out=[];const pl=id=>P.pledges.get(id);
+  switch(e.type){
+    case 'pledge':{const p=e.pledge;out.push(['pledge',`立账：${p.who}欠${p.to}，${p.what}，${shortWhen(p.when)}`]);break;}
+    case 'pledge_update':{const p=pl(e.pid)||{};const st=e.patch&&e.patch.status,w=e.patch&&e.patch.when;
+      const word={'已核销':'核销','悬空':'悬空','逾期':'逾期','未达':'未达','待签收':'待签收','已改签':'改签'+(w?' '+shortWhen(w):''),'立账':w?'恢复到 '+shortWhen(w):'回到线内'}[st]||(e.gates?'部分交付':'更新');
+      out.push(['pledge',`${p.who||''}欠${p.to||''}：${word}`]);break;}
+    case 'judgment':out.push(['judg',`${e.j.id} 立账：赌${e.j.bet}，${e.j.review}回看`]);break;
+    case 'judgment_update':{const j=P.judg.get(e.jid);out.push(['judg',`${e.jid}${j?' '+j.who:''} 回看：${e.status}`]);break;}
+    case 'need':out.push(['need',e.need.map(n=>`${n.id} 归${n.who}`).join('，')]);break;
+    case 'need_update':out.push(['need',e.nu.map(u=>`${u.id} ${u.status}`).join('，')]);break;
+    case 'handoff':out.push(['law',e.pending?`${e.lease}的租约等${e.to}签收`:e.declined?`${e.to}婉拒，转下一位`:`${e.lease}的租约归${e.to}`]);break;
+    case 'return':out.push(['law',e.actor.kind==='agent'?`超出租约，停下，回程到${e.responsible}`:'打回，理由跟着回去']);break;
+    case 'receipt':out.push(['pledge','回执进账']);break;
+    default:if(e.actor.kind==='agent')out.push(['law',`动作记在租约下，回程到${e.responsible}`]);else out.push(['graph','进图']);
+  }
+  if(e.money)out.push(['money',e.money.map(m=>`${m.acct} ${F(m.amount)}`).join('，')]);
+  return out;
+}
+function oldBook(e,d,day){
+  return oldOf(e,d).map(r=>{
+    if(r.kind==='ghost')return `<span class="ob ghost">没记下：${esc(r.why.split('。')[0])}</span>`;
+    const wait=r.kind==='lag'&&(r.never||(r.lagTo&&day<dnum(r.lagTo)));
+    return `<span class="ob ${wait?'wait':''}"><b>${MOD[r.module]||''}</b>${esc(r.title)}${wait?`，要等${esc(r.lagLabel||'')}`:''}</span>`;
+  }).join('')||'<span class="none">没有动静</span>';
+}
+function renderStep(C){
+  const P=build(C.evs),d=state.decisions;
+  const pre=C.blk.events.filter(e=>!e.silent),post=C.blk.resolved.filter(e=>!e.silent);
+  const row=e=>`<tr class="${C.live&&C.fresh.has(e.id)?'fr':''}"><td class="w"><span class="sw">${hm(e.t)||dayOf(e.t)}　${esc(e.actor.name)}</span>${esc(e.text)}</td><td>${newBook(e,P).map(([k,t])=>`<span class="bk bk-${k}"><b>${LEDN[k]}</b>${esc(t)}</span>`).join('')}</td><td>${oldBook(e,d,C.day)}</td></tr>`;
+  const pend=C.live&&state.pending===C.sc;
+  const n=pre.length+post.length;
+  let html=`<div class="st-h"><b>这一步发生了什么</b><span>${n?`${n} 件事`:'还没有事发生'}${pend?`，等${C.sc.prompt.who}拍板`:''}。下面两张图只亮着这一步动到的部分，鼠标移上去看全貌。</span></div>
+  <table class="stt"><colgroup><col style="width:40%"><col style="width:31%"><col style="width:29%"></colgroup><thead><tr><th>发生了什么</th><th>新账记下</th><th>旧系统记下</th></tr></thead><tbody>`;
+  html+=pre.map(row).join('');
+  if(post.length){const p=C.sc.prompt;html+=`<tr class="div"><td colspan="3">${p.who}${p.kind==='judgment'?'拍板':'做了动作'}之后</td></tr>`+post.map(row).join('');}
+  else if(pend)html+=`<tr class="div"><td colspan="3">等${C.sc.prompt.who}在场景卡里拍板</td></tr>`;
+  html+=`</tbody></table>`;
+  $('#step').innerHTML=html;
+}
+
+/* ---------- 聚光：这一步动到的亮着，其余变淡 ---------- */
+function touchedGraph(C){
+  const P=build(C.evs),T=new Set();const fe=C.evs.filter(e=>C.fresh.has(e.id));
+  const by={};for(const [k,N] of Object.entries(GN)){if(N.name)by[N.name]=k;if(N.label)by[N.label]=k;}
+  const add=n=>{const k=by[n]||by[String(n).replace(/ agent$/,'')];if(k)T.add('n:'+k);return !!k;};
+  for(const e of fe){
+    const a=e.actor;
+    if(a.kind!=='sys'&&a.kind!=='ext')add(a.name);
+    if(a.kind==='ext')for(const [k,N] of Object.entries(GN))if(N.label&&(a.role||'').includes(N.label))T.add('n:'+k);
+    const pid=e.type==='pledge'?e.pledge.id:e.type==='pledge_update'?e.pid:null;
+    if(pid&&EDGES[pid]){T.add('e:'+pid);T.add('n:'+EDGES[pid][0]);T.add('n:'+EDGES[pid][1]);}
+    if(e.type==='judgment_update'){const j=P.judg.get(e.jid);if(j)add(j.who);}
+    if(e.type==='need')e.need.forEach(n=>add(n.who));
+    if(e.type==='handoff'){[e.from,e.to].forEach(n=>{if(!add(n))T.add('n:succ');});add(e.lease);}
+    if(a.kind==='agent'&&e.responsible&&!add(e.responsible))T.add('n:succ');
+    if(a.name==='实验 agent')T.add('sig');
+  }
+  return T;
+}
+function spotlightGraph(C){
+  const T=touchedGraph(C);const on=T.size>0;
+  $('#graph').querySelectorAll('[data-sp]').forEach(el=>{const k=el.dataset.sp;el.classList.toggle('sp-out',on&&k!=='flow'&&!T.has(k));});
+}
+function spotlightERP(){
+  const mods=[...document.querySelectorAll('#erp .mod')];const out=$('#erp .erp-out');
+  const hot=m=>!!m.querySelector('.fresh,.flash');const outHot=!!(out&&out.querySelector('.chip.fresh'));
+  const on=mods.some(hot)||outHot;
+  mods.forEach(m=>m.classList.toggle('sp-out',on&&!hot(m)));if(out)out.classList.toggle('sp-out',on&&!outHot);
+}
 
 function renderQB(C){
   const d=state.decisions;
@@ -1234,7 +1342,7 @@ function renderQB(C){
   <thead><tr><th>问系统</th><th>旧系统 答</th><th>新账答</th><th class="hcol">旧系统 一路答得怎样</th></tr></thead><tbody>`;
   now.forEach((a,i)=>{
     const ch=prevAns&&(prevAns[i].nw!==a.nw);const cho=prevAns&&(prevAns[i].old!==a.old||prevAns[i].g!==a.g);
-    html+=`<tr><td><span class="qc">${QUESTIONS[i].c}</span><span class="qq">${QUESTIONS[i].q}</span></td>
+    html+=`<tr class="${prevAns?(ch||cho?'chg':'same'):''}"><td><span class="qc">${QUESTIONS[i].c}</span><span class="qq">${QUESTIONS[i].q}</span></td>
       <td class="old g-${a.g} ${cho?'fresh':''}">${esc(a.old)}${a.g!=='na'?`<br><span class="grade gr-${a.g}">${GRADE[a.g]}${a.why?'：'+esc(a.why):''}</span>`:''}</td>
       <td class="new ${ch?'fresh':''}">${esc(a.nw)}</td>
       <td class="hcol"><div class="hist">${hist.map((h,k)=>`<span class="hc ${h.a[i].g} ${k===C.k?'cur':''}" title="${dayOf(h.t)}：${GRADE[h.a[i].g]||'还没开始'}"></span>`).join('')}</div></td></tr>`;
@@ -1295,7 +1403,7 @@ const GR={co:26,user:26,vend:26,qin:17,lan:17,zhe:17,zhou:17,succ:17,rev:13,exp:
 const EDGES={P0:['qin','co',0],P1:['lan','qin',0],P2:['zhou','zhe',0,-1],P3:['vend','zhou',0],P4:['zhe','lan',10],P5:['zhe','lan',-10],P6:['zhe','lan',0]};
 const ECLS={'立账':'ok','已改签':'ok','待签收':'pending','悬空':'hang','逾期':'late','未达':'late','已核销':'done'};
 function seg(a,b,o=0){const A=GN[a],B=GN[b];const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);const nx=-dy/L,ny=dx/L;const ra=GR[a]+2,rb=GR[b]+7;return {x1:A.x+dx/L*ra+nx*o,y1:A.y+dy/L*ra+ny*o,x2:B.x-dx/L*rb+nx*o,y2:B.y-dy/L*rb+ny*o,mx:(A.x+B.x)/2+nx*o,my:(A.y+B.y)/2+ny*o,nx,ny};}
-function line(a,b,cls,extra=''){const g=seg(a,b);const A=GN[a],B=GN[b],L=Math.hypot(B.x-A.x,B.y-A.y);return `<line class="${cls}" x1="${g.x1}" y1="${g.y1}" x2="${g.x2+(B.x-A.x)/L*5}" y2="${g.y2+(B.y-A.y)/L*5}">${extra}</line>`;}
+function line(a,b,cls,extra='',sp=''){const g=seg(a,b);const A=GN[a],B=GN[b],L=Math.hypot(B.x-A.x,B.y-A.y);return `<line ${sp?`data-sp="${sp}"`:''} class="${cls}" x1="${g.x1}" y1="${g.y1}" x2="${g.x2+(B.x-A.x)/L*5}" y2="${g.y2+(B.y-A.y)/L*5}">${extra}</line>`;}
 function renderGraph(C){
   const P=build(C.evs);const freshEvs=C.evs.filter(e=>C.fresh.has(e.id));
   const holder=P.holders['编码 agent']||'阿哲';const ph=pendingHandoff(C.evs);
@@ -1305,12 +1413,12 @@ function renderGraph(C){
   s+=`<rect class="g-bound" x="118" y="18" width="352" height="336" rx="10"/><text class="g-blabel" x="128" y="346">研发部</text>`;
   /* 用户给出的读数 */
   const sigLit=freshEvs.some(e=>e.actor.name==='实验 agent'&&['insight','dog','readout','final','incident'].includes(e.k));
-  s+=line('user','exp',`g-sig ${sigLit?'lit':''}`,'<title>用户的行为是研发唯一的外部裁判。实验 agent 把它读成数。</title>')+`<text class="g-sigt" x="124" y="292" text-anchor="middle">读数</text>`;
+  s+=line('user','exp',`g-sig ${sigLit?'lit':''}`,'<title>用户的行为是研发唯一的外部裁判。实验 agent 把它读成数。</title>','sig')+`<text data-sp="sig" class="g-sigt" x="124" y="292" text-anchor="middle">读数</text>`;
   /* 租约 */
   const acted=n=>freshEvs.some(e=>e.actor.kind==='agent'&&e.actor.name===GN[n].label);
   const leaseTo={exp:'lan',rev:'qin',code:away&&!ph?'succ':'zhe'};
-  for(const a of ['exp','rev','code'])s+=line(a,leaseTo[a],`g-lease ${acted(a)?'lit':''}`,`<title>${GN[a].label}的租约归${a==='code'?holder:LEASES[GN[a].label].by}。它做的每件事都回程到这个人。</title>`);
-  if(ph){const g=seg('code','succ');s+=`<line class="g-lease" style="stroke:var(--warn);opacity:.9" x1="${g.x1}" y1="${g.y1}" x2="${g.x2}" y2="${g.y2}"/><text class="g-lease-t" style="fill:var(--warn);text-anchor:end" x="${(GN.code.x+GN.succ.x)/2-6}" y="${(GN.code.y+GN.succ.y)/2-10}">移交中</text>`;}
+  for(const a of ['exp','rev','code'])s+=line(a,leaseTo[a],`g-lease ${acted(a)?'lit':''}`,`<title>${GN[a].label}的租约归${a==='code'?holder:LEASES[GN[a].label].by}。它做的每件事都回程到这个人。</title>`,'n:'+a);
+  if(ph){const g=seg('code','succ');s+=`<line data-sp="n:succ" class="g-lease" style="stroke:var(--warn);opacity:.9" x1="${g.x1}" y1="${g.y1}" x2="${g.x2}" y2="${g.y2}"/><text data-sp="n:succ" class="g-lease-t" style="fill:var(--warn);text-anchor:end" x="${(GN.code.x+GN.succ.x)/2-6}" y="${(GN.code.y+GN.succ.y)/2-10}">移交中</text>`;}
   /* 承诺边 */
   let i=0;
   for(const [id,[a,b,o,ls]] of Object.entries(EDGES)){
@@ -1319,25 +1427,25 @@ function renderGraph(C){
     const created=freshEvs.some(e=>e.type==='pledge'&&e.pledge.id===id);
     const changed=!created&&freshEvs.some(e=>e.type==='pledge_update'&&e.pid===id);
     const mk=cls==='hang'?'warn':cls==='late'?'seal':cls==='done'?'done':'ink';
-    s+=`<line class="g-edge ${cls} ${created?'draw':''} ${changed&&(cls==='hang'||cls==='late')?'pulse':''}" style="animation-delay:${(i++)*0.25}s" x1="${g.x1}" y1="${g.y1}" x2="${g.x2}" y2="${g.y2}" marker-end="url(#ar-${mk})"><title>${esc(p.who)} 欠 ${esc(p.to)}：${esc(p.what)}，${esc(p.when)}。${esc(p.status)}${p.hist.length?'。'+p.hist.map(h=>h.note).join('；'):''}</title></line>`;
+    s+=`<line data-sp="e:${id}" class="g-edge ${cls} ${created?'draw':''} ${changed&&(cls==='hang'||cls==='late')?'pulse':''}" style="animation-delay:${(i++)*0.25}s" x1="${g.x1}" y1="${g.y1}" x2="${g.x2}" y2="${g.y2}" marker-end="url(#ar-${mk})"><title>${esc(p.who)} 欠 ${esc(p.to)}：${esc(p.what)}，${esc(p.when)}。${esc(p.status)}${p.hist.length?'。'+p.hist.map(h=>h.note).join('；'):''}</title></line>`;
     const shared=Object.entries(EDGES).filter(([id2,[a2,b2]])=>id2!==id&&a2===a&&b2===b&&P.pledges.has(id2)).length;
     if(cls==='done'&&shared&&!o)continue;
     const sg=ls||(o<0?-1:1),off=sg*(Math.abs(o)+12);const lx=(GN[a].x+GN[b].x)/2+g.nx*off,ly=(GN[a].y+GN[b].y)/2+g.ny*off+4;
     const anc=g.nx*sg>0.6?'start':g.nx*sg<-0.6?'end':'middle';
-    s+=`<text class="g-elabel ${cls}" x="${lx}" y="${ly}" style="text-anchor:${anc}">${SHORT[id]} ${esc(shortWhen(p.when))}${cls==='hang'?' 悬空':cls==='late'?' 未达':cls==='done'?' 核销':cls==='pending'?' 待签收':''}</text>`;
+    s+=`<text data-sp="e:${id}" class="g-elabel ${cls}" x="${lx}" y="${ly}" style="text-anchor:${anc}">${SHORT[id]} ${esc(shortWhen(p.when))}${cls==='hang'?' 悬空':cls==='late'?' 未达':cls==='done'?' 核销':cls==='pending'?' 待签收':''}</text>`;
   }
   /* 传导 */
   if(freshEvs.some(e=>e.type==='pledge_update'&&e.pid==='P3'&&e.patch&&e.patch.status==='悬空')){const dp='M'+['vend','zhou','zhe','lan','qin','co'].map(n=>`${GN[n].x},${GN[n].y}`).join(' L');s+=`<path class="g-flow" d="${dp}"/><circle class="g-dot" r="6"><animateMotion dur="2.4s" repeatCount="2" path="${dp}"/></circle>`;}
   /* 外部方与 agent */
-  for(const n of ['co','user','vend']){const N=GN[n];const used=n==='user'?true:Object.entries(EDGES).some(([id,[a,b]])=>(a===n||b===n)&&P.pledges.has(id));s+=`<g class="g-ext" opacity="${used?1:.45}"><rect x="${N.x-28}" y="${N.y-15}" width="56" height="30" rx="3"/><text x="${N.x}" y="${N.y+1}">${N.label}</text></g>`;}
-  for(const n of ['rev','exp','code']){const N=GN[n];s+=`<g class="g-agent"><circle cx="${N.x}" cy="${N.y}" r="${GR[n]}"/><text x="${N.x}" y="${N.y+GR[n]+13}">${N.label}</text></g>`;}
+  for(const n of ['co','user','vend']){const N=GN[n];const used=n==='user'?true:Object.entries(EDGES).some(([id,[a,b]])=>(a===n||b===n)&&P.pledges.has(id));s+=`<g data-sp="n:${n}" class="g-ext" opacity="${used?1:.45}"><rect x="${N.x-28}" y="${N.y-15}" width="56" height="30" rx="3"/><text x="${N.x}" y="${N.y+1}">${N.label}</text></g>`;}
+  for(const n of ['rev','exp','code']){const N=GN[n];s+=`<g data-sp="n:${n}" class="g-agent"><circle cx="${N.x}" cy="${N.y}" r="${GR[n]}"/><text x="${N.x}" y="${N.y+GR[n]+13}">${N.label}</text></g>`;}
   /* 人 */
   const pendNeeds=[...P.needs.values()].filter(x=>x.status==='待判');
   const people=[['qin','老秦'],['lan','林岚'],['zhe','阿哲'],['zhou','周敏']];if(succName)people.push(['succ',succName]);
   for(const [n,name] of people){
     const N=GN[n],r=GR[n];const dim=n==='zhe'&&away;const ghostNode=n==='succ'&&!!ph&&holder==='阿哲';
     const need=pendNeeds.filter(x=>x.who===name);const js=[...P.judg.values()].filter(j=>j.who===name);
-    s+=`<g class="g-hum ${dim?'dim':''} ${ghostNode?'ghost':''}">`;
+    s+=`<g data-sp="n:${n}" class="g-hum ${dim?'dim':''} ${ghostNode?'ghost':''}">`;
     if(need.length)s+=`<circle class="g-need" cx="${N.x}" cy="${N.y}" r="20"/><text class="g-needt" x="${N.x+N.nl[0]}" y="${N.y+N.nl[1]}" style="text-anchor:${N.nl[2]}">待判 ${need.map(x=>x.id).join(' ')}</text>`;
     s+=`<circle class="body" cx="${N.x}" cy="${N.y}" r="${r}"><title>${name}${need.length?'，待判 '+need.map(x=>x.id).join('、'):''}</title></circle>`;
     const role=n==='succ'?(ghostNode?'等签收':'接手编码 agent'):N.role;const nm=name+(dim?'（休假）':'');
