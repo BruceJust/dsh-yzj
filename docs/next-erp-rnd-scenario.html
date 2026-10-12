@@ -474,6 +474,7 @@ td.old.g-wrong{background:#fbeceb}
 }
 
 .xlink{margin-left:8px;color:var(--rule-strong);text-decoration:underline dotted;white-space:nowrap}
+@media (max-width:760px){#play{display:none}}
 /* ===== 研发场景追加 ===== */
 .legend i.sig{border-top:2px dotted var(--seal)}
 .bd{display:block;width:100%;height:46px;margin:2px 0 4px}
@@ -490,6 +491,7 @@ td.old.g-wrong{background:#fbeceb}
 .money-sum{display:grid;grid-template-columns:repeat(3,auto);gap:4px 22px;justify-content:start;margin:10px 0 4px;font-size:13px}
 .money-sum b{font-family:var(--song);font-size:18px;font-weight:600;display:block}
 .xlink{margin-left:8px;color:var(--rule-strong);text-decoration:underline dotted;white-space:nowrap}
+@media (max-width:760px){#play{display:none}}
 </style>
 </head>
 <body>
@@ -636,7 +638,7 @@ const SCENES=[
   E({t:'9/8 10:12',actor:SYS,type:'need_update',text:'J2 排 9 月 9 日。',nu:[{id:'J2',status:'待判'}]}),
  ]},
 
-{id:'sA1',t:'9/5 18:00',title:'大注开工：速度从来不是问题',focus:'law',narrative:'编码 agent 四天写完了拍照记账的大半。旧系统会把这记成一次创纪录的迭代速度。新账不记速度，记的是还有什么没被验证：赌注还没读数，金额解析还没人决定怎么审。',old:'迭代燃尽图大幅超前：89 点四天烧掉 61 点，速度是去年的三倍多。周报写着"进展顺利"。',
+{id:'sA1',t:'9/5 18:00',title:'大注开工：速度从来不是问题',focus:'law',narrative:'编码 agent 四天写完了拍照记账的大半。旧系统会把这记成一次创纪录的迭代速度。新账不记速度，记的是还有什么没被验证：赌注还没读数，金额解析还没人决定怎么审。',old:'迭代燃尽图大幅超前：89 点四天烧掉 61 点，一天十几点，去年一天两点。周报写着"进展顺利"。',
  when:d=>d.J1==='A',
  events:()=>[E({t:'9/5 18:00',actor:AG('编码 agent'),type:'fact',k:'build',pts:61,prs:41,text:'拍照记账客户端完成大半：拍照、裁剪、识别结果确认页，合并 41 个 PR。',money:[{id:'M1',acct:'token',bet:'photo',label:'拍照记账第一段，编码 agent',amount:-7800}]})]},
 
@@ -1267,8 +1269,8 @@ function renderERP(C){
   if(st('P4'))req+=fld('拍照记账',st('P4'),st('P4')==='已上线'?'已完成':'',freshK('launch'));
   if(st('P5'))req+=fld('模板',st('P5'),st('P5')==='已上线'?'已完成':'',freshK('launch'));
   const elapsed=Math.max(1,(Math.max(...C.evs.filter(e=>e.pts).map(e=>tmin(e.t)),tmin('9/2 10:00'))-tmin('9/1 10:00'))/1440);
-  const vel=O.plan&&O.burnDone?(O.burnDone/elapsed/4.5):0;
-  let iter=O.plan?burnSVG(C.evs,d)+(vel?fld('速度',`去年的 ${vel.toFixed(1)} 倍`,'',freshK('build')||freshK('launch')):''):'';
+  const vel=O.plan&&O.burnDone?(O.burnDone/elapsed):0;
+  let iter=O.plan?burnSVG(C.evs,d)+(vel?fld('速度',`${vel.toFixed(1)} 点/天`,'去年 2.1',freshK('build')||freshK('launch')):''):'';
   let code=O.prs?fld('合并 PR',`${O.prs} 个`,'九成是机器人提交',freshK('build')):'';
   const alarms=docs.filter(r=>r.module==='code'&&/告警/.test(r.title));if(alarms.length)code+=fld('告警',`${alarms.length} 条`,'不知道连着谁',freshK('incident'));
   const fin=O.closed?fld('研发费用','536 万，按人头分摊','月结后',freshK('close'))+fld('token','8.4 万，记在云服务','',''):`<div class="empty">月结之前，这一注的成本在这里是空的。月结之后，也只有部门的数。</div>`;
