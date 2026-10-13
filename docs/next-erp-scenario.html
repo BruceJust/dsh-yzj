@@ -513,6 +513,24 @@ td.old.g-wrong{background:#fbeceb}
   .stt tr.div{display:block}
 }
 @media (prefers-reduced-motion:reduce){#graph [data-sp],#erp .mod,#erp .erp-out{transition:none}}
+/* ===== 剧本区 ===== */
+.main{display:block}
+.script{max-width:1400px;margin:14px auto 0;padding:0 28px}
+.script-in{background:var(--page);border:1px solid #d9d9d0;padding:18px 26px 16px;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:30px;align-items:start}
+.script-in.solo{grid-template-columns:minmax(0,1fr)}
+.script .sc-title{font-size:23px;margin:2px 0 10px}
+.story{max-width:44em}
+.story p{font-family:var(--song);font-size:17px;line-height:1.8;margin:0 0 10px;color:var(--ink)}
+.story p.line{padding-left:14px;border-left:2px solid var(--rule)}
+.story p.line b{font-family:var(--sans);font-size:13px;font-weight:600;color:var(--rule-strong);margin-right:4px}
+.chosen{max-width:44em;margin:6px 0 10px;padding:6px 12px;background:#fbf2f1;border-left:3px solid var(--seal);font-size:13.5px;color:#4d4d48}
+.chosen b{font-family:var(--song);font-size:15.5px;color:var(--ink)}
+.sc-end{font-family:var(--song);font-size:15px;color:var(--rule-strong);margin:4px 0 0}
+.script .sc-path{max-width:44em}
+.script-side .decide{margin-top:0}
+.st-why{margin:0;padding:6px 14px 8px;font-size:13px;color:#4d4d48;border-bottom:1px solid var(--rule);line-height:1.6}
+@media (max-width:1100px){.script-in{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){.script{padding:0 14px}.script-in{padding:14px 14px 12px}.story p{font-size:16px}}
 </style>
 </head>
 <body>
@@ -522,8 +540,8 @@ td.old.g-wrong{background:#fbeceb}
   <p class="sub">同一个世界，两台相机。左边是旧 ERP 拍到的，右边是新账拍到的。一家做压力传感器的公司接到一张提前二十天的订单，你替老周、老陈、小林和小赵做决定，下面五个问题会在每一步同时去问两个系统。<a class="xlink" href="next-erp-rnd-scenario.html">研发部的版本：小记的一个赌注</a></p>
 </header>
 <nav class="tl" id="tl" aria-label="时间轴"><div class="tl-in"></div></nav>
+<section class="script" id="script" aria-live="polite"></section>
 <div class="main">
-  <aside class="scene-card" id="scene" aria-live="polite"></aside>
   <section class="stage">
     <div class="viewing" id="viewing"></div>
     <div class="steptab" id="step"></div>
@@ -607,6 +625,82 @@ const OLD={
   law:{title:'审批链',def:'每张单据几个人签字。人人签了，没有人对结果负责。',tab:'flow'},
 };
 const TABS=['need','pledge','judg','money','law'];
+const pathLabel=d=>{if(!d.J1)return '还没做第一个判断';const s=[{A:'接，不挤 B',B:'接，挤 B',C:'不接'}[d.J1]];if(d.J4)s.push({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4]);return s.join('，');};
+const STORY={
+pre:{title:'两张订单在账上',story:[
+  '恒测是深圳一家做压力传感器的工厂。8 月 20 日，销售总监老周签下 A 客户一张单：8,000 台，10 月 30 日交货。A 客户是一家新能源车企，一年有 2,000 万的生意。',
+  '8 月 26 日，又签了 B 客户 3,000 台，10 月 15 日交。',
+  '两张单都按 22% 的标准毛利算好了，工厂照常排产。']},
+s0:{title:'周一早上，客户要提前二十天',story:[
+  '9 月 15 日，周一早上九点。A 客户的采购王工在企业微信上发来一句话。',
+  '王工：「原定 10 月 30 日的 8,000 台，能不能提前到 10 月 10 日？我们产线提前投产了。」',
+  '提前二十天。能不能接，工厂里没有人一眼答得上来。']},
+s1:{title:'能不能接？三件事要人拍板',story:[
+  '八分钟后，老周手下的 AI 助手销售 agent 把情况摸清了：仓库里加上正在做的，一共 3,500 台，还差 4,500 台。',
+  '卡脖子的是一颗芯片：手上只有 3,000 颗，正常要等六周；加急两周能到，但要多付 12%。产能也不够：要么工人加班六天，要么把 B 客户那 3,000 台往后挪。',
+  '这些数 agent 算得出，可接下来的事它替不了。接不接、挤不挤 B 客户，关系到两个大客户，归老周。芯片加急要多花三十多万，超出了采购 agent 能自己花的额度，归采购经理小林。多出来的产能从哪来，归厂长老陈。',
+  '小林和老陈的决定，要等老周先定了才有意义。老周下午三点有二十分钟空，就排在那时。']},
+s2:{title:'下午三点，老周拍板',story:[
+  '下午三点十分，老周在手机上看到销售 agent 整理好的一页：两家客户的合同条款、过去的准时率、三种做法各自还剩多少毛利。',
+  'A 客户年底要续签，传闻额度可能翻倍。B 客户合同里写着：晚交一天罚 0.5%，最多罚 15 万。',
+  '三条路：接，不动 B，加班加急芯片，毛利剩 15% 左右；接，把 B 往后挪，毛利 20% 左右；不接，守住 22%，但可能错过续签。'],
+ after:d=>({
+  A:['老周选了接，不动 B 客户。他写下一句：「赌 A 客户年底续签翻倍，12 月 20 日回来看。」','他回复王工：10 月 10 日可以。王工确认了新日期。老陈和小林的决定排上了日程：老陈今天四点，小林明早九点。'],
+  B:['老周选了接，把 B 客户往后挪。他写下：「赌 B 客户能接受晚两周，不影响它的续签。」','改期的请求发给了 B 客户那边的 AI 助手，等对方确认。老陈接下活：用原本给 B 的芯片和排产，10 月 8 日做出 4,500 台。芯片够了，小林那边不用加急。'],
+  C:['老周选了不接。他写下：「赌不提前交，也不影响 A 客户续签，保住毛利和 B 客户。」','他回复王工：产能已经排满，维持 10 月 30 日，以后的单可以优先安排。']})[d.J1]},
+s3:{title:'老陈：4,500 台从哪来',story:[
+  '下午四点，轮到厂长老陈。要在 10 月 8 日前多做出 4,500 台。',
+  '两个办法。工人加班六天，花 19.8 万左右，可上个月人均已经加班 38 小时，快到上限了。或者把 1,500 台外包出去，花 22 万左右，外包厂上个季度的次品率是 1.8%。'],
+ after:d=>({
+  ot:['老陈选了加班。他写下：「赌六天加班不伤质量，10 月 8 日见。」然后答应老周：10 月 8 日，4,500 台下线。'],
+  os:['老陈选了外包 1,500 台。他写下：「赌外包的次品率能压到 1% 以内。」然后答应老周：10 月 8 日，4,500 台下线。']})[d.J3]},
+s4:{title:'采购 agent 停下来，等小林',story:[
+  '9 月 16 日早上八点四十，采购 agent 找到了加急的芯片：4,500 颗，9 月 28 日到货，加价 12%，一共多花约 33.5 万。',
+  '可小林给它定过规矩：一笔超过 10 万就得她点头。所以它没下单，停下来等小林。',
+  '九点，小林看到：另一家供应商要 10 月 3 日才能到，还要加价 15%。不加急的话，10 月 10 日肯定交不上。'],
+ after:d=>({
+  ok:['小林批准了，写下：「赌供应商 9 月 28 日全数到货。」采购 agent 随即下单。供应商那边的 AI 助手在自己账上记下同一条：欠恒测 4,500 颗，9 月 28 日。'],
+  back:['小林觉得贵了，打回去：「比上季度同类加急贵，再谈一轮。」两个半小时后，采购 agent 谈下来：加价 9%，多花约 25.1 万，9 月 29 日到。','小林这才批准，写下：「赌供应商 9 月 29 日全数到货。」采购 agent 下单，供应商在自己账上记下同一条。']})[d.J2]},
+s5:{title:'芯片只到了一大半',story:d=>[
+  `${d.J2==='back'?'9 月 29 日':'9 月 28 日'}下午五点四十，芯片到了，可只有 3,000 颗，另外 1,500 颗还在排期。`,
+  '约好的是 4,500 颗，到了一大半不等于到了。供应商欠的这一条还挂着，采购答应给生产的那一条也跟着挂着。小林赌的「全数到货」，输了。']},
+s6:{title:'国庆假期，供应商改日子',story:[
+  '10 月 2 日，国庆假期第二天，早上九点半。供应商的 AI 助手发来消息：剩下的 1,500 颗，10 月 6 日才能到。',
+  '改一个约好的日子，不是采购 agent 自己能定的事，它要找小林。可小林在休假。',
+  '系统按顺序把这件事转给采购副经理小赵：你接不接？接了，采购 agent 接下来做的事都算在你名下。'],
+ after:d=>({
+  ok:['小赵接了。九点五十五，他确认了供应商的新日期：剩下 1,500 颗 10 月 6 日到。'],
+  no:['小赵说手上已经压着三件事，没接。系统转给排在下一位的采购主管老吴。老吴接了，确认了供应商的新日期：剩下 1,500 颗 10 月 6 日到。']})[d.H]},
+s7:{title:'交不齐了，告不告诉客户',story:[
+  '芯片晚到，连锁反应马上出来：10 月 10 日只能交出 6,500 台，还差 1,500 台。',
+  '这件事回到老周手上。告诉王工，分两批交；还是先不说，10 月 12 日一次交齐，赌对方不追究这两天？',
+  '销售 agent 查到：A 客户合同里写着晚交扣 2%，大约 15.7 万；A 客户产线 10 月 12 日才满负荷，前两天只要 5,000 台；以前每次主动说清楚的延期，A 客户都没追究过。'],
+ after:d=>({
+  tell:['老周决定主动说。他写下：「赌提前说清楚，客户接受，不影响续签。」','十一点二十，王工回复：「可以。10 号 6,500 够用，12 号补齐。」新的交货安排双方都确认了。'],
+  hide:['老周决定先不说，12 号一次交齐。他写下：「赌晚两天客户不追究。」','给客户的那一条还写着 10 月 10 日，挂在账上。']})[d.J4]},
+sB2:{title:'B 客户不同意改期',story:[
+  '10 月 2 日早上九点半，B 客户那边的 AI 助手回了话：不同意晚交。要么按原来的 10 月 15 日交，要么按合同赔 15 万。',
+  '老周九月赌的「B 客户能接受晚两周」，输了。这件事回到他手上：认赔 15 万继续挪，还是撤回来，让 A 客户分两批收货？'],
+ after:d=>({
+  pay:['老周决定认赔，写下：「赌 A 客户续签翻倍，值这 15 万。」B 客户收到赔偿的承诺，确认了 10 月 28 日的新日期。'],
+  undo:['老周决定撤回。B 客户恢复 10 月 15 日交货；A 客户改成 10 月 10 日先交 5,000 台，10 月 28 日再交 3,000 台。','十一点四十，王工回复：「接受。」']})[d.J4]},
+s8:{title:'剩下的芯片到了',story:['10 月 6 日下午三点，剩下的 1,500 颗芯片到了。老陈的人验过，4,500 颗一颗不少。供应商欠的、采购欠生产的，两条都结清了。']},
+s9:{title:'老陈的 4,500 台下线',story:d=>d.J3==='os'?['10 月 8 日傍晚，4,500 台下线。外包的那批次品率 1.1%，返工了 30 台，没误期。老周验收，老陈答应的那一条结清。','老陈赌的是压到 1% 以内，差了一点，也不算输。']:['10 月 8 日傍晚，4,500 台下线，次品率 0.6%。老周验收，老陈答应的那一条结清。','老陈九月赌的「加班不伤质量」，对了。']},
+s10:{title:'10 月 10 日',story:d=>d.J4==='tell'?['10 月 10 日早上，第一批 6,500 台送到 A 客户，王工验收通过。还剩 1,500 台，12 号交。']:['10 月 10 日到了，一台也没交出去。约好的日子过了，不用谁去举报，账上自己就标出了「逾期」。','九点四十，王工打来电话：「货呢？产线明天要用。」']},
+s11:{title:'交齐了',story:d=>d.J4==='tell'?['10 月 12 日下午，第二批 1,500 台送到，8,000 台全部验收。给 A 客户的这一条结清，没有扣款。','老周十天前那个「主动说清楚」的决定，对了。']:['10 月 12 日下午，8,000 台送到。王工收了货，按合同扣了 2%，15.68 万，还说：「这事我们采购总监知道了。」','老周赌的「客户不追究」，输了。']},
+sB3:{title:'A 客户收货',story:d=>d.J4==='pay'?['10 月 10 日，8,000 台按时送到 A 客户，验收通过。']:['10 月 10 日，第一批 5,000 台送到 A 客户，验收通过。']},
+sB4:{title:'B 客户按期收货',story:['10 月 15 日，B 客户的 3,000 台按原来的日子送到，验收通过。']},
+sB5:{title:'最后一批',story:d=>d.J4==='pay'?['10 月 28 日，晚了两周的 B 客户 3,000 台送到，验收通过。']:['10 月 28 日，A 客户的第二批 3,000 台送到，8,000 台全部收齐。']},
+sC1:{title:'按原来的日子交货',story:['10 月 30 日，8,000 台按原来的日子送到 A 客户，验收通过。B 客户那 3,000 台，10 月 15 日也已按时送到。','这张单从头到尾平平稳稳。老周九月那个「不接」的决定对不对，要到 12 月才知道。']},
+s12:{title:'月底算账',story:d=>[
+  '10 月 31 日，月底。财务总监何总要看这张单到底赚了多少。',
+  '加急芯片多付的钱、工人加班的钱、扣款或赔偿、AI 助手用掉的算力，都已经各自记好了，没有人需要月底补录。',
+  d.J1==='C'?'何总看到毛利率就是标准的 22%，这张单没有额外花钱。':'何总看到毛利率比标准的 22% 低了一截。她点进去，一路点到老周 9 月 15 日下午三点十分的那个决定。']},
+s13:{title:'12 月 20 日，回头看老周的决定',story:['12 月 20 日。老周九月写下的那句话，到了回来看的日子。','A 客户的续签，签了吗？签了多少？'],
+ after:d=>d.J1==='A'?(d.J4==='tell'?['A 客户 12 月 11 日签了 3,800 万的年框，几乎翻倍。老周九月那一注，赌对了。']:['A 客户 12 月 9 日续签 2,400 万，没有翻倍。对方采购总监提到了十月那次晚交。老周九月那一注，没赌对。'])
+  :d.J1==='B'?(d.J4==='pay'?['A 客户签了 3,800 万，老周十月认赔那一注赌对了。可 B 客户 800 万的年框没有续，转给了别家。']:['A 客户续签 3,000 万，没有翻倍。B 客户照常续签。'])
+  :['A 客户续签维持 2,000 万，多出来的 1,800 万给了竞争对手。老周不接，保住了毛利和 B 客户，也错过了这一笔。']},
+};
 const OLDTABS=[['sales','销售订单'],['mrp','计划采购'],['prod','生产工单'],['fin','财务凭证'],['flow','审批流'],['judg','判断账']];
 const OLDTABDEF={
   sales:'销售模块里，承诺是订单上的交期字段。改过几次能数出来，为什么改在系统外。',
@@ -907,7 +1001,7 @@ function resolve(key){
   const evs=sc.prompt.resolve(key,state.decisions);
   state.fresh=new Set(evs.map(e=>e.id));
   state.events.push(...evs);
-  state.played[state.played.length-1].resolved=evs;
+  state.played[state.played.length-1].resolved=evs;state.played[state.played.length-1].pick=key;
   state.pending=null;markChanged(evs);applyFocus(sc.prompt.focus,evs);
   render();bookScroll();
 }
@@ -1344,7 +1438,7 @@ function bindProj(){
 function render(){
   const C=ctx();
   const S=C.live?{...C,fresh:new Set([...C.blk.events,...C.blk.resolved].map(e=>e.id))}:C;
-  renderTL(C);renderScene(C);renderStep(C);renderERP(S);spotlightERP();renderGraph(C);spotlightGraph(S);renderQB(C);renderControls();renderBook();
+  renderTL(C);renderScript(C);renderStep(C);renderERP(S);spotlightERP();renderGraph(C);spotlightGraph(S);renderQB(C);renderControls();renderBook();
   const v=$('#viewing');v.classList.toggle('on',!C.live);
   v.innerHTML=C.live?'':`<span>你在回看 ${dayOf(C.sc.t)} 的样子。两边都只算到那一刻为止的事件。</span><button id="backnow">回到此刻</button>`;
   if(!C.live)$('#backnow').onclick=()=>viewAt(99);
@@ -1357,33 +1451,12 @@ function renderTL(C){
     if(!played&&sc.when&&!sc.when(d))return;
     const day=sc.t.replace(/\s.*$/,'');const lbl=day!==lastDay?day:'';lastDay=day;
     const here=played&&pi===state.played.length-1&&C.live,viewing=played&&!C.live&&pi===C.k;
-    html+=`<div class="tl-t ${played?'played':''} ${here?'here':''} ${viewing?'viewing':''} ${sc.prompt?'judg':''}" ${played?`data-k="${pi}" tabindex="0" role="button"`:''}><span class="d">${lbl}</span><span class="m"></span><span class="tip">${esc(sc.title)}${sc.prompt?'，要你拍板':''}${played?'':'，还没到'}</span></div>`;
+    html+=`<div class="tl-t ${played?'played':''} ${here?'here':''} ${viewing?'viewing':''} ${sc.prompt?'judg':''}" ${played?`data-k="${pi}" tabindex="0" role="button"`:''}><span class="d">${lbl}</span><span class="m"></span><span class="tip">${esc(titleOf(sc))}${sc.prompt?'，要你拍板':''}${played?'':'，还没到'}</span></div>`;
   });
   $('#tl .tl-in').innerHTML=html;
   $('#tl').querySelectorAll('.tl-t[data-k]').forEach(t=>{t.onclick=()=>viewAt(+t.dataset.k);t.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();t.click();}};});
 }
-function renderScene(C){
-  const sc=C.sc,d=state.decisions;
-  const t=[...C.blk.events,...C.blk.resolved].map(e=>e.t).concat(sc.t)[0];
-  let html=`<div class="sc-date">${dayOf(sc.t)}${hm(t)?' '+hm(t):''}</div><h2 class="sc-title">${esc(sc.title)}</h2>`+(state.done&&C.live?'':`<p class="sc-narr">${esc(narrText(sc))}</p>`);
-  if(C.live&&state.pending===sc){
-    const p=sc.prompt;
-    html+=`<section class="decide fresh" id="decide"><div class="dh"><b>${p.kind==='judgment'?'取景框':'待受领'}，等${p.who}${p.kind==='judgment'?'拍板':'签收'}</b><span>${esc(p.role)}${p.nid?'，'+p.nid:''}</span></div>
-      <p class="q">${esc(p.q)}</p><details class="ev-d" ${window.innerWidth>1100?'open':''}><summary class="eh">新账已经把证据取好景，${p.evidence.length} 条</summary><ul>${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
-      <p class="oldway">在旧 ERP 里，这一步发生在群聊或电话里。证据要${p.who}自己翻，选完之后系统只会看到结果单据。</p></details>
-      <div class="opts">${p.options.map(o=>`<button data-key="${o.key}"><b>${esc(o.label)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div></section>`;
-  }else if(!C.live){
-    html+=`<div class="viewnote">这是回看。时间轴上点别的日子继续看，或者<button id="backnow2">回到此刻</button>。</div>`;
-  }else if(state.done){
-    html+=`<p class="sc-narr" style="margin:0">走完了。往下看结算：五个问题旧 ERP 答了多久答不上，同一件事两边各自什么时候知道，人的时间花在哪。</p>`;
-  }
-  const path=d.J1?({A:'接，不挤 B',B:'接，挤 B',C:'不接'}[d.J1]):'还没做第一个判断';
-  html+=`<div class="sc-path">路线：<b>${path}${d.J4?('，'+({tell:'分批告知',hide:'不告知',pay:'付违约金',undo:'撤回'}[d.J4])):''}</b>。时间轴上的红圈是要你拍板的地方，灰点可以点回去看。</div>`;
-  $('#scene').innerHTML=html;
-  $('#scene').querySelectorAll('.opts button').forEach(b=>b.onclick=()=>resolve(b.dataset.key));
-  const bn=$('#backnow2');if(bn)bn.onclick=()=>viewAt(99);
-}
-function focusDecision(){const b=document.querySelector('#decide .opts button');if(b){$('#scene').scrollIntoView({behavior:'smooth',block:'nearest'});b.focus({preventScroll:true});}}
+function focusDecision(){const b=document.querySelector('#decide .opts button');if(b){$('#script').scrollIntoView({behavior:'smooth',block:'nearest'});b.focus({preventScroll:true});}}
 
 /* 旧 ERP：四个模块，加一块系统外 */
 /* ---------- 这一步：每件事，两本账各记下了什么 ---------- */
@@ -1420,11 +1493,12 @@ function renderStep(C){
   const row=e=>`<tr class="${C.live&&C.fresh.has(e.id)?'fr':''}"><td class="w"><span class="sw">${hm(e.t)||dayOf(e.t)}　${esc(e.actor.name)}</span>${esc(e.text)}</td><td>${newBook(e,P).map(([k,t])=>`<span class="bk bk-${k}"><b>${LEDN[k]}</b>${esc(t)}</span>`).join('')}</td><td>${oldBook(e,d,C.day)}</td></tr>`;
   const pend=C.live&&state.pending===C.sc;
   const n=pre.length+post.length;
-  let html=`<div class="st-h"><b>这一步发生了什么</b><span>${n?`${n} 件事`:'还没有事发生'}${pend?`，等${C.sc.prompt.who}拍板`:''}。下面两张图只亮着这一步动到的部分，鼠标移上去看全貌。</span></div>
-  <table class="stt"><colgroup><col style="width:40%"><col style="width:31%"><col style="width:29%"></colgroup><thead><tr><th>发生了什么</th><th>新账记下</th><th>旧系统记下</th></tr></thead><tbody>`;
+  const why=narrText(C.sc);
+  let html=`<div class="st-h"><b>账上记下了什么</b><span>${n?`${n} 件事`:'还没有事发生'}${pend?`，等${C.sc.prompt.who}拍板`:''}。下面两张图只亮着这一步动到的部分，鼠标移上去看全貌。</span></div>${why?`<p class="st-why">${esc(why)}</p>`:''}
+  <table class="stt"><colgroup><col style="width:40%"><col style="width:31%"><col style="width:29%"></colgroup><thead><tr><th>事件</th><th>新账记下</th><th>旧系统记下</th></tr></thead><tbody>`;
   html+=pre.map(row).join('');
   if(post.length){const p=C.sc.prompt;html+=`<tr class="div"><td colspan="3">${p.who}${p.kind==='judgment'?'拍板':'做了动作'}之后</td></tr>`+post.map(row).join('');}
-  else if(pend)html+=`<tr class="div"><td colspan="3">等${C.sc.prompt.who}在场景卡里拍板</td></tr>`;
+  else if(pend)html+=`<tr class="div"><td colspan="3">等${C.sc.prompt.who}拍板，在上面的剧本里</td></tr>`;
   html+=`</tbody></table>`;
   $('#step').innerHTML=html;
 }
@@ -1457,6 +1531,28 @@ function spotlightERP(){
   const hot=m=>!!m.querySelector('.fresh,.flash');const outHot=!!(out&&out.querySelector('.chip.fresh'));
   const on=mods.some(hot)||outHot;
   mods.forEach(m=>m.classList.toggle('sp-out',on&&!hot(m)));if(out)out.classList.toggle('sp-out',on&&!outHot);
+}
+/* ---------- 剧本区：先讲故事，再讲账 ---------- */
+const titleOf=sc=>(typeof STORY!=='undefined'&&STORY[sc.id]&&STORY[sc.id].title)||sc.title;
+const storyVal=v=>typeof v==='function'?v(state.decisions):(v||[]);
+function paras(arr){return arr.map(p=>{const m=p.match(/^([^：「」。]{1,12})：「([\s\S]*)」$/);return m?`<p class="line"><b>${esc(m[1])}</b>「${esc(m[2])}」</p>`:`<p>${esc(p)}</p>`;}).join('');}
+function renderScript(C){
+  const sc=C.sc,d=state.decisions,S=(typeof STORY!=='undefined'&&STORY[sc.id])||{};
+  const first=[...C.blk.events,...C.blk.resolved].map(e=>e.t)[0]||sc.t;
+  const story=storyVal(S.story);const pend=C.live&&state.pending===sc;const pick=C.blk.pick;
+  let main=`<div class="sc-date">${dayOf(sc.t)}${hm(first)?' '+hm(first):''}</div><h2 class="sc-title">${esc(titleOf(sc))}</h2><div class="story">${paras(story.length?story:[narrText(sc)])}</div>`;
+  if(pick&&sc.prompt){const o=sc.prompt.options.find(x=>x.key===pick);const af=S.after?storyVal(S.after):[];main+=`<div class="chosen">你替${sc.prompt.who}选了：<b>${esc(o?o.label:pick)}</b></div>`+(af&&af.length?`<div class="story">${paras(af)}</div>`:'');}
+  if(!C.live)main+=`<div class="viewnote">这是回看。时间轴上点别的日子继续看，或者<button id="backnow2">回到此刻</button>。</div>`;
+  else if(state.done)main+=`<p class="sc-end">故事走完了。往下看结算：同一件事，两个系统各自什么时候知道，人的时间花在哪。</p>`;
+  main+=`<div class="sc-path">到目前为止你选的路：<b>${pathLabel(d)}</b>。时间轴上的红圈是要你拍板的地方，灰点可以点回去重看。</div>`;
+  let side='';
+  if(pend){const p=sc.prompt;
+    side=`<section class="decide fresh" id="decide"><div class="dh"><b>轮到你：替${p.who}${p.kind==='judgment'?'拍板':'决定'}</b><span>${esc(p.role)}</span></div>
+      <p class="q">${esc(p.q)}</p><details class="ev-d" open><summary class="eh">${p.who}手上的信息，${p.evidence.length} 条</summary><ul>${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>
+      <div class="opts">${p.options.map(o=>`<button data-key="${o.key}"><b>${esc(o.label)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div></section>`;}
+  $('#script').innerHTML=`<div class="script-in ${side?'':'solo'}"><div class="script-main">${main}</div>${side?`<aside class="script-side">${side}</aside>`:''}</div>`;
+  $('#script').querySelectorAll('.opts button').forEach(b=>b.onclick=()=>resolve(b.dataset.key));
+  const bn=$('#backnow2');if(bn)bn.onclick=()=>viewAt(99);
 }
 function renderERP(C){
   const d=state.decisions,O=buildOld(C.evs,d,C.day),P=build(C.evs);

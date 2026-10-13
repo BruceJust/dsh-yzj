@@ -513,6 +513,24 @@ td.old.g-wrong{background:#fbeceb}
   .stt tr.div{display:block}
 }
 @media (prefers-reduced-motion:reduce){#graph [data-sp],#erp .mod,#erp .erp-out{transition:none}}
+/* ===== 剧本区 ===== */
+.main{display:block}
+.script{max-width:1400px;margin:14px auto 0;padding:0 28px}
+.script-in{background:var(--page);border:1px solid #d9d9d0;padding:18px 26px 16px;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:30px;align-items:start}
+.script-in.solo{grid-template-columns:minmax(0,1fr)}
+.script .sc-title{font-size:23px;margin:2px 0 10px}
+.story{max-width:44em}
+.story p{font-family:var(--song);font-size:17px;line-height:1.8;margin:0 0 10px;color:var(--ink)}
+.story p.line{padding-left:14px;border-left:2px solid var(--rule)}
+.story p.line b{font-family:var(--sans);font-size:13px;font-weight:600;color:var(--rule-strong);margin-right:4px}
+.chosen{max-width:44em;margin:6px 0 10px;padding:6px 12px;background:#fbf2f1;border-left:3px solid var(--seal);font-size:13.5px;color:#4d4d48}
+.chosen b{font-family:var(--song);font-size:15.5px;color:var(--ink)}
+.sc-end{font-family:var(--song);font-size:15px;color:var(--rule-strong);margin:4px 0 0}
+.script .sc-path{max-width:44em}
+.script-side .decide{margin-top:0}
+.st-why{margin:0;padding:6px 14px 8px;font-size:13px;color:#4d4d48;border-bottom:1px solid var(--rule);line-height:1.6}
+@media (max-width:1100px){.script-in{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){.script{padding:0 14px}.script-in{padding:14px 14px 12px}.story p{font-size:16px}}
 /* ===== 研发场景追加 ===== */
 .legend i.sig{border-top:2px dotted var(--seal)}
 .bd{display:block;width:100%;height:46px;margin:2px 0 4px}
@@ -539,8 +557,8 @@ td.old.g-wrong{background:#fbeceb}
   <p class="sub">小记是一个月活 320 万的记账 app。研发部答应公司，Q4 把新用户 D7 留存从 31% 拉到 35%。左边是旧系统看见的：需求、迭代燃尽、Git 和月底分摊。右边是新账看见的。你替林岚、老秦和小吴做决定，下面五个问题会在每一步同时去问两个系统。<a class="xlink" href="next-erp-scenario.html">制造的版本：恒测加急单</a></p>
 </header>
 <nav class="tl" id="tl" aria-label="时间轴"><div class="tl-in"></div></nav>
+<section class="script" id="script" aria-live="polite"></section>
 <div class="main">
-  <aside class="scene-card" id="scene" aria-live="polite"></aside>
   <section class="stage">
     <div class="viewing" id="viewing"></div>
     <div class="steptab" id="step"></div>
@@ -834,6 +852,102 @@ const SCENES=[
   }}},
 ];
 
+
+/* ---------- 剧本：每一步用大白话讲发生了什么 ---------- */
+const STORY={
+pre:{title:'老秦对公司许下一个数',story:[
+  '8 月 28 日，季度规划会。老板问研发部：新用户为什么留不住？现在下载小记的人，一周后还在用的只有 31%。',
+  '研发总监老秦当场应下来：到 12 月，这个数做到 35%。',
+  '故事从这句话开始。老秦答应了公司一件事，有数字，有日期，12 月 31 日要见分晓。']},
+s0:{title:'早上九点半，一条数据消息',story:[
+  '9 月 1 日，周一早上九点半。产品负责人林岚刚到工位，手机上弹出一条消息。发消息的是她手下专门盯数据的 AI 助手，大家叫它实验 agent。',
+  '实验 agent：「新用户一周后还在用的是 31%。我把走掉的人拆开看了：第一次记账花了超过 40 秒的人，一周后只剩 22%。六成多的人，是记完第一笔账之后走的。」',
+  '林岚盯着这条消息看了很久。问题找到了：第一笔账记起来太麻烦，用户嫌烦，就走了。']},
+s1:{title:'群里冒出两个主意，谁来定？',story:[
+  '十点，林岚把这个发现发到研发群里，大家很快冒出两个主意。',
+  '阿哲：「做拍照记账吧。拍一下小票，金额自动填好，6 秒搞定。」',
+  '另一位同事：「拍照要接外部的识别服务，工作量大。先做个记账模板，点一下就记好，一周就能上线。」',
+  '代码可以让编码 agent 去写，可「做哪个」这件事 AI 替不了：押错了，一个季度就过去了。林岚是产品负责人，这个决定归她。',
+  '还有第二件事要有人拍板。拍照记账要处理钱的金额，金额算错，用户的账就错了。这段代码交给 AI 评审还是必须人看，归定研发规范的老秦。不过得先看林岚押不押拍照记账，所以排在她后面。',
+  '系统做的事，就是把这两个只有人能做的决定挑出来，交给对的人，排上时间：林岚下午三点有半小时空。']},
+s2:{title:'下午三点，林岚下注',story:[
+  '下午三点，林岚坐下来做决定。实验 agent 已经把她要看的东西整理好了。',
+  '三条路摆在面前。第一，押拍照记账，直接做完整版，六周后看效果。第二，两个都先做个粗糙的原型，三天做完，让全公司的人先用一周，事先定好标准，好用的才往下做。第三，只做模板，改动最小，最快见效。',
+  '不管选哪条，这都是一次下注：赌用户会因为它留下来。'],
+ after:d=>({
+  A:['林岚押了拍照记账。她当场写下一句：「赌这一注让留存至少提升 4 个点，10 月 15 日看实验结果。」','阿哲接下活，让编码 agent 开工，答应 9 月 24 日先给 5% 的新用户用上。林岚也对老秦许下一句：10 月 15 日把结果交给你。'],
+  C:['林岚选了两个都做原型。她写下：「两个小注合起来，赌留存至少提升 4 个点。内测一周、留存过 60% 的才往下做。」','阿哲答应三天做出两个原型，9 月 4 日给全公司试用。林岚对老秦说：10 月 15 日交结果。'],
+  B:['林岚只做模板。她写下：「先拿到至少 2 个点，9 月 22 日看结果，再决定下一注。」','阿哲答应 9 月 8 日上线。拍照记账不做了，老秦那边金额代码谁来审的事，也就不用定了。']})[d.J1]},
+sC1:{title:'两个原型，全公司试用一周',story:[
+  '9 月 4 日傍晚，两个原型做好了。代码是编码 agent 写的，用了三天；阿哲的时间主要花在看它写得对不对。',
+  '原型发给了全公司 412 个同事，大家用自己的手机真记账。',
+  '9 月 8 日周一，一周的试用数据出来：用拍照记账的人，一周后还在用的有 71%；用模板的 64%。两个都过了事先定好的 60%。',
+  '没有开会争论，两个都往下做：模板 9 月 15 日上线，拍照记账 9 月 24 日给 5% 的新用户。']},
+sA1:{title:'开工四天，进度表一片绿',story:[
+  '9 月 5 日，开工第四天。编码 agent 已经把拍照记账写完了大半：拍照、裁剪、识别结果的确认页，合进去 41 份代码。',
+  '按传统的算法，这个项目估了 89 个工作点，四天就做掉 61 个，进度表一片绿，周报写着「进展顺利」。',
+  '可是写得快，不等于押对了。拍照记账能不能留住人，要等 10 月 15 日；处理金额的那段代码谁来审，也还没人定。']},
+sB1:{title:'模板上线了',story:[
+  '9 月 8 日，模板上线了，一半的新用户第一次记账时会看到它。阿哲交付，林岚验收。',
+  '按传统做法，这个需求到这里就算「完成」了。可林岚押的是留存，不是上线。答案要等 9 月 22 日的实验数据。']},
+s3:{title:'金额这段代码，谁来看？',story:[
+  '9 月 9 日上午。拍照记账要用一个「识别小票金额」的接口，平台负责人周敏答应 12 号交给阿哲。接口背后是外部公司视觉云，合同里写着：0.8 秒内返回结果，准确率 98% 以上。',
+  '现在轮到老秦。拍照记账里有一段代码，专门把识别出来的文字变成金额，比如把「1,280.00」变成一千二百八十元。',
+  '老秦要定：这段代码交给 AI 评审员看，还是必须阿哲亲自看？评审 agent 过去 90 天看了两千多份代码，漏过 11 处，没有一处跟钱有关；可这段是新写的，它从没看过这类东西。阿哲手上排队等他看的代码已经 4 份，最多只能排 6 份。'],
+ after:d=>({
+  core:['老秦定了：金额这块必须阿哲亲自看。代价是阿哲排满了，拍照记账晚两天，改到 9 月 26 日上线。','他也写下一句：「赌人看能拦住金额的错，值这两天。」30 天后见分晓。'],
+  outer:['老秦定了：交给评审 agent。按时上线。','他也写下一句：「赌机器审得住金额这块。」30 天后见分晓。']})[d.J2]},
+
+s4:{title:'接口到了，代码交上来',story:d=>[
+  '9 月 12 日下午，周敏的接口按时交了，阿哲接上就能用。编码 agent 把识别和金额那部分写完，交上来 23 份代码。',
+  ...(d.J2==='core'?['晚上七点半，阿哲看代码时发现一个问题：小票上写着「1,280.00」，程序会读成 1.28 元，它把逗号当成了小数点。他把代码打回去。第二天上午编码 agent 重写，补了 46 个测试例子，阿哲才放行。']
+   :['评审 agent 一份份看过去，23 份全部通过。没有人注意到，金额里藏着一个跟逗号有关的错。']),
+  ...(d.J1==='C'?['9 月 15 日，模板先一步上线，一半的新用户能用上。']:[])]},
+sB2:{title:'模板的结果出来了',story:[
+  '9 月 22 日上午，模板的实验结果出来了。用上模板的新用户，一周后还在用的 32.6%；没用上的 31.0%。提升 1.6 个点。',
+  '林岚赌的是至少 2 个点，没赌赢。可她只花了三周、不到一万块，就知道这条路不够。',
+  '她决定模板给所有人用上，拍照记账排到明年一季度。']},
+s5:{title:'拍照记账上线了',story:d=>[
+  `${d.J2==='core'?'9 月 26 日':'9 月 24 日'}，拍照记账给 5% 的新用户上线了，每天大约 3,400 人能用到。林岚验收：答应的交付完成了。`,
+  '群里发了庆祝的表情。可对林岚来说，现在只是把注下了。实验要攒够每组 2.8 万个新用户，10 月 15 日才知道这一注赌得怎样。']},
+s6:{title:'国庆夜里，识别服务慢了',story:[
+  '10 月 3 日，国庆假期第三天，晚上九点。到处都是吃饭拍小票的人，视觉云扛不住了：识别要 2.4 秒才回来，合同说好的是 0.8 秒。视觉云的 AI 客服主动发来通知：6 号扩容才能恢复。',
+  '拍照记账一下子变慢。正在做实验的那批用户体验变差，10 月 15 日的结果也可能被带偏。',
+  '编码 agent 想到一个办法：识别超过 1.5 秒，就退回让用户手动记。可这要动线上的开关，超出了阿哲给它的权限。它停下来，去找阿哲。',
+  '阿哲在休假，人在飞机上。按排班，今晚值班的是客户端工程师小吴。系统把这件事转给小吴：你接不接？接了，编码 agent 接下来做的每件事都算在你名下。'],
+ after:d=>({
+  ok:['小吴接了。他批准了「超过 1.5 秒就退回手动记」的办法，十五分钟后上线，第一次记账又回到 7 秒以内。'],
+  no:['小吴说自己对拍照记账不熟，没接。系统转给排在下一位的资深工程师老冯。老冯接了，批准了退回手动记的办法，十五分钟后上线。']})[d.H]},
+s7:{title:'第二天早上，账记错了',story:[
+  '10 月 4 日早上九点二十，实验 agent 报警：2,140 个用户用拍照记的账，金额小了一千倍。小票上是「1,280.00」，账上记成了 1.28。',
+  '就是那个逗号的问题。看这段代码的是评审 agent，它没看出来。老秦九月那句「赌机器审得住」，在这一刻输了。',
+  '现在要林岚决定怎么办：把拍照记账整个撤下来，实验从头再来；还是马上修好，把 2,140 笔账自动改回来，一个个通知用户，实验接着做？'],
+ after:d=>({
+  fix:['林岚选了马上修。四十分钟后修复上线，编码 agent 补了 46 个测试例子，还把这类错误教给了评审 agent，以后它能拦住。','中午之前，2,140 笔账全部改回，每个用户都收到通知和 7 天会员作补偿。'],
+  rollback:['林岚选了撤下来。拍照记账十分钟后下线，2,140 笔账改回，逐一通知，每人补 7 天会员。','修好以后 10 月 8 日重新上线，实验从头再来，结果推到 10 月 29 日。']})[d.J3]},
+s8:{title:'视觉云恢复，阿哲回来',story:d=>{const who=d.H==='no'?'老冯':'小吴';return[
+  '10 月 6 日中午，视觉云扩容完成，识别回到 0.6 秒。它按合同把这次超时记在自己账上，退回 9 月服务费的 10%。',
+  `10 月 8 日节后，阿哲回来了。${who}把编码 agent 交还给他，阿哲确认接回。`];}},
+s9:{title:'实验结果出来了',story:d=>{const late=d.J3==='rollback';const r=[];
+  if(d.J1==='A')r.push('10 月 15 日，结果出来了。用上拍照记账的新用户，一周后还在用的 33.6%，比 31.0% 高 2.6 个点。','林岚赌的是 4 个点，没赌赢。可 2.6 个点是真的，拍照记账照样给所有人用上。差的那 1.4 个点，她再押一注：模板 11 月初上线。');
+  else r.push(`${late?'10 月 29 日，晚了两周':'10 月 15 日'}，结果出来了。两样都用上的新用户，一周后还在用的 ${late?'35.1%':'35.2%'}，提升 ${late?'4.1':'4.2'} 个点，其中拍照记账 2.6，模板 1.6。`,'林岚赌的 4 个点，赌赢了。两样都给所有人用上。');
+  if(d.J2==='core')r.push('10 月 26 日，拍照记账上线满 30 天，没出过一次金额错误。老秦「人看值两天」那一注，也赌对了。');
+  else if(d.J3==='fix')r.push('修好以后再没出过金额错误，去掉出事那两天，实验数据照样能用。林岚 10 月 4 日那个决定，也对了。');
+  else if(d.J3==='rollback')r.push('重做的实验赶在季度末之前出了结果。林岚 10 月 4 日选择撤下来，代价是晚了两周，但没耽误事。');
+  return r;}},
+s10:{title:'月底算账',story:d=>[
+  '10 月 31 日，月底算账：这一注到底花了多少钱？',
+  `钱花在几处：编码 agent 写代码用的算力；人的时间，林岚做决定、阿哲看代码、周敏做接口${d.J1==='B'?'':'；视觉云的调用费'}${d.J3?'；还有出事后补偿用户的两万多块':''}。`,
+  '老秦关心的是：换回来的每一个留存点，花了多少钱。他点开，一路能看到是哪一天、谁的哪个决定花的。']},
+s11:{title:'12 月 31 日，见分晓',story:[
+  '12 月 31 日，季度最后一天。老秦当初答应公司的那个数，到了见分晓的时候。',
+  '12 月新来的用户，一周后还有多少在用？'],
+ after:d=>({
+  A:['34.4%，差 0.6 个点。拍照记账刚上线时的 2.6 个点，三个月后退到 2.2，新鲜劲过去了；11 月补上的模板贡献 1.2。','老秦对公司的这一条，没做到。'],
+  C:['35.1%，刚好过线。拍照记账退到 2.2，模板没退。两个小注合起来，刚好够。','老秦对公司的这一条，做到了。'],
+  B:['32.6%，差 2.4 个点。模板的 1.6 个点没退，拍照记账要到明年一季度才做。','老秦对公司的这一条，没做到。']})[d.J1]},
+};
+
 /* ---------- 状态与推进 ---------- */
 let state,timer=null;
 function init(){
@@ -876,7 +990,7 @@ function resolve(key){
   const evs=sc.prompt.resolve(key,state.decisions);
   state.fresh=new Set(evs.map(e=>e.id));
   state.events.push(...evs);
-  state.played[state.played.length-1].resolved=evs;
+  state.played[state.played.length-1].resolved=evs;state.played[state.played.length-1].pick=key;
   state.pending=null;markChanged(evs);applyFocus(sc.prompt.focus,evs);
   render();bookScroll();
 }
@@ -1216,7 +1330,7 @@ function bindProj(){
 function render(){
   const C=ctx();
   const S=C.live?{...C,fresh:new Set([...C.blk.events,...C.blk.resolved].map(e=>e.id))}:C;
-  renderTL(C);renderScene(C);renderStep(C);renderERP(S);spotlightERP();renderGraph(C);spotlightGraph(S);renderQB(C);renderControls();renderBook();
+  renderTL(C);renderScript(C);renderStep(C);renderERP(S);spotlightERP();renderGraph(C);spotlightGraph(S);renderQB(C);renderControls();renderBook();
   const v=$('#viewing');v.classList.toggle('on',!C.live);
   v.innerHTML=C.live?'':`<span>你在回看 ${dayOf(C.sc.t)} 的样子。两边都只算到那一刻为止的事件。</span><button id="backnow">回到此刻</button>`;
   if(!C.live)$('#backnow').onclick=()=>viewAt(99);
@@ -1229,33 +1343,12 @@ function renderTL(C){
     if(!played&&sc.when&&!sc.when(d))return;
     const day=sc.t.replace(/\s.*$/,'');const lbl=day!==lastDay?day:'';lastDay=day;
     const here=played&&pi===state.played.length-1&&C.live,viewing=played&&!C.live&&pi===C.k;
-    html+=`<div class="tl-t ${played?'played':''} ${here?'here':''} ${viewing?'viewing':''} ${sc.prompt?'judg':''}" ${played?`data-k="${pi}" tabindex="0" role="button"`:''}><span class="d">${lbl}</span><span class="m"></span><span class="tip">${esc(sc.title)}${sc.prompt?'，要你拍板':''}${played?'':'，还没到'}</span></div>`;
+    html+=`<div class="tl-t ${played?'played':''} ${here?'here':''} ${viewing?'viewing':''} ${sc.prompt?'judg':''}" ${played?`data-k="${pi}" tabindex="0" role="button"`:''}><span class="d">${lbl}</span><span class="m"></span><span class="tip">${esc(titleOf(sc))}${sc.prompt?'，要你拍板':''}${played?'':'，还没到'}</span></div>`;
   });
   $('#tl .tl-in').innerHTML=html;
   $('#tl').querySelectorAll('.tl-t[data-k]').forEach(t=>{t.onclick=()=>viewAt(+t.dataset.k);t.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();t.click();}};});
 }
-function renderScene(C){
-  const sc=C.sc,d=state.decisions;
-  const t=[...C.blk.events,...C.blk.resolved].map(e=>e.t).concat(sc.t)[0];
-  let html=`<div class="sc-date">${dayOf(sc.t)}${hm(t)?' '+hm(t):''}</div><h2 class="sc-title">${esc(sc.title)}</h2>`+(state.done&&C.live?'':`<p class="sc-narr">${esc(narrText(sc))}</p>`);
-  if(C.live&&state.pending===sc){
-    const p=sc.prompt;
-    html+=`<section class="decide fresh" id="decide"><div class="dh"><b>${p.kind==='judgment'?'取景框':'待受领'}，等${p.who}${p.kind==='judgment'?'拍板':'签收'}</b><span>${esc(p.role)}${p.nid?'，'+p.nid:''}</span></div>
-      <p class="q">${esc(p.q)}</p><details class="ev-d" ${window.innerWidth>1100?'open':''}><summary class="eh">新账已经把证据取好景，${p.evidence.length} 条</summary><ul>${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
-      <p class="oldway">在旧系统 里，这一步发生在群聊或电话里。证据要${p.who}自己翻，选完之后系统只会看到结果单据。</p></details>
-      <div class="opts">${p.options.map(o=>`<button data-key="${o.key}"><b>${esc(o.label)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div></section>`;
-  }else if(!C.live){
-    html+=`<div class="viewnote">这是回看。时间轴上点别的日子继续看，或者<button id="backnow2">回到此刻</button>。</div>`;
-  }else if(state.done){
-    html+=`<p class="sc-narr" style="margin:0">走完了。往下看结算：五个问题旧系统 答了多久答不上，同一件事两边各自什么时候知道，人的时间花在哪。</p>`;
-  }
-  const path=pathLabel(d);
-  html+=`<div class="sc-path">路线：<b>${path}</b>。时间轴上的红圈是要你拍板的地方，灰点可以点回去看。</div>`;
-  $('#scene').innerHTML=html;
-  $('#scene').querySelectorAll('.opts button').forEach(b=>b.onclick=()=>resolve(b.dataset.key));
-  const bn=$('#backnow2');if(bn)bn.onclick=()=>viewAt(99);
-}
-function focusDecision(){const b=document.querySelector('#decide .opts button');if(b){$('#scene').scrollIntoView({behavior:'smooth',block:'nearest'});b.focus({preventScroll:true});}}
+function focusDecision(){const b=document.querySelector('#decide .opts button');if(b){$('#script').scrollIntoView({behavior:'smooth',block:'nearest'});b.focus({preventScroll:true});}}
 
 /* 旧系统：四个模块，加一块系统外 */
 /* ---------- 这一步：每件事，两本账各记下了什么 ---------- */
@@ -1292,11 +1385,12 @@ function renderStep(C){
   const row=e=>`<tr class="${C.live&&C.fresh.has(e.id)?'fr':''}"><td class="w"><span class="sw">${hm(e.t)||dayOf(e.t)}　${esc(e.actor.name)}</span>${esc(e.text)}</td><td>${newBook(e,P).map(([k,t])=>`<span class="bk bk-${k}"><b>${LEDN[k]}</b>${esc(t)}</span>`).join('')}</td><td>${oldBook(e,d,C.day)}</td></tr>`;
   const pend=C.live&&state.pending===C.sc;
   const n=pre.length+post.length;
-  let html=`<div class="st-h"><b>这一步发生了什么</b><span>${n?`${n} 件事`:'还没有事发生'}${pend?`，等${C.sc.prompt.who}拍板`:''}。下面两张图只亮着这一步动到的部分，鼠标移上去看全貌。</span></div>
-  <table class="stt"><colgroup><col style="width:40%"><col style="width:31%"><col style="width:29%"></colgroup><thead><tr><th>发生了什么</th><th>新账记下</th><th>旧系统记下</th></tr></thead><tbody>`;
+  const why=narrText(C.sc);
+  let html=`<div class="st-h"><b>账上记下了什么</b><span>${n?`${n} 件事`:'还没有事发生'}${pend?`，等${C.sc.prompt.who}拍板`:''}。下面两张图只亮着这一步动到的部分，鼠标移上去看全貌。</span></div>${why?`<p class="st-why">${esc(why)}</p>`:''}
+  <table class="stt"><colgroup><col style="width:40%"><col style="width:31%"><col style="width:29%"></colgroup><thead><tr><th>事件</th><th>新账记下</th><th>旧系统记下</th></tr></thead><tbody>`;
   html+=pre.map(row).join('');
   if(post.length){const p=C.sc.prompt;html+=`<tr class="div"><td colspan="3">${p.who}${p.kind==='judgment'?'拍板':'做了动作'}之后</td></tr>`+post.map(row).join('');}
-  else if(pend)html+=`<tr class="div"><td colspan="3">等${C.sc.prompt.who}在场景卡里拍板</td></tr>`;
+  else if(pend)html+=`<tr class="div"><td colspan="3">等${C.sc.prompt.who}拍板，在上面的剧本里</td></tr>`;
   html+=`</tbody></table>`;
   $('#step').innerHTML=html;
 }
@@ -1329,6 +1423,28 @@ function spotlightERP(){
   const hot=m=>!!m.querySelector('.fresh,.flash');const outHot=!!(out&&out.querySelector('.chip.fresh'));
   const on=mods.some(hot)||outHot;
   mods.forEach(m=>m.classList.toggle('sp-out',on&&!hot(m)));if(out)out.classList.toggle('sp-out',on&&!outHot);
+}
+/* ---------- 剧本区：先讲故事，再讲账 ---------- */
+const titleOf=sc=>(typeof STORY!=='undefined'&&STORY[sc.id]&&STORY[sc.id].title)||sc.title;
+const storyVal=v=>typeof v==='function'?v(state.decisions):(v||[]);
+function paras(arr){return arr.map(p=>{const m=p.match(/^([^：「」。]{1,12})：「([\s\S]*)」$/);return m?`<p class="line"><b>${esc(m[1])}</b>「${esc(m[2])}」</p>`:`<p>${esc(p)}</p>`;}).join('');}
+function renderScript(C){
+  const sc=C.sc,d=state.decisions,S=(typeof STORY!=='undefined'&&STORY[sc.id])||{};
+  const first=[...C.blk.events,...C.blk.resolved].map(e=>e.t)[0]||sc.t;
+  const story=storyVal(S.story);const pend=C.live&&state.pending===sc;const pick=C.blk.pick;
+  let main=`<div class="sc-date">${dayOf(sc.t)}${hm(first)?' '+hm(first):''}</div><h2 class="sc-title">${esc(titleOf(sc))}</h2><div class="story">${paras(story.length?story:[narrText(sc)])}</div>`;
+  if(pick&&sc.prompt){const o=sc.prompt.options.find(x=>x.key===pick);const af=S.after?storyVal(S.after):[];main+=`<div class="chosen">你替${sc.prompt.who}选了：<b>${esc(o?o.label:pick)}</b></div>`+(af&&af.length?`<div class="story">${paras(af)}</div>`:'');}
+  if(!C.live)main+=`<div class="viewnote">这是回看。时间轴上点别的日子继续看，或者<button id="backnow2">回到此刻</button>。</div>`;
+  else if(state.done)main+=`<p class="sc-end">故事走完了。往下看结算：同一件事，两个系统各自什么时候知道，人的时间花在哪。</p>`;
+  main+=`<div class="sc-path">到目前为止你选的路：<b>${pathLabel(d)}</b>。时间轴上的红圈是要你拍板的地方，灰点可以点回去重看。</div>`;
+  let side='';
+  if(pend){const p=sc.prompt;
+    side=`<section class="decide fresh" id="decide"><div class="dh"><b>轮到你：替${p.who}${p.kind==='judgment'?'拍板':'决定'}</b><span>${esc(p.role)}</span></div>
+      <p class="q">${esc(p.q)}</p><details class="ev-d" open><summary class="eh">${p.who}手上的信息，${p.evidence.length} 条</summary><ul>${p.evidence.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>
+      <div class="opts">${p.options.map(o=>`<button data-key="${o.key}"><b>${esc(o.label)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div></section>`;}
+  $('#script').innerHTML=`<div class="script-in ${side?'':'solo'}"><div class="script-main">${main}</div>${side?`<aside class="script-side">${side}</aside>`:''}</div>`;
+  $('#script').querySelectorAll('.opts button').forEach(b=>b.onclick=()=>resolve(b.dataset.key));
+  const bn=$('#backnow2');if(bn)bn.onclick=()=>viewAt(99);
 }
 
 function renderQB(C){
