@@ -538,6 +538,7 @@ td.old.g-wrong{background:#fbeceb}
 .st-sw button:not(.on):hover{color:var(--muted)}
 .lgwrap{padding:8px 14px 12px}
 .lg-why{font-size:13px;color:#4d4d48;margin:2px 0 8px;line-height:1.55}
+.lg-doc{color:var(--rule-strong)}
 .lg-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin:0 0 10px}
 .lg-legend i{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px;border-radius:2px}
 .lg-legend i.said{background:var(--ink)}.lg-legend i.did{background:var(--agent)}.lg-legend i.seen{background:var(--ext)}.lg-legend i.ruled{background:#8a8a82}.lg-legend i.proj{border:1.5px dashed #b9b9b1}
@@ -1575,7 +1576,7 @@ function renderLogStep(C){
   const pend=C.live&&state.pending===C.sc;
   const range=st.length?(st.length>1?`#${pad(st[0].seq)} 到 #${pad(st[st.length-1].seq)}`:`#${pad(st[0].seq)}`):'';
   let html=`<div class="st-h">${stepSw()}<span>唯一真正存下来的东西。对账表、两张图、五个问题，都是从这里算出来的。</span></div><div class="lgwrap">
-  <p class="lg-why">${st.length?`这一步往日志里追加了 ${st.length} 行，${range}`:'这一步还没有往日志里写东西'}${pj.length?`；另有 ${pj.length} 件只是状态变化，能从前面的行算出来，所以不写入`:''}。到这一刻，整本日志共 ${total} 行，每行都带着上一行的哈希。</p>
+  <p class="lg-why">${st.length?`这一步往日志里追加了 ${st.length} 行，${range}`:'这一步还没有往日志里写东西'}${pj.length?`；另有 ${pj.length} 件只是状态变化，能从前面的行算出来，所以不写入`:''}。到这一刻，整本日志共 ${total} 行，每行都带着上一行的哈希。写入和存储的规则见<a class="lg-doc" href="技术方案-下一代ERP账本.md" target="_blank" rel="noopener">技术方案</a>。</p>
   <div class="lg-legend"><span><i class="said"></i>人说的：带签名</span><span><i class="did"></i>agent 做的：带租约，回程到人</span><span><i class="seen"></i>世界的、对方账本：带出处</span><span><i class="ruled"></i>规则推出：写明由哪几行引出</span><span><i class="proj"></i>投影：不写入</span></div>`;
   let divided=false;
   for(const l of mine){
