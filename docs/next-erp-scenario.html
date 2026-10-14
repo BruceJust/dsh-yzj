@@ -531,6 +531,39 @@ td.old.g-wrong{background:#fbeceb}
 .st-why{margin:0;padding:6px 14px 8px;font-size:13px;color:#4d4d48;border-bottom:1px solid var(--rule);line-height:1.6}
 @media (max-width:1100px){.script-in{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:760px){.script{padding:0 14px}.script-in{padding:14px 14px 12px}.story p{font-size:16px}}
+/* ===== 日志原文 ===== */
+.st-sw{display:flex;align-items:baseline;white-space:nowrap}
+.st-sw button{font-family:var(--song);font-size:17px;font-weight:600;color:#a3a39b;padding:0 0 3px;margin-right:16px;border-bottom:2px solid transparent;line-height:1.3}
+.st-sw button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.st-sw button:not(.on):hover{color:var(--muted)}
+.lgwrap{padding:8px 14px 12px}
+.lg-why{font-size:13px;color:#4d4d48;margin:2px 0 8px;line-height:1.55}
+.lg-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin:0 0 10px}
+.lg-legend i{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px;border-radius:2px}
+.lg-legend i.said{background:var(--ink)}.lg-legend i.did{background:var(--agent)}.lg-legend i.seen{background:var(--ext)}.lg-legend i.ruled{background:#8a8a82}.lg-legend i.proj{border:1.5px dashed #b9b9b1}
+.lg{border-left:3px solid #8a8a82;background:#fff;padding:6px 10px 6px;margin:0 0 6px;font-size:13px;line-height:1.5}
+.lg.fr{background:#fffbea}
+.lg-1{display:flex;gap:4px 10px;align-items:baseline;flex-wrap:wrap;color:var(--muted);font-size:12px}
+.lg-seq,.lg-ty,.lg-h{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.lg-seq{color:var(--ink);font-weight:600}
+.lg-a{font-size:11px;line-height:17px;padding:0 5px;border-radius:2px;color:var(--page);background:#8a8a82;white-space:nowrap}
+.lg-ty{color:var(--ink);font-size:12px}
+.lg-h{margin-left:auto;color:#a3a39b;font-size:11.5px;cursor:help}
+.lg-2{color:var(--ink);margin-top:2px;overflow-wrap:anywhere}
+.lg-2 b{font-weight:600;margin-right:7px}
+.lg-3{font-size:12px;color:var(--ok);margin-top:1px}
+.lg-3::before{content:"✓ "}
+.lg-said{border-left-color:var(--ink)}.lg-said .lg-a{background:var(--ink)}
+.lg-did{border-left-color:var(--agent)}.lg-did .lg-a{background:var(--agent)}
+.lg-seen,.lg-peer{border-left-color:var(--ext)}.lg-seen .lg-a,.lg-peer .lg-a{background:var(--ext)}
+.lg-proj{background:transparent;border:1px dashed #cfcfc6;border-left:3px dashed #b9b9b1}
+.lg-proj .lg-seq{color:var(--muted);font-weight:500;font-family:var(--sans)}
+.lg-proj .lg-a{background:#b9b9b1}
+.lg-proj .lg-2,.lg-proj .lg-3{color:var(--muted)}
+.lg-proj .lg-3::before{content:""}
+.lg-div{font-size:12.5px;color:var(--seal);padding:4px 10px;margin:8px 0 6px;background:#fbf2f1;border:1px solid #ecd2cf}
+.lg-pend{font-size:12.5px;color:var(--seal);padding:6px 10px;margin:8px 0 0;background:#fbf2f1;border:1px solid #ecd2cf;line-height:1.55}
+@media (max-width:760px){.lg-h{margin-left:0}.st-sw button{font-size:16px}}
 </style>
 </head>
 <body>
@@ -1488,19 +1521,20 @@ function oldBook(e,d,day){
   }).join('')||'<span class="none">没有动静</span>';
 }
 function renderStep(C){
+  if(stepView==='log')return renderLogStep(C);
   const P=build(C.evs),d=state.decisions;
   const pre=C.blk.events.filter(e=>!e.silent),post=C.blk.resolved.filter(e=>!e.silent);
   const row=e=>`<tr class="${C.live&&C.fresh.has(e.id)?'fr':''}"><td class="w"><span class="sw">${hm(e.t)||dayOf(e.t)}　${esc(e.actor.name)}</span>${esc(e.text)}</td><td>${newBook(e,P).map(([k,t])=>`<span class="bk bk-${k}"><b>${LEDN[k]}</b>${esc(t)}</span>`).join('')}</td><td>${oldBook(e,d,C.day)}</td></tr>`;
   const pend=C.live&&state.pending===C.sc;
   const n=pre.length+post.length;
   const why=narrText(C.sc);
-  let html=`<div class="st-h"><b>账上记下了什么</b><span>${n?`${n} 件事`:'还没有事发生'}${pend?`，等${C.sc.prompt.who}拍板`:''}。下面两张图只亮着这一步动到的部分，鼠标移上去看全貌。</span></div>${why?`<p class="st-why">${esc(why)}</p>`:''}
+  let html=`<div class="st-h">${stepSw()}<span>${n?`${n} 件事`:'还没有事发生'}${pend?`，等${C.sc.prompt.who}拍板`:''}。下面两张图只亮着这一步动到的部分，鼠标移上去看全貌。</span></div>${why?`<p class="st-why">${esc(why)}</p>`:''}
   <table class="stt"><colgroup><col style="width:40%"><col style="width:31%"><col style="width:29%"></colgroup><thead><tr><th>事件</th><th>新账记下</th><th>旧系统记下</th></tr></thead><tbody>`;
   html+=pre.map(row).join('');
   if(post.length){const p=C.sc.prompt;html+=`<tr class="div"><td colspan="3">${p.who}${p.kind==='judgment'?'拍板':'做了动作'}之后</td></tr>`+post.map(row).join('');}
   else if(pend)html+=`<tr class="div"><td colspan="3">等${C.sc.prompt.who}拍板，在上面的剧本里</td></tr>`;
   html+=`</tbody></table>`;
-  $('#step').innerHTML=html;
+  $('#step').innerHTML=html;bindStepSw();
 }
 
 /* ---------- 聚光：这一步动到的亮着，其余变淡 ---------- */
@@ -1553,6 +1587,108 @@ function renderScript(C){
   $('#script').innerHTML=`<div class="script-in ${side?'':'solo'}"><div class="script-main">${main}</div>${side?`<aside class="script-side">${side}</aside>`:''}</div>`;
   $('#script').querySelectorAll('.opts button').forEach(b=>b.onclick=()=>resolve(b.dataset.key));
   const bn=$('#backnow2');if(bn)bn.onclick=()=>viewAt(99);
+}
+/* ---------- 日志原文：唯一真正存下来的东西 ---------- */
+let stepView='table';
+const ATOM={said:'人说的',did:'agent 做的',seen:'世界的',peer:'对方账本',ruled:'规则推出'};
+const SRC={收入:'销售合同',标准成本:'标准成本卡',制造费用:'考勤与排产记录',采购成本:'采购订单与发票',外协费:'外协合同',销售折让:'折让协议',营业外支出:'付款凭证',算力费用:'模型与云账单',token:'模型账单',外部接口:'视觉云账单',人力:'工资表',事故:'客服工单与补偿记录'};
+const OBS_K=new Set(['insight','readout','final','dog','incident','evalhist']);
+const pad=n=>String(n).padStart(4,'0');
+function h6(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193);}return (h>>>0).toString(16).padStart(8,'0').slice(0,6);}
+function clause(text,id){return String(text).split(/[。，]/).filter(x=>x.includes(id)&&!x.includes('已判')).join('，');}
+/* 把沙盘里的事件逐条转写成日志行。只有「有人说了 / agent 或系统对外做了 / 外界告诉了我们」才写入，状态一律是投影。 */
+function logOf(k){
+  const blocks=state.played.slice(0,k+1);
+  build(blocks.flatMap(b=>[...b.events,...b.resolved]));
+  const out=[];let seq=0,prev='000000';const J={},D={},NEED={};
+  blocks.forEach((b,bi)=>{
+    const ws=[];let lastDecided=null;
+    const resolvedIds=new Set(b.resolved.map(e=>e.id));
+    for(const e of [...b.events,...b.resolved]){
+      const a=e.actor,t=e.t,name=a.name,post=resolvedIds.has(e.id);
+      const push=o=>{o.bi=bi;o.ev=e.id;o.post=post;o.t=t;if(o.proj){out.push(o);return o;}o.seq=++seq;o.prev=prev;o.hash=h6(prev+'|'+o.seq+'|'+t+'|'+o.type+'|'+o.who+'|'+o.body);prev=o.hash;out.push(o);return o;};
+      const last=()=>ws.length?[ws[ws.length-1].seq]:(seq?[seq]:[]);
+      const keep=o=>{ws.push(o);return o;};
+      const said=(type,body,check)=>keep(push({atom:'said',type,who:name,body,check:check||`签名：${name}`}));
+      const did=(type,body,check)=>{const L=LEASES[name]||{};return keep(push({atom:'did',type,who:name,body,check:check||`租约「${name}」→ ${e.responsible||L.by}${L.until?`，有效至 ${L.until}`:''}`}));};
+      const seen=(type,body,src,who)=>keep(push({atom:a.kind==='xagent'?'peer':'seen',type,who:who||name,body,check:a.kind==='xagent'?`对方账本签名：${(a.role||'').replace(/^对方账本：?/,'')||name}`:`出处：${src}`}));
+      const ruled=(type,body,from,note)=>push({atom:'ruled',type,who:'系统',body,from,check:`由 ${from.map(s=>typeof s==='number'?'#'+pad(s):s).join('、')} 引出${note?`；${note}`:''}`});
+      const proj=(body,from)=>push({proj:true,who:'',body,check:`由 ${from.map(s=>'#'+pad(s)).join('、')} 算出，随时可重算，所以不写入`});
+      let main=null;
+      switch(e.type){
+        case 'msg':main=a.kind==='human'?said('utterance',e.text,`签名：${name}，群消息`):seen(a.kind==='xagent'?'peer/said':'world/said',e.text,`${a.role||name}的消息`);break;
+        case 'fact':
+          if(a.kind==='agent')main=did(OBS_K.has(e.k)||!e.k?'agent/observed':'agent/acted',e.text);
+          else if(e.close)main=ruled('ledger/closed',e.text,['月末时钟'],'月结规则');
+          else if(e.k==='data')main=ruled('system/acted',e.text,last(),'数据修复作业');
+          else main=seen('world/observed',e.text,'合同与客户记录','CRM');
+          break;
+        case 'need':for(const n of e.need){NEED[n.id]=n;const wait=/^等/.test(n.sched||'');
+          const o=ruled('judgment/demanded',`${n.id}「${n.q}」→ ${n.who}${PEOPLE[n.who]?`（${PEOPLE[n.who].role}）`:''}${wait?(m=>m?` · blockedBy ${m[1]}${m[2]?` · ${m[2]}`:''}`:` · ${n.sched}`)(n.sched.match(/^等\s*(J\d+)[。，]?\s*(.*)$/)):` · 排期 ${n.sched}`}`,ws.length?ws.map(x=>x.seq):last(),'规则：判断展开');J[n.id]=o.seq;main=main||o;}break;
+        case 'need_update':for(const u of e.nu){
+          if(u.status==='已判')proj(`${u.id} 状态 = 已判${u.pick?`（${u.pick}）`:''}`,[D[u.id]||lastDecided].filter(Boolean));
+          else if(u.status==='撤销')ruled('judgment/withdrawn',`${u.id} 撤销，不再需要，已通知${NEED[u.id]?NEED[u.id].who:''}`,[lastDecided||J[u.id]].filter(Boolean),'规则：判断展开');
+          else if(u.status==='待判'){const c=clause(e.text,u.id).replace(new RegExp(u.id+'\\s*'),'');ruled('judgment/scheduled',`${u.id} 进入${NEED[u.id]?NEED[u.id].who:''}的队列${c?`，${c}`:''}`,[lastDecided||last()[0]].filter(Boolean),'规则：排进判断带宽');}
+          else ruled('judgment/updated',`${u.id} → ${u.status}`,last());}
+          break;
+        case 'judgment':{const p=post&&b.scene.prompt?b.scene.prompt:null;const o=p&&b.pick?p.options.find(x=>x.key===b.pick):null;const ev=p?p.evidence:[];
+          main=said('judgment/decided',`${e.j.id} = ${o?o.label:e.text} · 押：${e.j.bet} · 检验：${e.j.signal} · 回看 ${e.j.review} · 代价：${e.j.cost}`,`签名：${name}，判断卡；当时所见 ${ev.length} 条已冻结 #${h6(JSON.stringify(ev))}`);
+          D[e.j.id]=main.seq;lastDecided=main.seq;break;}
+        case 'judgment_update':main=ruled('judgment/settled',`${e.jid} → ${e.status}${e.note?`：${e.note}`:''}`,ws.length?[ws[ws.length-1].seq,D[e.jid]].filter(Boolean):[D[e.jid],'检验点到期'].filter(Boolean),'对检验点；当事人可申诉，申诉另起一行');break;
+        case 'pledge':{const p=e.pledge;const body=`${p.id} ${p.who} → ${p.to} · ${p.what} · ${p.when}`;
+          if(a.kind==='human')main=said('commitment/opened',body,`受领签名：${name}${p.who!==name&&!String(p.who).startsWith(name)?`，代表${p.who}`:''}`);
+          else if(a.kind==='agent')main=did('commitment/opened',body);
+          else if(a.kind==='xagent')main=seen('peer/commitment',body+'（对方账本里的同一条目）');
+          else main=ruled('commitment/opened',body,last());
+          break;}
+        case 'pledge_update':{const st=e.patch&&e.patch.status,w=e.patch&&e.patch.when,wh=e.patch&&e.patch.what;
+          if(a.kind==='human')main=st==='已核销'?said('commitment/accepted',`${e.pid} 验收核销${e.note?`：${e.note}`:''}`,`收方签名：${name}`):said('commitment/amended',`${e.pid} 改签${w?` → ${w}`:''}${wh?`（${wh}）`:''}`,`签名：${name}`);
+          else if(st==='待签收')main=ruled('commitment/amend-proposed',`${e.pid} 改期提议 → ${w}，已发对方，等签收`,last(),'签收前原承诺不变');
+          else proj(`${e.pid} 状态 = ${st||'部分交付'}${w?`，${w}`:''}${e.note?`（${e.note}）`:''}`,last());
+          break;}
+        case 'receipt':
+          if(a.kind==='human')main=said('commitment/delivered',e.text,`签名：${name}；这是交付主张，等收方验收`);
+          else if(a.kind==='agent')main=did('agent/observed',e.text);
+          else main=seen(a.kind==='xagent'?'peer/receipt':'world/receipt',e.text,`${a.role||name}签收单`);
+          break;
+        case 'return':main=a.kind==='agent'?did('guard/held',e.text,`超出租约「${name}」，动作没有执行；回程 → ${e.responsible}`):said('judgment/returned',e.text,`签名：${name}，理由随行`);break;
+        case 'handoff':
+          if(a.kind==='sys')main=ruled('lease/reissue-proposed',`租约「${e.lease}」${e.from} → ${e.to}，等签收`,last(),`签收前回程仍到 ${e.from}`);
+          else if(e.declined)main=said('lease/reissue-declined',`${name} 婉拒租约「${e.lease}」`,`签名：${name}`);
+          else if(e.k==='back')main=said('lease/returned',e.text||`租约「${e.lease}」交还 ${e.to}`,`签名：${name}`);
+          else main=said('lease/reissued',`${name} 签收租约「${e.lease}」，自此回程 → ${name}`,`签名：${name}`);
+          break;
+        default:main=a.kind==='human'?said(e.type,e.text):a.kind==='agent'?did(e.type,e.text):ruled(e.type,e.text,last());
+      }
+      if(e.money){const tgt=m=>m.bet&&typeof BETN!=='undefined'&&BETN[m.bet]?`「${BETN[m.bet]}」这一注`:e.pledge?e.pledge.id:e.pid||e.jid||(e.j&&e.j.id)||'本单';
+        for(const m of e.money)push({atom:'seen',type:'money/attributed',who:SRC[m.acct]||'原系统凭证',body:`${m.id} ${F(m.amount)} 元 · ${m.acct} · ${m.label} → 归属 ${tgt(m)}`,check:`出处：${SRC[m.acct]||'原系统凭证'}；由 #${pad(main&&main.seq?main.seq:seq)} 引出`});}
+    }
+  });
+  return out;
+}
+function stepSw(){return `<div class="st-sw" role="tablist">${[['table','账上记下了什么'],['log','日志原文']].map(([v,l])=>`<button role="tab" data-v="${v}" aria-selected="${stepView===v}" class="${stepView===v?'on':''}">${l}</button>`).join('')}</div>`;}
+function bindStepSw(){$('#step').querySelectorAll('.st-sw button').forEach(b=>b.onclick=()=>{stepView=b.dataset.v;renderStep(ctx());});}
+function lgLine(l,C){
+  const fr=C.live&&C.fresh.has(l.ev)?'fr':'';
+  if(l.proj)return `<div class="lg lg-proj ${fr}"><div class="lg-1"><span class="lg-seq">不写入</span><span class="lg-t">${esc(l.t)}</span><span class="lg-a">投影</span></div><div class="lg-2">${esc(l.body)}</div><div class="lg-3">${esc(l.check)}</div></div>`;
+  return `<div class="lg lg-${l.atom} ${fr}"><div class="lg-1"><span class="lg-seq">#${pad(l.seq)}</span><span class="lg-t">${esc(l.t)}</span><span class="lg-a">${ATOM[l.atom]}</span><code class="lg-ty">${esc(l.type)}</code><span class="lg-h" title="本行哈希；上一行是 ${l.prev}">⛓ ${l.hash}</span></div><div class="lg-2"><b>${esc(l.who)}</b>${esc(l.body)}</div><div class="lg-3">${esc(l.check)}</div></div>`;
+}
+function renderLogStep(C){
+  const all=logOf(C.k),mine=all.filter(l=>l.bi===C.k);
+  const st=mine.filter(l=>!l.proj),pj=mine.filter(l=>l.proj),total=all.filter(l=>!l.proj).length;
+  const pend=C.live&&state.pending===C.sc;
+  const range=st.length?(st.length>1?`#${pad(st[0].seq)} 到 #${pad(st[st.length-1].seq)}`:`#${pad(st[0].seq)}`):'';
+  let html=`<div class="st-h">${stepSw()}<span>唯一真正存下来的东西。对账表、两张图、五个问题，都是从这里算出来的。</span></div><div class="lgwrap">
+  <p class="lg-why">${st.length?`这一步往日志里追加了 ${st.length} 行，${range}`:'这一步还没有往日志里写东西'}${pj.length?`；另有 ${pj.length} 件只是状态变化，能从前面的行算出来，所以不写入`:''}。到这一刻，整本日志共 ${total} 行，每行都带着上一行的哈希。</p>
+  <div class="lg-legend"><span><i class="said"></i>人说的：带签名</span><span><i class="did"></i>agent 做的：带租约，回程到人</span><span><i class="seen"></i>世界的、对方账本：带出处</span><span><i class="ruled"></i>规则推出：写明由哪几行引出</span><span><i class="proj"></i>投影：不写入</span></div>`;
+  let divided=false;
+  for(const l of mine){
+    if(l.post&&!divided&&C.sc.prompt){divided=true;html+=`<div class="lg-div">${C.sc.prompt.who}拍板之后</div>`;}
+    html+=lgLine(l,C);
+  }
+  if(pend){const p=C.sc.prompt,h=pendingHandoff(C.evs);html+=`<div class="lg-pend">${p.kind==='judgment'?`等${p.who}拍板。拍板那一刻会写下一行「人说的」：judgment/decided，带${p.who}的签名，并冻结${p.who}当时手上的 ${p.evidence.length} 条信息。`:h?`等${p.who}决定签不签收。那一刻会写下一行「人说的」：签收是 lease/reissued，婉拒是 lease/reissue-declined，都带${p.who}的签名。签收之前，回程仍到${h.from}。`:`等${p.who}翻开。翻开只是读，不写日志；读到的结果会写成新的一行，带出处。`}</div>`;}
+  html+=`</div>`;
+  $('#step').innerHTML=html;bindStepSw();
 }
 function renderERP(C){
   const d=state.decisions,O=buildOld(C.evs,d,C.day),P=build(C.evs);
