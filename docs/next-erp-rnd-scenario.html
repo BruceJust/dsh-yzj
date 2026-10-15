@@ -1529,7 +1529,7 @@ function logOf(k){
           else ruled('judgment/updated',`${u.id} → ${u.status}`,last());}
           break;
         case 'judgment':{const p=post&&b.scene.prompt?b.scene.prompt:null;const o=p&&b.pick?p.options.find(x=>x.key===b.pick):null;const ev=p?p.evidence:[];
-          main=said('judgment/decided',`${e.j.id} = ${o?o.label:e.text} · 押：${e.j.bet} · 检验：${e.j.signal} · 回看 ${e.j.review} · 代价：${e.j.cost}`,`签名：${name}，判断卡；当时所见 ${ev.length} 条已冻结 #${h6(JSON.stringify(ev))}`);
+          main=said('judgment/decided',`${e.j.id} = ${o?o.label:e.text} · 检验点：${e.j.signal}，${e.j.review}回看 · 公开写下的赌注：${e.j.bet} · 代价：${e.j.cost}`,`签名：${name}，判断卡；当时所见 ${ev.length} 条已冻结 #${h6(JSON.stringify(ev))}`);
           D[e.j.id]=main.seq;lastDecided=main.seq;break;}
         case 'judgment_update':main=ruled('judgment/settled',`${e.jid} → ${e.status}${e.note?`：${e.note}`:''}`,ws.length?[ws[ws.length-1].seq,D[e.jid]].filter(Boolean):[D[e.jid],'检验点到期'].filter(Boolean),'对检验点；当事人可申诉，申诉另起一行');break;
         case 'pledge':{const p=e.pledge;const body=`${p.id} ${p.who} → ${p.to} · ${p.what} · ${p.when}`;
