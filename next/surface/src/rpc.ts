@@ -2764,13 +2764,17 @@ async function handoffFromPrior(
     placeKey: input.placeKey,
     anchor: `yzj:${input.msgId}`,
     ...(input.topicKey === undefined ? {} : { topicKey: input.topicKey }),
+    // 那句移交话语是操作者自己按的发送：这两笔是他说的。
+    actor: ctx.yzjCards.desktopActor(),
+    signer: asString((ctx.yzjCards.desktopActor() as { openId?: string }).openId),
   })
   if ('error' in done) return { note: done.error }
   if (done.fromPlaceKey === undefined || done.fromPlaceKey === input.placeKey) {
     // 同场所：出生话语本身旧执行者就听见了，再补一帖是重复。
     return { toCommitmentId: done.toCommitmentId }
   }
-  const sent = await ctx.get('yzjTopics')?.sendInPlace(
+  // 解除告知是系统补的一句，不是他按的发送：agent 的口吻，署名、进账、不点火。
+  const sent = await ctx.get('yzjTopics')?.sayInPlace(
     done.fromPlaceKey, releaseNotice({ what: done.what, toName: name ?? openId }),
   ).catch(() => undefined)
   return {

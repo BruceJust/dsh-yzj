@@ -54,7 +54,7 @@ function stateOf(id: string): CommitmentState | undefined {
 }
 
 /** 这一趟往哪些场所落了话——移交话语与解除告知，只有这里看得见。 */
-let posted: { placeKey: string; text: string }[] = []
+let posted: { placeKey: string; text: string; voice: 'desk' | 'agent'; admission?: { messageId: string; senderOpenId: string } }[] = []
 
 function commitments(): CommitmentState[] {
   return graph.query({ kind: 'operator', openId: 'op-1' }, { kind: 'commitment' })
@@ -84,8 +84,12 @@ beforeEach(async () => {
       { placeKey: 'yzj-group-g1', name: '财务群', kind: 'group', onDuty: true, selfChat: false },
     ],
     sendInPlace: async (placeKey: string, text: string) => {
-      posted.push({ placeKey, text })
+      posted.push({ placeKey, text, voice: 'desk' })
       return { msgId: `m-${String(posted.length)}`, ignited: false }
+    },
+    sayInPlace: async (placeKey: string, text: string, admission?: { messageId: string; senderOpenId: string }) => {
+      posted.push({ placeKey, text, voice: 'agent', ...(admission === undefined ? {} : { admission }) })
+      return { msgId: `m-${String(posted.length)}` }
     },
   })
   const captured: CapturedTool[] = []
@@ -600,12 +604,49 @@ describe('作废/顺延/移交：话语兜底', () => {
   })
 
   /*
+    **移交是 agent 做的，这件事仍归原来的人**（技术方案-下一代ERP账本 Q10）。
+
+    群里同事 u-owner 对自己登记的那条说「这条给张锐做」。旧实现以桌面操作者的名义落那
+    两笔：账上成了「操作者说的」，验收权也跟着出生 actor 从 u-owner 挪到了操作者手上。
+    那句移交话语又借操作者的口发出——不署名、不进账，事项里带着触发词时还会以操作者的
+    身份再点一次火。
+  */
+  it('移交：两笔记 agent，委派者跟着这件事走，那句话是 agent 署名说的', async () => {
+    await open('c6', { kind: 'operator', openId: 'u-owner' })
+    binding = { ...BINDING, decider: 'u-owner', senderOpenId: 'u-owner' }
+    const result = await tools.get('commitment_handoff')?.execute(
+      { commitmentId: 'c6', openId: 'u-zhang', name: '张锐' }, EXEC,
+    ) as { commitmentId?: string }
+    const born = result.commitmentId as string
+    expect(stateOf(born).delegatedBy).toBe('u-owner')
+    const rows = graph.rawEvents(['commitment/opened', 'commitment/transferred'])
+      .filter(event => [born, 'c6'].includes(String((event.data as { commitmentId?: string }).commitmentId)))
+      .filter(event => event.type === 'commitment/transferred' || (event.data as { commitmentId?: string }).commitmentId === born)
+    expect(rows.map(event => [event.type, event.actor])).toEqual([
+      ['commitment/opened', { kind: 'agent' }],
+      ['commitment/transferred', { kind: 'agent' }],
+    ])
+    expect(posted).toEqual([expect.objectContaining({
+      placeKey: 'yzj-group-g1', voice: 'agent', admission: { messageId: 'msg-1', senderOpenId: 'u-owner' },
+    })])
+  })
+
+  it('老数据里旧边没有委派者：新边记签发这次移交的人，不留一条谁都能动的承诺', async () => {
+    await open('c7', { kind: 'agent' })
+    expect(stateOf('c7').delegatedBy).toBeUndefined()
+    const result = await tools.get('commitment_handoff')?.execute(
+      { commitmentId: 'c7', openId: 'u-zhang', name: '张锐' }, EXEC,
+    ) as { commitmentId?: string }
+    expect(stateOf(result.commitmentId as string).delegatedBy).toBe('op-1')
+  })
+
+  /*
     **说不出去就什么都不做**：图和话保持一致。反过来会留下一条谁都不知道的转手。
   */
   it('移交话语发不出去时，一笔都不写', async () => {
     await open('c4')
     posted = []
-    ctx.get('yzjTopics').sendInPlace = async () => ({ ignited: false })
+    ctx.get('yzjTopics').sayInPlace = async () => ({})
     const result = await tools.get('commitment_handoff')?.execute(
       { commitmentId: 'c4', openId: 'u-zhang', name: '张锐' }, EXEC,
     ) as { content: string }

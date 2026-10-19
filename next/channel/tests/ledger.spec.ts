@@ -16,6 +16,7 @@ import { YzjOrchestrator } from '../src/orchestrator.ts'
 import { contentDigest, outboundFamily, recordOutbound } from '../src/outbound.ts'
 import type { YzjMessage, YzjTopicRoute } from '../src/protocol.ts'
 import { ChannelState } from '../src/state.ts'
+import { YzjTopicReader } from '../src/topics.ts'
 
 const ROUTE: YzjTopicRoute = {
   accountKey: 'acct-1', accountOrgId: 'org-1', accountOpenId: 'op-1',
@@ -134,6 +135,32 @@ describe('agent 出站 (§13.5)', () => {
       { kind: 'message', messageId: 'm-1', senderOpenId: 'u-asker' },
       { kind: 'operator', openId: 'op-1', via: 'proactive' },
     ])
+  })
+
+  /*
+    Q10：系统与模型写的话（移交话语、解除告知）走 `sayInPlace`。桌面那条 `sendInPlace` 是人
+    自己说话：不签名、不进账，正文里带触发词就以人的身份点火——而承诺的事项常常就是
+    触发原文。
+  */
+  it('sayInPlace：署名、进账、不点火，回应的那条消息记成授权', async () => {
+    const instance = client()
+    const state = (instance as unknown as { state: ChannelState }).state
+    const post = vi.fn()
+    const topics = new YzjTopicReader(
+      ctx, instance, state, 'op-1', 'org-1', async () => '', post, post, () => true, ['@next'],
+      post, root, { of: () => ({ self: 'off', peers: [] }) as never, peers: () => [] },
+    )
+    const said = await topics.sayInPlace('yzj-group-g-1', '「@next 新建一篇文档」这条现在转给你了', {
+      messageId: 'm-1', senderOpenId: 'u-owner',
+    })
+    expect(said).toEqual({ msgId: 'sent-1' })
+    expect(post).not.toHaveBeenCalled()
+    expect(posted()).toHaveLength(1)
+    expect(posted()[0]?.data).toMatchObject({
+      groupId: 'g-1', authority: { kind: 'message', messageId: 'm-1', senderOpenId: 'u-owner' },
+    })
+    expect((posted()[0]?.data as { contentDigest: string }).contentDigest)
+      .toBe(contentDigest('「@next 新建一篇文档」这条现在转给你了\n\n—— 云小助（Bruce）'))
   })
 
   it('记不上账只报错，不让发送变成失败——消息已经在场所里了', async () => {

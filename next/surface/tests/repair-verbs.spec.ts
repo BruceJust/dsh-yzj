@@ -55,8 +55,12 @@ beforeEach(async () => {
     peers: () => [],
     conversations: () => [],
     sendInPlace: async (placeKey: string, text: string) => {
-      posted.push({ placeKey, text })
+      posted.push({ placeKey, text, voice: 'desk' })
       return { msgId: `m-${String(posted.length)}`, ignited: false }
+    },
+    sayInPlace: async (placeKey: string, text: string, admission?: { messageId: string; senderOpenId: string }) => {
+      posted.push({ placeKey, text, voice: 'agent', ...(admission === undefined ? {} : { admission }) })
+      return { msgId: `m-${String(posted.length)}` }
     },
   })
   /*
@@ -120,7 +124,7 @@ async function child(id: string, what: string, due?: string): Promise<void> {
 }
 
 /** 这一趟往哪些场所落了话。解除告知有没有发出去，只有这里看得见。 */
-let posted: { placeKey: string; text: string }[] = []
+let posted: { placeKey: string; text: string; voice: 'desk' | 'agent'; admission?: { messageId: string; senderOpenId: string } }[] = []
 
 const stateOf = (id: string): Record<string, unknown> =>
   (graph.rawObject('commitment', id)?.state ?? {}) as Record<string, unknown>
@@ -256,6 +260,11 @@ describe('移交：边的重新签发', () => {
     // 新边：这件事本身继承下来，血缘指回旧边。
     expect(stateOf(born).status).toBe('open')
     expect(stateOf(born).what).toBe('统一模板')
+    // 桌面这条路：移交话语是操作者自己按的发送，两笔都是他说的；这件事仍归他。
+    const opened = graph.rawEvents(['commitment/opened'])
+      .find(event => (event.data as { commitmentId?: string }).commitmentId === born)
+    expect(opened?.actor).toEqual(OPERATOR)
+    expect(stateOf(born).delegatedBy).toBe(stateOf('c1').delegatedBy)
     expect(stateOf(born).due).toBe('2026-08-30')
     expect(stateOf(born).parentGoalRef).toBe(GOAL)
     expect(stateOf(born).executor).toMatchObject({ openId: 'u-zhang', name: '张锐' })
@@ -286,6 +295,8 @@ describe('移交：边的重新签发', () => {
     await child('c1', '统一模板')
     await said()
     const notice = posted.find(one => one.placeKey === 'yzj-group-g1')
+    // 解除告知是系统补的，不是他按的发送：agent 的口吻，不借他的口。
+    expect(notice?.voice).toBe('agent')
     expect(notice?.text).toContain('统一模板')
     expect(notice?.text).toContain('张锐')
   })

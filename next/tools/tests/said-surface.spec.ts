@@ -6,8 +6,7 @@
  * 名义落行的工具，等于让模型替人签字。
  *
  * 锁的形状：凡是定义模型工具（`defineTool(`）的源文件，写下的每一个 `actor:` 只能是
- * agent 或 system。已知的唯一例外（G5，见 §12）钉在下面——修好它时这条会变红，提醒
- * 把技术方案里那一行一起改掉。
+ * agent 或 system。曾经的唯一例外 G5（移交）已按 Q10 修掉，下面钉住它不回来。
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -51,17 +50,15 @@ describe('模型工具面上没有写 said 的接口 (§15-6)', () => {
   })
 
   /*
-    G5（§12）：`commitment_handoff` 是模型工具，它调的 `reissueEdge` 以桌面操作者的名义落
-    `commitment/opened` 与 `commitment/transferred`——模型参与产生的 said 行。
-
-    不能就地把 actor 改成 agent：承诺族从出生事件的 actor 盖 `delegatedBy`（验收权），
-    缺了它 `ownsCommitment` 放行任何人——那会把一个记账问题变成一个权限放宽。正解要把
-    委派者写进 data、并定下移交话语该以谁的口吻出站（#58/#59/#63 都在这里），由人拍板。
+    G5（Q10 已修）：`reissueEdge` 不在函数体里认定是谁做的——它是共享的落笔函数，桌面那条
+    路（人按的发送，said）和模型工具那条路（did）都调它。actor 由调用方传，于是上面那条锁
+    扫得到模型工具这一侧传的是什么；函数体里一旦重新写死桌面操作者，这条就红。
   */
-  it('已知例外 G5 仍在：commitment_handoff → reissueEdge 以操作者名义落行（修好时删掉这一条）', () => {
+  it('G5 不回来：reissueEdge 的 actor 由调用方传，commitment_handoff 传的是 agent', () => {
     const handoff = readFileSync(join(NEXT, 'objects/src/commitment/handoff.ts'), 'utf8')
     const tools = readFileSync(join(NEXT, 'objects/src/commitment/tools.ts'), 'utf8')
-    expect(handoff).toMatch(/export async function reissueEdge[\s\S]*actor: ctx\.yzjCards\.desktopActor\(\)/u)
-    expect(tools).toMatch(/name: 'commitment_handoff'[\s\S]*await reissueEdge\(ctx/u)
+    expect(handoff).not.toMatch(/desktopActor/u)
+    expect(handoff).toMatch(/export async function reissueEdge[\s\S]*actor: plan\.actor/u)
+    expect(tools).toMatch(/name: 'commitment_handoff'[\s\S]*await reissueEdge\(ctx, \{(?:(?!\n {6}\}\))[\s\S])*\n {8}actor: \{ kind: 'agent' \},/u)
   })
 })

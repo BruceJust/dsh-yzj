@@ -300,6 +300,16 @@ export interface YzjTopics {
     placeKey: string, text: string, replyTo?: string,
   ): Promise<DeskSend>
   /**
+   * agent 在场所里说一句话 —— **署名、进账、不点火**（决策 #63 署名协议 / 账本 §13.5）。
+   *
+   * `sendInPlace` 是人自己在桌面说话：不签名，带触发词就点火。系统与模型写的话走它，
+   * 就成了借人的口说话（B4），正文里恰好带着触发词时还会以人的身份再点一次火。
+   * `admission` 是这句话在回应的那条消息；不传 = 主动发言，账上记操作者。
+   */
+  sayInPlace(
+    placeKey: string, text: string, admission?: { readonly messageId: string; readonly senderOpenId: string },
+  ): Promise<{ readonly msgId?: string }>
+  /**
    * 给一个**还没聊过**的人发第一句 —— 私聊的出生 (v4.24 场所选项集).
    *
    * 云之家没有「创建私聊」这个动作：`--to-open-id` 发一句，平台在回包里给出 groupId,
@@ -594,6 +604,17 @@ export class YzjTopicReader implements YzjTopics {
     const body = text.trim()
     if (body === '') throw new Error('Refusing to post an empty message')
     return this.post(placeKey, body, replyTo)
+  }
+
+  async sayInPlace(
+    placeKey: string, text: string, admission?: { readonly messageId: string; readonly senderOpenId: string },
+  ): Promise<{ readonly msgId?: string }> {
+    const body = text.trim()
+    if (body === '') throw new Error('Refusing to post an empty message')
+    const groupId = groupIdFromPlaceKey(placeKey)
+    if (groupId === undefined) throw new Error(`认不出这个场所：${placeKey}`)
+    const sent = await this.client.send({ groupId }, body, undefined, 'agent', admission)
+    return sent.msgId === undefined ? {} : { msgId: sent.msgId }
   }
 
   async sendToPerson(openId: string, text: string): Promise<DeskSend & { placeKey?: string }> {

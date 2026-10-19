@@ -46,7 +46,7 @@ type Handler = (endpoint: string, payload: unknown) => Promise<
 let ctx: Context
 let graph: YzjGraph
 let call: Handler
-let posted: { placeKey: string; text: string }[]
+let posted: { placeKey: string; text: string; voice: 'desk' | 'agent'; admission?: { messageId: string; senderOpenId: string } }[]
 
 beforeEach(async () => {
   ctx = new Context()
@@ -62,8 +62,12 @@ beforeEach(async () => {
     peers: () => [],
     conversations: () => [],
     sendInPlace: async (placeKey: string, text: string) => {
-      posted.push({ placeKey, text })
+      posted.push({ placeKey, text, voice: 'desk' })
       return { msgId: `m-${String(posted.length)}`, ignited: false }
+    },
+    sayInPlace: async (placeKey: string, text: string, admission?: { messageId: string; senderOpenId: string }) => {
+      posted.push({ placeKey, text, voice: 'agent', ...(admission === undefined ? {} : { admission }) })
+      return { msgId: `m-${String(posted.length)}` }
     },
   })
   const cards = new YzjCards(ctx)
@@ -238,10 +242,12 @@ describe('不变量③：听众 = 那句话的听众', () => {
     await openGoal()
     await firstEdge()
     await handoff('c1', { openId: 'u-zhang', name: '张锐' }, 'yzj-group-g2')
-    // 新场所：那句移交话语。
+    // 新场所：那句移交话语。是操作者自己按的发送，所以是他的口吻。
+    expect(posted.find(one => one.placeKey === 'yzj-group-g2')).toMatchObject({ voice: 'desk' })
     expect(posted.find(one => one.placeKey === 'yzj-group-g2')?.text).toContain('张锐')
-    // 旧场所：解除告知。
+    // 旧场所：解除告知。系统补的一句，不是他按的——agent 的口吻（署名、进账、不点火）。
     const notice = posted.find(one => one.placeKey === 'yzj-group-g1')
+    expect(notice?.voice).toBe('agent')
     expect(notice?.text).toContain('统一模板')
     expect(notice?.text).toContain('留在原处')
   })

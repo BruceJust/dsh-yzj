@@ -537,8 +537,15 @@ export function applyCommitmentTools(ctx: Context): () => void {
       /*
         **说不出去就什么都不做。** 反过来（先记账再去说）正是这次要拆掉的那个模型：
         图上转了手，而两边的人谁都不知道。
+
+        这句话是 agent 说的（Q10）：署名、进账、不点火。用桌面那条路，它就成了借操作者
+        的口（B4）——而承诺的事项常常就是触发原文，「「@next …」这条现在转给你了」会以
+        操作者的身份把原指令再点一次火。
       */
-      const said = await topics.sendInPlace(placeKey, text).catch(() => undefined)
+      const admission = (binding?.messageId ?? '') === '' || (binding?.senderOpenId ?? '') === ''
+        ? undefined
+        : { messageId: binding?.messageId as string, senderOpenId: binding?.senderOpenId as string }
+      const said = await topics.sayInPlace(placeKey, text, admission).catch(() => undefined)
       if (said?.msgId === undefined) {
         return { content: '移交话语没能发出去，所以这一趟什么都没记——图和话保持一致。' }
       }
@@ -547,13 +554,15 @@ export function applyCommitmentTools(ctx: Context): () => void {
         executor: { openId: args.openId, ...(args.name === undefined ? {} : { name: args.name }) },
         placeKey,
         anchor: `yzj:${said.msgId}`,
+        actor: { kind: 'agent' },
+        signer: operatorOf(ctx, exec.agent),
       })
       if ('error' in done) return { content: done.error }
       let tail = ''
       if (done.fromPlaceKey !== undefined && done.fromPlaceKey !== placeKey) {
         // 旧场所的解除告知 = 旧边的终态回帖。零新机制：旧执行者本来就在那批听众里。
-        const notice = await topics.sendInPlace(
-          done.fromPlaceKey, releaseNotice({ what: done.what, toName: name }),
+        const notice = await topics.sayInPlace(
+          done.fromPlaceKey, releaseNotice({ what: done.what, toName: name }), admission,
         ).catch(() => undefined)
         tail = notice?.msgId === undefined
           ? `原来那个场所没能落解除告知——${executorName(done.fromExecutor) ?? '原执行者'}还不知道这条不归他了，请说一声。`

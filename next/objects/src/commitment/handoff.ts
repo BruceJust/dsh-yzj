@@ -23,7 +23,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asRecord, asString, type JsonValue } from '@yzj-next/graph'
+import { asRecord, asString, type GraphActor, type JsonValue } from '@yzj-next/graph'
 import { commitmentIdFor, type CommitmentExecutor, type CommitmentState } from './family.ts'
 
 export interface ReissuePlan {
@@ -37,6 +37,14 @@ export interface ReissuePlan {
   readonly anchor: string
   /** 移交话语落在话题里时带上——落在主楼时没有，那是如实。 */
   readonly topicKey?: string
+  /**
+   * 这两笔记在谁名下（技术方案-下一代ERP账本 Q10）。桌面那条路是人自己按的发送，记
+   * 操作者（`said`）；模型工具那条路是 agent 做的（`did`），授权在守门人的
+   * `action/released` 上——记成操作者，就是让模型替人签字。
+   */
+  readonly actor: GraphActor
+  /** 签发这次移交的人。旧边没有委派者（老数据）时，新边的委派者记他。 */
+  readonly signer?: string | undefined
 }
 
 export interface Reissued {
@@ -138,6 +146,12 @@ export async function reissueEdge(
     return { error: '这一句就是那条承诺自己的出生话语——移交要另说一句。' }
   }
   const fromExecutor = old.executor
+  /*
+    委派者跟着这件事走，不跟着这次签发走（决策 #59「可转包不可脱责」）：移交换的是谁来
+    做，不换这件事归谁、谁来验收。从出生 actor 盖它，模型工具那条路会把验收权从委派者
+    挪到操作者手上——所以显式写进 data。
+  */
+  const delegatedBy = old.delegatedBy ?? plan.signer
   await ctx.yzjGraph.append({
     type: 'commitment/opened',
     data: {
@@ -165,8 +179,9 @@ export async function reissueEdge(
         ? {}
         : { parentCommitmentId: old.parentCommitmentId }),
       transferredFrom: { commitmentId: plan.from, executor: fromExecutor },
+      ...(delegatedBy === undefined ? {} : { delegatedBy }),
     },
-    actor: ctx.yzjCards.desktopActor(),
+    actor: plan.actor,
   })
   await ctx.yzjGraph.append({
     type: 'commitment/transferred',
@@ -182,7 +197,7 @@ export async function reissueEdge(
         at: Date.now(),
       },
     },
-    actor: ctx.yzjCards.desktopActor(),
+    actor: plan.actor,
   })
   // 解除告知要往那儿落。和守卫、和预选那一屏读同一个答案（见 `placeOfEdge`）。
   const fromPlaceKey = placeOfEdge(ctx, old)
