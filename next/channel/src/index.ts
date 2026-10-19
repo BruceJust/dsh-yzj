@@ -20,6 +20,7 @@ import type {} from '@yzj-next/graph'
 import { memoriesFor, type TurnBinding } from '@yzj-next/objects'
 import { YzjChannelClient } from './client.ts'
 import { ChannelHealth } from './health.ts'
+import { outboundFamily, recordOutbound } from './outbound.ts'
 import { YzjTopicReader } from './topics.ts'
 import { YzjCardDelivery } from './delivery.ts'
 import { YzjOrchestrator } from './orchestrator.ts'
@@ -40,6 +41,10 @@ export {
 export { ChannelState, type ConversationRecord } from './state.ts'
 export { applyMirror, readMirror, mirrorIdFor, mirrorIdemKey, type MirrorSighting, type MirrorSource } from './mirror.ts'
 export { YzjChannelClient } from './client.ts'
+export {
+  OUTBOUND_POSTED, contentDigest, outboundFamily, recordOutbound,
+  type OutboundAdmission, type OutboundPosted,
+} from './outbound.ts'
 export { ChannelHealth } from './health.ts'
 export {
   YzjTopicReader, parseSendTime, sessionIdOfTopic, sniffMime, topicKeyOfSession,
@@ -167,7 +172,10 @@ export function apply(ctx: Context, config: Config): void {
   const aliases = config.aliases ?? ['@agent', '@智能体']
   const cwd = absolute(config.cwd ?? join(defaultHome, 'yzj-next', 'workspace'))
   const state = new ChannelState(absolute(config.stateFile ?? join(defaultHome, 'yzj-next', 'channel-state.json')))
-  const client = new YzjChannelClient(ctx, state, config.cliTimeoutMs ?? 60_000)
+  // agent 对外说的每一句话，恰好一行 `outbound/posted`（技术方案-下一代ERP账本 §13.5）。
+  const client = new YzjChannelClient(
+    ctx, state, config.cliTimeoutMs ?? 60_000, posted => recordOutbound(ctx, posted),
+  )
   const orchestrator = new YzjOrchestrator(ctx, client, state, {
     cwd,
     preset: config.preset ?? 'standard',
@@ -184,7 +192,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => {
     let disposed = false
     let interval: ReturnType<typeof setInterval> | undefined
-    const disposers: (() => unknown)[] = []
+    const disposers: (() => unknown)[] = [ctx.yzjGraph.defineFamily(outboundFamily)]
 
     /**
      * Everything that needs the operator's identity is wired only once it is

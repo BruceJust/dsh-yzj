@@ -37,6 +37,7 @@ import { createHash } from 'node:crypto'
 import { renderChatContext, type YzjGroup, type YzjMessage, type YzjTopicRoute } from './protocol.ts'
 import { askSourceFor, sourceFor, yzjSourceOf } from './source.ts'
 import type { YzjChannelClient } from './client.ts'
+import type { OutboundAdmission } from './outbound.ts'
 import type { ChannelState } from './state.ts'
 import { parseSendTime, type TopicDescriptor } from './topics.ts'
 import {
@@ -157,6 +158,16 @@ export function summarizeTurn(
  * @param topic - the topic this session belongs to, when it belongs to one.
  * @returns the binding, or `base` when this session is in no place.
  */
+/**
+ * 一句回应的授权：它回应的那条消息与发送者（技术方案-下一代ERP账本 §13.5）。发送者为
+ * 空串时不算——说不出是谁的话，就不冒充是在回应谁，记成主动发言。
+ */
+function admissionOf(trigger: YzjMessage): OutboundAdmission | undefined {
+  return trigger.msgId === '' || trigger.fromOpenId === ''
+    ? undefined
+    : { messageId: trigger.msgId, senderOpenId: trigger.fromOpenId }
+}
+
 export function deskBinding(
   base: TurnBinding | undefined,
   topic: TopicDescriptor | undefined,
@@ -418,7 +429,9 @@ export class YzjOrchestrator {
       await this.voidTask(active.taskId, `让位给 ${signatureName(peer.name)}`)
       let retractAnchor: string | undefined
       try {
-        const sent = await this.client.send({ groupId }, yieldNotice(peer.name), active.ackId)
+        const sent = await this.client.send(
+          { groupId }, yieldNotice(peer.name), active.ackId, 'agent', admissionOf(active.trigger),
+        )
         retractAnchor = sent.msgId
       } catch (error) {
         console.error('[yzj-next-channel] failed to post the yield notice', error)
@@ -520,6 +533,7 @@ export class YzjOrchestrator {
           try {
             const sent = await this.client.send(
               { groupId: group.groupId }, yieldNotice(loser?.name ?? verdict.to), active.ackId,
+              'agent', admissionOf(trigger),
             )
             retractAnchor = sent.msgId
           } catch (error) {
@@ -863,10 +877,13 @@ export class YzjOrchestrator {
   ): Promise<string | undefined> {
     let sent: { msgId?: string }
     try {
+      // ack、超时与失败通知、重放、`reply()` 都走这里：都是对那条接纳消息的回应。
       sent = await this.client.send(
         { groupId: group.groupId },
         clipMessage(content, this.config.maxReplyChars),
         trigger.msgId,
+        'agent',
+        admissionOf(trigger),
       )
     } catch (error) {
       throw new DeliveryOutcomeUnknownError(error)

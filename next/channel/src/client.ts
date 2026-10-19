@@ -18,6 +18,7 @@ import {
   parseGroup, parseMessage, resolveTopicRootId,
   type TopicLookup, type YzjGroup, type YzjIdentity, type YzjMessage,
 } from './protocol.ts'
+import { contentDigest, type OutboundAdmission, type OutboundPosted } from './outbound.ts'
 import type { ChannelState } from './state.ts'
 
 /** `yzj-cli im message list --limit` refuses anything larger. */
@@ -28,10 +29,16 @@ export class YzjChannelClient {
   /** 署名要落的名字。身份解析之前发出的东西签「未署名」——不签是唯一不允许的。 */
   private operatorName = ''
 
+  /**
+   * @param onSent - 每一次 agent 出站拿到 msgId 之后调用一次，落 `outbound/posted`
+   *   （技术方案-下一代ERP账本 §13.5）。`desk` 出站是人自己在说话，不调。它的异常在这里
+   *   吞掉：消息已经在场所里了，记不上账不该让发送本身变成失败。
+   */
   constructor(
     private readonly ctx: Context,
     private readonly state: ChannelState,
     private readonly timeoutMs: number,
+    private readonly onSent?: (posted: OutboundPosted) => Promise<void> | void,
   ) {}
 
   private async run(command: readonly string[], label: string): Promise<unknown> {
@@ -317,12 +324,15 @@ export class YzjChannelClient {
    * @param origin - who is speaking. Both are "ours" for echo suppression;
    *   only the agent's own words count as the agent having been addressed
    *   when somebody replies to them (受话判定, v4.7).
+   * @param admission - 接纳本回合的那条消息与它的发送者：这句话是在回应它。不传就是
+   *   主动发言，账上记本实例的操作者。
    */
   async send(
     target: { groupId?: string; toOpenId?: string },
     content: string,
     replyMsgId?: string,
     origin: 'agent' | 'desk' = 'agent',
+    admission?: OutboundAdmission,
   ): Promise<{ msgId?: string; groupId?: string }> {
     const groupId = target.groupId ?? `dm:${target.toOpenId ?? ''}`
     /*
@@ -355,10 +365,31 @@ export class YzjChannelClient {
         this.state.confirmOutbound(`${nonce}:resolved`, msgId)
       }
       await this.state.save()
+      if (origin === 'agent') await this.recordSent(msgId, sentGroupId || groupId, replyMsgId, content, admission)
     }
     return {
       ...(msgId === '' ? {} : { msgId }),
       ...(sentGroupId === '' ? (target.groupId === undefined ? {} : { groupId: target.groupId }) : { groupId: sentGroupId }),
+    }
+  }
+
+  private async recordSent(
+    msgId: string, groupId: string, replyMsgId: string | undefined, content: string,
+    admission: OutboundAdmission | undefined,
+  ): Promise<void> {
+    if (this.onSent === undefined) return
+    try {
+      await this.onSent({
+        msgId,
+        groupId,
+        ...(replyMsgId === undefined || replyMsgId === '' ? {} : { replyMsgId }),
+        contentDigest: contentDigest(content),
+        authority: admission === undefined
+          ? { kind: 'operator', openId: this.pinned?.openId ?? '', via: 'proactive' }
+          : { kind: 'message', ...admission },
+      })
+    } catch (error) {
+      console.error('[yzj-next-channel] failed to record an outbound message', error)
     }
   }
 }
