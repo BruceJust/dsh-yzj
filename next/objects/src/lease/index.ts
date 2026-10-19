@@ -24,16 +24,23 @@ export function activeLeases(ctx: Context, now = Date.now()): readonly LeaseStat
 }
 
 export function leasesService(ctx: Context): YzjLeases {
-  return {
-    covers(query) {
-      const toolClass = toolClassOf(query.toolName)
-      if (toolClass === undefined) return false
-      return activeLeases(ctx).some(lease => (
+  const coveringLease: YzjLeases['coveringLease'] = (query) => {
+    const toolClass = toolClassOf(query.toolName)
+    if (toolClass === undefined) return undefined
+    const hit = activeLeases(ctx)
+      .filter(lease => (
         lease.scope.toolClass === toolClass
           && (lease.scope.placeKey === undefined || lease.scope.placeKey === query.placeKey)
           && (query.openId === undefined || lease.grantedBy === query.openId)
+          && lease.grantedBy !== undefined
       ))
-    },
+      .sort((left, right) => left.period.from - right.period.from || (left.leaseId < right.leaseId ? -1 : 1))[0]
+    return hit?.grantedBy === undefined ? undefined : { leaseId: hit.leaseId, grantedBy: hit.grantedBy }
+  }
+  return {
+    coveringLease,
+    covers: query => coveringLease(query) !== undefined,
+    activeLeaseIds: () => activeLeases(ctx).map(lease => lease.leaseId),
   }
 }
 

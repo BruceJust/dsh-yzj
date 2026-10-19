@@ -151,7 +151,12 @@ export class YzjGraph extends Service {
 
   /** 链的完整性（§13.1-9）。只读，不进模型工具面。 */
   integrity(): GraphIntegrity {
-    return { ...this.chain, orphanActions: orphanReleases(this.store.allEvents()).length }
+    return { ...this.chain, orphanActions: this.orphanActions().length }
+  }
+
+  /** 放行了、没结算的写（§13.4）。孤儿扫描与 `integrity()` 数的是同一个集合。 */
+  orphanActions(): readonly GraphEvent[] {
+    return orphanReleases(this.store.allEvents())
   }
 
   /** Register one object family's event vocabulary. */

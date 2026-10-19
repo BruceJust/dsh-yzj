@@ -27,6 +27,12 @@ export interface LeaseQuery {
   readonly openId?: string
 }
 
+/** The lease that released a call, and the person who signed it. */
+export interface CoveringLease {
+  readonly leaseId: string
+  readonly grantedBy: string
+}
+
 /** Provided by the lease object family. Absent means "no leases exist". */
 export interface YzjLeases {
   /**
@@ -36,6 +42,14 @@ export interface YzjLeases {
    * skipped by a lease.
    */
   covers(query: LeaseQuery): boolean
+  /**
+   * **哪一张**租约放行了它（技术方案-下一代ERP账本 §13.3-1）。一个布尔值只能说「放了」，
+   * 说不出凭谁签的字——而账要的正是后者：`action/released` 的授权来源要追得到签发人。
+   * 多张同时命中取 `period.from` 最早的，相同再按 `leaseId` 字典序：同一个问题永远同一个答案。
+   */
+  coveringLease(query: LeaseQuery): CoveringLease | undefined
+  /** 此刻生效的租约 id，与 `coveringLease` 同一套判据——回合环境快照记的就是它。 */
+  activeLeaseIds(): readonly string[]
 }
 
 declare module '@deepseek-ai/cordis' {

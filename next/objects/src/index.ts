@@ -35,7 +35,7 @@ export {
 export { ApprovalAnswerer, YZJ_TEXT_SURFACE } from './approval/answerer.ts'
 export type { PendingAsk, YzjAsks } from './approval/asks.ts'
 export type { TurnBinding, YzjTurns } from './turns.ts'
-export type { LeaseQuery, YzjLeases } from './leases.ts'
+export type { CoveringLease, LeaseQuery, YzjLeases } from './leases.ts'
 export {
   waitingCard, waitingFamily, waitingIdFor, waitingIdemKeyFor,
   type WaitingCloseCause, type WaitingState, type WaitingStatus,

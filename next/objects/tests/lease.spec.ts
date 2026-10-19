@@ -84,6 +84,27 @@ describe('covers()：类、场所、人三个都对上才放行', () => {
     expect(covers.covers({ toolName: 'yzj_doc_create', args: {}, placeKey: 'yzj-group-g1', openId: 'op-2' })).toBe(false)
   })
 
+  /*
+    技术方案-下一代ERP账本 §13.3-1：放行要说得出**哪一张**、谁签的。两张同时命中时取起点
+    最早的那张——同一个问题永远同一个答案，账才对得上；`activeLeaseIds` 用同一套判据。
+  */
+  it('coveringLease：说得出是哪一张、谁签的；多张命中取起点最早的；activeLeaseIds 同一套判据', async () => {
+    const now = Date.now()
+    const later = await proposeLease(ctx, { decider: 'op-1', toolClass: 'doc', days: 7, family: 'write-confirm', reason: 'x', now: now - 1_000 })
+    const earlier = await proposeLease(ctx, { decider: 'op-1', toolClass: 'doc', placeKey: 'yzj-group-g1', days: 7, family: 'write-confirm', reason: 'y', now: now - 5_000 })
+    const pending = await proposeLease(ctx, { decider: 'op-1', toolClass: 'sheet', days: 7, family: 'write-confirm', reason: 'z', now: now - 9_000 })
+    await cards.act({ kind: 'lease', id: later }, 'grant', OPERATOR, 'desktop')
+    await cards.act({ kind: 'lease', id: earlier }, 'grant', OPERATOR, 'desktop')
+    const leases = leasesService(ctx)
+    expect(leases.coveringLease({ toolName: 'yzj_doc_create', args: {}, placeKey: 'yzj-group-g1', openId: 'op-1' }))
+      .toEqual({ leaseId: earlier, grantedBy: 'op-1' })
+    expect(leases.coveringLease({ toolName: 'yzj_doc_create', args: {}, placeKey: 'yzj-group-g2', openId: 'op-1' }))
+      .toEqual({ leaseId: later, grantedBy: 'op-1' })
+    expect(leases.coveringLease({ toolName: 'yzj_sheet_record_create', args: {}, openId: 'op-1' })).toBeUndefined()
+    expect([...leases.activeLeaseIds()].sort()).toEqual([earlier, later].sort())
+    expect(leases.activeLeaseIds()).not.toContain(pending)
+  })
+
   it('工具的类从名字来：yzj_doc_create → doc；不是云之家工具就没有类', () => {
     expect(toolClassOf('yzj_doc_create')).toBe('doc')
     expect(toolClassOf('yzj_sheet_write')).toBe('sheet')

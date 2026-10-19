@@ -30,6 +30,14 @@ export interface TurnBinding {
   /** The inbound Yunzhijia message that admitted this turn, when there was one. */
   readonly messageId?: string
   /**
+   * 那条接纳消息**是谁发的**（技术方案-下一代ERP账本 §13.3-2）。
+   *
+   * `decider` 不是它：`decider` 是能答卡的人（P1 = 操作者），而一次免确认的标准写凭的是
+   * 发消息那个人的话。只有消息 id 的授权，一年后翻账的人只能回去问「这条是谁说的」——
+   * 账要的是不问任何人。与 `messageId` 同生同灭；空串一律视为缺失。
+   */
+  readonly senderOpenId?: string
+  /**
    * 这一回合的活 —— 产出归属的精确锚 (v3.10 4h⑤).
    *
    * 没有它，工件只能按**话题**归集：一个同时服务两个目标的会话里产出的任何东西，

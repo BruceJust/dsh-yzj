@@ -36,13 +36,22 @@
  *
  * It also writes the turn's `env/snapshot` lazily, at the first Yunzhijia
  * resource consumption, at most once per turn (§4).
+ *
+ * **And it keeps the books** (技术方案-下一代ERP账本 §13.3): whichever branch released
+ * a write is held per call, and `tools/execute` writes `action/released` — with
+ * the person that authority resolves to — BEFORE the body runs, then
+ * `action/settled` after. A write whose line cannot be written does not run.
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { PreToolDecision, ToolExecution } from '@deepseek-ai/dsh-tools'
-import type { TurnBinding } from '@yzj-next/objects'
-import type {} from '@yzj-next/objects'
+import {
+  TOOL_ABORTED, TOOL_ABORTED_BEFORE_DISPATCH,
+  type PreToolDecision, type ToolExecution, type ToolExecutionResult,
+} from '@deepseek-ai/dsh-tools'
+import { ACTION_RELEASED, ACTION_SETTLED } from '@yzj-next/graph'
+import { approvalIdFor, digestArgs, type TurnBinding } from '@yzj-next/objects'
+import { applyActionLedger, type ActionAuthority, type ActionOutcome } from './action.ts'
 import { asRecord, asString } from './shared.ts'
 
 /**
@@ -209,6 +218,77 @@ export function denialFor(ctx: Context, exec: Pick<ToolExecution, 'name' | 'agen
 }
 
 /**
+ * 放行时挂起的授权来源。`exempt` 与 `approval` 要到执行时才定得下是谁：前者取那一刻的
+ * 操作者，后者要看那张卡最后是不是我们的卡、批了没有。
+ */
+type PendingAuthority =
+  | Extract<ActionAuthority, { kind: 'lease' | 'message' }>
+  | { readonly kind: 'exempt' }
+  | { readonly kind: 'approval' }
+
+/** 一次调用的键：callId 只在单个会话内唯一（§13.3）。 */
+const callKey = (sessionId: string, callId: string): string => `${sessionId}\0${callId}`
+
+/**
+ * 接纳本回合的那条消息，连同它的发送者。**缺一不可**：只有消息 id 的授权追不到人，
+ * 宁可多问一次，也不放出一次无主的写（§13.3-4）。空串一律视为缺失。
+ */
+function admissionOf(binding: TurnBinding | undefined): { messageId: string; senderOpenId: string } | undefined {
+  const messageId = binding?.messageId
+  const senderOpenId = binding?.senderOpenId
+  if (messageId === undefined || messageId === '' || senderOpenId === undefined || senderOpenId === '') return undefined
+  return { messageId, senderOpenId }
+}
+
+/** 把挂起的授权定成账上的那一种；定不下来就是 undefined，调用方 fail closed。 */
+function resolveAuthority(
+  ctx: Context, held: PendingAuthority | undefined, binding: TurnBinding | undefined,
+  sessionId: string, callId: string,
+): ActionAuthority | undefined {
+  if (held === undefined) return undefined
+  if (held.kind === 'lease' || held.kind === 'message') return held
+  const operator = binding?.accountOpenId
+  if (held.kind === 'approval') {
+    const approvalId = approvalIdFor(sessionId, callId)
+    const approval = ctx.yzjGraph.rawObject('approval', approvalId)
+    if (approval === undefined) {
+      // 图上没有审批对象：确认是宿主自己的审批界面做的，它只在操作者桌面上。
+      return operator === undefined ? undefined : { kind: 'operator', openId: operator, via: 'host-approval' }
+    }
+    const state = asRecord(approval.state)
+    const decidedBy = asString(state.decidedBy)
+    // 不是 approved 却走到了执行：按理不会发生，发生了就不认。
+    return state.status === 'approved' && decidedBy !== '' ? { kind: 'approval', approvalId, decidedBy } : undefined
+  }
+  return operator === undefined ? undefined : { kind: 'operator', openId: operator, via: 'exempt' }
+}
+
+/** The timeout policy's code (`dsh-tool-call-timeout-policy`, not a dependency of ours). */
+const TOOL_TIMEOUT = 'TOOL_TIMEOUT'
+
+/**
+ * 效果有没有发生（§13.3 表）——账要记的是效果，不是 post-execute 之后的说法。
+ *
+ * 超时归 `aborted-after-body`，不归 `failed`：宿主的超时包装器在计时器响过之后**替换**
+ * 结果，而它的计时从 `tools/execute` 里才开始、工具体几毫秒内就被调用——超时几乎总是
+ * 「工具体跑了、调用被掐断」。记成 failed 等于告诉翻账的人「没写成」，而那份文档可能
+ * 已经建好了。
+ */
+function outcomeOf(result: ToolExecutionResult): { outcome: ActionOutcome; errorCode?: string } {
+  if (!result.isError) return { outcome: 'ok' }
+  const code = result.error.info?.code
+  const outcome: ActionOutcome = code === TOOL_ABORTED_BEFORE_DISPATCH ? 'not-dispatched'
+    : code === TOOL_ABORTED || code === TOOL_TIMEOUT ? 'aborted-after-body'
+      : 'failed'
+  return { outcome, ...(code === undefined || code === '' ? {} : { errorCode: code }) }
+}
+
+/** fail closed 的返回值：与 dsh-tools 自己的错误结果同形。 */
+function refused(message: string): ToolExecutionResult {
+  return { isError: true, error: { message }, content: [{ type: 'text', text: `Error: ${message}` }] }
+}
+
+/**
  * The turn a call belongs to: session id plus the sequence of its opening
  * `turn/start`. Used as the once-per-turn key for `env/snapshot`.
  */
@@ -225,6 +305,18 @@ function turnAnchorOf(agent: Agent): string {
 export function applyApprovalGuard(ctx: Context): () => void {
   /** Turns whose `env/snapshot` has already been written. */
   const snapshotted = new Set<string>()
+  /**
+   * 放行路径挂起在这里，等 `tools/execute` 落账。这里只是**挂起**、不写日志：之后的单调
+   * 守卫还可能拒绝。放在闭包里而不是模块级：模块级变量跨 Context 共享，插件卸载后还在。
+   */
+  const pending = new Map<string, PendingAuthority>()
+  const hold = (exec: ToolExecution, authority: PendingAuthority): void => {
+    if (exec.agent === undefined) return
+    // 先查上限、超了先清空，再写入——先写后清会把刚写入的这一条也清掉。
+    if (pending.size >= 5_000) pending.clear()
+    pending.set(callKey(String(exec.agent.session.id), String(exec.callId)), authority)
+  }
+  const disposeLedger = applyActionLedger(ctx)
 
   /**
    * Compare the live CLI identity with the one this turn was admitted under.
@@ -258,7 +350,7 @@ export function applyApprovalGuard(ctx: Context): () => void {
         data: {
           sessionAnchor: anchor,
           contractVersion: contract.version,
-          activeLeaseIds: [],
+          activeLeaseIds: [...(ctx.get('yzjLeases')?.activeLeaseIds() ?? [])],
           injectedMemoryIds: [],
           fedReferenceIds: [],
         },
@@ -308,25 +400,38 @@ export function applyApprovalGuard(ctx: Context): () => void {
     const spec = WRITE_SPECS[exec.name]
     if (spec === undefined) return next()
     const args = asRecord(exec.arguments)
-    if (spec.when !== undefined && !spec.when(args)) return next()
+    const admission = admissionOf(binding)
+    // 无须确认的写照样有主：接纳它的那条消息，否则是本实例的操作者（如 memory_note 的场所轴）。
+    if (spec.when !== undefined && !spec.when(args)) {
+      hold(exec, admission === undefined ? { kind: 'exempt' } : { kind: 'message', ...admission })
+      return next()
+    }
 
     // Decision order (§5.1): escape and identity are already behind us; a live
     // lease releases the call before the contract's write level is consulted.
     // Strong writes are never lease-covered — the safety floor is that
     // irreversible actions always ask.
-    if (spec.level === 'standard' && ctx.get('yzjLeases')?.covers({
-      toolName: exec.name,
-      args,
-      ...(binding?.placeKey === undefined ? {} : { placeKey: binding.placeKey }),
-      ...(binding?.accountOpenId === undefined ? {} : { openId: binding.accountOpenId }),
-    }) === true) return next()
+    const lease = spec.level === 'standard'
+      ? ctx.get('yzjLeases')?.coveringLease({
+        toolName: exec.name,
+        args,
+        ...(binding?.placeKey === undefined ? {} : { placeKey: binding.placeKey }),
+        ...(binding?.accountOpenId === undefined ? {} : { openId: binding.accountOpenId }),
+      })
+      : undefined
+    if (lease !== undefined) {
+      hold(exec, { kind: 'lease', ...lease })
+      return next()
+    }
 
     // A standard write inside the turn the gateway just admitted is already
-    // authorized by the message that admitted it. Earlier turns and ordinary
-    // desktop prompts never inherit that; strong writes always ask.
-    if (spec.level === 'standard'
-      && binding?.writeMode === 'standard'
-      && binding.messageId !== undefined) return next()
+    // authorized by the message that admitted it — and only when we can say
+    // WHO sent it. Earlier turns and ordinary desktop prompts never inherit
+    // that; strong writes always ask.
+    if (spec.level === 'standard' && binding?.writeMode === 'standard' && admission !== undefined) {
+      hold(exec, { kind: 'message', ...admission })
+      return next()
+    }
 
     const reason = `云之家操作确认：${spec.reason}`
     const asks = ctx.get('yzjAsks')
@@ -341,11 +446,67 @@ export function applyApprovalGuard(ctx: Context): () => void {
       reason,
       args: args as never,
     })
+    hold(exec, { kind: 'approval' })
     return { kind: 'ask', reason }
+  }, { prepend: true })
+
+  /*
+    **先记后做**（§13.3-5）。写工具的效果可能落在别处、不可逆，所以 `action/released` 必须
+    在工具体之前落盘；落不下或授权定不下来，就不执行（fail closed）。发言可以发后再记，
+    写不行——发言本身就落在场所里，写的效果不一定。
+
+    `prepend: true`：本监听是最外层，`next()` 看到的是宿主每一层包装器（超时、检查点）
+    之后的结果。
+  */
+  const disposeExecute = ctx.on('tools/execute', async (exec, next) => {
+    const spec = WRITE_SPECS[exec.name]
+    if (spec === undefined) return next()
+    const agent = exec.agent
+    const sessionId = agent === undefined ? '' : String(agent.session.id)
+    const callId = String(exec.callId)
+    const held = agent === undefined ? undefined : pending.get(callKey(sessionId, callId))
+    pending.delete(callKey(sessionId, callId))
+    const binding = bindingFor(ctx, agent)
+    const authority = resolveAuthority(ctx, held, binding, sessionId, callId)
+    if (authority === undefined) return refused('找不到这次写入的授权，没有执行')
+    try {
+      await ctx.yzjGraph.append({
+        type: ACTION_RELEASED,
+        data: {
+          sessionId, callId, toolName: exec.name, level: spec.level,
+          argsDigest: digestArgs(exec.arguments), authority,
+          ...(binding?.topicKey === undefined ? {} : { topicKey: binding.topicKey }),
+          ...(binding?.placeKey === undefined ? {} : { placeKey: binding.placeKey }),
+        },
+        actor: { kind: 'agent' },
+      })
+    } catch (error) {
+      return refused(`账没记上，这次写入没有执行（${error instanceof Error ? error.message : String(error)}）`)
+    }
+    const started = Date.now()
+    /*
+      `next()` 抛出 = 下游某一层包装器自己坏了，效果有没有发生说不清。那就不写 settled：
+      它留成一个孤儿，`integrity()` 立刻看得见，下次打开分区标成「结果不明」——说不清的事
+      照实记成说不清，好过替它编一个 outcome。
+    */
+    const result = await next()
+    try {
+      await ctx.yzjGraph.append({
+        type: ACTION_SETTLED,
+        data: { sessionId, callId, ...outcomeOf(result), durationMs: Date.now() - started },
+        actor: { kind: 'agent' },
+      })
+    } catch (error) {
+      // 写不下 settled 只报错、不改结果：效果已经发生了，下次启动由孤儿扫描兜底。
+      console.error('[yzj-next-tools] failed to settle a released write', error)
+    }
+    return result
   }, { prepend: true })
 
   return () => {
     void disposeListener()
+    void disposeExecute()
     disposeGuard()
+    disposeLedger()
   }
 }

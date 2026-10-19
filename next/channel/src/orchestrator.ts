@@ -317,6 +317,8 @@ export class YzjOrchestrator {
       placeKey: route.placeKey,
       audience: [route.placeKey],
       messageId: trigger.msgId,
+      // 授权要追得到人：发消息的那个人，不是能答卡的那个人（技术方案-下一代ERP账本 §13.3-2）。
+      ...(trigger.fromOpenId === '' ? {} : { senderOpenId: trigger.fromOpenId }),
       writeMode: 'standard',
       // 署名要落的名字，从身份里来（决策 #63）。工具直连 CLI 那条路也从这里读。
       ...(this.defaultTurnBinding?.operatorName === undefined
@@ -915,7 +917,9 @@ export class YzjOrchestrator {
     }
     // The gateway's `messageId` is deliberately absent: no inbound message
     // admitted this, so nothing here inherits an inbound message's authority.
-    const { messageId: _ignored, ...base } = this.bindingOf(route, synthetic)
+    // Its sender goes with it — the synthetic sender is the operator, which
+    // would otherwise read as a message the operator sent.
+    const { messageId: _ignored, senderOpenId: _sender, ...base } = this.bindingOf(route, synthetic)
     const binding: TurnBinding = { ...base, writeMode: 'read-only' }
     this.activeTurns.set(agent, { binding, group: groupOf(route), trigger: synthetic, route, taskId: '' })
     let timer: ReturnType<typeof setTimeout> | undefined
