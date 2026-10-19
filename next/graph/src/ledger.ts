@@ -191,6 +191,8 @@ export interface LedgerAudit {
   readonly orphanActions: number
   /** 工具体已经跑完、调用却被取消的写：效果可能已经发生，要人看。 */
   readonly abortedAfterBody: number
+  /** 放行按授权来源计数。哪一条路在真实数据上走过，看这一栏，不必另做一遍实测。 */
+  readonly releasedBy: Record<string, number>
   readonly chain: GraphIntegrity
 }
 
@@ -199,6 +201,7 @@ export function auditLedger(events: readonly GraphEvent[]): LedgerAudit {
   const byType: Record<string, number> = {}
   let saidWithoutOpenId = 0
   let abortedAfterBody = 0
+  const releasedBy: Record<string, number> = {}
   for (const event of events) {
     const atom = atomOf(event)
     byAtom[atom] += 1
@@ -207,7 +210,9 @@ export function auditLedger(events: readonly GraphEvent[]): LedgerAudit {
     if (event.type === ACTION_SETTLED && asRecord(event.data)?.outcome === 'aborted-after-body') {
       abortedAfterBody += 1
     }
+    const authority = event.type === ACTION_RELEASED ? asString(asRecord(asRecord(event.data)?.authority)?.kind) : undefined
+    if (authority !== undefined) releasedBy[authority] = (releasedBy[authority] ?? 0) + 1
   }
   const chain = integrityOf(events)
-  return { byAtom, byType, saidWithoutOpenId, orphanActions: chain.orphanActions, abortedAfterBody, chain }
+  return { byAtom, byType, saidWithoutOpenId, orphanActions: chain.orphanActions, abortedAfterBody, releasedBy, chain }
 }

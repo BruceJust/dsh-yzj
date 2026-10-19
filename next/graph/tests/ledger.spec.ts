@@ -392,6 +392,20 @@ describe('四种行与审计', () => {
     expect(audit.byType['action/released']).toBe(4)
   })
 
+  it('放行按授权来源计数：哪一条路在真实数据上走过，一眼看得见', () => {
+    const agent = { kind: 'agent' } as const
+    const released = (seq: number, authority: Record<string, unknown>): GraphEvent => (
+      event(seq, 'action/released', agent, { sessionId: 's', callId: String(seq), authority })
+    )
+    const audit = auditLedger([
+      released(1, { kind: 'message', messageId: 'm', senderOpenId: 'u' }),
+      released(2, { kind: 'approval', approvalId: 'a', decidedBy: 'op-1' }),
+      released(3, { kind: 'message', messageId: 'm2', senderOpenId: 'u' }),
+      event(4, 'outbound/posted', agent, { authority: { kind: 'operator' } }),
+    ])
+    expect(audit.releasedBy).toEqual({ message: 2, approval: 1 })
+  })
+
   // #17
   it('auditLedger 与 integrity() 对同一份被篡改的文件给出相同的答案', async () => {
     const graph = await openGraph()
