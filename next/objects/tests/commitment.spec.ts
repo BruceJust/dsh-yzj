@@ -14,7 +14,7 @@ import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import { createCommitmentCard } from '../src/commitment/card.ts'
 import {
-  commitmentFamily, commitmentIdFor, earnsCommitment, processFamily,
+  commitmentFamily, commitmentIdFor, delegatesToAgent, earnsCommitment, processFamily,
   type CommitmentState,
 } from '../src/commitment/family.ts'
 import { applyCommitmentTools } from '../src/commitment/tools.ts'
@@ -120,6 +120,26 @@ describe('evidence promotion', () => {
     expect(earnsCommitment({ hadWriteAction: false, delegationLanguage: true })).toBe(true)
     expect(earnsCommitment({ hadWriteAction: false, delegationLanguage: false, explicitDue: '明天' }))
       .toBe(true)
+  })
+
+  /*
+    N8：委派语言不够，受领者得是 agent。前四句是 3090 上旧判据（正文出现「负责｜你来｜
+    安排｜交给｜盯一下｜跟进」任一子串）真实提升出来的 agent 承诺——四条全错，活要么是
+    第三人的，要么是一条已有的承诺在被撤销或移交。
+  */
+  it.each([
+    ['@next 登记一下：返修数据分析由张锐负责，周五 18:00 前给结论', false],
+    ['@next 登记一下：季度复盘材料由李婷负责，本周四下班前给初稿。', false],
+    ['@next 不对，季度复盘材料不用李婷做了，改回原来的安排——这条登记撤掉，别改期。', false],
+    ['@next Q10 实测：请用 commitment_handoff 把承诺 cmt-e13 移交给我（Bruce）。', false],
+    ['@next 你负责的那条周报怎么样了？', false],
+    ['@next 这个你来负责吗', false],
+    ['@next 每周五的周报你来负责汇总', true],
+    ['@next 这件事交给你了，周三前给我', true],
+    ['@next 帮我盯一下这个审批，有变化告诉我', true],
+    ['@next 你跟进一下供应商的回款', true],
+  ])('受领者是不是 agent：%s → %s', (text, expected) => {
+    expect(delegatesToAgent(text)).toBe(expected)
   })
 })
 

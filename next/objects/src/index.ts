@@ -42,7 +42,7 @@ export {
 } from './task/waiting.ts'
 export { createCommitmentCard } from './commitment/card.ts'
 export {
-  commitmentFamily, commitmentIdFor, commitmentIdemKeyFor, earnsCommitment,
+  commitmentFamily, commitmentIdFor, commitmentIdemKeyFor, delegatesToAgent, earnsCommitment,
   isSettled, ownsCommitment, processFamily,
   type CommitmentExecutor, type CommitmentState, type CommitmentStatus,
 } from './commitment/family.ts'

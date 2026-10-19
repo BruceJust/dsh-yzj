@@ -575,6 +575,23 @@ export function earnsCommitment(input: {
     || input.delegationLanguage
 }
 
+/**
+ * 这句话是不是把一件活**交给了 agent** —— 委派语言不够，受领者得是它（N8）。
+ *
+ * 旧判据是正文里出现「负责｜你来｜安排｜交给｜盯一下｜跟进」任一子串。3090 上靠它提升出
+ * 的四条 agent 承诺全是错的：「返修数据分析由张锐负责」「季度复盘材料由李婷负责」（受领者
+ * 是第三人，agent 该做的是替他登记）、「改回原来的安排——这条登记撤掉」（撤一条已有的）、
+ * 「把承诺…移交给我」（修理一条已有的）。一条凭空的 agent 承诺会永远挂在板上、会被催、
+ * 事项原文里还带着触发词——宁空勿错。
+ *
+ * 这句话是 @ 它说的，所以受领者是「你」，或者是「帮我…」的那个被请求者。问句不算：
+ * 「你负责的那条怎么样了？」问的是一件已有的事。
+ */
+export function delegatesToAgent(text: string): boolean {
+  if (/(?:[？?]|[吗呢么][。.!！]?)\s*$/u.test(text.trim())) return false
+  return /(?:你|您)来?(?:负责|跟进|盯)|交给(?:你|您)|(?:帮我|替我)(?:负责|跟进|盯)/u.test(text)
+}
+
 /** Terminal statuses: the work is no longer owed. */
 export function isSettled(status: CommitmentStatus): boolean {
   return status !== 'open'

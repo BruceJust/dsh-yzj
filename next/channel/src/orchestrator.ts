@@ -30,7 +30,7 @@ import type { Workspace } from '@deepseek-ai/dsh-workspace'
 import type {} from '@deepseek-ai/dsh-workspace'
 import { asRecord, asString } from '@yzj-next/graph'
 import {
-  commitmentIdFor, earnsCommitment, memoriesFor, processSummary, readSignature, YZJ_TEXT_SURFACE,
+  commitmentIdFor, delegatesToAgent, earnsCommitment, memoriesFor, processSummary, readSignature, YZJ_TEXT_SURFACE,
   type TurnBinding,
 } from '@yzj-next/objects'
 import { createHash } from 'node:crypto'
@@ -809,7 +809,7 @@ export class YzjOrchestrator {
 
     const promoted = earnsCommitment({
       hadWriteAction: artifacts.length > 0,
-      delegationLanguage: /(负责|你来|安排|交给|盯一下|跟进)/u.test(trigger.content),
+      delegationLanguage: delegatesToAgent(trigger.content),
     })
     if (!promoted) return
     const what = trigger.content.replace(/\s+/gu, ' ').trim().slice(0, 200)
