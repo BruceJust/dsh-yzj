@@ -230,6 +230,17 @@ describe('落盘的那一行就是事实', () => {
     expect(graph.integrity()).toEqual({ genesisSeq: 1, verifiedThrough: 201, orphanActions: 0 })
   })
 
+  it('一个监听器同步抛错，不让一行已落盘的追加 reject', async () => {
+    const ctx = new Context()
+    ctx.on('yzj-graph/appended', () => { throw new Error('listener bug') })
+    const graph = await openGraph('acct-1', ctx)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const appended = await note(graph, 'n1')
+    expect(appended.seq).toBe(2)
+    expect((await lines()).map(line => line.seq)).toEqual([1, 2])
+    expect(error).toHaveBeenCalledWith('[yzj-next-graph] a yzj-graph/appended listener threw', expect.anything())
+  })
+
   it('文件尾停在半行上（上次崩在写一半）：新行不会和它粘成一行损坏行', async () => {
     const graph = await openGraph()
     await note(graph, 'n1')

@@ -120,7 +120,8 @@ export class YzjGraph extends Service {
       this.log = log
       this.readyResolve?.()
       this.openedAt = { accountKey, lastSeqAtOpen: this.store.lastSeq }
-      this.ctx.emit('yzj-graph/opened', this.openedAt)
+      const opened = this.openedAt
+      this.notify('yzj-graph/opened', () => { this.ctx.emit('yzj-graph/opened', opened) })
     })()
     await this.loading
   }
@@ -201,11 +202,24 @@ export class YzjGraph extends Service {
         }) as JsonValue, { kind: 'system' }, genesis.sv ?? 1)
       }
       const event = await this.write(log, input.type, data, input.actor, spec.sv ?? 1)
-      this.ctx.emit('yzj-graph/appended', event)
+      this.notify('yzj-graph/appended', () => { this.ctx.emit('yzj-graph/appended', event) })
       return event
     })
     this.writes = enqueued
     return enqueued
+  }
+
+  /**
+   * 通知订阅者。cordis 的 `emit` 不接住监听器同步抛出的错：不在这里接住，一个坏掉的
+   * 监听器会让一行**已经落盘**的追加 reject——对 `action/released` 来说，就是写入不执行、
+   * 却永远等不到 settled。落盘的那一行就是事实，监听器的错只是它自己的错。
+   */
+  private notify(name: string, emit: () => void): void {
+    try {
+      emit()
+    } catch (error) {
+      console.error(`[yzj-next-graph] a ${name} listener threw`, error)
+    }
   }
 
   /**
