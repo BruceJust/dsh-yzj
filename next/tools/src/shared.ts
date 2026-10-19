@@ -59,7 +59,20 @@ function looksUnauthenticated(stderr: string): boolean {
 export const CONFIRM_REQUIRED_EXIT = 3
 
 /** A model-facing failure digest from a non-ok bridge invocation. */
+/**
+ * 一次 CLI 失败的机器可读标记，放在工具值的 `data` 里。
+ *
+ * 工具把失败写成一段给模型读的话、照常返回——宿主于是认为调用**成功**了。账要记的是
+ * 效果（技术方案-下一代ERP账本 §13.3），所以守门人的结算读这个标记，而不是只看宿主的
+ * `isError`：否则一次被拒的建文档，账上写的是「执行了」。
+ */
+export interface CliFailure {
+  readonly exitCode: number | null
+  readonly timedOut: boolean
+}
+
 export function failureDigest(label: string, result: YzjRunResult, max: number): YzjToolValue {
+  const cliFailure: CliFailure = { exitCode: result.exitCode, timedOut: result.timedOut }
   /*
     exit 3 单独说 —— 它不是一次失败，是一处漏装。
 
@@ -74,7 +87,7 @@ export function failureDigest(label: string, result: YzjRunResult, max: number):
       + `请如实报告这一步没有执行。\n${result.stderr.trim()}`,
       max,
     )
-    return { content, truncated, data: {} }
+    return { content, truncated, data: { cliFailure: { ...cliFailure } } }
   }
   const reason = result.timedOut ? 'timed out' : `exit ${String(result.exitCode ?? 'killed')}`
   const detail = result.stderr.trim() === '' ? '(no stderr)' : result.stderr.trim()
@@ -82,7 +95,7 @@ export function failureDigest(label: string, result: YzjRunResult, max: number):
     ? '\n提示：yzj-cli 可能未登录，请先运行 `yzj-cli auth login` 完成登录。'
     : ''
   const { content, truncated } = digestOf(`yzj ${label} failed (${reason}): ${detail}${hint}`, max)
-  return { content, truncated, data: {} }
+  return { content, truncated, data: { cliFailure: { ...cliFailure } } }
 }
 
 export function asRecord(value: unknown): UnknownRecord {

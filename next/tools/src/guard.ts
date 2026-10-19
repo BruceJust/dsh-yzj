@@ -275,7 +275,18 @@ const TOOL_TIMEOUT = 'TOOL_TIMEOUT'
  * 已经建好了。
  */
 function outcomeOf(result: ToolExecutionResult): { outcome: ActionOutcome; errorCode?: string } {
-  if (!result.isError) return { outcome: 'ok' }
+  if (!result.isError) {
+    /*
+      宿主说成功，不等于效果发生了：`yzj_*` 工具把 CLI 失败写成一段话照常返回（见
+      `failureDigest`）。CLI 被超时杀掉时请求可能已经到了服务端——效果可能已发生；其余
+      非零退出照实记 failed（退出码 3 = CLI 自己拒绝执行，读 errorCode 就知道）。
+    */
+    const failure = asRecord(asRecord(asRecord(result.value).data).cliFailure)
+    if (Object.keys(failure).length === 0) return { outcome: 'ok' }
+    return failure.timedOut === true
+      ? { outcome: 'aborted-after-body', errorCode: 'CLI_TIMEOUT' }
+      : { outcome: 'failed', errorCode: `CLI_EXIT_${String(failure.exitCode ?? 'killed')}` }
+  }
   const code = result.error.info?.code
   const outcome: ActionOutcome = code === TOOL_ABORTED_BEFORE_DISPATCH ? 'not-dispatched'
     : code === TOOL_ABORTED || code === TOOL_TIMEOUT ? 'aborted-after-body'
@@ -316,6 +327,15 @@ export function applyApprovalGuard(ctx: Context): () => void {
     if (pending.size >= 5_000) pending.clear()
     pending.set(callKey(String(exec.agent.session.id), String(exec.callId)), authority)
   }
+  /*
+    挂起的授权在调用结束时就清掉，不论它走没走到执行：被下游拒绝、确认卡被拒或过期、
+    取消，都不经过 `tools/execute`。只靠上限一次清空的话，被拒的调用会一直攒着，攒满时
+    连**正在等确认卡**的那一条也一起清掉——人批了，写却因为「找不到授权」被拒。
+    上限因此只是保险：在途的调用到不了这个数。
+  */
+  const disposeResult = ctx.on('tools/result', (exec: ToolExecution) => {
+    if (exec.agent !== undefined) pending.delete(callKey(String(exec.agent.session.id), String(exec.callId)))
+  })
   const disposeLedger = applyActionLedger(ctx)
 
   /**
@@ -506,6 +526,7 @@ export function applyApprovalGuard(ctx: Context): () => void {
   return () => {
     void disposeListener()
     void disposeExecute()
+    void disposeResult()
     disposeGuard()
     disposeLedger()
   }

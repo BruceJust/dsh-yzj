@@ -171,6 +171,54 @@ describe('三条放行路，走宿主真实的工具注册表', () => {
     expect(graph.rawEvents(['action/settled'])[0]?.data).toMatchObject({ outcome: 'aborted-after-body', errorCode: 'ABORTED' })
   })
 
+  /*
+    review H1：`yzj_*` 工具把 CLI 失败写成一段话照常返回，宿主看到的是成功。账要记的是效果：
+    被拒的建文档不能记成「执行了」。模型读到的那句话不变。
+  */
+  it('CLI 失败照常返回给模型，账上按效果记：退出非零 failed，被超时杀掉 aborted-after-body', async () => {
+    const failing = (exitCode: number | null, timedOut: boolean): YzjRunResult => ({
+      ok: false, exitCode, stdout: '', stderr: 'permission denied', json: undefined, truncated: false, timedOut, durationMs: 1,
+    })
+    const replies = [failing(1, false), failing(null, true), failing(3, false)]
+    bridgeRun = async (command) => {
+      bridgeCalls.push([...command])
+      if (command[0] === 'doc') return replies.shift() ?? ok({})
+      return ok([{ orgId: 'org-1', openId: 'op-1' }])
+    }
+    const first = await run('yzj_doc_create', { workspace: 'kb-1', title: 'a' })
+    expect(first.isError).toBe(false)
+    expect(JSON.stringify(first.content)).toContain('failed (exit 1)')
+    await run('yzj_doc_create', { workspace: 'kb-1', title: 'b' })
+    await run('yzj_doc_create', { workspace: 'kb-1', title: 'c' })
+    expect(graph.rawEvents(['action/settled']).map(event => {
+      const data = event.data as { outcome: string; errorCode?: string }
+      return [data.outcome, data.errorCode]
+    })).toEqual([
+      ['failed', 'CLI_EXIT_1'],
+      ['aborted-after-body', 'CLI_TIMEOUT'],
+      ['failed', 'CLI_EXIT_3'],
+    ])
+  })
+
+  /*
+    review M1：挂起的授权要在调用结束时清掉。否则被拒的调用一直攒着，攒满上限一次清空时，
+    正在等确认卡的那一条也被清掉——人批了，写却「找不到授权」。
+  */
+  it('五千多次被拒的调用之后，等着确认卡的那一次批了照样执行', async () => {
+    ctx.on('tools/pre-execute', async (exec, next) => (
+      exec.name === 'yzj_doc_rename' ? { kind: 'deny', reason: '下游拒绝' } : next()
+    ))
+    const waiting = run('yzj_doc_delete', { id: 'doc-1' })
+    await vi.waitFor(() => { expect(graph.rawEvents(['approval/opened'])).toHaveLength(1) })
+    for (let index = 0; index < 5_001; index += 1) {
+      expect((await run('yzj_doc_rename', { id: 'doc-2', title: String(index) })).isError).toBe(true)
+    }
+    const approvalId = (graph.rawEvents(['approval/opened'])[0]?.data as { approvalId: string }).approvalId
+    await cards.act({ kind: 'approval', id: approvalId }, 'approve', OPERATOR, 'desktop')
+    expect((await waiting).isError).toBe(false)
+    expect(authorityOf(released()[0])).toMatchObject({ kind: 'approval', approvalId })
+  }, 60_000)
+
   it('审计：每一条放行都有结算，链不断，没有孤儿', async () => {
     await run('yzj_doc_create', { workspace: 'kb-1', title: 'a' })
     await run('yzj_doc_create', { workspace: 'kb-1', title: 'b' })
