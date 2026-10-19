@@ -50,6 +50,20 @@ describe('模型工具面上没有写 said 的接口 (§15-6)', () => {
   })
 
   /*
+    发言面上的同一条律（Q10 / N5）：人按的发送是人说的，系统和模型自己写的话是 agent 说的。
+    桌面口吻（`sendInPlace` / `sendToPlace` / `sendToPerson`）不签名、带触发词就以人的身份
+    点火——只该接人自己在输入框里按下的那一句。objects、pledger、tools 这三个包里没有输入框，
+    在这里走桌面口吻的，必然是借人的口说机器写的话。
+  */
+  it('没有输入框的包里不走桌面口吻：机器写的话一律 sayInPlace', () => {
+    const offenders = ['objects', 'pledger', 'tools']
+      .flatMap(name => sources(join(NEXT, name, 'src')))
+      .filter(path => /\.(sendInPlace|sendToPlace|sendToPerson)\(/u.test(readFileSync(path, 'utf8')))
+      .map(path => path.slice(NEXT.length))
+    expect(offenders).toEqual([])
+  })
+
+  /*
     G5（Q10 已修）：`reissueEdge` 不在函数体里认定是谁做的——它是共享的落笔函数，桌面那条
     路（人按的发送，said）和模型工具那条路（did）都调它。actor 由调用方传，于是上面那条锁
     扫得到模型工具这一侧传的是什么；函数体里一旦重新写死桌面操作者，这条就红。

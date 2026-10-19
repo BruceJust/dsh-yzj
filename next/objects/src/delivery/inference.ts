@@ -157,6 +157,10 @@ export function applyDeliveryInference(ctx: Context): () => void {
   /*
     确认之后以执行者名义**回流登记场所**（回程律）：登记的听众看到出生，也该看到交付。
     代发一句「已交付」——确认即签发代发，同拆解代发授权模型。
+
+    他确认的是「这个文件是那条的交付」，不是按下了这句话的发送：这句话是系统写的，走
+    agent 的口（署名、进账、不点火）。走桌面那条路，它就成了借他的口说话；而承诺的事项
+    常常就是触发原文，「已交付：@next …」会以他的身份把原指令再执行一遍（N5）。
   */
   const offEcho = ctx.on('yzj-graph/appended', (event) => {
     if (event.type !== 'proposal/item-decided') return
@@ -172,7 +176,7 @@ export function applyDeliveryInference(ctx: Context): () => void {
     const topics = ctx.get('yzjTopics')
     const artifact = asRecord(proposal?.artifact)
     if (place === undefined || topics === undefined || commitment === undefined) return
-    void topics.sendInPlace(place, `已交付：${asString(commitment.what) ?? ''}（${asString(artifact?.name) ?? '工件'}）`).catch((error: unknown) => {
+    void topics.sayInPlace(place, `已交付：${asString(commitment.what) ?? ''}（${asString(artifact?.name) ?? '工件'}）`).catch((error: unknown) => {
       console.error('[yzj-next-delivery] failed to announce the delivery', error)
     })
   })

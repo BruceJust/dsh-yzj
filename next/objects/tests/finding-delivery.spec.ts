@@ -35,7 +35,7 @@ let cards: YzjCards
 let tools: Map<string, CapturedTool>
 let delivered: { kind: string; id: string; placeKey: string }[]
 let verdicts: { kind: string; actionId: string; verdictKey?: string }[]
-let said: { placeKey: string; text: string }[]
+let said: { placeKey: string; text: string; voice: 'desk' | 'agent' }[]
 
 const proposal = (id: string): ProposalState => graph.rawObject('proposal', id)?.state as unknown as ProposalState
 const state = (kind: string, id: string): Record<string, unknown> | undefined => asRecord(graph.rawObject(kind, id)?.state)
@@ -64,7 +64,11 @@ beforeEach(async () => {
     deliverToPlace: (ref: { kind: string; id: string }, placeKey: string) => answer(ref, placeKey),
     echo: () => Promise.resolve(),
   })
-  ctx.provide('yzjTopics', { sendInPlace: async (placeKey: string, text: string) => { said.push({ placeKey, text }); return { msgId: 'm-said' } } })
+  ctx.provide('yzjTopics', {
+    sendInPlace: async (placeKey: string, text: string) => { said.push({ placeKey, text, voice: 'desk' }); return { msgId: 'm-said', ignited: false } },
+    // 系统写的话走 agent 的口：署名、进账、不点火（N5）。
+    sayInPlace: async (placeKey: string, text: string) => { said.push({ placeKey, text, voice: 'agent' }); return { msgId: 'm-said' } },
+  })
   const captured: CapturedTool[] = []
   ctx.provide('tools', { register: (definition: CapturedTool) => { captured.push(definition); return () => undefined } })
   applyGoalTools(ctx)
@@ -194,7 +198,7 @@ describe('交付推断：操作者自己甩的文件 → 提议卡 → 确认即
     expect(asString(commitment?.status)).toBe('open')
     expect(asString(asRecord(commitment?.delivery)?.claim)).toBe('交付：8月费用明细.xlsx')
     expect(graph.rawEvents(['receipt/recorded']).map(event => asString(asRecord(asRecord(event.data)?.objectRef)?.id))).toEqual(['cmt-1'])
-    expect(said).toEqual([{ placeKey: PLACE, text: '已交付：给财务出 8 月费用明细（8月费用明细.xlsx）' }])
+    expect(said).toEqual([{ placeKey: PLACE, text: '已交付：给财务出 8 月费用明细（8月费用明细.xlsx）', voice: 'agent' }])
     expect(proposalSettled(proposal(id))).toBe(true)
   })
 
@@ -251,7 +255,7 @@ describe('执行者侧回执的结构性来源（设计册 v1.3：交付推断�
     expect(verdicts).toEqual([{ kind: 'delivery-confirm', actionId: 'confirmed', verdictKey: 'confirmed:0' }])
     expect(asRecord(state('commitment', 'mir-1')?.delivery)).toBeUndefined()
     expect(graph.rawEvents(['receipt/recorded']).map(event => asString(asRecord(asRecord(event.data)?.objectRef)?.id))).toEqual(['mir-1'])
-    expect(said).toEqual([{ placeKey: 'yzj-group-peer', text: '已交付：给张三出 9 月对账差异表（9月对账差异表.xlsx）' }])
+    expect(said).toEqual([{ placeKey: 'yzj-group-peer', text: '已交付：给张三出 9 月对账差异表（9月对账差异表.xlsx）', voice: 'agent' }])
   })
 
   it('承诺卡的打回带句柄回声：同侪实例的镜像行靠它前进', async () => {
