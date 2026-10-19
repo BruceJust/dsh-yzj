@@ -18,20 +18,16 @@ import { z, type GraphFamily } from '@yzj-next/graph'
 export const OUTBOUND_POSTED = 'outbound/posted'
 
 /** 接纳本回合的那条消息，及其发送者——发言的授权就是它。 */
-export interface OutboundAdmission {
-  readonly messageId: string
-  readonly senderOpenId: string
-}
+export type OutboundAdmission = { readonly messageId: string; readonly senderOpenId: string }
 
-/** 一次成功的 agent 出站，落账的形状。 */
-export interface OutboundPosted {
+/** 一次成功的 agent 出站，落账的形状。`contentDigest` = 已签名正文的 sha256 hex。 */
+export type OutboundPosted = {
   readonly msgId: string
   readonly groupId: string
   readonly replyMsgId?: string
-  /** 已签名正文的 sha256 hex。 */
   readonly contentDigest: string
   readonly authority:
-    | ({ readonly kind: 'message' } & OutboundAdmission)
+    | { readonly kind: 'message'; readonly messageId: string; readonly senderOpenId: string }
     | { readonly kind: 'operator'; readonly openId: string; readonly via: 'proactive' }
 }
 
@@ -61,18 +57,5 @@ export function contentDigest(content: string): string {
 
 /** 把一次出站落成一行。 */
 export async function recordOutbound(ctx: Context, posted: OutboundPosted): Promise<void> {
-  const { replyMsgId, authority } = posted
-  await ctx.yzjGraph.append({
-    type: OUTBOUND_POSTED,
-    data: {
-      msgId: posted.msgId,
-      groupId: posted.groupId,
-      ...(replyMsgId === undefined ? {} : { replyMsgId }),
-      contentDigest: posted.contentDigest,
-      authority: authority.kind === 'message'
-        ? { kind: 'message', messageId: authority.messageId, senderOpenId: authority.senderOpenId }
-        : { kind: 'operator', openId: authority.openId, via: authority.via },
-    },
-    actor: { kind: 'agent' },
-  })
+  await ctx.yzjGraph.append({ type: OUTBOUND_POSTED, data: posted, actor: { kind: 'agent' } })
 }
