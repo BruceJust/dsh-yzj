@@ -1,6 +1,6 @@
 # 技术方案：下一代 ERP 的账——一条日志，三本账
 
-> 2026-10-19 · **E0 已实施**（实现者增记，见 §17）：§13 的 T1–T6 与 21 条验收测试全部落地；3090 已部署并封存起点。预算超了约 18%，人已拍板接受（§17.6）。还要人定的是实施中新发现的缺口 G5 / G6（§17.4，Q10）。3090 实测：消息、确认两条写路径已通过；租约路径要人在桌面签发租约，留给人做（§17.5）。实施后做过一轮独立 review，修了 5 处，新增 9 条、加强 3 条测试（§17.8）。
+> 2026-10-19 · **E0 已实施**（实现者增记，见 §17）：§13 的 T1–T6 与 21 条验收测试全部落地；3090 已部署并封存起点。预算超了约 18%，人已拍板接受（§17.6）。实施后做过一轮独立 review，修了 5 处，新增 9 条、加强 3 条测试（§17.8）。剩下三件事人交给实现者按第一性原理定（§17.9）：Q10 已定并落地（G5 修掉，移交在 3090 实测通过）；租约路径不由 agent 代签，改由审计的 `releasedBy` 在人第一次真签时自然显形；测试残留已作废清理。
 >
 > 2026-10-15 · **v1.1（交付前自审）**。v1.0 是北极星，能讲清方向，但不能直接交开发：
 > - 它和三条冻结决策冲突（#58 受领、#63 分区、#64 私账），也和技术方案 §4 冲突（`audience` / `idemKey` 不进信封）；
@@ -364,10 +364,10 @@ revoke update, delete, truncate on ledger_event from app_writer;   -- 只追加�
 | 承诺、受领三态、移交分叉 | `objects/commitment`（#58 / #59） | 投影要显示证据级别（E1） |
 | 租约 | `objects/lease`；**已有（E0）**：`coveringLease()` 说得出是哪一张、谁签的，`covers()` 由它导出 | 无 |
 | 守门人放行 | **已有（E0）**：四条放行路各自挂起授权，`tools/execute` 先写 `action/released` 再执行、后写 `action/settled`；孤儿标 `action/outcome-unknown` | 无 |
-| 不经守门人的出站写 | G1–G4（§3.1 路三），直接调 bridge；E0 实施时又找到 G5、G6（§17.4） | **仍未覆盖**。E0.5：在 bridge 收口；G5 先要 Q10 拍板 |
+| 不经守门人的出站写 | G1–G4（§3.1 路三），直接调 bridge；E0 实施时又找到 G5、G6（§17.4） | G5 已按 Q10 修掉（§17.9）；G1–G4 与 G6 余下的一句**仍未覆盖**，E0.5 收口 |
 | 回合环境快照 | **已有（E0）**：`env/snapshot.activeLeaseIds` = 当时生效的租约 | 无 |
 | 回合接纳消息的发送者 | **已有（E0）**：`TurnBinding.senderOpenId`，由 `bindingOf` 从 `trigger.fromOpenId` 填 | 无 |
-| agent 出站发言 | **已有（E0）**：每次 `origin='agent'` 成功发送恰好一行 `outbound/posted` | 经桌面路出站的模型/系统发言不在其中（G6） |
+| agent 出站发言 | **已有（E0）**：每次 `origin='agent'` 成功发送恰好一行 `outbound/posted`；系统与模型写的话经 `sayInPlace` 也走这里（§17.9） | 交付推断确认后的「已交付」代发仍走桌面路（G6 余项） |
 | 规范化 JSON | **已有（E0）**：`graph/src/json.ts` 的 `canonicalJson`，审批的 `digestArgs` 逐字不变 | 无 |
 | 押、裁决归档 | `pledger`（pgraph，私账） | 不动（#64） |
 | 判断需求、检验点、结账 | 触发①已有（`approval`） | E1 |
@@ -636,7 +636,7 @@ export function auditLedger(events: readonly GraphEvent[]): {
 | Q7 | 规则版本由谁签发？法账还不存在 | 规则 = 代码常量 `id@version`；升级部署时由操作者写一行 `said: rule/adopted`，算作签发 |
 | Q8 | 加密粉碎的「主体」怎么划？一行可能提到多个人 | 按「发言者」划，只加密正文类字段；结构字段（谁、何时、哪一类）不加密 |
 | Q9 | `event_post_materials` 该不该经确认？ | 进 `WRITE_SPECS`，定为 standard：它改的是所有参会人都会看到的日程，在接纳消息的回合内免确认，其余情况要问 |
-| Q10 | G5（§17.4）：模型工具 `commitment_handoff` 以操作者名义落 `said` 行，移交话语又走桌面路不签名。移交出生的那条承诺，委派者该是谁？移交话语以谁的口吻出站？ | 承诺族把委派者写进 `data`（`delegatedBy` 显式字段），不再从出生 actor 推导；模型工具产生的行一律 `actor: agent`；移交话语走 `origin='agent'` 签名出站，授权 = 那次放行的 `action/released`。牵涉 #58 / #59 / #63，须人拍板 |
+| Q10 | G5（§17.4）：模型工具 `commitment_handoff` 以操作者名义落 `said` 行，移交话语又走桌面路不签名。移交出生的那条承诺，委派者该是谁？移交话语以谁的口吻出站？ | 承诺族把委派者写进 `data`（`delegatedBy` 显式字段），不再从出生 actor 推导；模型工具产生的行一律 `actor: agent`；移交话语走 `origin='agent'` 签名出站，授权 = 那次放行的 `action/released`。牵涉 #58 / #59 / #63，须人拍板。**已定（2026-10-19，人交实现者按第一性原理选）**：按此默认值，委派者取旧边的（老数据回退到签发人）；发言的授权记接纳消息，那次写的授权在 `released` 上；已落地并实测，见 §17.9 |
 
 ---
 
@@ -726,8 +726,8 @@ export function auditLedger(events: readonly GraphEvent[]): {
 
 | # | 位置 | 是什么 | 去向 |
 |---|---|---|---|
-| G5 | `objects/src/commitment/handoff.ts` 的 `reissueEdge`，由模型工具 `commitment_handoff` 调用 | 以桌面操作者的名义（`actor: desktopActor()`）落 `commitment/opened` 与 `commitment/transferred`：**模型参与产生的 `said` 行**，违反 §2.1 判别规则 2 与 §15 断言 6。**不能就地把 actor 改成 agent**：承诺族从出生事件的 actor 折叠出 `delegatedBy`（验收权），缺了它 `ownsCommitment` 放行任何人——那会把一个记账问题变成一次权限放宽 | Q10，须人拍板；测试已把它单独钉住 |
-| G6 | `commitment_handoff` 的移交话语与解除告知（`commitment/tools.ts:541`、`:555`）；交付推断确认后的「已交付」代发（`delivery/inference.ts:175`） | 模型 / 系统的发言走 `sendInPlace` → `origin='desk'`：按 #63 不签名，按 §13.5 也不进 `outbound/posted`——这几句出站在账上没有行。后者是设计里的「确认即签发代发」，前者随 Q10 一起定 | E0.5：`im message send` 是写类命令，bridge 收口时一并覆盖 |
+| G5 | `objects/src/commitment/handoff.ts` 的 `reissueEdge`，由模型工具 `commitment_handoff` 调用 | 以桌面操作者的名义（`actor: desktopActor()`）落 `commitment/opened` 与 `commitment/transferred`：**模型参与产生的 `said` 行**，违反 §2.1 与 §15 断言 6。**不能就地把 actor 改成 agent**：承诺族从出生事件的 actor 折叠出 `delegatedBy`（验收权），缺了它 `ownsCommitment` 放行任何人——那会把一个记账问题变成一次权限放宽 | **已修**（Q10，`ca21566`，§17.9）：actor 记 agent，委派者显式写进 data |
+| G6 | `commitment_handoff` 的移交话语与解除告知（`commitment/tools.ts:541`、`:555`）；交付推断确认后的「已交付」代发（`delivery/inference.ts:175`） | 模型 / 系统的发言走 `sendInPlace` → `origin='desk'`：按 #63 不签名，按 §13.5 也不进 `outbound/posted`——这几句出站在账上没有行。后者是设计里的「确认即签发代发」，前者随 Q10 一起定 | 前两句已随 Q10 改走 `sayInPlace`（§17.9）；「已交付」代发仍在，并入 N5 已立项的那件 |
 
 扫描时还发现：`objects/src/memory/tools.ts` 含两个 NUL 字节，`grep` 会把它当二进制**静默跳过**。做代码扫描要用 `grep -a`；§15-6 的测试按字节读文件，不受影响。
 
@@ -740,7 +740,7 @@ export function auditLedger(events: readonly GraphEvent[]): {
 - **模型回合起初跑不起来，根因是网络路径**（先前这里写成「凭据缺失」，是误判，已更正：凭据在 `~/.dsh-next/.credentials.yaml`，由 `dsh-credentials-local` 解析，本来就在）。本机经 Clash 本地代理 `127.0.0.1:7890` 出网；launchd 拉起的 3090 没有代理环境，Node 的 fetch 直连模型网关，直连在本机网络下连不上，undici 建连 10 秒超时，OpenAI SDK 报 `Request timed out.`。修法：只改 3090 的 launchd plist，加 `HTTPS_PROXY` / `HTTP_PROXY` / `NODE_USE_ENV_PROXY=1`，并把 `yunzhijia.com` 放进 `NO_PROXY`——云之家流量照旧直连（已用死代理端口验证 yzj-cli 认 `NO_PROXY`）。原 plist 备份在 `~/Library/LaunchAgents/.com.bruce.yzj-next.plist.bak-20261019`。3080 未动。
 - **消息路径**（测试群 A 里 `@next` 在「我的知识」建测试文档）：seq 795 `action/released`，`authority = message`（接纳消息与发送者）→ 796 `settled ok`（1.2 秒）→ 800 回复记 `message`。
 - **确认路径**（让它删掉那篇文档，强写）：807 `approval/opened`，此时没有 `released`（先问后做）→ 自聊里对卡回「确认」→ 811 `approval/decided` → 812 `action/released`，`authority = approval`（approvalId 与批卡人）→ 813 `settled ok`，文档已删。
-- **租约路径未在 3090 上跑**：提议租约是桌面动作（「我的判断 · 标准写确认 · 不用再问我」），实施会话里这一步被自动模式的安全检查拦下，没有执行（图上没有 `lease/proposed`）。签发一张常设授权本来就该是人的动作，留给人做：点「不用再问我」→ 在卡上签发 → 在测试群 A 让 agent 再建一篇测试文档（租约先于消息放行，应记 `authority = lease`）→ 删掉 → 收回租约 → 跑审计脚本。租约路径在真注册表上的进程内证据见 `ledger-integration.spec.ts`。
+- **租约路径未在 3090 上跑，也不再专门跑**：提议租约是桌面动作（「我的判断 · 标准写确认 · 不用再问我」），实施会话里这一步被自动模式的安全检查拦下，没有执行（图上没有 `lease/proposed`）。签发常设授权必须是人的动作，agent 代签伪造的正是这本账要守的根；处理见 §17.9——进程内证据在 `ledger-integration.spec.ts`，真实签发由审计的 `releasedBy.lease` 自然显形。
 - **审计**（实测后）：820 行，`genesisSeq 753`、`verifiedThrough 820`、`breakAt` 空、损坏行 0、孤儿 0；`action/released` 2 条、`settled` 2 条、`outbound/posted` 26 条。
 
 ### 17.6 预算
@@ -751,7 +751,7 @@ export function auditLedger(events: readonly GraphEvent[]): {
 
 ### 17.7 仍未覆盖
 
-G1–G6 都还不在账上：G1–G4（§3.1 路三）与 G6 等 E0.5 在 bridge 统一收口；G5 等 Q10。
+G1–G4（§3.1 路三）等 E0.5 在 bridge 统一收口；G5 已按 Q10 修掉；G6 只剩交付推断的「已交付」代发（随 N5）。
 
 ### 17.8 实施后 review（2026-10-19）
 
@@ -773,9 +773,47 @@ G1–G6 都还不在账上：G1–G4（§3.1 路三）与 G6 等 E0.5 在 bridge
 
 | # | 是什么 | 去向 |
 |---|---|---|
-| N1 | 桌面移交后系统代写的「解除告知」（`surface/src/rpc.ts:2773`）走桌面路，不签名、不进账 | 并入 G6 |
+| N1 | 桌面移交后系统代写的「解除告知」（`surface/src/rpc.ts:2773`）走桌面路，不签名、不进账 | **已修**（随 Q10 改走 `sayInPlace`，§17.9） |
 | N2 | `yzj_im_message_send` 是 agent 发言，有 `released/settled`（授权在账上），但没有 `outbound/posted`，账上没有那条消息的 msgId | E1 定发言簿的范围时一并定 |
-| N3 | 「↗ 发到群里」把 agent 写的话以桌面身份发出 | 设计问题：人采纳了 agent 的话算不算人说的，随 Q10 |
-| **N5** | G6 的机器代写如果正文里带触发词，会**以操作者身份点火一个新回合**：触发词在正文任意位置都算，而承诺的 `what` 常常就是触发原文（「@next …请新建一篇文档…」）。确认一次交付推断，系统代发「已交付：@next …」，agent 就把原指令再执行一遍——**重复写入**，账上记成操作者的消息授权 | 已单独立项；E0 之前就有的产品 bug |
+| N3 | 「↗ 发到群里」把 agent 写的话以桌面身份发出 | Q10 的规则回答了它：人按的发送是人说的，人采纳那句话就归他——**不改**（§17.9） |
+| **N5** | G6 的机器代写如果正文里带触发词，会**以操作者身份点火一个新回合**：触发词在正文任意位置都算，而承诺的 `what` 常常就是触发原文（「@next …请新建一篇文档…」）。确认一次交付推断，系统代发「已交付：@next …」，agent 就把原指令再执行一遍——**重复写入**，账上记成操作者的消息授权 | 已单独立项；E0 之前就有的产品 bug。移交那条路已随 Q10 修掉并实测（§17.9），交付推断那一句仍在 |
 | N6 | 轻问（只读回合）只拦 `WRITE_SPECS` 与逃逸工具，`event_post_materials`、`goal_propose` 和会往场所投卡的工具照样能跑——只读契约是破的 | 已单独立项 |
 | **N7** | 桌面回合里模型可以用 `bash` 直接跑 `yzj-cli`（宿主自己的审批之后），既没有账，**E0.5 计划的 bridge 收口也看不见它** | E0.5 设计输入：唯一收口点该在凭据上（CLI 的令牌），不在 bridge 上 |
+
+### 17.9 交给实现者定的三件事（2026-10-19）
+
+预算拍板之后，人把剩下三件事交给实现者按第一性原理、终极价值、极致体验去定：Q10、租约路径实测、测试残留。
+
+**Q10（G5）：移交是 agent 做的，这件事仍归原来的人。**
+
+先说故事。群里同事张三对自己登记的一条承诺说「@next 这条给李婷做」。旧实现里，agent 移交时以桌面操作者的名义落两笔，账上写着「操作者说的」；验收权从出生 actor 盖上，于是从张三挪到了操作者手上；那句「李婷，「…」这条现在转给你了」借操作者的口发出，不署名、不进账（B4 禁借身）——事项原文里带着 `@next` 时，还会以操作者的身份把原指令再点一次火。
+
+定法就是 §14 Q10 的建议默认值。查下来它和代码里已有的惯例一致：`commitment_register` 从来就是「actor: agent，委派者显式写进 data」，移交漏了这一步。
+
+- **委派者跟着这件事走**：新边的 `delegatedBy` = 旧边的；老数据没有时，记签发这次移交的人。依据 #59「可转包不可脱责，移交须 owner 签发」：移交换的是谁来做，不换这件事归谁、谁来验收。
+- **两笔记在做的人名下**：模型工具那条路 `actor: agent`（did，授权在 `action/released`）；桌面那条路是人自己按的发送（预填的拟稿也是他按的），仍是操作者的 said。一句话：**人按的发送是人说的；系统和模型自己发的是 agent 说的。**
+- **机器写的话走 agent 的口**：通道新增 `sayInPlace`——署名、进 `outbound/posted`、不点火。模型工具的移交话语与解除告知、桌面那条路上系统补的解除告知（N1）都改走它。
+- 同一条规则回答 N3：「↗ 发到群里」是人按的，那句话归他，不改。
+
+实现 `ca21566`，src 约 25 行（不含注释与测试）。测试：objects 两条（两笔记 agent、委派者不挪、话是 agent 口吻且授权是接纳消息；老数据回退到签发人），surface 两处断言（桌面那条路仍记操作者、解除告知是 agent 口吻），channel 一条（`sayInPlace` 署名、进账、不点火），§15-6 的 G5 例外改成正向锁。五处变异（不写委派者、写死桌面 actor、去掉回退、模型工具改回桌面口吻、桌面解除告知改回桌面口吻）各自变红。全量 1194 条测试绿。
+
+**3090 实测**——就拿那颗雷做：测试承诺 `cmt-e13…` 的事项原文是「@next …新建一篇文档…」。在测试群 A 让 agent 把它移交给操作者本人：
+
+- seq 827 `action/released`（`commitment_handoff`，authority = message）→ 828 `outbound/posted`（移交话语）→ 829 新边 `commitment/opened`，actor agent，`delegatedBy` 仍是原委派者 → 830 旧边 `commitment/transferred`，actor agent → 831 `settled ok`。
+- 群里那句是「…，「@next E0 账本实测…新建一篇文档…」这条现在转给你了（原来是agent的）。」，带 agent 落款。之后一个半分钟里图上没有新任务、没有新写入——旧代码下，这一句会把建文档再做一遍。
+
+**租约路径：不替人签。** 租约是常设授权，是「授权追得到人」的根；agent 给自己签一张，伪造的正是这本账要守的那条根，安全检查拦下它是对的。E0 自己的那段逻辑（覆盖判定 → 守门人 → `released{lease}`）已在真注册表上测过（`ledger-integration.spec.ts`）；没在 3090 上走过的只剩桌面签发界面，那是 #64 的既有代码。所以不为实测专门让人签一张，改为审计加一栏 `releasedBy`（按授权来源计数放行，`c653b12`）：人哪天真签了租约、agent 凭它写了一次，审计里就出现 `lease: 1`。
+
+**测试残留：作废，不验收。** 验收是一次真实的裁决，拿测试去验收会在账上留下假判断（私账层还会把它当成一次可对表的裁决）；而 `cmt-e13…` 的事项原文带着触发词，哪天有人确认它的交付推断，就会触发 N5 的重复写入。作废说的才是实话：这些从来不是真的活。
+
+清理只走人的动词或带确认卡的 agent 动词，由实现者在人的授权下用操作者账号代按——所以这些行在账上记操作者，这一层事实在账本边界之外，记在这里：
+
+- 两条测试承诺（移交出来的新边、实测那一回合被提升出的 `cmt-41eb…`）经 `commitment_void`：强写，自聊确认卡，seq 845 / 855 authority = approval。
+- 六条测试任务经各自卡片回「作废」（seq 864–884）。
+- 清理后审计：886 行，`v1Sealed: true`，链 753–886 校验通过，损坏 0，孤儿 0，`releasedBy {message: 2, approval: 3}`。E0 实测在图上留下的承诺与任务全部已是终态（作废或已移交）；那篇测试文档早在 seq 813 删掉。
+
+**新登记**：
+
+| # | 是什么 | 去向 |
+|---|---|---|
+| N8 | 回合提升成承诺时，委派语气按正文子串判（`负责｜你来｜安排｜交给｜盯一下｜跟进`）。「移交给我」含「交给」，于是一次「请帮我移交」长出一条 agent 承诺（实测里的 `cmt-41eb…`，已作废） | E0 之前就有；判定是产品语义，不在这里改 |
