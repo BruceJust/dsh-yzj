@@ -5,9 +5,10 @@
  * is only ever an optimization — the log alone is authoritative.
  */
 
+import { createHash } from 'node:crypto'
 import { mkdir, readFile, rename, writeFile, appendFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { GRAPH_ENVELOPE_VERSION, GRAPH_FOLD_VERSION, type GraphEvent, type GraphObject } from './types.ts'
+import { GRAPH_FOLD_VERSION, type GraphEvent, type GraphObject } from './types.ts'
 
 /** What one partition holds on disk after a load. */
 export interface LoadedLog {
@@ -39,26 +40,56 @@ export function decodeEvent(line: string): GraphEvent | undefined {
     return undefined
   }
   if (!isRecord(parsed)) return undefined
-  const { v, sv, seq, time, type, data, actor } = parsed
-  if (v !== GRAPH_ENVELOPE_VERSION) return undefined
+  const { v, sv, seq, time, type, data, actor, prev, hash } = parsed
+  /*
+    **读兼容 v1，并保留行里原来的 `v`**（§13.1-3）。只把常量改成 2，所有 v1 行都会被拒，
+    整份旧日志等于消失；把 v1 读成 v2，又等于替一段从没成过链的历史作证。
+  */
+  if (v !== 1 && v !== 2) return undefined
   if (typeof seq !== 'number' || !Number.isInteger(seq) || seq < 1) return undefined
   if (typeof time !== 'number' || typeof type !== 'string' || type === '') return undefined
   if (!isRecord(actor) || typeof actor.kind !== 'string') return undefined
+  // v2 是成链的那一段：缺 prev / hash 就不是一行完整的证据。值对不对是链校验的事，不在这里。
+  if (v === 2 && (typeof sv !== 'number' || typeof prev !== 'string' || typeof hash !== 'string')) return undefined
   return {
-    v: GRAPH_ENVELOPE_VERSION,
+    v,
     sv: typeof sv === 'number' ? sv : 1,
     seq,
     time,
     type,
     data: data as GraphEvent['data'],
     actor: actor as unknown as GraphEvent['actor'],
+    ...(v === 2 ? { prev: prev as string, hash: hash as string } : {}),
   }
+}
+
+/**
+ * 一份日志的原始文本 → 按 seq 升序的事件与损坏行数。分区加载与离线审计共用这一个函数：
+ * 「同一份文件」在两处必须读出同一串行，链的答案才可能相同。
+ */
+export function parseLog(raw: string): { events: GraphEvent[]; damagedLines: number } {
+  const events: GraphEvent[] = []
+  let damagedLines = 0
+  for (const line of raw.split('\n')) {
+    if (line.trim() === '') continue
+    const event = decodeEvent(line)
+    if (event === undefined) damagedLines += 1
+    else events.push(event)
+  }
+  events.sort((left, right) => left.seq - right.seq)
+  return { events, damagedLines }
 }
 
 /** One account partition's files. */
 export class GraphLog {
   private readonly logPath: string
   private readonly snapshotPath: string
+  /**
+   * 文件尾可能停在半行上：上次崩在写一半，或者上一次追加报了错、不知道写进去多少。
+   * 这时直接追加，新行会和那半行粘成一行损坏行——一行已落盘的 `action/released` 就此
+   * 在重载时消失，而它放出去的写已经发生了。所以先补一个换行；多出来的空行加载时跳过。
+   */
+  private unterminated = false
 
   constructor(private readonly dir: string) {
     this.logPath = join(dir, 'graph.jsonl')
@@ -76,16 +107,8 @@ export class GraphLog {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       return { events: [], damagedLines: 0, ...(snapshot === undefined ? {} : { snapshot }) }
     }
-    const events: GraphEvent[] = []
-    let damagedLines = 0
-    for (const line of raw.split('\n')) {
-      if (line.trim() === '') continue
-      const event = decodeEvent(line)
-      if (event === undefined) damagedLines += 1
-      else events.push(event)
-    }
-    events.sort((left, right) => left.seq - right.seq)
-    return { events, damagedLines, ...(snapshot === undefined ? {} : { snapshot }) }
+    this.unterminated = raw !== '' && !raw.endsWith('\n')
+    return { ...parseLog(raw), ...(snapshot === undefined ? {} : { snapshot }) }
   }
 
   private async readSnapshot(): Promise<LoadedLog['snapshot']> {
@@ -118,7 +141,22 @@ export class GraphLog {
   /** Append one already-sequenced event. */
   async append(event: GraphEvent): Promise<void> {
     await mkdir(this.dir, { recursive: true })
-    await appendFile(this.logPath, `${JSON.stringify(event)}\n`, 'utf8')
+    const line = `${this.unterminated ? '\n' : ''}${JSON.stringify(event)}\n`
+    this.unterminated = true
+    await appendFile(this.logPath, line, 'utf8')
+    this.unterminated = false
+  }
+
+  /** 此刻整个日志文件原始字节的 sha256；文件不存在就是空串的 sha256。 */
+  async digest(): Promise<string> {
+    let bytes: Buffer
+    try {
+      bytes = await readFile(this.logPath)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      bytes = Buffer.alloc(0)
+    }
+    return createHash('sha256').update(bytes).digest('hex')
   }
 
   /** Replace the snapshot atomically (temp file + rename). */

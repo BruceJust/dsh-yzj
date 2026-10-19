@@ -202,6 +202,11 @@ export class GraphStore {
     return record === undefined ? undefined : freeze(record)
   }
 
+  /** 盘上的每一行，含被墓碑遮住的——账的审计读的是发生过什么，不是现在怎么看。 */
+  allEvents(): readonly GraphEvent[] {
+    return this.events
+  }
+
   get lastSeq(): number {
     return this.events.at(-1)?.seq ?? 0
   }

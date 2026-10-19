@@ -14,7 +14,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { YzjGraph } from './service.ts'
 
-export { YzjGraph } from './service.ts'
+export { YzjGraph, type GraphOpened } from './service.ts'
 /**
  * Re-exported so every object family declares its vocabulary against the SAME
  * zod instance the kernel validates with — schema identity across package
@@ -22,13 +22,18 @@ export { YzjGraph } from './service.ts'
  */
 export { z } from 'zod'
 export { KERNEL_FAMILIES, artifactRef } from './vocabulary.ts'
-export { decodeEvent } from './log.ts'
-export { asNumber, asObjectRef, asRecord, asString, asStringArray } from './json.ts'
+export { decodeEvent, parseLog } from './log.ts'
+export { asNumber, asObjectRef, asRecord, asString, asStringArray, canonicalJson } from './json.ts'
+export {
+  ACTION_OUTCOME_UNKNOWN, ACTION_RELEASED, ACTION_SETTLED, GENESIS_PREV, GENESIS_TYPE,
+  actionKey, atomOf, auditLedger, eventHash, integrityOf, ledgerFamily, orphanReleases, verifyChain,
+  type Atom, type ChainState, type LedgerAudit,
+} from './ledger.ts'
 export { GraphStore } from './store.ts'
 export {
   GRAPH_ENVELOPE_VERSION, GRAPH_FOLD_VERSION, ORG_DEFAULT_CONTRACT, refKey,
   type GraphActor, type GraphAppendInput, type GraphEvent, type GraphEventQuery,
-  type GraphEventSpec, type GraphFamily, type GraphObject, type GraphQuery,
+  type GraphEventSpec, type GraphFamily, type GraphIntegrity, type GraphObject, type GraphQuery,
   type GraphReadHook, type GraphViewer, type JsonValue, type ObjectRef,
   type PlaceContract, type TopicHandle,
 } from './types.ts'

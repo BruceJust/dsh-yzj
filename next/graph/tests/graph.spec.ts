@@ -11,6 +11,7 @@ import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { eventHash } from '../src/ledger.ts'
 import { YzjGraph } from '../src/service.ts'
 import type { GraphEvent, GraphFamily, GraphViewer } from '../src/types.ts'
 
@@ -89,9 +90,10 @@ describe('append and materialize', () => {
     await graph.append({ type: 'note/opened', data: { noteId: 'n1', text: 'x' }, actor: ACTOR })
     const line = await readFile(join(root, 'acct-1', 'graph.jsonl'), 'utf8')
 
+    // 起点占 seq 1 与第一行，且不发 appended：反应器只看得见业务行。
     expect(seen).toHaveLength(1)
-    expect(seen[0]?.seq).toBe(1)
-    expect(line.trim().split('\n')).toHaveLength(1)
+    expect(seen[0]?.seq).toBe(2)
+    expect(line.trim().split('\n')).toHaveLength(2)
   })
 
   it('assigns strictly increasing sequences under concurrent appends', async () => {
@@ -100,7 +102,7 @@ describe('append and materialize', () => {
       type: 'note/opened', data: { noteId: `n${String(index)}`, text: 't' }, actor: ACTOR,
     })))
     const events = graph.events(OPERATOR, { types: ['note/opened'] })
-    expect(events.map(event => event.seq)).toEqual(Array.from({ length: 12 }, (_v, i) => i + 1))
+    expect(events.map(event => event.seq)).toEqual(Array.from({ length: 12 }, (_v, i) => i + 2))
   })
 })
 
@@ -323,17 +325,22 @@ describe('durability and lenient decoding', () => {
     const appended = await second.append({
       type: 'note/opened', data: { noteId: 'n2', text: 'new' }, actor: ACTOR,
     })
-    expect(appended.seq).toBe(2)
+    expect(appended.seq).toBe(3)
   })
 
   it('retains an event type this build does not know instead of dropping the line', async () => {
     const graph = await openGraph()
     await graph.append({ type: 'note/opened', data: { noteId: 'n1', text: 'a' }, actor: ACTOR })
     await graph.flush()
-    // A newer build wrote a family this one has never heard of.
+    // A newer build wrote a family this one has never heard of — a proper v2
+    // line, chained onto the last one, so the chain itself has nothing to say.
+    const [last] = graph.events(OPERATOR, { types: ['note/opened'] })
+    const unsigned = {
+      v: 2 as const, sv: 4, seq: 3, time: Date.now(), type: 'verdict/opened',
+      data: { verdictId: 'v1' }, actor: ACTOR, prev: last?.hash ?? '',
+    }
     await appendFile(join(root, 'acct-1', 'graph.jsonl'), `${JSON.stringify({
-      v: 1, sv: 4, seq: 2, time: Date.now(), type: 'verdict/opened',
-      data: { verdictId: 'v1' }, actor: ACTOR,
+      ...unsigned, hash: eventHash(unsigned),
     })}\n`, 'utf8')
 
     const reopened = await openGraph()
@@ -344,7 +351,8 @@ describe('durability and lenient decoding', () => {
     const next = await reopened.append({
       type: 'note/opened', data: { noteId: 'n2', text: 'b' }, actor: ACTOR,
     })
-    expect(next.seq).toBe(3)
+    expect(next.seq).toBe(4)
+    expect(reopened.integrity().breakAt).toBeUndefined()
   })
 
   it('skips an unreadable line without losing the readable ones', async () => {

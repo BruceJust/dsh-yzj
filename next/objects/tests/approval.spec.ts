@@ -17,7 +17,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards, type CardProjection, type CardRef } from '@yzj-next/cards'
 import { approvalCard } from '../src/approval/card.ts'
-import { approvalFamily, approvalIdFor, type ApprovalState } from '../src/approval/family.ts'
+import { approvalFamily, approvalIdFor, digestArgs, type ApprovalState } from '../src/approval/family.ts'
 import { ApprovalAnswerer, YZJ_TEXT_SURFACE } from '../src/approval/answerer.ts'
 import type { TurnBinding } from '../src/turns.ts'
 
@@ -379,5 +379,21 @@ describe('retry (§5.5 一次性重试)', () => {
     expect(late.outcome).toBe('superseded')
     expect(late.receipt).toContain('确认')
     expect(stateOf(approvalId)?.status).toBe('interrupted')
+  })
+})
+
+/*
+  #1（技术方案-下一代ERP账本 §13.7）：`canonicalJson` 从审批族挪进图内核之后，`digestArgs`
+  必须逐字不变——它是重试认出「这是同一份活」的依据，悄悄变一位，重启后的每一次重试都
+  会被当成新的活。期望值是挪动之前、用旧代码算出来钉在这里的。
+*/
+describe('digestArgs', () => {
+  it('canonicalJson 挪进内核后，对固定输入的输出与挪动前逐字相同', () => {
+    const input = {
+      title: '季度复盘', workspace: 'kb-1',
+      nested: { b: [3, 1.5, -0, null, 'é'], a: true, skip: undefined },
+      Z: 1e21, 中: 'x',
+    }
+    expect(digestArgs(input)).toBe('c1fe2c242da793a2')
   })
 })

@@ -12,6 +12,7 @@
  */
 
 import { z } from 'zod'
+import { ledgerFamily } from './ledger.ts'
 import type { GraphEvent, GraphFamily, JsonValue } from './types.ts'
 
 /**
@@ -545,4 +546,5 @@ export const KERNEL_FAMILIES: readonly GraphFamily[] = [
   answerFamily, tombstoneFamily,
   authorityFamily, contractFamily, cardFamily,
   presenceFamily,
+  ledgerFamily,
 ]

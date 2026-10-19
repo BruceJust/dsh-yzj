@@ -10,13 +10,14 @@
 
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { join } from 'node:path'
+import { GENESIS_PREV, GENESIS_TYPE, eventHash, orphanReleases, verifyChain } from './ledger.ts'
 import { GraphLog } from './log.ts'
 import { GraphStore } from './store.ts'
 import { KERNEL_FAMILIES } from './vocabulary.ts'
 import {
   GRAPH_ENVELOPE_VERSION,
-  type GraphAppendInput, type GraphEvent, type GraphEventQuery, type GraphFamily,
-  type GraphObject, type GraphQuery, type GraphReadHook, type GraphViewer,
+  type GraphActor, type GraphAppendInput, type GraphEvent, type GraphEventQuery, type GraphFamily,
+  type GraphIntegrity, type GraphObject, type GraphQuery, type GraphReadHook, type GraphViewer,
   type JsonValue, type PlaceContract, type TopicHandle,
 } from './types.ts'
 
@@ -31,7 +32,19 @@ declare module '@deepseek-ai/cordis' {
      * machinery (§3.2).
      */
     'yzj-graph/appended'(event: GraphEvent): void
+    /**
+     * 一个分区打开了：hydrate 与链校验都已完成。启动时要回看日志的东西挂在这里，不挂在
+     * `ready()` 上——`ready()` 有 15 秒超时，而分区要等 CLI 拿到身份才会打开。
+     * `lastSeqAtOpen` 之后的行都是这个进程写的，回看不该碰它们。
+     */
+    'yzj-graph/opened'(payload: GraphOpened): void
   }
+}
+
+/** 分区打开的那一刻。 */
+export interface GraphOpened {
+  readonly accountKey: string
+  readonly lastSeqAtOpen: number
 }
 
 /** How many appends may pass before the snapshot is refreshed. */
@@ -54,6 +67,10 @@ export class YzjGraph extends Service {
   private readyResolve: (() => void) | undefined
   private readonly readyPromise: Promise<void>
   private loading: Promise<void> | undefined
+  /** 最后一行 v2 存着的 hash；还没有任何 v2 行时为 undefined——下一次追加先写起点。 */
+  private lastHash: string | undefined
+  private chain: Omit<GraphIntegrity, 'orphanActions'> = { verifiedThrough: 0 }
+  private openedAt: GraphOpened | undefined
 
   constructor(ctx: Context, private readonly config: GraphServiceConfig) {
     super(ctx, 'yzjGraph')
@@ -93,8 +110,17 @@ export class YzjGraph extends Service {
       }
       this.store.hydrate(loaded.events, loaded.snapshot)
       this.nextSeq = this.store.lastSeq + 1
+      // 断链不阻止加载，也不阻止继续写：账照记，断点照报。
+      const { lastHash, ...chain } = verifyChain(loaded.events)
+      this.lastHash = lastHash
+      this.chain = chain
+      if (chain.breakAt !== undefined) {
+        console.error(`[yzj-next-graph] ledger chain breaks at seq ${String(chain.breakAt)} in ${accountKey}`)
+      }
       this.log = log
       this.readyResolve?.()
+      this.openedAt = { accountKey, lastSeqAtOpen: this.store.lastSeq }
+      this.ctx.emit('yzj-graph/opened', this.openedAt)
     })()
     await this.loading
   }
@@ -118,6 +144,16 @@ export class YzjGraph extends Service {
     }
   }
 
+  /** 分区打开的那一刻；还没打开时为 undefined（晚到的插件据此补上 `yzj-graph/opened`）。 */
+  get opened(): GraphOpened | undefined {
+    return this.openedAt
+  }
+
+  /** 链的完整性（§13.1-9）。只读，不进模型工具面。 */
+  integrity(): GraphIntegrity {
+    return { ...this.chain, orphanActions: orphanReleases(this.store.allEvents()).length }
+  }
+
   /** Register one object family's event vocabulary. */
   defineFamily(family: GraphFamily): () => void {
     return this.store.register(family)
@@ -133,6 +169,7 @@ export class YzjGraph extends Service {
    * binds the write side, while the read side stays lenient.
    */
   async append<D extends JsonValue>(input: GraphAppendInput<D>): Promise<GraphEvent> {
+    if (input.type === GENESIS_TYPE) throw new Error(`"${GENESIS_TYPE}" is written by the kernel alone`)
     const family = this.store.familyForType(input.type)
     if (family === undefined) {
       throw new Error(`unknown graph event type "${input.type}"`)
@@ -145,28 +182,60 @@ export class YzjGraph extends Service {
     const enqueued = this.writes.catch(() => undefined).then(async () => {
       const log = this.log
       if (log === undefined) throw new Error('Yunzhijia graph has no account partition selected')
-      const event: GraphEvent = {
-        v: GRAPH_ENVELOPE_VERSION,
-        sv: spec.sv ?? 1,
-        seq: this.nextSeq,
-        time: Date.now(),
-        type: input.type,
-        data,
-        actor: input.actor,
+      /*
+        **起点在同一个串行写链里**（§13.1-6）：分区还没有任何 v2 行时，第一次追加之前先写
+        genesis，封存它接手的那一段 v1。起点写失败，这次追加一并失败——一行没有起点的
+        v2 是一段无从校验的链。起点不发 `yzj-graph/appended`：反应器不该多收一类事件。
+      */
+      if (this.lastHash === undefined) {
+        const genesis = this.store.familyForType(GENESIS_TYPE)?.events[GENESIS_TYPE]
+        if (genesis === undefined) throw new Error('the ledger family is not registered')
+        await this.write(log, GENESIS_TYPE, genesis.schema.parse({
+          v1Through: this.store.lastSeq,
+          v1Digest: await log.digest(),
+        }) as JsonValue, { kind: 'system' }, genesis.sv ?? 1)
       }
-      this.nextSeq += 1
-      await log.append(event)
-      this.store.apply(event)
-      this.appendsSinceSnapshot += 1
-      if (this.appendsSinceSnapshot >= SNAPSHOT_EVERY) {
-        this.appendsSinceSnapshot = 0
-        await log.writeSnapshot(this.store.foldedSeq, this.store.snapshotObjects())
-      }
+      const event = await this.write(log, input.type, data, input.actor, spec.sv ?? 1)
       this.ctx.emit('yzj-graph/appended', event)
       return event
     })
     this.writes = enqueued
     return enqueued
+  }
+
+  /**
+   * 落一行：成链、写盘、推进链尾、折叠。只在串行写链里调用。
+   *
+   * `seq` 在写盘之前就消耗掉（写盘失败留下一个空洞，空洞不算断链）；`lastHash` 紧接
+   * 写盘之后推进——这一行已经是盘上的事实，下一行必须接在它上面。
+   */
+  private async write(
+    log: GraphLog, type: string, data: JsonValue, actor: GraphActor, sv: number,
+  ): Promise<GraphEvent> {
+    const unsigned: Omit<GraphEvent, 'hash'> = {
+      v: GRAPH_ENVELOPE_VERSION, sv, seq: this.nextSeq, time: Date.now(), type, data, actor,
+      prev: this.lastHash ?? GENESIS_PREV,
+    }
+    const event: GraphEvent = { ...unsigned, hash: eventHash(unsigned) }
+    this.nextSeq += 1
+    await log.append(event)
+    this.lastHash = event.hash
+    if (this.chain.breakAt === undefined) {
+      this.chain = { genesisSeq: this.chain.genesisSeq ?? event.seq, verifiedThrough: event.seq }
+    }
+    this.store.apply(event)
+    this.appendsSinceSnapshot += 1
+    if (this.appendsSinceSnapshot >= SNAPSHOT_EVERY) {
+      this.appendsSinceSnapshot = 0
+      /*
+        快照写失败只报错，不 reject：这一行已经落盘、已经折叠。reject 会让一行已落盘的
+        `action/released` 被当成失败——写入不执行，却永远等不到 settled。
+      */
+      await log.writeSnapshot(this.store.foldedSeq, this.store.snapshotObjects()).catch((error: unknown) => {
+        console.error('[yzj-next-graph] failed to refresh the snapshot', error)
+      })
+    }
+    return event
   }
 
   /** Viewer-scoped object query. */

@@ -6,8 +6,14 @@
  * the kernel receives anchors and events, never a transport.
  */
 
-/** Envelope version of one graph log line. Bumped only for envelope changes. */
-export const GRAPH_ENVELOPE_VERSION = 1
+/**
+ * Envelope version of one graph log line. Bumped only for envelope changes.
+ *
+ * 2 —— 行成链（技术方案-下一代ERP账本 §4）：信封只加 `prev / hash` 两个字段，其余新概念
+ * 都是族字段。新写入一律是 2；读兼容 1，并且**保留行里原来的 `v`**——把 v1 行读成 v2，
+ * 等于替一段从没成过链的历史作证。
+ */
+export const GRAPH_ENVELOPE_VERSION = 2
 
 /**
  * **折叠版本** —— 快照是缓存，而缓存必须知道自己是哪一版代码算出来的。
@@ -37,7 +43,12 @@ export const GRAPH_ENVELOPE_VERSION = 1
   4 —— 新增 presence 族（决策 #63）、task/opened 的 claim 字段、commitment/opened 的
   origin 字段。旧日志里没有这些事件与字段，折叠结果可证不变——规矩仍然是 +1。
 */
-export const GRAPH_FOLD_VERSION = 4
+/*
+  5 —— 新增内核族 `ledger`（日志起点），以及 tools 的 `action`、channel 的 `outbound` 两族
+  （技术方案-下一代ERP账本 E0）。三族都没有对象，折叠结果可证不变——规矩仍然是 +1。代价
+  已知：首次启动所有快照作废、全量重折，并全量校验一遍链。
+*/
+export const GRAPH_FOLD_VERSION = 5
 
 /** Lossless JSON, the only shape a graph event may carry. */
 export type JsonValue =
@@ -57,13 +68,33 @@ export interface GraphActor {
  * tightening binds writes only and the read path decodes leniently.
  */
 export interface GraphEvent<D = JsonValue> {
-  readonly v: typeof GRAPH_ENVELOPE_VERSION
+  readonly v: 1 | 2
   readonly sv: number
   readonly seq: number
+  /** 记录时刻。发生时刻只在来源自带时间戳时另记，是族字段，不进信封。 */
   readonly time: number
   readonly type: string
   readonly data: D
   readonly actor: GraphActor
+  /** v2 必有：按 seq 升序的上一行 v2 存着的 hash；genesis 为 64 个 '0'。 */
+  readonly prev?: string
+  /** v2 必有：`sha256(canonicalJson({ v, sv, seq, time, type, data, actor, prev }))`。 */
+  readonly hash?: string
+}
+
+/**
+ * 链的完整性（§13.1-9）。`verifiedThrough` 是实时值：没断时随每次成功追加推进，断了就
+ * 冻结——之后的行照样接在最后一行存着的 hash 上，断点因此永久可见。
+ */
+export interface GraphIntegrity {
+  /** 日志起点的 seq。没有 v2 行时缺省。 */
+  readonly genesisSeq?: number
+  /** 校验通过的最后一个 seq；没有 v2 行时为 0。 */
+  readonly verifiedThrough: number
+  /** 第一个对不上的 seq。 */
+  readonly breakAt?: number
+  /** 放行了、却既没结算也没被标成结果不明的写（§13.4）。 */
+  readonly orphanActions: number
 }
 
 /**

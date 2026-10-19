@@ -37,3 +37,19 @@ export function asObjectRef(value: JsonValue | undefined): { kind: string; id: s
   const id = asString(record.id)
   return kind === undefined || id === undefined ? undefined : { kind, id }
 }
+
+/**
+ * 规范化 JSON —— 哈希与摘要的唯一输入形状（技术方案-下一代ERP账本 §4）。
+ *
+ * 对象键按 UTF-16 码元升序；值为 `undefined` 的键丢弃；字符串与数字用 `JSON.stringify`，
+ * 有限数的输出与 RFC 8785 一致。从 `objects/src/approval/family.ts` 原样挪来：审批的
+ * `digestArgs` 与账的行哈希必须是同一个函数，否则「同一份参数」在两处会是两个答案。
+ */
+export function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null'
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, entry]) => entry !== undefined)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(',')}}`
+}
