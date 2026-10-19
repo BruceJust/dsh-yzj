@@ -110,6 +110,32 @@ describe('agent 出站 (§13.5)', () => {
     expect(posted()).toHaveLength(0)
   })
 
+  // review L1：先记账、再存状态。
+  it('发出去之后存状态失败（磁盘满）：账照样记上', async () => {
+    const instance = client()
+    const state = (instance as unknown as { state: ChannelState }).state
+    vi.spyOn(state, 'save').mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('disk full'))
+    await expect(instance.send({ groupId: 'g-1' }, '已经发出去了')).rejects.toThrow('disk full')
+    expect(posted()).toHaveLength(1)
+  })
+
+  /*
+    #14 加强：三处传接纳消息的调用点在 orchestrator 里，只测 client 证明不了它们真的传了。
+    `reply()` 走的就是回复投递那一处（ack、超时与失败通知、重放都走它）。
+  */
+  it('orchestrator 的回复投递把接纳消息传下去；发送者为空时记主动发言', async () => {
+    const instance = client()
+    const state = (instance as unknown as { state: ChannelState }).state
+    const orchestrator = new YzjOrchestrator(ctx, instance, state, { maxReplyChars: 3_500 } as never)
+    const group = { groupId: 'g-1', groupName: '群', lastMsgId: '' } as never
+    await orchestrator.reply(group, message('u-asker'), ROUTE, '好的')
+    await orchestrator.reply(group, message(''), ROUTE, '好的')
+    expect(posted().map(line => (line.data as { authority: unknown }).authority)).toEqual([
+      { kind: 'message', messageId: 'm-1', senderOpenId: 'u-asker' },
+      { kind: 'operator', openId: 'op-1', via: 'proactive' },
+    ])
+  })
+
   it('记不上账只报错，不让发送变成失败——消息已经在场所里了', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const sent = await client(() => Promise.reject(new Error('disk full'))).send({ groupId: 'g-1' }, '照样发出')

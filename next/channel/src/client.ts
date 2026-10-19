@@ -364,8 +364,9 @@ export class YzjChannelClient {
         this.state.registerOutbound(`${nonce}:resolved`, sentGroupId, outboundFingerprint(sentGroupId, content))
         this.state.confirmOutbound(`${nonce}:resolved`, msgId)
       }
-      await this.state.save()
+      // 先记账、再存状态：消息已经在场所里了，状态写不下（磁盘满）不该连账也一起丢。
       if (origin === 'agent') await this.recordSent(msgId, sentGroupId || groupId, replyMsgId, content, admission)
+      await this.state.save()
     }
     return {
       ...(msgId === '' ? {} : { msgId }),
