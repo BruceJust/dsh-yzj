@@ -1,5 +1,7 @@
 # 技术方案：下一代 ERP 的账——一条日志，三本账
 
+> 2026-10-19 · **E0 已实施**（实现者增记，见 §17）：§13 的 T1–T6 与 21 条验收测试全部落地；3090 已部署并封存起点。两件事要人定：预算超了约 11%（§17.6），以及实施中新发现的缺口 G5 / G6（§17.4，Q10）。三条写路径的 3090 实测被模型凭据缺失挡住（§17.5）。
+>
 > 2026-10-15 · **v1.1（交付前自审）**。v1.0 是北极星，能讲清方向，但不能直接交开发：
 > - 它和三条冻结决策冲突（#58 受领、#63 分区、#64 私账），也和技术方案 §4 冲突（`audience` / `idemKey` 不进信封）；
 > - 它新造了一批与现有约 80 个事件类型重叠的名字；
@@ -19,7 +21,7 @@
 >
 > 2026-10-14 · v1.0。
 >
-> **读法**：§1–§11 讲为什么、长成什么样；§12 是现状对照；§13 是 E0 开发规格；§14 是后续各期与开放问题；§15 是断言。
+> **读法**：§1–§11 讲为什么、长成什么样；§12 是现状对照；§13 是 E0 开发规格；§14 是后续各期与开放问题；§15 是断言；§17 是 E0 实施记录。
 > **配套沙盘**：[恒测加急单](./next-erp-scenario.html) · [小记的一个赌注](./next-erp-rnd-scenario.html)。两页的「日志原文」演示本册的分类规则。**沙盘里的事件名（`utterance`、`judgment/decided`……）是讲概念用的示意词汇，不是代码词汇**；代码词汇以 §2.3 为准。
 > **冻结设计优先**：《终极形态设计方案》决策 #22–64、《技术方案-终极形态落地》、《私账层-终极设计》。本册与它们冲突时，以它们为准；本册只在 §1.4 列出的地方提出对齐方式。
 
@@ -356,16 +358,17 @@ revoke update, delete, truncate on ledger_event from app_writer;   -- 只追加�
 
 | 能力 | 现状 | 缺口 |
 |---|---|---|
-| 只追加、折叠版本、墓碑 | `graph`（`GRAPH_FOLD_VERSION = 4`） | 哈希链与起点（E0） |
+| 只追加、折叠版本、墓碑 | `graph`（`GRAPH_FOLD_VERSION = 5`） | 无 |
+| 哈希链与起点 | **已有（E0）**：信封 v2 的 `prev / hash`、`ledger/genesis`、`verifyChain`、`integrity()`、`yzj-graph/opened` | 每日根存证（E3） |
 | 按观看者读取、读取域钩子 | `graph` | 无 |
 | 承诺、受领三态、移交分叉 | `objects/commitment`（#58 / #59） | 投影要显示证据级别（E1） |
-| 租约 | `objects/lease`；`covers()` 只返回布尔值 | 返回命中的那张租约（E0） |
-| 守门人放行 | guard.ts:311 / :317 / :327 三处交给下游，ask 分支 :337；**都不留记录** | `action/*`（E0） |
-| 不经守门人的出站写 | G1–G4（§3.1 路三），直接调 bridge | E0.5：在 bridge 收口 |
-| 回合环境快照 | `env/snapshot.activeLeaseIds` **恒为空数组** | E0 填上 |
-| 回合接纳消息的发送者 | `TurnBinding` 只有 `messageId`，没有发送者；`decider` 指的是能答卡的人（P1 = 操作者），**不是**发送者 | 加 `senderOpenId`（E0，`orchestrator.bindingOf` 里有 `trigger.fromOpenId`） |
-| agent 出站发言 | `client.send` 只登记进 `channel-state.json`（非事实） | `outbound/posted`（E0） |
-| 规范化 JSON | `objects/src/approval/family.ts` 私有的 `canonicalJson` | 挪进 graph（E0） |
+| 租约 | `objects/lease`；**已有（E0）**：`coveringLease()` 说得出是哪一张、谁签的，`covers()` 由它导出 | 无 |
+| 守门人放行 | **已有（E0）**：四条放行路各自挂起授权，`tools/execute` 先写 `action/released` 再执行、后写 `action/settled`；孤儿标 `action/outcome-unknown` | 无 |
+| 不经守门人的出站写 | G1–G4（§3.1 路三），直接调 bridge；E0 实施时又找到 G5、G6（§17.4） | **仍未覆盖**。E0.5：在 bridge 收口；G5 先要 Q10 拍板 |
+| 回合环境快照 | **已有（E0）**：`env/snapshot.activeLeaseIds` = 当时生效的租约 | 无 |
+| 回合接纳消息的发送者 | **已有（E0）**：`TurnBinding.senderOpenId`，由 `bindingOf` 从 `trigger.fromOpenId` 填 | 无 |
+| agent 出站发言 | **已有（E0）**：每次 `origin='agent'` 成功发送恰好一行 `outbound/posted` | 经桌面路出站的模型/系统发言不在其中（G6） |
+| 规范化 JSON | **已有（E0）**：`graph/src/json.ts` 的 `canonicalJson`，审批的 `digestArgs` 逐字不变 | 无 |
 | 押、裁决归档 | `pledger`（pgraph，私账） | 不动（#64） |
 | 判断需求、检验点、结账 | 触发①已有（`approval`） | E1 |
 | 钱、存证、多写者、跨组织 | 无 | E2–E5 |
@@ -633,6 +636,7 @@ export function auditLedger(events: readonly GraphEvent[]): {
 | Q7 | 规则版本由谁签发？法账还不存在 | 规则 = 代码常量 `id@version`；升级部署时由操作者写一行 `said: rule/adopted`，算作签发 |
 | Q8 | 加密粉碎的「主体」怎么划？一行可能提到多个人 | 按「发言者」划，只加密正文类字段；结构字段（谁、何时、哪一类）不加密 |
 | Q9 | `event_post_materials` 该不该经确认？ | 进 `WRITE_SPECS`，定为 standard：它改的是所有参会人都会看到的日程，在接纳消息的回合内免确认，其余情况要问 |
+| Q10 | G5（§17.4）：模型工具 `commitment_handoff` 以操作者名义落 `said` 行，移交话语又走桌面路不签名。移交出生的那条承诺，委派者该是谁？移交话语以谁的口吻出站？ | 承诺族把委派者写进 `data`（`delegatedBy` 显式字段），不再从出生 actor 推导；模型工具产生的行一律 `actor: agent`；移交话语走 `origin='agent'` 签名出站，授权 = 那次放行的 `action/released`。牵涉 #58 / #59 / #63，须人拍板 |
 
 ---
 
@@ -645,7 +649,7 @@ export function auditLedger(events: readonly GraphEvent[]): {
 3. 每次 `origin='agent'` 的成功发送恰好对应一行 `outbound/posted`，日志里没有正文。
 4. 改动任意一行 v2，校验在该行报告断链。
 5. 删掉快照全量重放，投影逐字节一致。
-6. 模型可调用的工具面上，没有写 `said` 的接口（现状如此，加测试锁住）。
+6. 模型可调用的工具面上，没有写 `said` 的接口（已加测试锁住：`tools/tests/said-surface.spec.ts`。**有一个已知例外 G5**，见 §17.4，测试把它单独钉住，修好时那一条会变红）。
 
 **E1 以后**：
 
@@ -666,3 +670,80 @@ export function auditLedger(events: readonly GraphEvent[]): {
 - 不催受领（#58）。
 - 不自动重试没有幂等键的外部写。
 - 不上区块链，不提前上图数据库，不为假想的规模提前分布式化。
+
+---
+
+## 17. 实施记录（E0，2026-10-19，实现者增记）
+
+### 17.1 提交
+
+| 提交 | 内容 |
+|---|---|
+| `a355b58` | T1 / T2 / T6：信封 v2、`canonicalJson` 挪进内核、`ledger/genesis`、`verifyChain`、`integrity()`、`yzj-graph/opened`、`atomOf`、`auditLedger`、审计脚本 |
+| `9bebe39` | T3 / T4：`coveringLease` / `activeLeaseIds`、`senderOpenId`、守门人挂起授权、`tools/execute` 先记后做、孤儿扫描 |
+| `caa61cd` | T5：`outbound/posted`；§15 断言 6 的测试锁 |
+| `8dc0b37` | `outbound/posted` 的形状不再手写两遍 |
+| `0e7dea7` | 监听器同步抛错不再让已落盘的追加 reject（§17.3-2） |
+| `354dc3a` | 账 × 宿主真实的工具注册表：三条放行路的进程内实测替身 |
+
+审计脚本：`pnpm --filter @yzj-next/graph run audit [分区目录]`。**是 `pnpm run audit`**：`pnpm audit` 是 pnpm 自带的依赖漏洞审计。
+
+### 17.2 验收测试落点
+
+§13.7 的 21 条全部落地；全量 56 个测试文件、1181 条测试绿，八个包 typecheck 绿。
+
+| # | 文件 |
+|---|---|
+| 1 | `objects/tests/approval.spec.ts`（期望值在挪动之前用旧代码算出：`c1fe2c242da793a2`） |
+| 2、3、4、5、15、17、19、20 | `graph/tests/ledger.spec.ts`（#2 的期望 hash 在 Python 里从规范形状独立算出，没用本仓库的代码） |
+| 6–13、16、18、21 | `tools/tests/guard.spec.ts` |
+| 14 | `channel/tests/ledger.spec.ts` |
+| §15-6 | `tools/tests/said-surface.spec.ts`（做过变异检验：往工具文件里注入一个 operator actor，测试变红） |
+| 真注册表 | `tools/tests/ledger-integration.spec.ts`：dsh-tools 真正的 `ToolRuntime` + 真的 `ApprovalAnswerer`、卡片服务、租约服务、`yzj_doc_*` 工具体，只缺 CLI 与模型 |
+
+§13.7 预言会变红的四处旧断言都按预期变红，按规格改了断言、没改实现。
+
+### 17.3 与规格的出入（请复核）
+
+**偏离**：
+
+1. **`TOOL_TIMEOUT` 记 `aborted-after-body`**，不按 §13.3 表落到 `failed`。宿主的超时包装器（`dsh-tool-call-timeout-policy`）在计时器响过之后**替换**结果；它的计时在 `tools/execute` 里才开始，工具体几毫秒内就被调用，所以超时几乎总是「工具体跑了、调用被掐断」。我们的 `yzj_*` 写工具都设了 `timeoutMs`，这条路是真的会走到的。记成 `failed` 等于告诉翻账的人「没写成」，而那份文档可能已经建好了。`errorCode` 照记 `TOOL_TIMEOUT`。
+2. **`next()` 抛出时不写 `settled`**（规格写的是「在 finally 里写」）。`next()` 抛出 = 下游某一层包装器自己坏了，效果有没有发生说不清；编一个 outcome 不如照实留成孤儿：`integrity().orphanActions` 立刻看得见，下次打开分区标成「结果不明」。
+3. **「起点之后的非 v2 行」按起点登记的 `v1Through` 判**，不只按排序位置。这样插在 seq 空洞里（`v1Through` 与起点之间）的伪造 v1 行也算断链。
+4. **v2 行的 `prev / hash` 只要求是字符串**；值不对是断链，不是损坏行。损坏行会被丢掉、断点落到下一行；当作断链则断点精确落在被改的那一行。缺字段仍是损坏行（§13.1-3）。
+
+**规格之外加的**（都很小，都在保 I1「放行了就有账」）：
+
+1. **文件尾半行守卫**（`log.ts`）：上次崩在写一半、或追加报错不知写进去多少时，下一行先补一个换行。否则新行会和那半行粘成一行损坏行——一行已落盘的 `action/released` 在重载时消失，而它放出去的写已经发生了。
+2. **监听器同步抛错不让已落盘的追加 reject**（`service.ts`）：cordis 的 `emit` 不接住监听器的同步异常；`appended` 发在写盘之后，与规格要快照写失败只报错是同一个理由。`opened` 发在分区加载的 promise 里，不接住会拖垮 `selectAccount`。
+3. **`ledger/genesis` 外部 append 一律拒收**：起点只有内核能写。
+4. **插件晚到补扫**：分区先于 tools 插件打开时，`YzjGraph.opened` 让孤儿扫描照样跑一次。
+5. **`YzjGraph.orphanActions()`**：孤儿扫描与 `integrity()` 数同一个集合；墓碑不豁免（更正改的是说法，改不了一次已放出去的写）。
+
+规格里的一处代码事实已漂移：dsh-tools 的 `tools/execute` 现在在 `lib/index.js:3202`（规格写 3168–3186），语义一致。
+
+### 17.4 实施中新发现的缺口（E0 不改行为）
+
+| # | 位置 | 是什么 | 去向 |
+|---|---|---|---|
+| G5 | `objects/src/commitment/handoff.ts` 的 `reissueEdge`，由模型工具 `commitment_handoff` 调用 | 以桌面操作者的名义（`actor: desktopActor()`）落 `commitment/opened` 与 `commitment/transferred`：**模型参与产生的 `said` 行**，违反 §2.1 判别规则 2 与 §15 断言 6。**不能就地把 actor 改成 agent**：承诺族从出生事件的 actor 折叠出 `delegatedBy`（验收权），缺了它 `ownsCommitment` 放行任何人——那会把一个记账问题变成一次权限放宽 | Q10，须人拍板；测试已把它单独钉住 |
+| G6 | `commitment_handoff` 的移交话语与解除告知（`commitment/tools.ts:541`、`:555`）；交付推断确认后的「已交付」代发（`delivery/inference.ts:175`） | 模型 / 系统的发言走 `sendInPlace` → `origin='desk'`：按 #63 不签名，按 §13.5 也不进 `outbound/posted`——这几句出站在账上没有行。后者是设计里的「确认即签发代发」，前者随 Q10 一起定 | E0.5：`im message send` 是写类命令，bridge 收口时一并覆盖 |
+
+扫描时还发现：`objects/src/memory/tools.ts` 含两个 NUL 字节，`grep` 会把它当二进制**静默跳过**。做代码扫描要用 `grep -a`；§15-6 的测试按字节读文件，不受影响。
+
+### 17.5 3090 实测
+
+- **部署前备份**：`~/.dsh-next/yzj-next/graph.backup-pre-E0-20261019`（`graph.jsonl` 的 sha256 = `bfc8ffcb…4dd7`）。回滚 = 恢复它，并接受 E0 以来的行全部丢失（§13.0）。
+- **起点**：seq 753，`v1Through: 752`，`v1Digest` 与备份文件的 sha256 **逐字节一致**。
+- **链**：四次重启（launchd → 浏览器面板 → launchd → 浏览器面板 → launchd）之后审计：`genesisSeq 753`、`verifiedThrough` 到最后一行、`breakAt` 空、损坏行 0、孤儿 0、`saidWithoutOpenId` 0（I5 在真实数据上本来就成立，E1 可以直接改成写入拒绝）。
+- **发言**（`outbound/posted`）：五种发言各自的授权都对——受理回执、中断通知、续做通知 = `message`（指向那条接纳消息）；卡片动作回执、重启恢复时的卡片回帖 = `operator / proactive`。
+- **三条写路径没能在 3090 上实测**：3090 的模型凭据缺失。设置里引用 `GROK_API_KEY` / `XIAOBIAOGE_API_KEY`，而实例进程环境里两者都不存在（`launchctl getenv` 也为空），每次模型调用约 10 秒超时、重试 5 次后回合失败；磁盘上最近一次成功的 agent 会话在 9 月 15 日。这不是 E0 引入的。替代证据是 `ledger-integration.spec.ts`：同一套代码在 dsh-tools 真注册表上走完消息、确认（批准与拒绝）、宿主审批、租约四种授权和两种取消。实测留下的那条测试任务已作废。
+- **补上凭据之后的复跑**：在测试群 A（`dsh-2`）发 `@next` 让 agent 在「我的知识」建一篇测试文档（消息路径）→ 让它删掉（强写，在自聊的确认卡上回「确认」：确认路径）→ 桌面「我的判断 · 标准写确认 · 不用再问我」签一张 doc 类租约 → 再建一篇（租约路径，租约先于消息放行）→ 删掉 → 收回租约 → 跑审计脚本，看每条 `released` 都有 `settled`、`chain.breakAt` 为空。
+
+### 17.6 预算
+
+规格要求新增与修改的 src ≤ 500 行（不含注释与测试）。实际 **579 行**：其中 8 行是 `canonicalJson` 原样挪动（净增为零），18 行是审计脚本（不在 `src/`），src 净新增 553 行，**超出约 11%**。超出的主要是 §17.3 「规格之外」五条（约 20 行）和 schema、授权解析的实际体量。没有为了压行数去压缩可读的代码。按 §13.0「超了先回来改规格」：请拍板接受，或指定删哪一条。
+
+### 17.7 仍未覆盖
+
+G1–G6 都还不在账上：G1–G4（§3.1 路三）与 G6 等 E0.5 在 bridge 统一收口；G5 等 Q10。
