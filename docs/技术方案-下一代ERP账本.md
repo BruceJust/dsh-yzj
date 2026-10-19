@@ -1,6 +1,6 @@
 # 技术方案：下一代 ERP 的账——一条日志，三本账
 
-> 2026-10-19 · **E0 已实施**（实现者增记，见 §17）：§13 的 T1–T6 与 21 条验收测试全部落地；3090 已部署并封存起点。两件事要人定：预算超了约 11%（§17.6），以及实施中新发现的缺口 G5 / G6（§17.4，Q10）。三条写路径的 3090 实测被模型凭据缺失挡住（§17.5）。
+> 2026-10-19 · **E0 已实施**（实现者增记，见 §17）：§13 的 T1–T6 与 21 条验收测试全部落地；3090 已部署并封存起点。两件事要人定：预算超了约 11%（§17.6），以及实施中新发现的缺口 G5 / G6（§17.4，Q10）。3090 实测：消息、确认两条写路径已通过；租约路径要人在桌面签发租约，留给人做（§17.5）。
 >
 > 2026-10-15 · **v1.1（交付前自审）**。v1.0 是北极星，能讲清方向，但不能直接交开发：
 > - 它和三条冻结决策冲突（#58 受领、#63 分区、#64 私账），也和技术方案 §4 冲突（`audience` / `idemKey` 不进信封）；
@@ -737,8 +737,11 @@ export function auditLedger(events: readonly GraphEvent[]): {
 - **起点**：seq 753，`v1Through: 752`，`v1Digest` 与备份文件的 sha256 **逐字节一致**。
 - **链**：四次重启（launchd → 浏览器面板 → launchd → 浏览器面板 → launchd）之后审计：`genesisSeq 753`、`verifiedThrough` 到最后一行、`breakAt` 空、损坏行 0、孤儿 0、`saidWithoutOpenId` 0（I5 在真实数据上本来就成立，E1 可以直接改成写入拒绝）。
 - **发言**（`outbound/posted`）：五种发言各自的授权都对——受理回执、中断通知、续做通知 = `message`（指向那条接纳消息）；卡片动作回执、重启恢复时的卡片回帖 = `operator / proactive`。
-- **三条写路径没能在 3090 上实测**：3090 的模型凭据缺失。设置里引用 `GROK_API_KEY` / `XIAOBIAOGE_API_KEY`，而实例进程环境里两者都不存在（`launchctl getenv` 也为空），每次模型调用约 10 秒超时、重试 5 次后回合失败；磁盘上最近一次成功的 agent 会话在 9 月 15 日。这不是 E0 引入的。替代证据是 `ledger-integration.spec.ts`：同一套代码在 dsh-tools 真注册表上走完消息、确认（批准与拒绝）、宿主审批、租约四种授权和两种取消。实测留下的那条测试任务已作废。
-- **补上凭据之后的复跑**：在测试群 A（`dsh-2`）发 `@next` 让 agent 在「我的知识」建一篇测试文档（消息路径）→ 让它删掉（强写，在自聊的确认卡上回「确认」：确认路径）→ 桌面「我的判断 · 标准写确认 · 不用再问我」签一张 doc 类租约 → 再建一篇（租约路径，租约先于消息放行）→ 删掉 → 收回租约 → 跑审计脚本，看每条 `released` 都有 `settled`、`chain.breakAt` 为空。
+- **模型回合起初跑不起来，根因是网络路径**（先前这里写成「凭据缺失」，是误判，已更正：凭据在 `~/.dsh-next/.credentials.yaml`，由 `dsh-credentials-local` 解析，本来就在）。本机经 Clash 本地代理 `127.0.0.1:7890` 出网；launchd 拉起的 3090 没有代理环境，Node 的 fetch 直连模型网关，直连在本机网络下连不上，undici 建连 10 秒超时，OpenAI SDK 报 `Request timed out.`。修法：只改 3090 的 launchd plist，加 `HTTPS_PROXY` / `HTTP_PROXY` / `NODE_USE_ENV_PROXY=1`，并把 `yunzhijia.com` 放进 `NO_PROXY`——云之家流量照旧直连（已用死代理端口验证 yzj-cli 认 `NO_PROXY`）。原 plist 备份在 `~/Library/LaunchAgents/.com.bruce.yzj-next.plist.bak-20261019`。3080 未动。
+- **消息路径**（测试群 A 里 `@next` 在「我的知识」建测试文档）：seq 795 `action/released`，`authority = message`（接纳消息与发送者）→ 796 `settled ok`（1.2 秒）→ 800 回复记 `message`。
+- **确认路径**（让它删掉那篇文档，强写）：807 `approval/opened`，此时没有 `released`（先问后做）→ 自聊里对卡回「确认」→ 811 `approval/decided` → 812 `action/released`，`authority = approval`（approvalId 与批卡人）→ 813 `settled ok`，文档已删。
+- **租约路径未在 3090 上跑**：提议租约是桌面动作（「我的判断 · 标准写确认 · 不用再问我」），实施会话里这一步被自动模式的安全检查拦下，没有执行（图上没有 `lease/proposed`）。签发一张常设授权本来就该是人的动作，留给人做：点「不用再问我」→ 在卡上签发 → 在测试群 A 让 agent 再建一篇测试文档（租约先于消息放行，应记 `authority = lease`）→ 删掉 → 收回租约 → 跑审计脚本。租约路径在真注册表上的进程内证据见 `ledger-integration.spec.ts`。
+- **审计**（实测后）：820 行，`genesisSeq 753`、`verifiedThrough 820`、`breakAt` 空、损坏行 0、孤儿 0；`action/released` 2 条、`settled` 2 条、`outbound/posted` 26 条。
 
 ### 17.6 预算
 
