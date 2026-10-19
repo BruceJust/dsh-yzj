@@ -13,10 +13,11 @@ import { z } from 'zod'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { canonicalJson } from '../src/json.ts'
 import {
-  GENESIS_PREV, atomOf, auditLedger, eventHash, orphanReleases, verifyChain,
+  GENESIS_PREV, atomOf, auditLedger, eventHash, orphanReleases, v1SealHolds, verifyChain,
 } from '../src/ledger.ts'
 import { decodeEvent, parseLog } from '../src/log.ts'
 import { YzjGraph } from '../src/service.ts'
+import { GraphStore } from '../src/store.ts'
 import type { GraphEvent, GraphFamily, GraphViewer } from '../src/types.ts'
 
 const OPERATOR: GraphViewer = { kind: 'operator', openId: 'op-1' }
@@ -184,6 +185,13 @@ describe('断链能被发现，而且断了照样能写', () => {
     const reopened = await openGraph()
     expect(reopened.integrity()).toEqual({ genesisSeq: 3, verifiedThrough: 4, orphanActions: 0 })
 
+    // 两行 v2 之间的空洞同样不算断链。
+    await chmod(logPath(), 0o444)
+    await expect(note(reopened, 'lost-again')).rejects.toThrow()
+    await chmod(logPath(), 0o644)
+    expect((await note(reopened, 'after-gap')).seq).toBe(6)
+    expect((await openGraph()).integrity()).toEqual({ genesisSeq: 3, verifiedThrough: 6, orphanActions: 0 })
+
     await appendFile(logPath(), `${JSON.stringify({
       v: 1, sv: 1, seq: 2, time: 2, type: 'note/opened', data: { noteId: 'forged', text: 'x' }, actor: ACTOR,
     })}\n`, 'utf8')
@@ -211,6 +219,70 @@ describe('断链能被发现，而且断了照样能写', () => {
   it('校验函数绝不向外抛错', () => {
     const hostile = [{ v: 2, seq: 1, type: 'ledger/genesis', get data(): never { throw new Error('boom') } }]
     expect(verifyChain(hostile as never)).toMatchObject({ breakAt: 1 })
+  })
+})
+
+/*
+  review 补上的两个洞（§17.8）。判据：凡是没有从改动处一路重算到链尾的「朴素篡改」都必须
+  被发现；只有完整重算这一类留给 E3 的外部存证。
+*/
+describe('朴素篡改都要被发现', () => {
+  it('整条链被改回 v1：断在起点那一行，而且下一次追加不会重新封存——系统不替篡改者洗白', async () => {
+    const graph = await openGraph()
+    await note(graph, 'n1')
+    await note(graph, 'n2')
+    await writeFile(logPath(), (await readFile(logPath(), 'utf8')).replaceAll('"v":2', '"v":1'), 'utf8')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const reopened = await openGraph()
+    expect(reopened.integrity()).toMatchObject({ breakAt: 1, verifiedThrough: 0 })
+    const next = await note(reopened, 'n3')
+    const written = await lines()
+    expect(written.filter(line => line.type === 'ledger/genesis')).toHaveLength(1)
+    expect(next.prev).toBe(written[2]?.hash)
+  })
+
+  it('一行 v1 的起点只可能是改出来的', () => {
+    const forged = { v: 1 as const, sv: 1, seq: 1, time: 1, type: 'ledger/genesis', data: {} as never, actor: { kind: 'system' as const } }
+    expect(verifyChain([forged])).toMatchObject({ breakAt: 1 })
+  })
+
+  it('起点封存的 v1 段：原样为真，改过一个字就为假；没有起点就说不上', async () => {
+    await mkdir(join(root, 'acct-1'), { recursive: true })
+    await writeFile(logPath(), `${JSON.stringify({
+      v: 1, sv: 1, seq: 1, time: 1, type: 'note/opened', data: { noteId: 'old', text: '原话' }, actor: ACTOR,
+    })}\n`, 'utf8')
+    expect(v1SealHolds(await readFile(logPath()), parseLog(await readFile(logPath(), 'utf8')).events)).toBeUndefined()
+    await note(await openGraph(), 'n1')
+    const sealed = await readFile(logPath())
+    expect(v1SealHolds(sealed, parseLog(sealed.toString('utf8')).events)).toBe(true)
+    const forged = Buffer.from(sealed.toString('utf8').replace('原话', '假话'))
+    // 链本身看不见这一处（v1 段不进链），封印看得见。
+    expect(verifyChain(parseLog(forged.toString('utf8')).events).breakAt).toBeUndefined()
+    expect(v1SealHolds(forged, parseLog(forged.toString('utf8')).events)).toBe(false)
+  })
+
+  it('文件尾停在半行上时写下的起点，封印照样核得上', async () => {
+    await mkdir(join(root, 'acct-1'), { recursive: true })
+    await writeFile(logPath(), `${JSON.stringify({
+      v: 1, sv: 1, seq: 1, time: 1, type: 'note/opened', data: { noteId: 'old', text: 'a' }, actor: ACTOR,
+    })}\n{"v":1,"seq":2,"ty`, 'utf8')
+    await note(await openGraph(), 'n1')
+    const bytes = await readFile(logPath())
+    expect(v1SealHolds(bytes, parseLog(bytes.toString('utf8')).events)).toBe(true)
+  })
+
+  it('截掉日志的尾巴：快照比日志新，报断点；那份快照不信，丢掉的 seq 不复用', async () => {
+    const graph = await openGraph()
+    for (const id of ['n1', 'n2', 'n3']) await note(graph, id)
+    await graph.flush()
+    const kept = (await readFile(logPath(), 'utf8')).split('\n').slice(0, 3).join('\n')
+    await writeFile(logPath(), `${kept}\n`, 'utf8')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const reopened = await openGraph()
+    expect(reopened.integrity()).toMatchObject({ breakAt: 4, verifiedThrough: 3 })
+    // 投影跟着日志走，不跟着快照走：n3 那一行已经不在了。
+    expect(reopened.query(OPERATOR, { kind: 'note' }).map(object => object.id).sort()).toEqual(['n1', 'n2'])
+    expect((await note(reopened, 'n4')).seq).toBe(5)
   })
 })
 
@@ -260,7 +332,10 @@ describe('落盘的那一行就是事实', () => {
     const wrong = await note(first, 'mistake')
     await first.append({ type: 'tombstone/appended', data: { targetSeq: wrong.seq, reason: 'x', by: 'op-1' }, actor: ACTOR })
     await first.flush()
+    const hydrate = vi.spyOn(GraphStore.prototype, 'hydrate')
     const withSnapshot = await openGraph()
+    // 带快照的那一次真的走了快照：否则这条比较的是两次全量重放。
+    expect(hydrate.mock.calls.at(-1)?.[1]).toMatchObject({ upToSeq: 8 })
     await rm(join(root, 'acct-1', 'snapshot.json'))
     const replayed = await openGraph()
     expect(JSON.stringify(replayed.query(OPERATOR, {}))).toBe(JSON.stringify(withSnapshot.query(OPERATOR, {})))

@@ -26,7 +26,7 @@ export { decodeEvent, parseLog } from './log.ts'
 export { asNumber, asObjectRef, asRecord, asString, asStringArray, canonicalJson } from './json.ts'
 export {
   ACTION_OUTCOME_UNKNOWN, ACTION_RELEASED, ACTION_SETTLED, GENESIS_PREV, GENESIS_TYPE,
-  actionKey, atomOf, auditLedger, eventHash, integrityOf, ledgerFamily, orphanReleases, verifyChain,
+  actionKey, atomOf, auditLedger, eventHash, integrityOf, ledgerFamily, orphanReleases, v1SealHolds, verifyChain,
   type Atom, type ChainState, type LedgerAudit,
 } from './ledger.ts'
 export { GraphStore } from './store.ts'

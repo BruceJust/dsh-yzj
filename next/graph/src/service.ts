@@ -108,10 +108,19 @@ export class YzjGraph extends Service {
       if (loaded.damagedLines > 0) {
         console.error(`[yzj-next-graph] ${String(loaded.damagedLines)} unreadable log line(s) in ${accountKey}`)
       }
-      this.store.hydrate(loaded.events, loaded.snapshot)
-      this.nextSeq = this.store.lastSeq + 1
+      /*
+        **快照比日志新 = 日志的尾巴没了。** 快照只在行落盘之后才写，所以它的 `upToSeq` 永远
+        不会超过盘上的最后一行——除非有人截掉了尾巴（或掉电丢了没刷盘的行）。这是哈希链
+        自己看不见的那种改动，快照顺手就能说出来。那份快照折叠过日志里已经没有的行，不能
+        信；丢掉的 seq 也不复用，免得新行冒名顶替。
+      */
+      const tail = loaded.events.at(-1)?.seq ?? 0
+      const truncated = loaded.snapshot !== undefined && loaded.snapshot.upToSeq > tail
+      this.store.hydrate(loaded.events, truncated ? undefined : loaded.snapshot)
+      this.nextSeq = Math.max(tail, truncated ? loaded.snapshot?.upToSeq ?? 0 : 0) + 1
       // 断链不阻止加载，也不阻止继续写：账照记，断点照报。
-      const { lastHash, ...chain } = verifyChain(loaded.events)
+      const { lastHash, ...verified } = verifyChain(loaded.events)
+      const chain = truncated && verified.breakAt === undefined ? { ...verified, breakAt: tail + 1 } : verified
       this.lastHash = lastHash
       this.chain = chain
       if (chain.breakAt !== undefined) {

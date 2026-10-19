@@ -59,7 +59,8 @@ export function decodeEvent(line: string): GraphEvent | undefined {
     type,
     data: data as GraphEvent['data'],
     actor: actor as unknown as GraphEvent['actor'],
-    ...(v === 2 ? { prev: prev as string, hash: hash as string } : {}),
+    // v1 行带着 prev / hash = 一行被改回 v1 的 v2 行。照样留下，让链校验认出它来。
+    ...(typeof prev === 'string' && typeof hash === 'string' ? { prev, hash } : {}),
   }
 }
 

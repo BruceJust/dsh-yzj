@@ -64,6 +64,9 @@ export interface ChainState extends Omit<GraphIntegrity, 'orphanActions'> {
  *   它会被折叠成事实，链却不报。「之后」按起点登记的 `v1Through` 算，所以连 seq 空洞
  *   里插进去的那一行也逃不掉。
  * - 起点必须是第一行 v2，且只有一个。
+ * - **带着 hash 的行就是链上的行，不论它的 `v` 写的是几**：把 v2 改回 v1 是想逃开校验，
+ *   它照样断在那一行；它存着的 hash 照样是链尾——否则整条链被改回 v1 之后，下一次追加会
+ *   重新写一个起点，把篡改过的历史当成干净的 v1 封存起来，系统亲手替篡改者洗白。
  * - seq 不连续不算断链：写盘失败会消耗掉一个 seq。
  *
  * **绝不向外抛错**：分区打开要等它，抛出去整个实例就写不了了。出错就当作断在那一行。
@@ -79,21 +82,26 @@ export function verifyChain(events: readonly GraphEvent[]): ChainState {
     ...(breakAt === undefined ? {} : { breakAt }),
     ...(lastHash === undefined ? {} : { lastHash }),
   })
+  const chained = (event: GraphEvent): boolean => event.v === 2 || event.hash !== undefined
   try {
-    for (const event of events) if (event.v === 2) lastHash = event.hash
-    const first = events.find(event => event.v === 2)
-    if (first === undefined) return result()
+    for (const event of events) if (chained(event)) lastHash = event.hash
+    const first = events.find(chained)
+    if (first === undefined) {
+      const forged = events.find(event => event.type === GENESIS_TYPE)
+      return forged === undefined ? result() : result(forged.seq)
+    }
     at = first.seq
     if (first.type === GENESIS_TYPE) genesisSeq = first.seq
     const boundary = (genesisSeq === undefined ? undefined : asNumber(asRecord(first.data)?.v1Through)) ?? first.seq
     let expected = GENESIS_PREV
     for (const event of events) {
       at = event.seq
-      if (event.v !== 2) {
-        if (event.seq > boundary) return result(event.seq)
+      if (!chained(event)) {
+        // 起点只会是 v2：一行 v1 的起点只可能是改出来的。
+        if (event.seq > boundary || event.type === GENESIS_TYPE) return result(event.seq)
         continue
       }
-      if ((event === first) !== (event.type === GENESIS_TYPE)) return result(event.seq)
+      if (event.v !== 2 || (event === first) !== (event.type === GENESIS_TYPE)) return result(event.seq)
       const hash = eventHash(event)
       if (event.prev !== expected || event.hash !== hash) return result(event.seq)
       expected = hash
@@ -103,6 +111,26 @@ export function verifyChain(events: readonly GraphEvent[]): ChainState {
   } catch {
     return result(Math.max(at, 1))
   }
+}
+
+/**
+ * 起点封存的那一段 v1 还是不是原样：用文件的原始字节重算起点之前那一段的 sha256，和起点
+ * 登记的 `v1Digest` 对。不核的话，那个封印只是摆设——改动 E0 之前的任何一行都没人知道。
+ *
+ * 加载时不核（§13.1-8：v1 段不校验），审计时核：它要的是字节，那是文件的事。起点那一行
+ * 前面可能多一个换行（文件尾停在半行上时，追加先补一个），两种前缀都认。
+ * @returns 没有起点时为 undefined。
+ */
+export function v1SealHolds(raw: Uint8Array, events: readonly GraphEvent[]): boolean | undefined {
+  const genesis = events.find(event => event.type === GENESIS_TYPE && event.v === 2)
+  const digest = asString(asRecord(genesis?.data)?.v1Digest)
+  if (genesis?.hash === undefined || digest === undefined) return undefined
+  const bytes = Buffer.from(raw)
+  const at = bytes.indexOf(`"hash":"${genesis.hash}"`)
+  if (at < 0) return false
+  const lineStart = bytes.lastIndexOf('\n', at) + 1
+  const sha = (end: number): string => createHash('sha256').update(bytes.subarray(0, end)).digest('hex')
+  return sha(lineStart) === digest || (lineStart > 0 && sha(lineStart - 1) === digest)
 }
 
 /** 一次调用的键。callId 只在单个会话内唯一，所以键是 (sessionId, callId) 这一对（§13.3）。 */
