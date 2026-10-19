@@ -6,6 +6,7 @@
 
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -18,7 +19,7 @@ import {
   approvalFamily, approvalIdFor, leaseFamily, leasesService, type PendingAsk, type TurnBinding,
 } from '@yzj-next/objects'
 import { markOrphans } from '../src/action.ts'
-import { applyApprovalGuard, denialFor, WRITE_SPECS } from '../src/guard.ts'
+import { applyApprovalGuard, denialFor, READ_ONLY_TOOLS, WRITE_SPECS } from '../src/guard.ts'
 
 const IDENTITY = { orgId: 'org-1', openId: 'op-1', name: '操作者' }
 
@@ -417,6 +418,53 @@ describe('read-only turns', () => {
     binding = GATEWAY_BINDING
     expect(await decide(execution('yzj_doc_create', { title: 'x' })))
       .toMatchObject({ kind: 'allow' })
+  })
+
+  /*
+    N6：确认表只列了要问人的写。不在表里的写——改日程描述、建目标文档、往场所投卡、改本地
+    图、写本地文件——此前在轻问里照样能跑；一个还没人见过的新工具也一样。
+  */
+  it.each([
+    'event_post_materials', 'goal_propose', 'commitment_register', 'commitment_receipt', 'conflict_flag',
+    'memory_forget', 'minutes_ingest', 'event_link', 'write', 'edit', 'todo_write', 'ask_user_question',
+    'yzj_file_download', 'a_tool_added_next_month',
+  ])('不在只读名单上的 %s：拒', async (name) => {
+    binding = READ_ONLY
+    expect(await decide(execution(name, {})))
+      .toMatchObject({ kind: 'deny', reason: expect.stringContaining('轻问') })
+  })
+
+  it.each([...READ_ONLY_TOOLS])('只读名单上的 %s：照常放行', async (name) => {
+    binding = READ_ONLY
+    expect(await decide(execution(name, {}))).toMatchObject({ kind: 'allow' })
+  })
+
+  it('白名单只管轻问：桌面与群里的回合照旧', async () => {
+    binding = DESKTOP_BINDING
+    expect(await decide(execution('event_post_materials', {}))).toMatchObject({ kind: 'allow' })
+    binding = GATEWAY_BINDING
+    expect(await decide(execution('commitment_receipt', {}))).toMatchObject({ kind: 'allow' })
+  })
+
+  /*
+    名单写错一个字，那个读工具就在轻问里静默失效；名单里混进一个要问人的写，契约就破了。
+    所以名单上每一项要么是 next 里定义的工具，要么是宿主的只读内置工具，且不在确认表里。
+  */
+  it('名单上的每一项都真实存在、且不是确认表里的写', () => {
+    const NEXT = new URL('../../', import.meta.url).pathname
+    const defined = new Set(['graph', 'objects', 'pledger', 'tools'].flatMap((pkg) => {
+      const walk = (dir: string): string[] => readdirSync(dir).flatMap((name) => {
+        const path = join(dir, name)
+        if (statSync(path).isDirectory()) return name === 'client' ? [] : walk(path)
+        return /\.ts$/u.test(name) ? [readFileSync(path, 'utf8')] : []
+      })
+      return walk(join(NEXT, pkg, 'src')).flatMap(source => [...source.matchAll(/^\s+name: '([a-z_]+)',$/gmu)].map(match => match[1] ?? ''))
+    }))
+    const HOST_READERS = ['read', 'read_image', 'glob', 'grep', 'web_fetch', 'web_search']
+    for (const name of READ_ONLY_TOOLS) {
+      expect(defined.has(name) || HOST_READERS.includes(name), name).toBe(true)
+      expect(WRITE_SPECS[name], name).toBeUndefined()
+    }
   })
 })
 

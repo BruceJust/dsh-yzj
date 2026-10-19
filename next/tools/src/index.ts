@@ -32,7 +32,7 @@ export { applyFileTools } from './file.ts'
 export { applyImTools } from './im.ts'
 export { applySheetTools } from './sheet.ts'
 export {
-  applyApprovalGuard, denialFor, GATEWAY_ESCAPE_TOOLS, WRITE_SPECS, ORG_DEFAULT_PLACE,
+  applyApprovalGuard, denialFor, GATEWAY_ESCAPE_TOOLS, READ_ONLY_TOOLS, WRITE_SPECS, ORG_DEFAULT_PLACE,
   type YzjRiskLevel,
 } from './guard.ts'
 export { applyLineage, LINEAGE_SPECS } from './lineage.ts'

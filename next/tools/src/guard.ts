@@ -160,6 +160,32 @@ export const WRITE_SPECS: Record<string, WriteSpec> = {
   yzj_calendar_event_update: { reason: '更新日程', level: 'standard' },
 }
 
+/**
+ * 轻问能用的工具 —— **白名单**（N6）。
+ *
+ * 轻问的契约是「问一个数得一个数，不做任何写入，什么都不发到场所里」。此前它只拦确认表
+ * 里的写与逃逸工具，于是不在表里的写照样能跑：改日程描述（`event_post_materials`）、建
+ * 目标文档（`goal_propose`）、往场所投卡（`commitment_register`）、改本地图
+ * （`commitment_receipt`、`memory_forget`）、写本地文件（`write`、`edit`）——新加的工具
+ * 也默认放行。契约要靠「列出能做的」来守：名单外一律拒，新工具在被人审过加进来之前，
+ * 进不了只读回合。
+ *
+ * 只读 = 不改本地图、不改外部系统、不往场所发、不写文件、不动会话状态。
+ */
+export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
+  // 图与私账
+  'graph_query', 'pledger_query', 'event_brief', 'goal_evidence',
+  // 云之家
+  'yzj_whoami', 'yzj_contact_get', 'yzj_contact_search',
+  'yzj_calendar_event_get', 'yzj_calendar_event_list', 'yzj_calendar_event_participants', 'yzj_calendar_room_find',
+  'yzj_doc_workspace_list', 'yzj_doc_workspace_get', 'yzj_doc_list', 'yzj_doc_recent', 'yzj_doc_get',
+  'yzj_doc_block_list', 'yzj_doc_download_url',
+  'yzj_sheet_get', 'yzj_sheet_table_get', 'yzj_sheet_record_list',
+  'yzj_im_group_recent', 'yzj_im_group_search', 'yzj_im_message_list', 'yzj_im_message_search',
+  // 本机文件与网页：只读
+  'read', 'read_image', 'glob', 'grep', 'web_fetch', 'web_search',
+])
+
 /** The place a turn with no place of its own is contracted under. */
 export const ORG_DEFAULT_PLACE = 'org-default'
 
@@ -186,12 +212,10 @@ export function denialFor(ctx: Context, exec: Pick<ToolExecution, 'name' | 'agen
       : '云之家触发的回合不能使用 shell 或委派执行类工具'
   }
   /*
-    只读投影的判据同样跟着**确认表**走，不跟着前缀走 (v3.15 裁决② 同一处教训)。
-
-    轻问是「问一个数得一个数，不做任何写入」——一个能作废承诺的工具当然算写入，哪怕
-    它的名字不以 `yzj_` 打头。
+    只读投影的判据跟着**一张表**走，不跟着前缀走 (v3.15 裁决② 同一处教训)——而且是能做
+    什么的那张表，不是不能做什么的那张：确认表只列了要问人的写，没列的写在这里照样会过。
   */
-  if (readOnly && WRITE_SPECS[exec.name] !== undefined) {
+  if (readOnly && !READ_ONLY_TOOLS.has(exec.name)) {
     return '轻问是只读投影：问一个数得一个数，不做任何写入。需要写就用普通提问开一个任务。'
   }
   if (!exec.name.startsWith('yzj_')) return undefined
