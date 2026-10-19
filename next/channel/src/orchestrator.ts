@@ -559,16 +559,7 @@ export class YzjOrchestrator {
         会答「还没交付」），而不是被当成一句新的委派开出第二个回合。句柄写在消息里、
         消息却不认这张卡，是分诊③ 兑不了的承诺。
       */
-      if (active.ackId !== undefined) {
-        await this.ctx.yzjCards.project({
-          cardRef: { kind: 'task', id: taskId },
-          surface: YZJ_TEXT_SURFACE,
-          msgAnchors: [active.ackId],
-          placeKey: route.placeKey,
-        }).catch((error: unknown) => {
-          console.error('[yzj-next-channel] failed to register the ack projection', error)
-        })
-      }
+      if (active.ackId !== undefined) await this.projectTask(taskId, active.ackId, route)
       const firstSeq = agent.session.seq
       agent.followup(createUserMessage({
         content: [{
@@ -620,10 +611,11 @@ export class YzjOrchestrator {
           console.error('[yzj-next-channel] failed to store the resume address', error)
         })
         await this.interruptTask(taskId, clipMessage(detail, 200))
-        await this.deliver(
+        const noticeId = await this.deliver(
           group, trigger, route,
-          `【Agent中断】${clipMessage(detail, 600)}\n回复「继续」我接着做，结果仍然发在这里。`,
+          `【Agent中断】${clipMessage(detail, 600)}\n回复「继续」我接着做，结果仍然发在这里。[card#task:${taskId}]`,
         )
+        if (noticeId !== undefined) await this.projectTask(taskId, noticeId, route)
         return
       }
       if (summary.text.trim() === '') {
@@ -635,19 +627,7 @@ export class YzjOrchestrator {
       }
       await this.closeTask(taskId, trigger, route, summary.text, startedAt)
       const replyId = await this.deliver(group, trigger, route, this.finalReply(summary.text, route, taskId))
-      // Register the projection so 「验收」/「打回」 replied to THIS message
-      // resolve to the task card. Without it the handle in the text is a
-      // promise the triage cannot keep.
-      if (replyId !== undefined) {
-        await this.ctx.yzjCards.project({
-          cardRef: { kind: 'task', id: taskId },
-          surface: YZJ_TEXT_SURFACE,
-          msgAnchors: [replyId],
-          placeKey: route.placeKey,
-        }).catch((error: unknown) => {
-          console.error('[yzj-next-channel] failed to register the task projection', error)
-        })
-      }
+      if (replyId !== undefined) await this.projectTask(taskId, replyId, route)
     } catch (error) {
       if (error instanceof DeliveryOutcomeUnknownError) {
         // We do not know whether the message landed. Retrying could double-post
@@ -854,6 +834,24 @@ export class YzjOrchestrator {
       '',
       `回复「验收」或「打回 <原因>」定终态。[card#task:${taskId}]`,
     ].join('\n')
+  }
+
+  /**
+   * 这一句登记成任务卡的一个投影 —— **请人回一个词的话，回那个词就得落到卡上**（卡片三定律②）。
+   *
+   * 受理回执、终态回复、中断通知三处共用一份。此前中断通知说「回复『继续』我接着做」，
+   * 却没登记、也不带句柄：回复它，分诊找不到卡，什么都不发生——只有回复更早那条受理回执
+   * 才认。句柄写在消息里、消息却不认这张卡，是分诊③ 兑不了的承诺。
+   */
+  private async projectTask(taskId: string, msgId: string, route: YzjTopicRoute): Promise<void> {
+    await this.ctx.yzjCards.project({
+      cardRef: { kind: 'task', id: taskId },
+      surface: YZJ_TEXT_SURFACE,
+      msgAnchors: [msgId],
+      placeKey: route.placeKey,
+    }).catch((error: unknown) => {
+      console.error('[yzj-next-channel] failed to register a task projection', error)
+    })
   }
 
   private async revoke(messageId: string, reason: string): Promise<void> {
