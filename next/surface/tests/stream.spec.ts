@@ -502,7 +502,7 @@ describe('the inbox is ordered by attention', () => {
     // whether anything under it needs answering.
     expect(inbox.places[0]?.tone).toBe('confirm')
     expect(inbox.counts.confirm).toBe(1)
-    expect(inbox.firstOf.confirm).toBe(TOPIC.sessionId)
+    expect(inbox.firstOf.confirm?.sessionId).toBe(TOPIC.sessionId)
   })
 
   it('says a topic is running even while it owes an older answer', async () => {

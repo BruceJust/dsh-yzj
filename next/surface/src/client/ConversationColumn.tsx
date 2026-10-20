@@ -43,7 +43,8 @@ import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
 import { closePreview } from './preview.ts'
 import {
-  backTarget, currentFrame, popFrame, setFrame, setSpotlight, subscribeFrame, takeErrand,
+  backTarget, currentFrame, currentLanding, landOn, popFrame, setFrame, setSpotlight,
+  subscribeFrame, subscribeLanding, takeErrand,
 } from './store.ts'
 import type { FusedWindowWire, SurfaceInject } from './rpc.ts'
 import tokens from './tokens.module.css'
@@ -88,9 +89,36 @@ export interface ConversationColumnProps {
 
 const EMPTY: FusedWindowWire = { messages: [], chips: [], cards: [], artifacts: [] }
 
+/**
+ * The stream's node for one card.
+ *
+ * 扫属性，不拼选择器。`[data-card="${kind}:${id}"]` 把**数据**塞进了选择器语法：今天的
+ * 对象 id 全是哈希，看着安全，可 id 是数据不是常量——哪天某一族的 id 里带上一个引号或
+ * 方括号，这里抛的是语法错，而抛错的时刻恰恰是有人正想找一件事在哪。
+ */
+function cardNodeIn(stream: HTMLElement | null, kind: string, id: string): Element | undefined {
+  const anchor = `${kind}:${id}`
+  return [...(stream?.querySelectorAll('[data-card]') ?? [])]
+    .find(candidate => candidate.getAttribute('data-card') === anchor)
+}
+
+/**
+ * Point at a row for a moment.
+ *
+ * An attribute rather than a generated class name: CSS-module keys are typed
+ * as possibly-absent, and `classList.add(undefined)` throws at the exact moment
+ * somebody is trying to find something.
+ */
+function flash(node: Element): void {
+  node.setAttribute('data-flash', '1')
+  setTimeout(() => { node.removeAttribute('data-flash') }, 1_400)
+}
+
 export function YzjConversationColumn(props: ConversationColumnProps): ReactNode {
   const { sessionId, useSession, inject, prompt, openSession, openDetails } = props
   const frame = useSyncExternalStore(subscribeFrame, currentFrame)
+  /** 带着哪张卡进来的（见下面「落在卡上」那一条）。 */
+  const landing = useSyncExternalStore(subscribeLanding, currentLanding)
   const nodes = useSession(snapshot => snapshot.nodes) ?? []
   const running = useSession(snapshot => snapshot.running) === true
   const runningCalls = useSession(snapshot => snapshot.runningCalls)
@@ -285,7 +313,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     requestAnimationFrame(() => { boxRef.current?.focus() })
   }, [sessionId, frame.kind])
   /*
-    A new topic opens at its newest message.
+    A new topic opens at its newest message — unless the reader came for one
+    card in it (the landing below wins).
 
     `atBottom` is remembered across renders, so scrolling up in one topic and
     then opening another left the new one parked in history — the reader lands
@@ -353,12 +382,15 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
    * A monotonic ticket is the whole fix: only the newest request may paint.
    */
   const fetchSeq = useRef(0)
+  /** Whose window is on screen. Right after a switch it is still the previous topic's. */
+  const paintedFor = useRef<string | undefined>(undefined)
   const refresh = useCallback(async (): Promise<void> => {
     if (sessionId === undefined) return
     fetchSeq.current += 1
     const ticket = fetchSeq.current
     const next = await inject.fused(sessionId) ?? EMPTY
     if (ticket !== fetchSeq.current) return
+    if (next !== EMPTY) paintedFor.current = sessionId
     setWindow(next)
   }, [inject, sessionId])
 
@@ -405,6 +437,34 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     const node = streamRef.current
     if (node !== null && atBottom.current) node.scrollTop = node.scrollHeight
   }, [rows])
+
+  /*
+    **带着卡进来的，落在卡上** (v4.14 逐级兑付的最后一跳).
+
+    侧栏的「待验收」、收件箱的一行、群视图的话题卡、目标页的决断层——点它们，是因为
+    **那张卡在等你**。此前它们只带会话 id，于是一律落在话题末尾，而那张卡在另一头
+    （2026-10-20 桌面实测：验收按钮在第一条，人被放在最后一条）。
+
+    排在「跟到底」那条后面：同一次提交里两条都动滚动条，后动的算。落下之后不再跟到底
+    ——人是来看这张卡的，把他从卡上拽走正是上面那条要防的事。瞬移不滑行：人还没见过
+    这一屏，滑过整段对话只是晃眼；闪一下就够指认。
+
+    等这个会话的窗口真的画出来再判「找不到」：切换的那一刻屏上还是上一个话题。
+  */
+  useEffect(() => {
+    if (landing === undefined || landing.sessionId !== sessionId) return
+    const node = cardNodeIn(streamRef.current, landing.kind, landing.id)
+    if (node === undefined) {
+      if (paintedFor.current !== sessionId) return
+      landOn(undefined)
+      setToast('等你的那张卡不在这个话题里了——它可能刚在别处答掉了。')
+      return
+    }
+    landOn(undefined)
+    atBottom.current = false
+    node.scrollIntoView({ block: 'center', behavior: 'instant' })
+    flash(node)
+  }, [landing, sessionId, rows])
 
   /**
    * Turn the pending chip into a fact, once the words are actually out.
@@ -598,7 +658,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   /**
    * 决断条 → 对象 (v4.14 逐级兑付的最后一跳)。
    *
-   * **滚过去，不是拔上来**。卡留在它出生的位置，前后语境强制在场——因为语境就是
+   * **滚过去，不是拔上来**。卡留在它发问的位置，前后语境强制在场——因为语境就是
    * 决断的证据：一张「确认删除」的卡，上一条消息说的是删哪个、为什么删。
    *
    * 找不到时说实话。卡可能在这一屏之外（窗口只装最近若干条），这时候要给的是
@@ -606,23 +666,13 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
    * 这条定律要禁的那种不可兑付的信号。
    */
   const jumpToCard = useCallback((kind: string, id: string): void => {
-    /*
-      扫属性，不拼选择器。
-
-      `[data-card="${kind}:${id}"]` 把**数据**塞进了选择器语法：今天的对象 id 全是
-      哈希，看着安全，可 id 是数据不是常量——哪天某一族的 id 里带上一个引号或方括号，
-      这里抛的是语法错，而抛错的时刻恰恰是有人正想找一件事在哪。
-    */
-    const anchor = `${kind}:${id}`
-    const node = [...(streamRef.current?.querySelectorAll('[data-card]') ?? [])]
-      .find(candidate => candidate.getAttribute('data-card') === anchor)
+    const node = cardNodeIn(streamRef.current, kind, id)
     if (node === undefined) {
       setToast('这件事不在当前这一屏里——往上翻能找到它，它还在原地等着。')
       return
     }
     node.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    node.setAttribute('data-flash', '1')
-    setTimeout(() => { node.removeAttribute('data-flash') }, 1_400)
+    flash(node)
   }, [])
 
   const showTree = useCallback((): void => {
@@ -924,11 +974,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
               return
             }
             node.scrollIntoView({ block: 'center', behavior: 'smooth' })
-            // An attribute rather than a generated class name: CSS-module keys
-            // are typed as possibly-absent, and `classList.add(undefined)`
-            // throws at the exact moment somebody is trying to find something.
-            node.setAttribute('data-flash', '1')
-            setTimeout(() => { node.removeAttribute('data-flash') }, 1_400)
+            flash(node)
           },
           inject,
           publish: (text: string) => {

@@ -203,6 +203,41 @@ export function takeErrand(): Errand | undefined {
 }
 
 /**
+ * 点进来是为了哪张卡 —— **落点是对象，不是会话** (v4.14 逐级兑付的最后一跳).
+ *
+ * 侧栏的「待验收」、收件箱的一行、群视图的话题卡、目标页的决断层：它们都是因为
+ * **某张卡在等你**才被点的。此前每一跳只带会话 id，于是进门落在最后一条消息上，
+ * 而那张卡在话题的另一头（2026-10-20 桌面实测）——门上写着「待验收」，门后要自己
+ * 往回翻。
+ *
+ * 一次性的交接，和 {@link Errand} 同一种：中栏落到那张卡上即取走。可订阅，因为
+ * 已经站在那个话题里再点一次，会话 id 没变，中栏得从别处知道「再带我去一次」。
+ */
+export interface Landing {
+  readonly sessionId: string
+  readonly kind: string
+  readonly id: string
+}
+
+let landing: Landing | undefined
+const landingListeners = new Set<() => void>()
+
+/** Ask the center column to land on one card once that session is on stage. */
+export function landOn(next: Landing | undefined): void {
+  landing = next
+  for (const listener of landingListeners) listener()
+}
+
+export function currentLanding(): Landing | undefined {
+  return landing
+}
+
+export function subscribeLanding(listener: () => void): () => void {
+  landingListeners.add(listener)
+  return () => { landingListeners.delete(listener) }
+}
+
+/**
  * 板上正看着哪一档:全部,还是按目标 (v4.8 两级缩放).
  *
  * 放在这里而不是留在板的组件里,因为**进目标页会把板整个卸载掉**——回来时它是

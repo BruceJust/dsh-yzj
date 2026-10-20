@@ -28,7 +28,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { clockOf, dayLabel } from './stream.ts'
 import { Avatar } from './Avatar.tsx'
-import { pushFrame, setFrame, takeErrand } from './store.ts'
+import { landOn, pushFrame, setFrame, takeErrand } from './store.ts'
 import { YzjContractPanel } from './ContractPanel.tsx'
 import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
 import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
@@ -178,7 +178,9 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
    * into a busy group and opened one topic has lost their place otherwise —
    * which is the whole complaint D13② names.
    */
-  const enter = useCallback((sessionId: string): void => {
+  /** 卡上写着「等你验收」的，进门落在那张卡上，不落在话题末尾。 */
+  const enter = useCallback((sessionId: string, cardRef?: { kind: string; id: string }): void => {
+    landOn(cardRef === undefined ? undefined : { sessionId, ...cardRef })
     pushFrame({ kind: 'session' }, bodyRef.current?.scrollTop ?? 0)
     openSession(sessionId)
   }, [openSession])
@@ -654,7 +656,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
               <button
                 type="button"
                 className={`${css.topicCard} ${row.topic.hot ? css.topicHot : ''}`}
-                onClick={() => { enter(row.topic.sessionId) }}
+                onClick={() => { enter(row.topic.sessionId, row.topic.cardRef) }}
               >
                 <span className={css.threadIcon}>🧵</span>
                 <span className={css.topicBody}>

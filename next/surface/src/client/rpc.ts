@@ -129,6 +129,8 @@ export interface PlaceTopicCardWire {
   hot: boolean
   /** 有一件事在里面等你答时，它自己那句话——徽标只装得下四个字。 */
   owes?: string
+  /** 等你答的那张卡。点进去落在它身上。 */
+  cardRef?: CardRefWire
 }
 
 export interface PlaceViewWire {
@@ -330,6 +332,20 @@ export interface InboxItemWire {
   badge: string
   /** 这一行此刻在等的那件事。有它才叫「需要你」。 */
   demand?: AnswerableDemandWire
+  /** 等你答的那张卡——落点是对象，不是会话。 */
+  cardRef?: CardRefWire
+}
+
+/** 一张卡的地址：流里每张卡都以 `${kind}:${id}` 挂在 `data-card` 上。 */
+export interface CardRefWire {
+  kind: string
+  id: string
+}
+
+/** 一个计数指向的地方：哪个会话，以及会话里等你的是哪张卡。 */
+export interface InboxLanding {
+  sessionId: string
+  cardRef?: CardRefWire
 }
 
 export interface InboxPlaceWire {
@@ -358,7 +374,7 @@ export interface InboxConversationWire {
 
 export interface InboxView {
   counts: { confirm: number; review: number; running: number }
-  firstOf: Partial<Record<TopicTone, string>>
+  firstOf: Partial<Record<TopicTone, InboxLanding>>
   places: InboxPlaceWire[]
   /** Every conversation, newest activity first. Absent before the first poll. */
   conversations?: InboxConversationWire[]

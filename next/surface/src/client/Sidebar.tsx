@@ -64,10 +64,10 @@
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
-  InboxConversationWire, InboxItemWire, InboxView, SurfaceInject, TopicTone,
+  CardRefWire, InboxConversationWire, InboxItemWire, InboxView, SurfaceInject, TopicTone,
 } from './rpc.ts'
 import { avatarOf } from './stream.ts'
-import { currentFrame, setFrame, subscribeFrame } from './store.ts'
+import { currentFrame, landOn, setFrame, subscribeFrame } from './store.ts'
 import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
 import tokens from './tokens.module.css'
 import css from './sidebar.module.css'
@@ -248,7 +248,14 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     return () => { clearInterval(timer) }
   }, [])
 
-  const go = useCallback((sessionId: string): void => {
+  /**
+   * 带着卡来的，落在卡上；不带的，落在话题末尾。
+   *
+   * 每一次跳转都**重写**落点，包括不带卡的那种：上一次点「待验收」还没落地就改去了
+   * 别处，那份落点不能留到下次碰巧打开那个话题时才兑现。
+   */
+  const go = useCallback((sessionId: string, cardRef?: CardRefWire): void => {
+    landOn(cardRef === undefined ? undefined : { sessionId, ...cardRef })
     setFrame({ kind: 'session' })
     open(sessionId)
   }, [open])
@@ -409,7 +416,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
         type="button"
         key={row.sessionId}
         className={`${css.item} ${sub ? css.itemSub : ''} ${row.sessionId === currentSessionId ? css.itemActive : ''}`}
-        onClick={() => { go(row.sessionId) }}
+        onClick={() => { go(row.sessionId, row.cardRef) }}
         title={row.preview}
       >
         <span className={css.icon} style={{ background: avatar.color }}>{avatar.text}</span>
@@ -695,7 +702,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
       title={count === 0 ? `没有${label}的话题` : `跳到第一个${label}的话题`}
       onClick={() => {
         const target = inbox.firstOf[tone]
-        if (target !== undefined) go(target)
+        if (target !== undefined) go(target.sessionId, target.cardRef)
       }}
     >
       {mark} <span className={css.chipCount}>{count}</span> {label}
@@ -842,7 +849,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
             aria-label={`${label} ${String(count)}`}
             onClick={() => {
               const target = inbox.firstOf[tone]
-              if (target !== undefined) go(target)
+              if (target !== undefined) go(target.sessionId, target.cardRef)
             }}
           >
             <span>{mark}</span>

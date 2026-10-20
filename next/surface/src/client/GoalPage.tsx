@@ -27,7 +27,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { BoardRowWire, GoalPageWire, SurfaceInject } from './rpc.ts'
-import { sendErrand } from './store.ts'
+import { landOn, sendErrand } from './store.ts'
 import { RoomPicker, handoffPortal, landPortal, type Portal } from './RoomPicker.tsx'
 import {
   assessAsk, breakdownAsk, delegateSeed, gapSeed, goalQuestionSeed, rebaseAsk,
@@ -721,7 +721,10 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               type="button"
               className={css.decision}
               key={item.sessionId}
-              onClick={() => { openSession(item.sessionId) }}
+              onClick={() => {
+                landOn(item.cardRef === undefined ? undefined : { sessionId: item.sessionId, ...item.cardRef })
+                openSession(item.sessionId)
+              }}
             >
               <span className={css.decisionBadge}>{item.badge}</span>
               <span className={css.decisionText}>
@@ -969,7 +972,11 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                   <button
                     type="button"
                     className={css.act}
-                    onClick={() => { openSession(goal.assessment?.sessionId as string) }}
+                    onClick={() => {
+                      const sessionId = goal.assessment?.sessionId as string
+                      landOn({ sessionId, kind: 'assessment', id: goal.assessment?.id as string })
+                      openSession(sessionId)
+                    }}
                   >
                     去答这份简报 ›
                   </button>

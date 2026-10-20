@@ -17,7 +17,7 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { YzjGraph, z, type GraphFamily } from '@yzj-next/graph'
 import { YzjCards, type CardDefinition } from '@yzj-next/cards'
 import {
@@ -28,6 +28,7 @@ import {
 import type { TopicDescriptor } from '@yzj-next/channel'
 import { cardsFor, inboxView, placeView } from '../src/rpc.ts'
 import { barOf, chipsOf } from '../src/client/DecisionBar.tsx'
+import { buildStream } from '../src/client/stream.ts'
 import type { StreamCard } from '../src/client/rpc.ts'
 
 const TOPIC: TopicDescriptor = {
@@ -558,8 +559,11 @@ describe('逐级兑付：没有不可兑付的信号', () => {
       // 落点必须是一个真的、此刻正显示着这件事的行。
       const row = inbox.places
         .flatMap(place => place.topics)
-        .find(item => item.sessionId === landing)
+        .find(item => item.sessionId === landing?.sessionId)
       expect(row?.tone).toBe(tone)
+      // 而且落到那张卡上：计数是因为某张卡在等你，进门就该站在它面前。
+      expect(landing?.cardRef, `${tone} 只指到了会话，没指到等你的那张卡`).toEqual(row?.cardRef)
+      expect(landing?.cardRef).toBeDefined()
     }
   })
 
@@ -669,7 +673,9 @@ describe('收件箱指得到本地会话', () => {
     const view = inboxView(ctx)
     expect(view.counts.confirm).toBe(1)
     // 此前这里会是某个群话题的 sessionId——数对了，路错了。
-    expect(view.firstOf.confirm).toBe('session-local-9')
+    expect(view.firstOf.confirm).toEqual({
+      sessionId: 'session-local-9', cardRef: { kind: 'approval', id: 'ap-l1' },
+    })
   })
 
   /*
@@ -695,5 +701,114 @@ describe('收件箱指得到本地会话', () => {
   it('没有这种卡就没有这一段——不造空分组', async () => {
     await approval()
     expect(inboxView(ctx).places.some(place => place.placeKey === 'local')).toBe(false)
+  })
+})
+
+/*
+  2026-10-20 桌面实测：点侧栏「待验收」，进了「这个群里是做什么的」那个话题，落在最后一条
+  消息上——而验收按钮在第一条消息那里。两处错，一个病根：**卡和落点都只认出生**。
+
+  任务出生在受理那一句，问「验收吗」却在交付那一句；收件箱又只带会话 id，进门一律到底。
+  门上写着「待验收」，门后是一段要自己往回翻的对话——那一跳不算数。
+*/
+describe('卡在它发问的地方，进门就落在它身上', () => {
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }) })
+  afterEach(() => { vi.useRealTimers() })
+
+  const openTask = async (id: string, at: number): Promise<void> => {
+    vi.setSystemTime(at)
+    await graph.append({
+      type: 'task/opened',
+      data: { taskId: id, what: `任务 ${id}`, topicKey: TOPIC.topicKey, sourceAnchor: `yzj:${id}`, audience: [TOPIC.placeKey] },
+      actor: { kind: 'agent' },
+    })
+  }
+  const finish = async (id: string, at: number): Promise<number> => {
+    vi.setSystemTime(at)
+    const event = await graph.append({
+      type: 'task/terminal', data: { taskId: id, summary: `${id} 交了`, artifacts: [] }, actor: { kind: 'agent' },
+    })
+    return event.seq
+  }
+  const said = (msgId: string, time: number): { msgId: string; fromOpenId: string; fromName: string; content: string; msgType: string; time: number; own: boolean } => ({
+    msgId, fromOpenId: 'p-9', fromName: '张锐', content: msgId, msgType: 'text', time, own: false,
+  })
+
+  it('任务的验收卡排在交付那一句后面，不在受理那一句旁边', async () => {
+    await openTask('tk-1', 1_000)
+    const seq = await finish('tk-1', 9_000)
+    const card = cardsFor(ctx, TOPIC).find(one => one.kind === 'task')
+    expect(card).toMatchObject({ at: 9_000, seq })
+
+    const rows = buildStream(
+      [], [said('受理', 1_000), said('中间聊了很多', 5_000), said('交付那一句', 8_500)],
+      [card as unknown as StreamCard], [], true,
+    )
+    const keys = rows.filter(row => row.kind !== 'divider').map(row => row.key)
+    expect(keys).toEqual(['m:受理', 'm:中间聊了很多', 'm:交付那一句', 'c:task:tk-1'])
+  })
+
+  it('答过的卡留在原地：验收不会把它挪回出生处，也不会把它挪到「现在」', async () => {
+    await openTask('tk-1', 1_000)
+    await finish('tk-1', 9_000)
+    vi.setSystemTime(20_000)
+    await cards.act({ kind: 'task', id: 'tk-1' }, 'accept', OPERATOR_ACTOR, 'desktop')
+    expect(cardsFor(ctx, TOPIC).find(one => one.kind === 'task')).toMatchObject({ at: 9_000, resolved: true })
+  })
+
+  it('承诺的验收卡在交付被主张那一刻；打回不挪它，再交一版才挪', async () => {
+    vi.setSystemTime(1_000)
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: 'cm-1', what: '张锐周五给数', sourceAnchor: 'yzj:m-3',
+        topicKey: TOPIC.topicKey, executor: { kind: 'human', openId: 'p-9', name: '张锐' },
+      },
+      actor: OPERATOR_ACTOR,
+    })
+    const at = (): number | undefined => cardsFor(ctx, TOPIC).find(one => one.kind === 'commitment')?.at
+    // 没交付之前它是一件还没发生的事——信号，不是问题——所以在它出生的地方。
+    expect(at()).toBe(1_000)
+    vi.setSystemTime(6_000)
+    await graph.append({
+      type: 'commitment/delivered',
+      data: { commitmentId: 'cm-1', delivery: { claim: '数给了', at: 6_000 } },
+      actor: { kind: 'agent' },
+    })
+    expect(at()).toBe(6_000)
+    vi.setSystemTime(7_000)
+    await graph.append({
+      type: 'commitment/rework', data: { commitmentId: 'cm-1', reason: '少了华东', round: 1 }, actor: OPERATOR_ACTOR,
+    })
+    expect(at()).toBe(6_000)
+    vi.setSystemTime(12_000)
+    await graph.append({
+      type: 'commitment/delivered',
+      data: { commitmentId: 'cm-1', delivery: { claim: '补上华东了', at: 12_000, round: 1 } },
+      actor: { kind: 'agent' },
+    })
+    expect(at()).toBe(12_000)
+  })
+
+  it('「待验收」的落点带着那张卡；一个话题两张都在等，先问的那张先说', async () => {
+    // tk-old 先出生、后交付；tk-new 后出生、先交付——等得久的是 tk-new。
+    await openTask('tk-old', 1_000)
+    await openTask('tk-new', 2_000)
+    await finish('tk-new', 3_000)
+    await finish('tk-old', 4_000)
+    const inbox = inboxView(ctx)
+    expect(inbox.firstOf.review).toEqual({ sessionId: TOPIC.sessionId, cardRef: { kind: 'task', id: 'tk-new' } })
+    const row = inbox.places.flatMap(place => place.topics).find(item => item.sessionId === TOPIC.sessionId)
+    expect(row?.cardRef).toEqual({ kind: 'task', id: 'tk-new' })
+    // 决断条也是这个顺序：同一个问题，两处不说两种话。
+    expect(chipsOf(cardsFor(ctx, TOPIC) as unknown as StreamCard[]).map(chip => chip.id)).toEqual(['tk-new', 'tk-old'])
+  })
+
+  it('群视图的话题卡写着「等你验收」，也带着那张卡', async () => {
+    await openTask('tk-1', 1_000)
+    await finish('tk-1', 2_000)
+    const view = await placeView(ctx, TOPIC.placeKey, 20)
+    const topic = view.topics.find(one => one.sessionId === TOPIC.sessionId)
+    expect(topic?.cardRef).toEqual({ kind: 'task', id: 'tk-1' })
   })
 })

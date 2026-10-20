@@ -32,7 +32,7 @@ import type {
   WorkspaceWire,
 } from './rpc.ts'
 import {
-  currentBoardLens, pushFrame, sendErrand, setBoardLens, setSpotlight,
+  currentBoardLens, landOn, pushFrame, sendErrand, setBoardLens, setSpotlight,
 } from './store.ts'
 import { revealAside } from './preview.ts'
 import { RoomPicker, handoffPortal, landPortal, type Portal } from './RoomPicker.tsx'
@@ -944,8 +944,11 @@ export function YzjBoard(props: BoardProps): ReactNode {
                     <button
                       type="button"
                       className={css.reportGo}
-                      title="跳到这份简报所在的会话——卡留在它出生的地方，语境就是判断的依据"
-                      onClick={() => { openSession(report.sessionId as string) }}
+                      title="跳到这份简报卡上——它留在它发问的地方，语境就是判断的依据"
+                      onClick={() => {
+                        landOn({ sessionId: report.sessionId as string, kind: 'assessment', id: report.id })
+                        openSession(report.sessionId as string)
+                      }}
                     >
                       去答这份简报 ›
                     </button>

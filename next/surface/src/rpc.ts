@@ -15,7 +15,7 @@ import {
   asNumber, asRecord, asString,
   type GraphObject, type GraphViewer, type JsonValue,
 } from '@yzj-next/graph'
-import type { AnswerableDemand, AnswerableMode } from '@yzj-next/cards'
+import { cardMoment, type AnswerableDemand, type AnswerableMode, type CardRef } from '@yzj-next/cards'
 import type { Strip } from '@yzj-next/pledger'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS, listOf } from '@yzj-next/tools'
 import {
@@ -49,17 +49,18 @@ export interface StreamCard {
   readonly state: unknown
   readonly resolved: boolean
   /**
-   * When the object came into being, off the graph rather than off its state.
+   * When the card last asked its question (`cardMoment`), off the graph rather
+   * than off its state; birth for a card that never asked anything.
    *
-   * Most families never put a timestamp in their own state, so reading one
-   * from there sorted every card to epoch zero — which piled the whole topic's
-   * cards above the conversation that produced them. A confirmation belongs
-   * where it was asked for; that is the entire argument for rendering cards
-   * inline instead of in a side panel.
+   * A confirmation belongs where it was asked for; that is the entire argument
+   * for rendering cards inline instead of in a side panel. Birth is not that
+   * place: a task is born at the request and asks 「验收吗」 at the delivery, and
+   * sorting by birth put the acceptance buttons a whole conversation away from
+   * the thing they accept.
    */
   readonly at: number
   /**
-   * 出生序 —— 条按它排。
+   * 发问序 —— 条按它排。
    *
    * 时间戳会撞：同一次裁决落库的几条卡毫秒数一模一样，按它排等于按查询顺序排，
    * 而查询顺序是「新的在前」。于是「等得久的先说」在最需要它的那一刻恰好失效。
@@ -420,6 +421,8 @@ export interface PlaceTopicCard {
   readonly hot: boolean
   /** 有一件事在里面等你答时，它自己那句话。徽标只装得下四个字。 */
   readonly owes?: string
+  /** 等你答的就是这张卡：点进去落在它身上，不落在话题末尾（见 {@link InboxItem.cardRef}）。 */
+  readonly cardRef?: CardRef
 }
 
 /**
@@ -519,13 +522,14 @@ export async function placeView(
     上卷三宗罪的另一半在这里兑现:话题里的待答**只**改这张卡的徽标,不往主楼顶上
     堆一条——群顶变第二收件箱正是这么长出来的。
   */
-  const owed = new Map<string, AnswerableDemand>()
+  const owed = new Map<string, { demand: AnswerableDemand; ref: CardRef }>()
   for (const pending of ctx.yzjCards.demands(viewer)) {
     if (pending.demand.layer !== 'blocking' || pending.topicKey === undefined) continue
-    if (!owed.has(pending.topicKey)) owed.set(pending.topicKey, pending.demand)
+    if (!owed.has(pending.topicKey)) owed.set(pending.topicKey, pending)
   }
   const cards: PlaceTopicCard[] = (entry?.topics ?? []).map((topic) => {
-    const demand = owed.get(topic.topicKey)
+    const pending = owed.get(topic.topicKey)
+    const demand = pending?.demand
     // 等着人答，本身就是「还在办」——冷卡是归档索引，而这件事还没完。
     const live = hot.has(topic.topicKey) || demand !== undefined
     return {
@@ -536,7 +540,7 @@ export async function placeView(
       badge: demand?.badge ?? (live ? '进行中' : '已归档'),
       hot: live,
       /** 有人在等你的时候，卡自己说清等的是什么——徽标只有四个字。 */
-      ...(demand === undefined ? {} : { owes: demand.label }),
+      ...(pending === undefined ? {} : { owes: pending.demand.label, cardRef: pending.ref }),
     }
   })
   const aliases = topics?.aliases() ?? []
@@ -670,6 +674,20 @@ export interface InboxItem {
    * 集合,家族增员时不会有人想起来回这里加一个词。
    */
   readonly demand?: AnswerableDemand
+  /**
+   * 等你答的就是这张卡 —— **落点是对象，不是会话** (v4.14 逐级兑付的最后一跳)。
+   *
+   * 此前每一跳都只带会话 id：点「待验收」进了话题，落在最后一条消息上，而验收按钮在
+   * 话题第一条那里（2026-10-20 桌面实测）。门上写着「待验收」，门后是一段要自己往回
+   * 翻的对话——那一跳不算数。带上卡，进门即落在它身上。
+   */
+  readonly cardRef?: CardRef
+}
+
+/** 一个计数指向的地方：哪个会话，以及会话里等你的是哪张卡。 */
+export interface InboxLanding {
+  readonly sessionId: string
+  readonly cardRef?: CardRef
 }
 
 /**
@@ -722,8 +740,8 @@ export interface InboxConversation {
 export interface InboxView {
   /** Counters for the three chips. Jumps, not a second list. */
   readonly counts: { readonly confirm: number; readonly review: number; readonly running: number }
-  /** The first topic of each tone, so a chip can go somewhere. */
-  readonly firstOf: Readonly<Partial<Record<TopicTone, string>>>
+  /** The first topic of each tone, and the card in it, so a chip can go somewhere. */
+  readonly firstOf: Readonly<Partial<Record<TopicTone, InboxLanding>>>
   readonly places: readonly InboxPlace[]
   /**
    * Every conversation this account has, newest activity first (v4.8).
@@ -2176,13 +2194,14 @@ export function inboxView(ctx: Context): InboxView {
     live: boolean
     badge?: string
     demand?: AnswerableDemand
+    cardRef?: CardRef
   }
   const state = new Map<string, Loudest>()
   const note = (
     topicKey: string | undefined,
     tone: TopicTone,
     preview: string,
-    demand?: AnswerableDemand,
+    pending?: { demand: AnswerableDemand; ref: CardRef },
   ): void => {
     if (topicKey === undefined) return
     const current = state.get(topicKey)
@@ -2208,7 +2227,7 @@ export function inboxView(ctx: Context): InboxView {
         叫什么：待裁决、待签发、待答各是各的。让徽标退回音调，六种模式会被压成两个词，
         而分类学的全部用处正是让它们分得开。
       */
-      ...(demand === undefined ? {} : { badge: demand.badge, demand }),
+      ...(pending === undefined ? {} : { badge: pending.demand.badge, demand: pending.demand, cardRef: pending.ref }),
     })
   }
 
@@ -2234,18 +2253,18 @@ export function inboxView(ctx: Context): InboxView {
     所以按会话再收一册。它们不属于任何场所——本地会话本来就没有场所，硬塞进一个群的
     分组下面是替它编一个出身。
   */
-  const loose = new Map<string, { tone: TopicTone; label: string; demand: AnswerableDemand }>()
+  const loose = new Map<string, { tone: TopicTone; label: string; demand: AnswerableDemand; ref: CardRef }>()
   for (const pending of ctx.yzjCards.demands(viewer)) {
     if (pending.demand.layer !== 'blocking') continue
     const tone = toneOf(pending.demand.mode)
     if (pending.topicKey === undefined && pending.sessionAnchor !== undefined) {
-      // 一个会话里可能不止一张：先到的那张说了算，和话题那一路同一条规矩。
+      // 一个会话里可能不止一张：先问的那张说了算，和话题那一路同一条规矩。
       if (!loose.has(pending.sessionAnchor)) {
-        loose.set(pending.sessionAnchor, { tone, label: pending.demand.label, demand: pending.demand })
+        loose.set(pending.sessionAnchor, { tone, label: pending.demand.label, demand: pending.demand, ref: pending.ref })
       }
       continue
     }
-    note(pending.topicKey, tone, pending.demand.label, pending.demand)
+    note(pending.topicKey, tone, pending.demand.label, pending)
   }
   /*
     留意层：进行中与等待中。
@@ -2264,7 +2283,11 @@ export function inboxView(ctx: Context): InboxView {
   }
 
   const counts = { confirm: 0, review: 0, running: 0 }
-  const firstOf: Partial<Record<TopicTone, string>> = {}
+  const firstOf: Partial<Record<TopicTone, InboxLanding>> = {}
+  const land = (row: InboxItem): InboxLanding => ({
+    sessionId: row.sessionId,
+    ...(row.cardRef === undefined ? {} : { cardRef: row.cardRef }),
+  })
 
   /*
     本地会话这一册 —— **兑付落点 = 对象真实所在面**。
@@ -2284,6 +2307,7 @@ export function inboxView(ctx: Context): InboxView {
     // 徽标跟着**模式**走；家族没写就退回音调的那一份，和话题那一路同一条规矩。
     badge: item.demand.badge ?? TONE_BADGE[item.tone],
     demand: item.demand,
+    cardRef: item.ref,
   }))
 
   const places: InboxPlace[] = tree.map((entry) => {
@@ -2304,13 +2328,14 @@ export function inboxView(ctx: Context): InboxView {
         // 这一个字段就是它们在一屏上分得开的全部理由。
         badge: current?.badge ?? TONE_BADGE[tone],
         ...(current?.demand === undefined ? {} : { demand: current.demand }),
+        ...(current?.cardRef === undefined ? {} : { cardRef: current.cardRef }),
       }
     })
     for (const row of rows) {
       if (row.tone === 'confirm') counts.confirm += 1
       if (row.tone === 'review') counts.review += 1
       if (row.tone === 'running') counts.running += 1
-      if (firstOf[row.tone] === undefined) firstOf[row.tone] = row.sessionId
+      if (firstOf[row.tone] === undefined) firstOf[row.tone] = land(row)
     }
     rows.sort((left, right) => TONE_RANK[left.tone] - TONE_RANK[right.tone])
     // 注意力租约: inside a real place a settled topic releases its row — it is
@@ -2344,7 +2369,7 @@ export function inboxView(ctx: Context): InboxView {
       if (row.tone === 'confirm') counts.confirm += 1
       if (row.tone === 'review') counts.review += 1
       if (row.tone === 'running') counts.running += 1
-      if (firstOf[row.tone] === undefined) firstOf[row.tone] = row.sessionId
+      if (firstOf[row.tone] === undefined) firstOf[row.tone] = land(row)
     }
     places.unshift({
       placeKey: 'local',
@@ -2567,8 +2592,7 @@ export function cardsFor(
         kind,
         id: object.id,
         state: object.state,
-        at: object.createdAt,
-        seq: object.createdSeq,
+        ...cardMoment(object),
         resolved,
         ...(demand === undefined ? {} : { demand }),
         ...(strips.length === 0 ? {} : { strips }),

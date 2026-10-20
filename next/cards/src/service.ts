@@ -26,12 +26,27 @@ import {
   type CardRef, type CardTextProjection, type CardVia, type YzjCardChannel,
 } from './types.ts'
 
+/**
+ * 一张卡在时间线上的时刻：它最近一次开口问人的那一刻；从没问过谁的，按出生。
+ *
+ * 任务出生在受理那一句，问「验收吗」却在交付那一句——按出生排，验收按钮和它要人验的
+ * 东西隔着整段对话（2026-10-20 桌面实测）。流、决断条、收件箱读的都是这一个：各取
+ * 各的，迟早有一处又取回出生。
+ */
+export function cardMoment(object: GraphObject): { readonly at: number; readonly seq: number } {
+  return object.askedSeq !== undefined && object.askedAt !== undefined
+    ? { at: object.askedAt, seq: object.askedSeq }
+    : { at: object.createdAt, seq: object.createdSeq }
+}
+
 /** One unanswered object, as the decision surfaces see it. */
 export interface PendingDemand {
   readonly ref: CardRef
   readonly demand: AnswerableDemand
-  /** 出生时刻——决断面按它排序，早等的先说。 */
+  /** 它开口问的时刻（{@link cardMoment}）。 */
   readonly at: number
+  /** 同一时刻里谁先问的——毫秒会撞，序不会。早等的先说。 */
+  readonly seq: number
   /** 它归属哪段语境。决断条「只收本语境直属」靠它。 */
   readonly topicKey?: string
   /**
@@ -346,12 +361,13 @@ export class YzjCards extends Service {
       out.push({
         ref: { kind: object.kind, id: object.id },
         demand,
-        at: object.createdAt,
+        ...cardMoment(object),
         ...(topicKey === undefined ? {} : { topicKey }),
         ...(sessionAnchor === undefined ? {} : { sessionAnchor }),
       })
     }
-    return out
+    // 「先到的那张说了算」的「先」是先开口问的，不是先出生的。
+    return out.sort((left, right) => left.seq - right.seq)
   }
 
   /**
