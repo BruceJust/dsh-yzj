@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { eventHash } from '../src/ledger.ts'
 import { YzjGraph } from '../src/service.ts'
 import type { GraphEvent, GraphFamily, GraphViewer } from '../src/types.ts'
@@ -198,6 +198,91 @@ describe('pending answerables and kernel derivations', () => {
     await graph.append({ type: 'note/opened', data: { noteId: 'n2', text: 'b' }, actor: ACTOR })
     await graph.append({ type: 'note/closed', data: { noteId: 'n2' }, actor: ACTOR })
     expect(graph.pendingAnswerables(OPERATOR).map(object => object.id)).toEqual(['n1'])
+  })
+
+  /*
+    一张卡在时间线上的位置是它发问的时刻。任务出生在受理那一句、问「验收吗」却在交付那一句；
+    按出生排，验收按钮就和要人验的东西隔着整段对话（2026-10-20 桌面实测）。
+  */
+  describe('askedAt —— 最近一次开口等人答的时刻', () => {
+    beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }) })
+    afterEach(() => { vi.useRealTimers() })
+
+    it('落进待答态那一刻记下；同一状态里的更新不算重问；答过之后留在原地；再问就挪到再问的时刻', async () => {
+      const graph = await openGraph()
+      const since = (): number | undefined => graph.query(OPERATOR, { kind: 'note', ids: ['n1'] })[0]?.askedAt
+      vi.setSystemTime(1_000)
+      await graph.append({ type: 'note/opened', data: { noteId: 'n1', text: 'a' }, actor: ACTOR })
+      expect(since()).toBe(1_000)
+      vi.setSystemTime(2_000)
+      await graph.append({ type: 'note/opened', data: { noteId: 'n1', text: 'a, edited' }, actor: ACTOR })
+      expect(since()).toBe(1_000)
+      vi.setSystemTime(3_000)
+      await graph.append({ type: 'note/closed', data: { noteId: 'n1' }, actor: ACTOR })
+      expect(since()).toBe(1_000)
+      vi.setSystemTime(4_000)
+      const again = await graph.append({ type: 'note/opened', data: { noteId: 'n1', text: 'again' }, actor: ACTOR })
+      expect(since()).toBe(4_000)
+      // 序与时刻成对：同一毫秒里落的几张卡，「谁先问的」只有序说得清。
+      expect(graph.query(OPERATOR, { kind: 'note', ids: ['n1'] })[0]).toMatchObject({
+        askedSeq: again.seq, createdAt: 1_000,
+      })
+    })
+
+    it('从没问过谁的对象没有这个时刻', async () => {
+      const graph = await openGraph()
+      await graph.append({ type: 'note/closed', data: { noteId: 'n9' }, actor: ACTOR })
+      expect(graph.query(OPERATOR, { kind: 'note' })[0]?.askedAt).toBeUndefined()
+    })
+
+    /*
+      问题不跟着状态走的家族：承诺从出生到验收一直是 open，问「验收吗」是在交付被主张那一刻。
+      打回是人的回答，卡不该因此跳走；再交一版是新的问题，卡挪到那一版。
+    */
+    it('家族自己说问的是什么：状态没变、问题变了也算重问；回答不挪', async () => {
+      const claimFamily: GraphFamily<{ claimId: string; status: string; deliveredAt?: number | null }> = {
+        kind: 'claim',
+        events: {
+          'claim/opened': { schema: z.object({ claimId: z.string(), status: z.literal('open').default('open') }) },
+          'claim/delivered': { schema: z.object({ claimId: z.string(), deliveredAt: z.number() }) },
+          'claim/reworked': { schema: z.object({ claimId: z.string(), deliveredAt: z.null().default(null) }) },
+        },
+        pendingStatuses: ['open'],
+        questionOf: state => (state.status === 'open' && typeof state.deliveredAt === 'number'
+          ? `delivered:${String(state.deliveredAt)}`
+          : undefined),
+        objectIdOf: (_type, data) => (data as { claimId: string }).claimId,
+      }
+      const graph = new YzjGraph(new Context(), { root })
+      graph.defineFamily(claimFamily as unknown as GraphFamily)
+      await graph.selectAccount('acct-1')
+      const since = (): number | undefined => graph.query(OPERATOR, { kind: 'claim' })[0]?.askedAt
+      vi.setSystemTime(1_000)
+      await graph.append({ type: 'claim/opened', data: { claimId: 'c1' }, actor: ACTOR })
+      expect(since()).toBeUndefined()
+      vi.setSystemTime(2_000)
+      await graph.append({ type: 'claim/delivered', data: { claimId: 'c1', deliveredAt: 2_000 }, actor: ACTOR })
+      expect(since()).toBe(2_000)
+      vi.setSystemTime(3_000)
+      await graph.append({ type: 'claim/reworked', data: { claimId: 'c1' }, actor: ACTOR })
+      expect(since()).toBe(2_000)
+      vi.setSystemTime(4_000)
+      await graph.append({ type: 'claim/delivered', data: { claimId: 'c1', deliveredAt: 4_000 }, actor: ACTOR })
+      expect(since()).toBe(4_000)
+    })
+
+    it('经快照重开仍在', async () => {
+      const graph = await openGraph()
+      vi.setSystemTime(1_000)
+      await graph.append({ type: 'note/opened', data: { noteId: 'n1', text: 'a' }, actor: ACTOR })
+      vi.setSystemTime(2_000)
+      await graph.append({ type: 'note/closed', data: { noteId: 'n1' }, actor: ACTOR })
+      vi.setSystemTime(3_000)
+      await graph.append({ type: 'note/opened', data: { noteId: 'n1', text: 'b' }, actor: ACTOR })
+      await graph.flush()
+      const reopened = await openGraph()
+      expect(reopened.query(OPERATOR, { kind: 'note' })[0]?.askedAt).toBe(3_000)
+    })
   })
 
   it('resolves the org default contract and then a written one', async () => {

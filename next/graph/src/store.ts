@@ -28,6 +28,8 @@ interface ObjectRecord {
   updatedSeq: number
   createdAt: number
   updatedAt: number
+  askedSeq?: number
+  askedAt?: number
 }
 
 /** Audience/idempotency carried alongside an event while it is being folded. */
@@ -44,6 +46,13 @@ function statusOf(state: JsonValue): string | undefined {
   if (!isRecord(state)) return undefined
   const status = state.status
   return typeof status === 'string' ? status : undefined
+}
+
+/** The question one object is asking right now (`GraphFamily.questionOf`, status by default). */
+function questionOf(family: GraphFamily, state: JsonValue): string | undefined {
+  if (family.questionOf !== undefined) return family.questionOf(state)
+  const status = statusOf(state)
+  return status !== undefined && (family.pendingStatuses ?? []).includes(status) ? status : undefined
 }
 
 export class GraphStore {
@@ -118,6 +127,9 @@ export class GraphStore {
       // last update is the closest honest answer, and it is never zero.
       createdAt: object.createdAt ?? object.updatedAt,
       updatedAt: object.updatedAt,
+      ...(object.askedSeq === undefined || object.askedAt === undefined
+        ? {}
+        : { askedSeq: object.askedSeq, askedAt: object.askedAt }),
     }]))
     this.tombstoned = new Set()
     this.idemIndex.clear()
@@ -183,6 +195,16 @@ export class GraphStore {
       updatedSeq: event.seq,
       createdAt: previous?.createdAt ?? event.time,
       updatedAt: event.time,
+    }
+    // 一个对象开口问人的时刻：开始问一个它此前没在问的问题的那一刻。同一个问题上的后续
+    // 更新不算重问；答了也不清零——答过的卡留在它最后一次发问的地方。
+    const question = questionOf(family, state)
+    if (question !== undefined && (previous === undefined || questionOf(family, previous.state) !== question)) {
+      record.askedSeq = event.seq
+      record.askedAt = event.time
+    } else if (previous?.askedSeq !== undefined && previous.askedAt !== undefined) {
+      record.askedSeq = previous.askedSeq
+      record.askedAt = previous.askedAt
     }
     const audience = previous?.audience ?? annotations.audience
     if (audience !== undefined) record.audience = audience
@@ -422,5 +444,8 @@ function freeze(record: ObjectRecord): GraphObject {
     updatedSeq: record.updatedSeq,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+    ...(record.askedSeq === undefined || record.askedAt === undefined
+      ? {}
+      : { askedSeq: record.askedSeq, askedAt: record.askedAt }),
   }
 }

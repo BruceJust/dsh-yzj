@@ -426,6 +426,17 @@ export const commitmentFamily: GraphFamily = {
     },
   },
   pendingStatuses: ['open'],
+  /**
+   * 一条承诺开口问人，只有一个时刻：**交付被主张了**（v4.21 第一档⑥）。没交付之前它是
+   * 一件还没发生的事（信号，不是问题），从出生到验收它的状态也一直是 `open`——所以问题
+   * 由交付说，不由状态说。每一版交付是一个新问题：卡挪到最新那一版旁边；打回是人的回答，
+   * 卡留在原地。
+   */
+  questionOf: (state) => {
+    const record = asRecord(state)
+    const at = asRecord(record?.delivery)?.at
+    return record?.status === 'open' && typeof at === 'number' ? `delivered:${String(at)}` : undefined
+  },
   objectIdOf: (_type, data) => asString(asRecord(data)?.commitmentId),
   /**
    * 墓碑律: 作废 and 合并 are absorbing.

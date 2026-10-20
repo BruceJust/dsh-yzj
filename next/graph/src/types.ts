@@ -48,7 +48,11 @@ export const GRAPH_ENVELOPE_VERSION = 2
   （技术方案-下一代ERP账本 E0）。三族都没有对象，折叠结果可证不变——规矩仍然是 +1。代价
   已知：首次启动所有快照作废、全量重折，并全量校验一遍链。
 */
-export const GRAPH_FOLD_VERSION = 5
+/*
+  6 —— 折叠多记一对 `askedSeq`/`askedAt`（对象最近一次开口等人答的时刻）。旧快照里没有它，
+  按「不认识就当没有快照」全量重折补上。
+*/
+export const GRAPH_FOLD_VERSION = 6
 
 /** Lossless JSON, the only shape a graph event may carry. */
 export type JsonValue =
@@ -135,9 +139,19 @@ export interface GraphObject<S = JsonValue> {
   readonly idemKey?: string
   readonly createdSeq: number
   readonly updatedSeq: number
-  /** When the object came into being. What a timeline sorts a card by. */
+  /** When the object came into being. */
   readonly createdAt: number
   readonly updatedAt: number
+  /**
+   * When the object last started waiting for an answer: the moment it began
+   * asking a question it was not already asking (see `GraphFamily.questionOf`).
+   * Kept after it is answered. Absent for objects that never asked anything.
+   *
+   * 一张卡在时间线上的位置是它发问的时刻，不是它出生的时刻：任务出生在受理那一句，
+   * 可它问「验收吗」是在交付那一句。按出生排，验收按钮就和它要人验的东西隔着整段对话。
+   */
+  readonly askedSeq?: number
+  readonly askedAt?: number
 }
 
 /** Declaration of one event type inside a family. */
@@ -161,6 +175,15 @@ export interface GraphFamily<S = JsonValue> {
   readonly events: Readonly<Record<string, GraphEventSpec>>
   /** Statuses that mean "this object is still waiting for an answer". */
   readonly pendingStatuses?: readonly string[]
+  /**
+   * The question this object is asking right now, as a comparable key, or
+   * undefined when it is asking nothing. A new key stamps `askedSeq`/`askedAt`.
+   * Defaults to the status, when that status is one of `pendingStatuses`.
+   *
+   * 只给「问题不跟着状态走」的家族用：承诺从出生到验收一直是 `open`，可它问「验收吗」
+   * 是在交付被主张的那一刻——状态没变，问题变了。
+   */
+  questionOf?(state: S): string | undefined
   /** Object addressed by one event, or undefined when the event is a pure edge. */
   objectIdOf?(type: string, data: JsonValue): string | undefined
   /**
