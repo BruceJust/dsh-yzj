@@ -9,7 +9,7 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { EvidenceFaceWire, ObjectFaceWire, ObjectPreviewWire, SurfaceInject } from './rpc.ts'
 import { ResourceTab } from './ResourceTab.tsx'
-import { currentJudgSelection, subscribeJudgSelection } from './store.ts'
+import { currentJudgSelection, landOn, subscribeJudgSelection } from './store.ts'
 import tokens from './tokens.module.css'
 import css from './objects.module.css'
 import vault from './vault.module.css'
@@ -89,7 +89,11 @@ export function YzjJudgObjectFace(props: JudgObjectFaceProps): ReactNode {
             const key = one.anchor === undefined ? '' : `${one.anchor.kind}:${one.anchor.id}`
             const preview = previews[key]
             const jump = preview?.sessionId !== undefined && openSession !== undefined
-              ? () => { openSession(preview.sessionId as string) }
+              ? () => {
+                // 回真身 = 回到那张卡上，不是回到它所在会话的末尾。
+                if (one.anchor !== undefined) landOn({ sessionId: preview.sessionId as string, kind: one.anchor.kind, id: one.anchor.id })
+                openSession(preview.sessionId as string)
+              }
               : preview?.goalRef !== undefined && openGoal !== undefined ? () => { openGoal(preview.goalRef as string) } : undefined
             return (
               <div key={`${one.at}:${String(index)}`} className={`${vault.evidenceRow} ${one.premise === 'changed' ? vault.evidenceDead : ''}`}>

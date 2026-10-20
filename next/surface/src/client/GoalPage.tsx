@@ -321,7 +321,10 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
               <button
                 type="button"
                 className={css.act}
-                onClick={() => { openSession(row.sessionId as string) }}
+                onClick={() => {
+                  landOn({ sessionId: row.sessionId as string, kind: 'commitment', id: row.id })
+                  openSession(row.sessionId as string)
+                }}
               >
                 会话 ›
               </button>

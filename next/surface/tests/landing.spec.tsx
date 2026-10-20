@@ -10,8 +10,9 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { YzjConversationColumn } from '../src/client/ConversationColumn.tsx'
-import type { FusedWindowWire, StreamCard, SurfaceInject } from '../src/client/rpc.ts'
-import { currentLanding, landOn } from '../src/client/store.ts'
+import { YzjPlaceView } from '../src/client/PlaceView.tsx'
+import type { FusedWindowWire, PlaceViewWire, StreamCard, SurfaceInject } from '../src/client/rpc.ts'
+import { currentLanding, landOn, setFrame } from '../src/client/store.ts'
 
 const CARD: StreamCard = {
   kind: 'task', id: 'tk-1', resolved: false, at: 9_000, seq: 9,
@@ -31,8 +32,8 @@ function windowWith(cards: StreamCard[]): FusedWindowWire {
 }
 
 /** 中栏只用得到 inject 的一小部分；其余一律「没有」。 */
-function injectFor(window_: FusedWindowWire): SurfaceInject {
-  const known: Record<string, unknown> = { fused: window_, model: {} }
+function injectFor(window_: FusedWindowWire, place?: PlaceViewWire): SurfaceInject {
+  const known: Record<string, unknown> = { fused: window_, model: {}, place }
   return new Proxy({}, {
     get: (_target, name) => async () => Promise.resolve(known[String(name)]),
   }) as SurfaceInject
@@ -66,6 +67,7 @@ afterEach(async () => {
   await act(async () => { root.unmount() })
   host.remove()
   landOn(undefined)
+  setFrame({ kind: 'session' })
 })
 
 async function mount(sessionId: string, window_: FusedWindowWire): Promise<void> {
@@ -104,6 +106,25 @@ describe('中栏的落点', () => {
     expect(scrolled).toEqual([cardNode()])
   })
 
+  /*
+    3090 实测：从群视图点「待验收」的话题卡，会话 id 没变（刚才就站在那个话题里），窗口早
+    画过了——可落点设下的那一刻中栏还是群视图，流没挂上，于是「找不到」被当了真：落点
+    被取走，流回来时停在最顶上。流不在屏上的时候没有「找不到」，只有「等」。
+  */
+  it('中栏还被别的视图占着（群视图）：等流回到屏上再落，不当场判「找不到」', async () => {
+    await mount('s-1', windowWith([CARD]))
+    await act(async () => { setFrame({ kind: 'place', placeKey: 'yzj-group-g1', groupName: '财务组' }) })
+    await act(async () => { landOn({ sessionId: 's-1', kind: 'task', id: 'tk-1' }) })
+    expect(currentLanding()).toBeDefined()
+    expect(host.textContent).not.toContain('那张卡不在这个话题里了')
+    await act(async () => {
+      setFrame({ kind: 'session' })
+      await new Promise(resolve => setTimeout(resolve, 40))
+    })
+    expect(scrolled).toEqual([cardNode()])
+    expect(currentLanding()).toBeUndefined()
+  })
+
   it('不带卡进来的，不去碰任何一张卡', async () => {
     await mount('s-1', windowWith([CARD]))
     expect(scrolled).toEqual([])
@@ -121,6 +142,41 @@ describe('中栏的落点', () => {
     await mount('s-1', windowWith([CARD]))
     expect(scrolled).toEqual([])
     expect(currentLanding()).toBeUndefined()
-    expect(host.textContent).toContain('等你的那张卡不在这个话题里了')
+    expect(host.textContent).toContain('那张卡不在这个话题里了')
+  })
+})
+
+/*
+  群视图把话题卡画在两处：主楼里它出生的那一句旁边，和「更早的话题」折叠区（起点已滚出
+  窗口的）。3090 实测：第一处带上了卡，第二处还是只带会话 id——同一个话题卡，两种门。
+*/
+describe('群视图的两种话题卡都带着卡', () => {
+  it('「更早的话题」里那张写着「待验收」的，点进去也落在卡上', async () => {
+    const place: PlaceViewWire = {
+      placeKey: 'yzj-group-g1', groupName: '财务组', messages: [], aliases: [],
+      topics: [{
+        sessionId: 's-1', topicKey: 'yzj-topic-1', topicRootId: 'root-gone', label: '对账',
+        badge: '待验收', hot: true, owes: '交了', cardRef: { kind: 'task', id: 'tk-1' },
+      }],
+    } as PlaceViewWire
+    const opened: string[] = []
+    await act(async () => {
+      root.render(
+        <YzjPlaceView
+          placeKey="yzj-group-g1"
+          groupName="财务组"
+          inject={injectFor(windowWith([]), place)}
+          openSession={(id) => { opened.push(id) }}
+          back={() => undefined}
+        />,
+      )
+      await new Promise(resolve => setTimeout(resolve, 40))
+    })
+    const button = (text: string): HTMLButtonElement | undefined => [...host.querySelectorAll('button')]
+      .find(one => one.textContent?.includes(text) === true)
+    await act(async () => { button('更早的话题')?.click() })
+    await act(async () => { button('对账')?.click() })
+    expect(opened).toEqual(['s-1'])
+    expect(currentLanding()).toEqual({ sessionId: 's-1', kind: 'task', id: 'tk-1' })
   })
 })

@@ -797,7 +797,11 @@ export function YzjBoard(props: BoardProps): ReactNode {
             title={row.progress === undefined
               ? '打开这条承诺所在的会话——过程在那里，不搬到这里'
               : `最近：${row.progress}　（过程在会话里，这里只放一行）`}
-            onClick={() => { openSession(row.sessionId as string) }}
+            onClick={() => {
+              // 门后是这条承诺自己，不是会话末尾：过程从它那张卡往下长。
+              landOn({ sessionId: row.sessionId as string, kind: 'commitment', id: row.id })
+              openSession(row.sessionId as string)
+            }}
           >
             {row.placeName ?? '打开'} ›
           </button>

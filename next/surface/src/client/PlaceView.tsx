@@ -619,7 +619,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                 type="button"
                 key={topic.topicKey}
                 className={css.earlierItem}
-                onClick={() => { enter(topic.sessionId) }}
+                onClick={() => { enter(topic.sessionId, topic.cardRef) }}
               >
                 <span className={css.threadIcon}>🧵</span>
                 <span className={css.topicTitle}>{topic.label}</span>

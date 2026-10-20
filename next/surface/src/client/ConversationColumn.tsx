@@ -442,29 +442,33 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     **带着卡进来的，落在卡上** (v4.14 逐级兑付的最后一跳).
 
     侧栏的「待验收」、收件箱的一行、群视图的话题卡、目标页的决断层——点它们，是因为
-    **那张卡在等你**。此前它们只带会话 id，于是一律落在话题末尾，而那张卡在另一头
+    **那张卡在等你**；板上的「打开 ›」、枢纽的「去看 ›」、金库的「回真身」——点它们，
+    是为了**那一件事**。此前它们只带会话 id，于是一律落在话题末尾，而那张卡在另一头
     （2026-10-20 桌面实测：验收按钮在第一条，人被放在最后一条）。
 
     排在「跟到底」那条后面：同一次提交里两条都动滚动条，后动的算。落下之后不再跟到底
     ——人是来看这张卡的，把他从卡上拽走正是上面那条要防的事。瞬移不滑行：人还没见过
     这一屏，滑过整段对话只是晃眼；闪一下就够指认。
 
-    等这个会话的窗口真的画出来再判「找不到」：切换的那一刻屏上还是上一个话题。
+    「找不到」只在流真的在屏上、而且画的就是这个会话时才算数。切换的那一刻屏上还是上一
+    个话题；从群视图点进来时会话 id 可能根本没变（刚才就站在这儿），可中栏此刻是群视图，
+    流没挂上——3090 实测，那时判「找不到」，落点被取走，流回来时停在最顶上。
   */
   useEffect(() => {
     if (landing === undefined || landing.sessionId !== sessionId) return
+    if (frame.kind !== 'session' || streamRef.current === null) return
     const node = cardNodeIn(streamRef.current, landing.kind, landing.id)
     if (node === undefined) {
       if (paintedFor.current !== sessionId) return
       landOn(undefined)
-      setToast('等你的那张卡不在这个话题里了——它可能刚在别处答掉了。')
+      setToast('那张卡不在这个话题里了——它可能刚在别处答掉，或者已经挪走。')
       return
     }
     landOn(undefined)
     atBottom.current = false
     node.scrollIntoView({ block: 'center', behavior: 'instant' })
     flash(node)
-  }, [landing, sessionId, rows])
+  }, [landing, sessionId, rows, frame.kind])
 
   /**
    * Turn the pending chip into a fact, once the words are actually out.

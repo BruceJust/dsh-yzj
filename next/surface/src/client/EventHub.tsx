@@ -25,6 +25,7 @@ import { RoomPicker, handoffPortal, landPortal, type Portal } from './RoomPicker
 import { RepairVerbs, type Repair, type RepairTarget } from './RepairVerbs.tsx'
 import { eventPrepSeed } from './commission.ts'
 import { safeHref } from './preview.ts'
+import { landOn } from './store.ts'
 import css from './objects.module.css'
 
 export interface EventHubProps {
@@ -230,7 +231,11 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
                 <button
                   type="button"
                   className={css.hubGo}
-                  onClick={() => { openSession(prep.sessionId as string) }}
+                  onClick={() => {
+                    // 「去看那一件到哪一步了」——落在那一件自己的卡上。
+                    landOn({ sessionId: prep.sessionId as string, kind: 'commitment', id: prep.commitmentId })
+                    openSession(prep.sessionId as string)
+                  }}
                 >
                   去看 ›
                 </button>
