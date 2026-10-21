@@ -7,7 +7,7 @@
  *   另一屏（私账）。透镜换的是骨架，不是过滤条件。
  * - **今天条**：逾期、等你、说交了没见到东西、没动静，各一个数，数字就是入口。
  * - **一行一个信号**：逾期 › 等你 › 说交了没见到 › 没动静 › 快到期 › 在做 › 正常。
- *   默认只摊开不对劲的，正常的收进「其余 N 件正常」，完成的收进「已完成」。
+ *   默认只摊开不对劲的，正常的收进「其余 N 件正常」，结束了的收进「已结束」。
  * - **动词跟着焦点**：悬停时信号换成一两个就近动词；选中一行，右栏摆来龙去脉和全套动词。
  *
  * 这一屏是对承诺的一次查询——没有板对象，没有第二本账，所以它不维护也为真。
@@ -25,7 +25,7 @@ import { DeclareGoal } from './DeclareGoal.tsx'
 import { LedgerRow, StoryDock, useLedger, useRowKeys } from './LedgerRow.tsx'
 import { useBackKey } from './keys.ts'
 import { usePoll } from './poll.ts'
-import { TODAY_LABEL, TODAY_OF, UNUSUAL, goalTitleOf, rowSub, signalOf, todayOf, type TodayKey } from './ledger.ts'
+import { TODAY_LABEL, TODAY_OF, UNUSUAL, foldNormalText, goalTitleOf, rowSub, signalOf, todayOf, type TodayKey } from './ledger.ts'
 import { Avatar } from './Avatar.tsx'
 import { AgentFace, Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
@@ -37,7 +37,7 @@ import css from './ledger.module.css'
 export { safeHref } from './preview.ts'
 export { matchWorkspaces } from './DeclareGoal.tsx'
 export {
-  TODAY_LABEL, goalTitleOf, nudgeDraft, signalOf, sinceText, todayOf, type RowSignal, type SignalKey, type TodayKey,
+  TODAY_LABEL, foldNormalText, goalTitleOf, nudgeDraft, signalOf, sinceText, todayOf, type RowSignal, type SignalKey, type TodayKey,
 } from './ledger.ts'
 
 export interface BoardProps {
@@ -359,22 +359,22 @@ export function YzjBoard(props: BoardProps): ReactNode {
         {!closed && (
           <div className={css.rows}>
             {unusual.map(row => rowNode(row, group))}
-            {normal.length > 0 && (opened[`n:${group.key}`] === true || unusual.length === 0)
+            {normal.length > 0 && (opened[`n:${group.key}`] === true || normal.length === 1)
               ? normal.map(row => rowNode(row, group))
               : normal.length > 0 && (
                 <button type="button" className={css.fold} onClick={() => { toggle(`n:${group.key}`) }}>
-                  其余 {normal.length} 件正常 <Icon name="chevD" size={12} />
+                  {foldNormalText(normal.length, unusual.length)} <Icon name="chevD" size={12} />
                 </button>
               )}
             {done.length > 0 && (
               opened[`d:${group.key}`] === true
                 ? <>
                   {done.map(row => rowNode(row, group))}
-                  <button type="button" className={css.fold} onClick={() => { toggle(`d:${group.key}`) }}>收起已完成</button>
+                  <button type="button" className={css.fold} onClick={() => { toggle(`d:${group.key}`) }}>收起已结束</button>
                 </>
                 : (
                   <button type="button" className={css.fold} onClick={() => { toggle(`d:${group.key}`) }}>
-                    已完成 {done.length} <Icon name="chevD" size={12} />
+                    已结束 {done.length} <Icon name="chevD" size={12} />
                   </button>
                 )
             )}

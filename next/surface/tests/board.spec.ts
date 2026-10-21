@@ -20,7 +20,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { countedRows, goalTitleOf, groupsOf, jumpTarget, matchWorkspaces, nudgeDraft, signalOf, sinceText, todayOf } from '../src/client/Board.tsx'
+import { countedRows, foldNormalText, goalTitleOf, groupsOf, jumpTarget, matchWorkspaces, nudgeDraft, signalOf, sinceText, todayOf } from '../src/client/Board.tsx'
 import type { BoardRowWire, BoardViewWire } from '../src/client/rpc.ts'
 import { cascadeLine, voidGate } from '../src/client/RepairVerbs.tsx'
 import {
@@ -1380,5 +1380,12 @@ describe('目标连名字都没有时', () => {
     expect(goalTitleOf('https://www.yunzhijia.com/knowledge/lingee/#/store/doc/6a880632ecd3fb103b85c455')).toBe('没有名字的目标')
     expect(goalTitleOf('https://yzj.example.com/doc/q3')).toBe('q3')
     expect(goalTitleOf('Q4 路线图')).toBe('Q4 路线图')
+  })
+})
+
+describe('正常的总是收起来', () => {
+  it('上面有不对劲的说「其余」，没有就说「都正常」', () => {
+    expect(foldNormalText(3, 2)).toBe('其余 3 件正常')
+    expect(foldNormalText(3, 0)).toBe('3 件都正常')
   })
 })

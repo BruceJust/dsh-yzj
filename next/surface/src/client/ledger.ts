@@ -95,6 +95,15 @@ export function signalOf(row: BoardRowWire, now: number = Date.now()): RowSignal
 /** 不对劲的那几种：默认摊开。其余收进「其余 N 件正常」。 */
 export const UNUSUAL: ReadonlySet<SignalKey> = new Set(['wait', 'said', 'late', 'declined', 'unheard', 'quiet', 'soon'])
 
+/**
+ * 正常的那几件收起来时那颗按钮怎么说。正常的**总是**收：一组里全是正常的也收——
+ * 七十条全摊开就又是一堵墙 (R9)。上面有不对劲的才说「其余」；只有一件时不收，
+ * 收起来那颗按钮和那一行一样高，白让人多点一下。
+ */
+export function foldNormalText(normal: number, unusual: number): string {
+  return unusual === 0 ? `${String(normal)} 件都正常` : `其余 ${String(normal)} 件正常`
+}
+
 /** 今天条的四颗数：逾期、等你、说交了没见到、没动静。 */
 export type TodayKey = 'late' | 'wait' | 'said' | 'quiet'
 

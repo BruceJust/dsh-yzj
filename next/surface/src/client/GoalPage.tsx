@@ -29,7 +29,7 @@ import { artifactRefOf } from './artifacts.ts'
 import { LedgerRow, StoryDock, useLedger, useRowKeys } from './LedgerRow.tsx'
 import { useBackKey } from './keys.ts'
 import { usePoll } from './poll.ts'
-import { UNUSUAL, goalTitleOf, rowSub, signalOf } from './ledger.ts'
+import { UNUSUAL, foldNormalText, goalTitleOf, rowSub, signalOf } from './ledger.ts'
 import { Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
 import { UnreadLine } from './Unread.tsx'
@@ -492,11 +492,11 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 : (
                   <div className={css.rows}>
                     {unusual.map(rowNode)}
-                    {normal.length > 0 && (opened.normal === true || unusual.length === 0)
+                    {normal.length > 0 && (opened.normal === true || normal.length === 1)
                       ? normal.map(rowNode)
                       : normal.length > 0 && (
                         <button type="button" className={rows.fold} onClick={() => { setOpened(value => ({ ...value, normal: true })) }}>
-                          其余 {normal.length} 件正常 <Icon name="chevD" size={12} />
+                          {foldNormalText(normal.length, unusual.length)} <Icon name="chevD" size={12} />
                         </button>
                       )}
                     {done.length > 0 && (
