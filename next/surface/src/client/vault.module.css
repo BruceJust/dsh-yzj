@@ -1,166 +1,154 @@
 /*
-  金库 —— 私账的对表面.
-
-  它长得**和别的面不一样，而且是故意的**：纸色底、暗金的线。这是这套系统里唯一一个
-  「组织看不见」的面，而一个和组织侧长得一模一样的私人账本，会让人在开会投屏的时候
-  忘了自己开着的是哪一本。颜色在这里承担的是一句话：**你现在看的这一屏，只有你看得见。**
-*/
+ * 我定过的 (界面重设计 §5.6)。
+ *
+ * 整页纸色，故意和别的面不一样：这是唯一一个公司看不见的面，投屏开会时颜色替人记得自己
+ * 开着的是哪一本。行的长相跟承诺页一致；只有「等你」的那一格上琥珀。
+ */
 
 .vault {
   display: flex; flex-direction: column; height: 100%; min-height: 0;
-  background: var(--yzj-need-bg);
+  background: var(--yzj-pri-bg); color: var(--yzj-ink);
 }
 
 .head {
-  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-  padding: 12px 20px 10px; border-bottom: 1px solid var(--yzj-pri-line);
+  flex: none; display: flex; align-items: center; gap: 10px;
+  height: 52px; padding: 0 12px;
+  border-bottom: 1px solid var(--yzj-pri-line);
 }
-.title { font-size:var(--yzj-fs-lg); font-weight: 700; color: var(--yzj-ink); }
-.sub { font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); }
 .back {
-  margin-left: auto; padding: 4px 11px;
-  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
-  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); cursor: pointer;
+  flex: none; display: inline-flex; align-items: center; gap: 2px;
+  height: 28px; padding: 0 8px 0 4px;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  font: inherit; font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2); cursor: pointer;
 }
-.back:hover { box-shadow:var(--yzj-shadow-1); }
+.back:hover { background: var(--yzj-pri-line); color: var(--yzj-ink); }
+.headRule { flex: none; width: 1px; height: 18px; background: var(--yzj-pri-rail); }
+.title { display: inline-flex; align-items: center; gap: 6px; font-size: var(--yzj-fs-lg); font-weight: 600; }
 
-/* 硬合同 chips —— 一份人看不见的合同不是合同，所以它在最上面一行。 */
-.contract { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 20px 0; }
-.chip {
-  font: inherit; font-size:var(--yzj-fs-xs); padding: 2px 8px; border-radius:var(--yzj-r-sm);
-  background: var(--yzj-pri-line); color: var(--yzj-pri-ink); border: 1px solid var(--yzj-pri-line); cursor: pointer;
+.body { flex: 1; min-height: 0; overflow-y: auto; }
+.column { max-width: 760px; margin: 0 auto; padding: 18px 28px 48px; }
+
+/* 顶上那一句：一份人看不见的合同不是合同。 */
+.contract {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; border-radius: var(--yzj-r-md);
+  border: 1px solid var(--yzj-pri-line);
+  font-size: var(--yzj-fs-sm); color: var(--yzj-pri-ink);
 }
-.chip:hover { background: var(--yzj-pri-line); }
-
-/*
-  金库是**中栏**，一列 —— 右栏在宿主的对象面槽位上（v2.2 对象面账本律①）。
-
-  「中栏是流、右栏是物」在这里和在会话面是同一条语义：金库的物 = 判例的证据，它由
-  对象面按 frame 分派出来的那一棵树画。曾经这里自己长过一个 aside，那等于在同一屏上
-  摆了两个右栏——**账本随会话整体切换**说的正是这件事不该发生。
-
-  **对表不出屏**照旧成立，而且更实：证据在真正的右栏上，四格在这一列的行上，一屏之内。
-*/
-.body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 20px 24px; }
-
-/* 检索框 —— **金库内**的检索。这个面上没有 viewer 参数，因为它只有一个读者。 */
-.searchRow { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
-.hit {
-  display: flex; gap: 8px; align-items: baseline;
-  padding: 6px 11px; margin-bottom: 4px;
-  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-ink);
+.contract > span { flex: 1; min-width: 220px; }
+.contractMore {
+  flex: none; display: inline-flex; align-items: center; gap: 2px;
+  height: 26px; padding: 0 8px;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); cursor: pointer;
 }
+.contractMore:hover { background: var(--yzj-pri-line); }
 
-/* 证据面：摘要为主、锚为辅、锚死显形。 */
-.evidenceRow {
-  padding: 8px 11px; margin-bottom: 5px;
-  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-ink); line-height: 1.55;
+.note {
+  margin-top: 10px; padding: 8px 12px; border-radius: var(--yzj-r-md);
+  background: var(--yzj-pri-line); font-size: var(--yzj-fs-sm); color: var(--yzj-ink);
 }
-.evidenceDead { border-color: var(--yzj-late-line); background: var(--yzj-late-bg); }
-.evidenceMeta { display: block; font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); margin-top: 3px; }
+.calm { padding: 8px 0; font-size: var(--yzj-fs-sm); line-height: 1.65; color: var(--yzj-ink-3); }
+.code { padding: 0 4px; border-radius: var(--yzj-r-sm); background: var(--yzj-pri-line); font: var(--yzj-fs-xs)/1.5 var(--yzj-mono); color: var(--yzj-ink-2); }
 
-/* 只读预览：组织侧此刻的样子。它在快照**下面**，因为快照才是正文。 */
-.preview {
-  margin-top: 6px; padding: 6px 9px;
-  border-left: 2px solid var(--yzj-pri-line); background: var(--yzj-pri-bg);
-  border-radius:0 var(--yzj-r-sm) var(--yzj-r-sm) 0;
-  font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.55;
+/* ——— 一族一组 ——— */
+.group { margin-top: 26px; }
+.groupHead { display: flex; align-items: center; gap: 8px; }
+.groupTitle { font-size: var(--yzj-fs-md); font-weight: 600; color: var(--yzj-ink); }
+.groupAct {
+  margin-left: auto; flex: none; height: 26px; padding: 0 8px;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); cursor: pointer;
 }
-
-/* chips 是入口摘要，所以它长得像可以按 —— 信号即门。 */
-.chipMore {
-  font: inherit; font-size:var(--yzj-fs-xs); padding: 2px 8px; border-radius:var(--yzj-r-sm);
-  background: var(--yzj-need-bg); color: var(--yzj-pri-ink); border: 1px solid var(--yzj-pri-line); cursor: pointer;
-}
-.chipMore:hover { background: var(--yzj-pri-line); }
-
-/* 取走：拷得走 ≠ 取得走。生成出来的东西要能当场看见。 */
-.take { white-space: pre-wrap; max-height: 220px; overflow-y: auto; }
-
-.section {
-  font-size:var(--yzj-fs-xs); font-weight: 700; letter-spacing: .06em;
-  color: var(--yzj-pri-ink); margin: 16px 0 6px; text-transform: none;
-}
-.sectionNote { font-weight: 400; letter-spacing: 0; color: var(--yzj-pri-ink); }
+.groupAct:hover { background: var(--yzj-pri-line); color: var(--yzj-ink); }
+.groupLine { margin-top: 2px; font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink-2); }
+.sub { font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); }
+.rows { margin: 6px -10px 0; display: flex; flex-direction: column; }
 
 .row {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 9px 13px; margin-bottom: 6px;
-  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  min-height: 48px; padding: 6px 10px;
+  border-radius: var(--yzj-r-md); cursor: pointer; outline: none;
 }
-.rowMain { flex: 1; min-width: 0; font-size:var(--yzj-fs-xs); color: var(--yzj-ink); line-height: 1.55; }
-.rowNote { display: block; font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); margin-top: 3px; }
-.mark { flex: none; font-size:var(--yzj-fs-sm); }
+.row:hover { background: var(--yzj-pri-line); }
+.row:focus-visible { box-shadow: 0 0 0 2px var(--yzj-pri-rail); }
+.rowOn, .rowOn:hover { background: var(--yzj-pri-line); box-shadow: inset 2px 0 0 var(--yzj-pri-solid); }
+.rowMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.what { font-size: var(--yzj-fs-md); color: var(--yzj-ink); overflow-wrap: anywhere; }
+.rowNote { font-size: var(--yzj-fs-xs); line-height: 1.55; color: var(--yzj-ink-3); }
+.signal { flex: none; font-size: var(--yzj-fs-sm); white-space: nowrap; }
+.need { color: var(--yzj-need-ink); font-weight: 500; }
+.quiet { color: var(--yzj-ink-3); }
+.verbs { flex: none; display: none; gap: 4px; }
+.row:hover .verbs, .row:focus-within .verbs { display: inline-flex; }
+/* 悬停时信号让位给动词——只在真有动词的那几行。 */
+.row:hover .signal:has(+ .verbs:not(:empty)), .row:focus-within .signal:has(+ .verbs:not(:empty)) { display: none; }
 
-/* 四格标签：判例的标签，不是分数的原料。 */
-.tag {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 700; padding: 2px 8px; border-radius:var(--yzj-r-sm);
-  background: var(--yzj-pri-line); color: var(--yzj-pri-ink); border: 1px solid var(--yzj-pri-line); white-space: nowrap;
-}
-
-/* 行内动词 —— 每一行既可见又可动。说明文字占位同罪。 */
-.verbs { display: flex; gap: 5px; flex: none; align-items: center; flex-wrap: wrap; }
 .verb {
-  font: inherit; font-size:var(--yzj-fs-xs); padding: 2px 9px; border-radius:var(--yzj-r-sm);
-  border: 1px solid var(--yzj-pri-line); background: var(--yzj-need-bg); color: var(--yzj-pri-ink); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 2px;
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--yzj-pri-rail); border-radius: var(--yzj-r-sm); background: var(--yzj-pri-bg);
+  font: inherit; font-size: var(--yzj-fs-sm); color: var(--yzj-ink); cursor: pointer; white-space: nowrap;
 }
 .verb:hover { background: var(--yzj-pri-line); }
-.verbOn { background: var(--yzj-pri-solid); color: var(--yzj-on-color); border-color: var(--yzj-pri-solid); }
 .verb:disabled { opacity: .45; cursor: default; }
+.verbOn, .verbOn:hover { background: var(--yzj-pri-solid); border-color: var(--yzj-pri-solid); color: var(--yzj-on-color); }
+.verbQuiet { border-color: transparent; color: var(--yzj-ink-3); }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
 
-.door {
-  font: inherit; font-size: inherit; padding: 0; border: 0; background: none;
-  color: var(--yzj-pri-ink); text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+/* 等你定的那一下：就在那一行下面。 */
+.ask {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin: 0 0 6px; padding: 8px 10px;
+  border-radius: var(--yzj-r-md); background: var(--yzj-need-bg);
 }
-
-.empty {
-  padding: 10px 13px; border: 1px dashed var(--yzj-pri-line); border-radius:var(--yzj-r-md);
-  background: var(--yzj-pri-bg); font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.65;
-}
-
-/* 明拒 —— 故意没有的东西，不说出来就只是还没做。 */
-.refuse {
-  margin-top: 18px; padding: 10px 13px;
-  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-pri-bg);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.7;
-}
-
+.askText { margin-right: 4px; font-size: var(--yzj-fs-sm); font-weight: 500; color: var(--yzj-ink); }
+.inline { display: flex; flex-direction: column; margin: 0 0 8px; }
 .input {
-  flex: 1; min-width: 0; font: inherit; font-size:var(--yzj-fs-xs);
-  padding: 5px 9px; border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md);
-  background: var(--yzj-need-bg); color: var(--yzj-ink); resize: vertical;
+  flex: 1; min-width: 0; padding: 6px 8px;
+  border: 1px solid var(--yzj-pri-rail); border-radius: var(--yzj-r-sm); background: var(--yzj-bg);
+  font: inherit; font-size: var(--yzj-fs-sm); color: var(--yzj-ink); resize: vertical;
 }
 
-.error {
-  margin: 6px 0 0; padding: 7px 11px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-late-bg); border: 1px solid var(--yzj-late-line); color: var(--yzj-late-ink);
-  font-size:var(--yzj-fs-xs); line-height: 1.6;
+/* 以后这类事…：先看数，再决定。 */
+.gear {
+  margin: 6px 0 8px; padding: 10px 12px;
+  border: 1px solid var(--yzj-pri-line); border-radius: var(--yzj-r-md); background: var(--yzj-pri-bg);
+  font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2); line-height: 1.6;
 }
+.gearHead { color: var(--yzj-ink); }
+.gearAsk { margin-top: 8px; font-weight: 500; color: var(--yzj-ink); }
 
-/* 销毁：不可逆终态的门。它得看起来像一扇不该随手推的门。 */
-.destroy { margin-top: 20px; padding-top: 14px; border-top: 1px dashed var(--yzj-pri-line); }
-.destroyRow { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+/* 明拒：故意没有的东西，说出来才不是「还没做」。 */
+.refuse { margin-top: 32px; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+
+.destroy { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--yzj-pri-line); }
+.take {
+  margin-top: 8px; padding: 10px 12px; max-height: 220px; overflow-y: auto;
+  border-radius: var(--yzj-r-md); background: var(--yzj-pri-line);
+  font-size: var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-2); white-space: pre-wrap;
+}
+.destroyRow { display: flex; gap: 6px; align-items: center; margin-top: 14px; }
+.destroyRow .input { height: 30px; resize: none; }
 .danger {
-  font: inherit; font-size:var(--yzj-fs-xs); padding: 3px 10px; border-radius:var(--yzj-r-sm);
-  border: 1px solid var(--yzj-late-line); background: var(--yzj-late-bg); color: var(--yzj-late-ink); cursor: pointer;
+  flex: none; height: 30px; padding: 0 12px;
+  border: 1px solid var(--yzj-late-line); border-radius: var(--yzj-r-sm); background: var(--yzj-bg);
+  font: inherit; font-size: var(--yzj-fs-sm); color: var(--yzj-late-ink); cursor: pointer;
 }
 .danger:disabled { opacity: .45; cursor: default; }
 
-/* 私语流：未答的邀约与回执，静躺在这里。 */
-.private { margin-bottom: 4px; }
-.privateCard {
-  padding: 10px 13px; margin-bottom: 6px;
-  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
+/* ——— 右栏证据面（JudgObjectFace）：摘要为主、锚为辅、锚死显形 ——— */
+.evidenceRow {
+  padding: 8px 11px; margin-bottom: 6px;
+  border: 1px solid var(--yzj-pri-line); border-radius: var(--yzj-r-md); background: var(--yzj-pri-bg);
+  font-size: var(--yzj-fs-sm); color: var(--yzj-ink); line-height: 1.55;
 }
-.privateHead { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
-.domain {
-  font-size:var(--yzj-fs-xs); font-weight: 700; padding: 2px 8px; border-radius:var(--yzj-r-sm);
-  background: var(--yzj-pri-line); color: var(--yzj-pri-ink); border: 1px solid var(--yzj-pri-line);
+.evidenceDead { border-color: var(--yzj-late-line); background: var(--yzj-late-bg); }
+.evidenceMeta { display: block; font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); margin-top: 3px; }
+/* 组织侧此刻的样子。它在快照下面，因为快照才是正文。 */
+.preview {
+  margin-top: 6px; padding: 6px 9px;
+  border-left: 2px solid var(--yzj-pri-rail); background: var(--yzj-pri-bg);
+  border-radius: 0 var(--yzj-r-sm) var(--yzj-r-sm) 0;
+  font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.55;
 }
-.privateTitle { font-size:var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-ink); }
-.privateBody { font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.65; white-space: pre-wrap; }
-.privateFoot { font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); margin-top: 5px; }
-.actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
-.primary { background: var(--yzj-pri-solid); color: var(--yzj-on-color); border-color: var(--yzj-pri-solid); }

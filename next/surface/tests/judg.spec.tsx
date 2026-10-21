@@ -18,10 +18,10 @@ import { YzjCards } from '@yzj-next/cards'
 import { commitmentFamily, createCommitmentCard, taskFamily, waitingFamily } from '@yzj-next/objects'
 import { YzjPledger, createDesk, fileVerdict, pledge } from '@yzj-next/pledger'
 import { applySurfaceRpc, boardFrame, cardsFor, fusedWindow } from '../src/rpc.ts'
-import { YzjJudg } from '../src/client/Judg.tsx'
+import { YzjJudg, familySentence } from '../src/client/Judg.tsx'
 import { YzjRightColumn } from '../src/client/RightColumn.tsx'
 import { currentJudgSelection, popFrame, pushFrame, setFrame, setJudgSelection } from '../src/client/store.ts'
-import type { SurfaceInject } from '../src/client/rpc.ts'
+import type { FamilyHeadWire, SurfaceInject } from '../src/client/rpc.ts'
 
 /** 渲染成文本再断言——和 v2 的 tsx 用例同一把尺。 */
 async function rendered(node: React.ReactNode): Promise<string> {
@@ -171,5 +171,33 @@ describe('取景框渲染：组头是原料，不是分数', () => {
     expect(text).toContain('没有分数、没有排名、没有别人的账')
     setFrame({ kind: 'judg' })
     expect(await rendered(<YzjRightColumn inject={inject} />)).toContain('当时的样子')
+  })
+})
+
+describe('一族一句话：比值的原料，不是比值', () => {
+  const head = (input: Partial<FamilyHeadWire>): FamilyHeadWire => ({
+    family: 'commitment', label: '验收', count: 0, agree: 0, notReversed: 0, reversed: 0,
+    diverged: 0, vindicated: 0, wrong: 0, pending: 0, dwellMs: 0, waitMs: 0, clauses: false, leasable: false,
+    ...input,
+  })
+
+  it('写「没被推翻」不写「成立」，把多久才去验摆出来', () => {
+    const line = familySentence(head({ count: 33, agree: 33, notReversed: 33, waitMs: 22 * 3_600_000 }))
+    expect(line).toBe('同意 33 次，都没被推翻 · 平均 22 小时后才去验')
+    expect(line).not.toContain('成立')
+  })
+
+  it('有被推翻的，两个数都写出来；没同意的那一半也写', () => {
+    const line = familySentence(head({ count: 9, agree: 6, notReversed: 5, reversed: 1, diverged: 3, vindicated: 2, pending: 1, dwellMs: 8_000 }))
+    expect(line).toBe('同意 6 次：5 次没被推翻，1 次被推翻 · 没同意 3 次，2 次后来证明你对，1 次还没分晓 · 每次看约 8 秒')
+  })
+
+  it('什么都还没有时说一句人话，不摆一排 0', () => {
+    expect(familySentence(head({}))).toBe('还没有结果回来')
+  })
+
+  it('不打分：句子里没有百分比、没有排名', () => {
+    const line = familySentence(head({ count: 10, agree: 10, notReversed: 9, reversed: 1 }))
+    expect(line).not.toMatch(/%|排名|分数|得分/u)
   })
 })
