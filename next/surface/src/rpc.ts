@@ -25,7 +25,7 @@ import {
   reissueEdge,
   releaseNotice,
   transferredToName, type CommitmentState,
-  proposeLease, toolClassOf, SIGNATURE_AGENT,
+  proposeLease, toolClassOf, SIGNATURE_AGENT, isPastDue, resolveDue,
 } from '@yzj-next/objects'
 import {
   placeKeyFor, type PresenceView, type TopicDescriptor, type TopicMessage,
@@ -1163,15 +1163,17 @@ export function evidenceOf(input: {
   return 'said'
 }
 
-function dueOf(due: string): { text: string; ts?: number } {
-  const parsed = Date.parse(due)
-  return Number.isFinite(parsed) ? { text: due, ts: parsed } : { text: due }
+/**
+ * 原话期限：屏上照原话，排序与逾期按 `resolveDue` 算出的时刻（锚在说出口的那一刻）。
+ * 认不出的只有原话、没有时刻——不算逾期，也不抢「越近越先」。
+ */
+function dueOf(due: string, saidAt: number): { text: string; ts?: number } {
+  const at = resolveDue(due, saidAt)
+  return at === undefined ? { text: due } : { text: due, ts: at }
 }
 
-function isOverdue(due: string | undefined, now: number): boolean {
-  if (due === undefined) return false
-  const parsed = Date.parse(due)
-  return Number.isFinite(parsed) && parsed < now
+function isOverdue(due: string | undefined, saidAt: number, now: number): boolean {
+  return isPastDue(due, saidAt, now)
 }
 
 /**
@@ -1882,7 +1884,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
         ? asString(executor?.name) ?? asString(executor?.openId) ?? '某人'
         : 'agent',
       status,
-      ...(due === undefined || due.trim() === '' ? {} : { due: dueOf(due) }),
+      ...(due === undefined || due.trim() === '' ? {} : { due: dueOf(due, object.createdAt) }),
       ...directionOf(
         me,
         asString(executor?.openId),
@@ -1919,7 +1921,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
         const to = transferredToName(state as JsonValue | undefined)
         return to === undefined ? {} : { transferredTo: to }
       })(),
-      overdue: status === 'open' && isOverdue(due, now),
+      overdue: status === 'open' && isOverdue(due, object.createdAt, now),
       remindable: mirror === undefined && status === 'open' && (object.audience?.length ?? 0) > 0,
       ...(mirror === undefined ? {} : { mirror }),
       inferredGoal: asString(state?.attachedVia) === 'inferred',
@@ -2869,7 +2871,7 @@ export function inboxView(ctx: Context): InboxView {
       ...(topic === undefined ? {} : { placeName: topic.groupName }),
       since: pending.at,
       waiting: human ? (asString(executor?.name) ?? '对方') : SIGNATURE_AGENT,
-      ...(due === undefined || due === '' ? {} : { due: dueOf(due) }),
+      ...(due === undefined || due === '' ? {} : { due: dueOf(due, object?.createdAt ?? pending.at) }),
     })
   }
   {
@@ -3027,7 +3029,7 @@ export function inboxView(ctx: Context): InboxView {
     const status = asString(state?.status) ?? 'open'
     if (status === 'open') {
       open += 1
-      if (isOverdue(asString(state?.due), now)) overdue += 1
+      if (isOverdue(asString(state?.due), object.createdAt, now)) overdue += 1
     }
     const own = asString(state?.goalRef)
     if (own !== undefined && status === 'open') openGoals.push(own)

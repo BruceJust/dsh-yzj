@@ -31,6 +31,7 @@ import { failureOf } from '../bridge-error.ts'
 import { fenceLine } from '../fence.ts'
 import { waitingIdFor } from '../task/waiting.ts'
 import { goalCommitmentIdFor } from './family.ts'
+import { isPastDue } from '../commitment/due.ts'
 import { bodyMark, bodyPayload, docIdOf, fenceOf } from './truth.ts'
 
 /**
@@ -80,16 +81,15 @@ function whoOf(state: Record<string, unknown> | undefined): string {
 
 /** 终态的人话。 */
 /**
- * 有真日期，而且已经过了 —— **含糊的期限永远不算逾期**。
+ * 有确定的截止时刻，而且已经过了 —— **含糊的期限永远不算逾期**。
  *
- * 「下周初」不解析（时间透镜两层：话语原文是真身，时间戳是可空的投影）。往一份全组
- * 在读的文档里写一句「已逾期」，判据必须是硬的：拿一个猜出来的日子给同事的活盖一个
- * 逾期章，比不写坏得多。
+ * 「下周初」「尽快」不解析（时间透镜两层：话语原文是真身，时间戳是可空的投影）。往一份
+ * 全组在读的文档里写一句「已逾期」，判据必须是硬的：拿一个猜出来的日子给同事的活盖一个
+ * 逾期章，比不写坏得多。「下周五」「8/20」是确定的——锚在说出口的那一刻（`resolveDue`）；
+ * 此前用 `Date.parse`，「8/20」被读成 2001 年，一登记就盖了逾期章。
  */
-function overdueNow(due: string | undefined, now: number): boolean {
-  if (due === undefined || due.trim() === '') return false
-  const parsed = Date.parse(due)
-  return Number.isFinite(parsed) && parsed < now
+function overdueNow(due: string | undefined, saidAt: number, now: number): boolean {
+  return isPastDue(due, saidAt, now)
 }
 
 /**
@@ -414,6 +414,7 @@ export function applyGoalWriteback(ctx: Context): () => void {
    */
   const momentOf = (
     state: Record<string, unknown> | undefined,
+    saidAt: number,
   ): 'born' | 'overdue' | 'settled' | undefined => {
     const status = asString(state?.status as never) ?? 'open'
     if (asString(state?.goalRef as never) !== undefined) return undefined
@@ -423,7 +424,7 @@ export function applyGoalWriteback(ctx: Context): () => void {
       仍然 `open`。所以它排在 `settled` 后面判——一条又逾期又已经结束的活，该写的是
       结束，不是逾期。
     */
-    return overdueNow(asString(state?.due as never), Date.now()) ? 'overdue' : 'born'
+    return overdueNow(asString(state?.due as never), saidAt, Date.now()) ? 'overdue' : 'born'
   }
 
   /*
@@ -486,7 +487,7 @@ export function applyGoalWriteback(ctx: Context): () => void {
       终态跟着出生走，是因为下面那句「死了就补生」：没投影过的边不该突然冒出一行
       「已完成」——组里看到的会是一件他们从没见过被登记的事完成了。
     */
-    const moment = momentOf(state)
+    const moment = momentOf(state, object?.createdAt ?? Date.now())
     if (moment === undefined) return
     /*
       **选择只在出生那一刻说了算；之后由事实说了算** (v4.22 裁决③).

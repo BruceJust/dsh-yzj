@@ -47,6 +47,7 @@ export {
   type CommitmentExecutor, type CommitmentState, type CommitmentStatus,
 } from './commitment/family.ts'
 export { applyCommitmentTools } from './commitment/tools.ts'
+export { isPastDue, resolveDue } from './commitment/due.ts'
 export {
   executorName, handoffDraft, nothingChanges, pendingDecisionsOn, placeOfEdge, reissuable,
   reissueEdge, releaseNotice,

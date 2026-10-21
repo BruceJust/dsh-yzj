@@ -22,6 +22,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString, type GraphViewer } from '@yzj-next/graph'
 import { goalCommitmentIdFor } from './family.ts'
+import { isPastDue } from '../commitment/due.ts'
 
 /** One artifact produced under a goal, with the commitment it came through. */
 export interface GoalArtifact {
@@ -74,12 +75,7 @@ export interface GoalEvidence {
   }
 }
 
-/** A due string that is a real date in the past. Vague dues never count. */
-function overdueAt(due: string | undefined, now: number): boolean {
-  if (due === undefined) return false
-  const parsed = Date.parse(due)
-  return Number.isFinite(parsed) && parsed < now
-}
+
 
 /**
  * The progress line for one child.
@@ -155,7 +151,7 @@ export function goalEvidence(
         ? asString(executor?.name) ?? asString(executor?.openId) ?? '某人'
         : 'agent',
       status,
-      overdue: status === 'open' && overdueAt(due, now),
+      overdue: status === 'open' && isPastDue(due, object.createdAt, now),
       ...(due === undefined ? {} : { due }),
       ...(topicKey === undefined ? {} : { topicKey }),
       ...(progressOf(state) === undefined ? {} : { progress: progressOf(state) as string }),
