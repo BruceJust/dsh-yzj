@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>工作台重设计 · 原型</title>
+<title>工作台重设计 · 原型 v1.1</title>
 <style>
 /* ───────────────────────── tokens ─────────────────────────
    两族语义色是承重的：蓝 = 别人听得见（公），纸 = 只有你和 agent（私）。
-   其余颜色只给异常：琥珀 = 要你，红 = 逾期/失败，绿 = 刚做完。运行中不是异常，用动效。 */
+   其余颜色只给异常：琥珀 = 要你 / 不对劲，红 = 逾期/失败，绿 = 刚做完。运行中不是异常，用动效。
+   墨 3 在白底与沉底上都 ≥ 4.5:1（12px 元信息也过 WCAG AA）。 */
 :root{
   --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --fs-xs:12px;--fs-sm:13px;--fs-md:14px;--fs-lg:16px;--fs-xl:20px;--fs-2xl:24px;
-  --r-sm:6px;--r-md:10px;--r-lg:14px;
 
   --bg:#FFFFFF;--bg-sunk:#F6F7F9;--bg-hover:#F1F2F5;--bg-press:#E9EBEF;--bg-raised:#FFFFFF;
-  --ink:#1D2129;--ink-2:#4E5969;--ink-3:#86909C;--ink-4:#C2C7D0;
+  --ink:#1D2129;--ink-2:#4E5969;--ink-3:#697180;--ink-4:#C2C7D0;
   --line:#E5E6EB;--line-2:#EFF0F3;
   --pub:#2E63D9;--pub-ink:#1E4FBD;--pub-tint:#EEF3FE;--pub-line:#C9DBFA;
   --pri-bg:#FBF7EE;--pri-rail:#E3D3AE;--pri-ink:#7A5E2E;--pri-line:#ECE2CB;
@@ -29,7 +29,7 @@
 }
 [data-theme=dark]{
   --bg:#18191C;--bg-sunk:#131417;--bg-hover:#222327;--bg-press:#2A2C31;--bg-raised:#1E1F23;
-  --ink:#E8E9EC;--ink-2:#AEB2BB;--ink-3:#7C818C;--ink-4:#474B54;
+  --ink:#E8E9EC;--ink-2:#AEB2BB;--ink-3:#8A909B;--ink-4:#474B54;
   --line:#2B2D32;--line-2:#232529;
   --pub:#6E9BFF;--pub-ink:#9DBBFF;--pub-tint:rgb(110 155 255/12%);--pub-line:rgb(110 155 255/30%);
   --pri-bg:#211E17;--pri-rail:#5C4D2E;--pri-ink:#D8C08A;--pri-line:#3A3324;
@@ -49,13 +49,11 @@ input,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--pub);outline-offset:2px;border-radius:6px}
 .ic{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
 .ic.sm{width:14px;height:14px;vertical-align:-2px}
-.ic.lg{width:18px;height:18px}
 kbd{font:500 11px/1 var(--mono);color:var(--ink-3);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:2px 4px;background:var(--bg)}
 .muted{color:var(--ink-3)}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
 /* ───────────── demo chrome（不是产品的一部分） ───────────── */
-.demobar{height:48px;flex:none;background:var(--demo);color:#C9CDD4;display:flex;align-items:center;gap:6px;padding:0 12px;font-size:var(--fs-sm);position:relative;z-index:5}
+.demobar{height:48px;flex:none;background:var(--demo);color:#C9CDD4;display:flex;align-items:center;gap:6px;padding:0 12px;font-size:var(--fs-sm);position:relative;z-index:55}
 .demobar .tag{font:600 12px/1 var(--mono);color:#fff;letter-spacing:.02em;margin-right:6px;white-space:nowrap}
 .demobar .tag em{font-style:normal;color:#8B93A3;font-weight:400}
 .steps{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
@@ -67,7 +65,7 @@ kbd{font:500 11px/1 var(--mono);color:var(--ink-3);border:1px solid var(--line);
 .step.on b{color:#14161A}
 .demobar .tool{padding:6px 8px;border-radius:8px;color:#AEB4BF;display:flex;gap:6px;align-items:center;white-space:nowrap}
 .demobar .tool:hover{background:#23262C;color:#fff}
-.story{flex:none;background:#1C1F24;color:#E6E8EC;border-top:1px solid #2A2E35;padding:10px 16px 12px;font-size:var(--fs-md);line-height:1.65;display:flex;gap:14px;align-items:flex-start}
+.story{flex:none;background:#1C1F24;color:#E6E8EC;border-top:1px solid #2A2E35;padding:10px 16px 12px;font-size:var(--fs-md);line-height:1.65;display:flex;gap:14px;align-items:flex-start;position:relative;z-index:55}
 .story[hidden]{display:none}
 .story .sn{font:600 12px/23px var(--mono);color:#8B93A3;white-space:nowrap}
 .story p{margin:0;flex:1;max-width:1100px}
@@ -90,12 +88,11 @@ kbd{font:500 11px/1 var(--mono);color:var(--ink-3);border:1px solid var(--line);
 .host-new{margin:0 12px 8px;display:flex;align-items:center;justify-content:center;gap:6px;height:34px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:var(--fs-sm);color:var(--ink-2)}
 .host-new:hover{border-color:var(--ink-4);color:var(--ink)}
 .host-foot{padding:10px 16px;border-top:1px solid var(--line);color:var(--ink-2);font-size:var(--fs-sm);display:flex;gap:8px;align-items:center}
-.host-note{font-size:11px;color:var(--ink-4);letter-spacing:.02em;padding:0 16px 4px}
 main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
 .right{background:var(--bg);border-left:1px solid var(--line);min-height:0;min-width:0;overflow:hidden;display:flex;flex-direction:column}
 .app[data-right=off] .right{border-left:0}
 
-/* ───────────── 左栏：我们的区域 ───────────── */
+/* ───────────── 左栏 ───────────── */
 .nav{flex:1;overflow:auto;padding:4px 8px 16px;min-height:0;scrollbar-width:thin}
 .jump{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border-radius:8px;color:var(--ink-3);font-size:var(--fs-sm);margin-bottom:10px;background:var(--bg-hover)}
 .jump:hover{color:var(--ink-2);background:var(--bg-press)}
@@ -104,19 +101,23 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .sec .n{font-variant-numeric:tabular-nums}
 .sec.need{color:var(--need-ink)}
 .sec.need .n{background:var(--need);color:#fff;border-radius:999px;min-width:18px;height:18px;display:inline-grid;place-items:center;padding:0 5px;font-size:11px;font-weight:600}
+.sec .kh{font-weight:400;color:var(--ink-3);display:flex;gap:4px;align-items:center}
 .nrow{display:grid;grid-template-columns:14px 1fr;gap:2px 8px;width:100%;text-align:left;padding:7px 8px;border-radius:8px;align-items:center}
 .nrow:hover{background:var(--bg-hover)}
 .nrow.on{background:var(--bg-press)}
 .nrow .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-sm)}
 .nrow .t b{font-weight:600}
 .nrow .m{grid-column:2;font-size:var(--fs-xs);color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:-2px}
+.nrow .m.warn{color:var(--need-ink)}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
 .dot.need{background:var(--need);box-shadow:0 0 0 3px var(--need-bg)}
-.dot.late{background:var(--late)}
 .spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink-4);border-top-color:var(--ink-2);display:inline-block;animation:sp 1s linear infinite;flex:none}
+.spin.warn{border-color:color-mix(in srgb,var(--need) 35%,transparent);border-top-color:var(--need)}
 @keyframes sp{to{transform:rotate(360deg)}}
-.zero{display:flex;align-items:center;gap:8px;padding:8px;color:var(--ink-3);font-size:var(--fs-sm)}
+.zero{display:flex;align-items:center;gap:8px;padding:8px 8px 2px;color:var(--ink-2);font-size:var(--fs-sm)}
 .zero .ic{color:var(--ok)}
+.autolink{display:block;text-align:left;padding:2px 8px 6px 32px;font-size:var(--fs-xs);color:var(--ink-3);width:100%}
+.autolink:hover{color:var(--ink)}
 .navlink{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border-radius:8px;font-size:var(--fs-sm);color:var(--ink)}
 .navlink:hover{background:var(--bg-hover)}
 .navlink.on{background:var(--bg-press);font-weight:500}
@@ -140,11 +141,10 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .cold .ic{margin-left:auto}
 .unread{font-size:11px;color:var(--ink-3)}
 
-/* avatars */
 .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:600;flex:none;letter-spacing:0}
 .av.s{width:22px;height:22px;font-size:11px}
 .av.xs{width:18px;height:18px;font-size:10px}
-.av.ai{background:linear-gradient(135deg,#5B7CFA,#8E63F5);}
+.av.ai{background:linear-gradient(135deg,#5B7CFA,#8E63F5)}
 .av.ai .ic{width:60%;height:60%;stroke:#fff;fill:#fff;stroke-width:1}
 
 /* ───────────── 中栏 ───────────── */
@@ -162,17 +162,19 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .status i{width:7px;height:7px;border-radius:50%;background:var(--ok)}
 .iconbtn{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
 .iconbtn:hover{background:var(--bg-hover);color:var(--ink)}
-.dbar{display:flex;align-items:center;gap:8px;padding:8px 24px;border-bottom:1px solid var(--line-2);font-size:var(--fs-sm);background:var(--bg);flex:none;min-width:0}
-.dbar .lbl{color:var(--need-ink);font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:8px}
-.dbar .ptr{color:var(--ink);padding:3px 8px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.dbar .ptr:hover{background:var(--need-bg)}
-.dbar .ptr b{font-weight:600;color:var(--need-ink);margin-right:4px}
 
+.streamwrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.ptrpill{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:4;display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 12px;border-radius:999px;background:var(--bg-raised);border:1px solid color-mix(in srgb,var(--need) 45%,var(--line));box-shadow:var(--shadow-2);font-size:var(--fs-sm);white-space:nowrap;max-width:80%}
+.ptrpill[hidden]{display:none}
+.ptrpill b{color:var(--need-ink);font-weight:600}
+.ptrpill span{overflow:hidden;text-overflow:ellipsis}
 .stream{flex:1;overflow:auto;min-height:0;scroll-behavior:smooth}
 .sw{max-width:760px;margin:0 auto;padding:12px 24px 40px}
 .day{display:flex;align-items:center;gap:12px;color:var(--ink-3);font-size:var(--fs-xs);margin:18px 0 6px}
 .day::before,.day::after{content:"";flex:1;border-top:1px solid var(--line-2)}
-.msg{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:6px 0}
+.msg{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:6px 8px;margin:0 -8px;border-radius:10px}
+.msg.flash{animation:mfl 1.8s ease}
+@keyframes mfl{0%,55%{background:var(--need-bg)}100%{background:transparent}}
 .msg .who{display:flex;gap:8px;align-items:baseline;font-size:var(--fs-sm)}
 .msg .who b{font-weight:600}
 .msg .who time{color:var(--ink-3);font-size:var(--fs-xs)}
@@ -187,6 +189,7 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .band-h{display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);color:var(--pri-ink);padding:4px 0 2px;font-weight:500}
 .work{margin:4px 0 4px 40px;border-radius:10px;font-size:var(--fs-sm)}
 .work summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-2);padding:4px 8px;margin-left:-8px;border-radius:8px;width:max-content;max-width:100%}
+.work summary.warn{color:var(--need-ink);font-weight:500}
 .work summary::-webkit-details-marker{display:none}
 .work summary:hover{background:var(--bg-hover)}
 .work summary .ic.chev{transition:transform .15s}
@@ -196,13 +199,14 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .work li code{margin-left:auto;font:11.5px/1 var(--mono);color:var(--ink-3)}
 .work li .ic{color:var(--ok)}
 .work li.run{color:var(--ink)}
-.work li.wait{color:var(--need-ink)}
+.work li.wait,.work li.stall{color:var(--need-ink)}
 .work li.todo{color:var(--ink-3)}
 .work .full{color:var(--ink-3);font-size:var(--fs-xs);margin:2px 0 0 0}
 .work .full:hover{color:var(--pub)}
+.stallbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 4px;padding:8px 10px;border-radius:8px;background:var(--need-bg);font-size:var(--fs-xs);color:var(--need-ink)}
+.stallbar span{flex:1;min-width:160px}
 .ring{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--ink-4);flex:none}
 
-/* artifact chip */
 .art{display:flex;align-items:center;gap:12px;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;max-width:440px;background:var(--bg-raised)}
 .art .fi{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:var(--pub-tint);color:var(--pub);flex:none}
 .art .fi.sheet{background:var(--ok-bg);color:var(--ok)}
@@ -219,6 +223,7 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 @keyframes fl{0%,40%{box-shadow:0 0 0 5px color-mix(in srgb,var(--need) 30%,transparent)}100%{box-shadow:0 0 0 2px color-mix(in srgb,var(--need) 28%,transparent)}}
 .ch{display:flex;align-items:center;gap:10px;padding:14px 16px 0}
 .ctag{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:600;color:var(--need-ink);white-space:nowrap}
+.ch .wait{font-size:var(--fs-xs);color:var(--ink-3);white-space:nowrap}
 .ch .vis{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3);display:flex;gap:4px;align-items:center;white-space:nowrap}
 .ct{padding:6px 16px 0;font-size:var(--fs-lg);font-weight:600;line-height:1.45}
 .cwhy{padding:4px 16px 0;color:var(--ink-2);font-size:var(--fs-sm)}
@@ -251,64 +256,84 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .opt kbd{font-size:10px;padding:0 3px;border-bottom-width:1px}
 .opt.sel{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .opt.sel kbd{color:inherit;border-color:currentColor;background:transparent;opacity:.6}
-.strip{margin:0 16px 14px;padding:10px 12px;border-radius:10px;background:var(--need-bg);font-size:var(--fs-sm);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.strip{margin:12px 16px 0;padding:10px 12px;border-radius:10px;background:var(--need-bg);font-size:var(--fs-sm);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .strip p{margin:0;flex:1;min-width:200px}
-.reason{margin:0 16px 14px;display:flex;flex-direction:column;gap:8px}
+.reason{margin:12px 16px 0;display:flex;flex-direction:column;gap:8px}
 .reason textarea{width:100%;min-height:64px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);outline:none}
 .reason textarea:focus{border-color:var(--pub)}
 .reason .rf{display:flex;gap:8px;align-items:center}
 .reason .rf span{font-size:var(--fs-xs);color:var(--ink-3);margin-right:auto}
+.lease{display:flex;align-items:center;gap:8px;margin:12px 16px 0;padding:8px 12px;border-radius:10px;background:var(--pub-tint);font-size:var(--fs-sm);color:var(--ink-2);flex-wrap:wrap}
+.lease .ic{color:var(--pub)}
+.lease button{color:var(--pub);font-weight:600}
+.leasebox{margin:12px 16px 0;padding:12px 14px;border-radius:10px;border:1px solid var(--pub-line);font-size:var(--fs-sm)}
+.leasebox p{margin:0 0 4px}
+.leasebox small{display:block;color:var(--ink-3);font-size:var(--fs-xs);margin-bottom:10px}
+.leasebox .rf{display:flex;gap:8px;justify-content:flex-end}
 .absorbed{display:flex;align-items:center;gap:8px;margin:6px 0 6px 40px;padding:8px 12px;border-radius:10px;background:var(--bg-sunk);font-size:var(--fs-sm);color:var(--ink-2)}
 .absorbed .ic{color:var(--ok)}
 .absorbed b{font-weight:500;color:var(--ink)}
-.absorbed time{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3)}
+.absorbed time{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3);white-space:nowrap}
+.absorbed.pending{border:1px dashed var(--ink-4)}
+.absorbed .undo{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);color:var(--ink-3);white-space:nowrap}
+.absorbed .undo button{color:var(--pub);font-weight:600}
+.nextbtn{display:flex;align-items:center;gap:8px;margin:0 0 8px 40px;padding:8px 12px;border-radius:10px;font-size:var(--fs-sm);color:var(--ink-2);width:calc(100% - 40px);text-align:left;border:1px solid var(--line-2);background:var(--bg)}
+.nextbtn:hover{background:var(--need-bg);color:var(--ink)}
+.nextbtn b{color:var(--need-ink);font-weight:600}
+.nextbtn kbd{margin-left:auto}
+.nextbtn.zero{color:var(--ink-3)}
+.nextbtn.zero .ic{color:var(--ok)}
 
-/* topic card in place view */
-.tcard{display:flex;align-items:center;gap:12px;margin:8px 0 8px 40px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;width:calc(100% - 40px);text-align:left;background:var(--bg-raised)}
+.tcard{display:flex;align-items:center;gap:12px;margin:8px 0;padding:10px 14px;border:1px solid var(--line);border-radius:12px;width:100%;text-align:left;background:var(--bg-raised)}
 .tcard:hover{border-color:var(--ink-4)}
 .tcard .tn{flex:1;min-width:0}
 .tcard .tn b{display:block;font-weight:500}
 .tcard .tn span{font-size:var(--fs-xs);color:var(--ink-3)}
 .tcard .tsig{font-size:var(--fs-xs);display:flex;align-items:center;gap:6px;white-space:nowrap;color:var(--ink-2)}
 .tcard .tsig.need{color:var(--need-ink);font-weight:600}
+.tcard .tsig.warn{color:var(--need-ink)}
 
 /* ───────────── composer ───────────── */
 .composer{flex:none;padding:0 24px 18px}
 .cw{max-width:760px;margin:0 auto;border:1px solid var(--line);border-radius:14px;background:var(--bg);transition:border-color .15s,background .15s,box-shadow .15s}
-.cw:focus-within{box-shadow:0 0 0 3px var(--line-2)}
 .composer.pri .cw{background:var(--pri-bg);border-color:var(--pri-line)}
 .composer.pri .cw:focus-within{border-color:var(--pri-rail);box-shadow:0 0 0 3px color-mix(in srgb,var(--pri-rail) 30%,transparent)}
 .composer.pub .cw{border-color:var(--pub-line)}
 .composer.pub .cw:focus-within{border-color:var(--pub);box-shadow:0 0 0 3px var(--pub-tint)}
 .composer.ask .cw{border-style:dashed}
+.composer.risk .cw{border-color:color-mix(in srgb,var(--need) 60%,var(--line))}
 .cchip{display:flex;align-items:center;gap:8px;margin:10px 12px 0;padding:6px 10px;border-radius:8px;background:var(--bg-sunk);font-size:var(--fs-sm);color:var(--ink-2)}
 .cchip .ic{color:var(--ink-3)}
 .cchip b{font-weight:500;color:var(--ink)}
 .cchip .x{margin-left:auto;color:var(--ink-3)}
 .cchip .x:hover{color:var(--ink)}
+.cchip.reg .ic{color:var(--ok)}
+.cchip.risk{background:var(--need-bg);color:var(--need-ink)}
+.cchip.risk .ic{color:var(--need-ink)}
+.cchip .go{margin-left:auto;color:var(--pub);font-weight:600;white-space:nowrap}
+.cchip .fix{color:var(--ink-3);margin-left:4px}
 .composer textarea{display:block;width:100%;border:0;background:transparent;resize:none;outline:none;padding:12px 14px 4px;min-height:52px;max-height:200px;line-height:1.6}
 .composer textarea::placeholder{color:var(--ink-3)}
 .cbar{display:flex;align-items:center;gap:4px;padding:6px 8px 8px}
 .aud{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 8px 0 9px;border-radius:999px;font-size:var(--fs-xs);font-weight:500;white-space:nowrap}
 .composer.pri .aud{background:color-mix(in srgb,var(--pri-rail) 35%,transparent);color:var(--pri-ink)}
 .composer.pub .aud{background:var(--pub-tint);color:var(--pub-ink)}
-.aud:hover{filter:brightness(.97)}
+.composer .aud.risk{background:var(--need-bg);color:var(--need-ink)}
 .aud .ic.chev{width:12px;height:12px;opacity:.7}
 .tog{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 9px;border-radius:999px;font-size:var(--fs-xs);color:var(--ink-3)}
 .tog:hover{background:var(--bg-hover);color:var(--ink-2)}
 .tog.on{background:var(--ink);color:var(--bg)}
 .cbar .sp{flex:1}
-.cbar .hint{font-size:11px;color:var(--ink-3);margin-right:6px;white-space:nowrap}
 .send{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:9px;font-size:var(--fs-sm);font-weight:600;white-space:nowrap}
 .composer.pri .send{background:var(--pri-ink);color:var(--pri-bg)}
 .composer.pub .send{background:var(--pub);color:#fff}
 .send[disabled]{opacity:.4;cursor:default}
-.audmenu{position:absolute;z-index:30;width:300px;background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-2);padding:6px}
+.audmenu{position:absolute;z-index:30;width:320px;background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-2);padding:6px}
 .audmenu button{display:grid;grid-template-columns:20px 1fr auto;gap:2px 10px;width:100%;padding:8px 10px;border-radius:8px;text-align:left;align-items:center}
 .audmenu button:hover,.audmenu button.on{background:var(--bg-hover)}
 .audmenu b{font-weight:500;font-size:var(--fs-sm)}
 .audmenu span{grid-column:2;font-size:var(--fs-xs);color:var(--ink-3)}
-.audmenu .ic.ck{color:var(--pub);grid-row:1}
+.audmenu .ic.ck{color:var(--pub)}
 
 /* ───────────── 承诺 ───────────── */
 .board .sw,.goalp .sw{max-width:960px}
@@ -326,7 +351,7 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .grp{margin-top:28px}
 .gh{display:flex;align-items:baseline;gap:12px;padding:0 8px 8px;border-bottom:1px solid var(--line-2)}
 .gh .gt{font-size:var(--fs-lg);font-weight:600;display:inline-flex;align-items:center;gap:4px}
-.gh .gt:hover{color:var(--pub)}
+.gh button.gt:hover{color:var(--pub)}
 .gh .gm{font-size:var(--fs-sm);color:var(--ink-3)}
 .gh .gc{margin-left:auto;font-size:var(--fs-sm);color:var(--ink-3);white-space:nowrap}
 .gh .gc .late{color:var(--late)}
@@ -341,20 +366,19 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .sig{font-size:var(--fs-sm);white-space:nowrap;display:flex;align-items:center;gap:6px;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .sig.need{color:var(--need-ink);font-weight:600}
 .sig.late{color:var(--late);font-weight:600}
-.sig.stale{color:var(--need-ink)}
+.sig.stale,.sig.said{color:var(--need-ink)}
 .sig.done{color:var(--ok)}
 .sig.run{color:var(--ink-2)}
 .row .verbs{display:none;gap:4px;align-items:center}
 .row:hover .verbs{display:flex}
 .row:hover .sig.hideable{display:none}
-.donefold{margin:6px 8px 0;font-size:var(--fs-sm);color:var(--ink-3);display:inline-flex;gap:4px;align-items:center}
-.donefold:hover{color:var(--ink)}
+.fold{margin:6px 8px 0;font-size:var(--fs-sm);color:var(--ink-3);display:inline-flex;gap:4px;align-items:center;margin-right:14px}
+.fold:hover{color:var(--ink)}
 .row.done .rt{color:var(--ink-3);font-weight:400}
 .whohead{display:flex;align-items:center;gap:10px;padding:0 8px 8px;border-bottom:1px solid var(--line-2)}
 .whohead b{font-size:var(--fs-lg);font-weight:600}
 .whohead span{font-size:var(--fs-sm);color:var(--ink-3)}
 
-/* goal page */
 .hero{padding:24px 0 8px}
 .eyebrow{font-size:var(--fs-sm);color:var(--ink-3);display:flex;gap:8px;align-items:center}
 .hero h1{font-size:var(--fs-2xl);margin:6px 0 10px;font-weight:650;letter-spacing:-.01em}
@@ -375,7 +399,6 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .ptrrow b{font-weight:600;color:var(--need-ink)}
 .ptrrow .pm{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3)}
 
-/* judg */
 .judg{background:var(--pri-bg)}
 .judg .mh{border-color:var(--pri-line)}
 .jnote{display:flex;gap:8px;align-items:center;font-size:var(--fs-sm);color:var(--pri-ink);margin:16px 0 0}
@@ -403,21 +426,22 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .orow .fi.sheet{background:var(--ok-bg);color:var(--ok)}
 .orow .on2{flex:1;min-width:0}
 .orow .on2 b{display:block;font-weight:500;font-size:var(--fs-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.orow .on2 span{font-size:var(--fs-xs);color:var(--ink-3)}
+.orow .on2 span{display:block;font-size:var(--fs-xs);color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .orow .go{color:var(--ink-4)}
 .mem{padding:10px 8px;border-radius:10px;display:flex;gap:10px}
 .mem:hover{background:var(--bg-hover)}
 .mem p{margin:0;font-size:var(--fs-sm);flex:1}
 .mem span{display:block;font-size:var(--fs-xs);color:var(--ink-3);margin-top:2px}
-.mem button{color:var(--ink-4);align-self:flex-start}
+.mem button{color:var(--ink-3);align-self:flex-start}
 .mem button:hover{color:var(--late)}
 .empty{padding:28px 12px;text-align:center;color:var(--ink-3);font-size:var(--fs-sm)}
 .empty .ic{width:22px;height:22px;color:var(--ink-4);margin-bottom:6px}
-.empty .eg{margin:12px auto 0;max-width:240px;text-align:left;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;font-size:var(--fs-xs);opacity:.85}
+.empty .eg{margin:12px auto 0;max-width:240px;text-align:left;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;font-size:var(--fs-xs)}
 .insp-h{display:flex;gap:12px;align-items:flex-start;padding:4px 0 14px}
 .insp-h .it{font-size:var(--fs-lg);font-weight:600;line-height:1.4}
 .insp-h .im{font-size:var(--fs-sm);color:var(--ink-2);margin-top:2px}
 .insp-h .im .late{color:var(--late);font-weight:600}
+.insp-h .im .warn{color:var(--need-ink);font-weight:500}
 .isec{padding:14px 0;border-top:1px solid var(--line-2)}
 .isec h4{margin:0 0 8px;font-size:var(--fs-xs);font-weight:600;color:var(--ink-3)}
 .quote{margin:0;padding:10px 12px;border-radius:10px;background:var(--bg-sunk);font-size:var(--fs-sm)}
@@ -430,28 +454,33 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .tl li::after{content:"";position:absolute;left:6px;top:16px;bottom:0;border-left:1px solid var(--line)}
 .tl li:last-child::after{display:none}
 .tl li.late::before{background:var(--late)}
+.tl li.warn::before{background:var(--need)}
+.tl li.ev::before{background:var(--ok)}
 .tl li time{color:var(--ink-3);margin-right:6px;font-variant-numeric:tabular-nums}
+.evbox{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 .iacts{display:flex;flex-wrap:wrap;gap:6px;padding-top:14px;border-top:1px solid var(--line-2)}
 .linkrow{display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);padding:6px 0}
 .linkrow button{color:var(--pub)}
-/* preview */
+.prov{display:flex;align-items:center;gap:6px;padding:8px 16px;border-bottom:1px solid var(--line-2);font-size:var(--fs-xs);color:var(--ink-3);flex:none}
+.prov .ic{color:var(--ink-3)}
+.prov button{color:var(--pub);text-align:left}
 .pv{flex:1;overflow:auto;padding:24px 28px 40px;min-height:0;background:var(--bg)}
 .pv h1{font-size:20px;margin:0 0 4px}
 .pv h2{font-size:15px;margin:22px 0 6px}
-.pv p,.pv li{font-size:13.5px;color:var(--ink-2);line-height:1.75}
+.pv p,.pv li{font-size:14px;color:var(--ink-2);line-height:1.75}
 .pv .meta{font-size:var(--fs-xs);color:var(--ink-3)}
 .pvbar{display:flex;gap:6px;align-items:center;padding:10px 16px;border-top:1px solid var(--line-2);flex:none;background:var(--bg)}
 .pvbar span{font-size:var(--fs-xs);color:var(--ink-3);margin-right:auto}
 
 /* ───────────── overlays ───────────── */
-.scrim{position:fixed;inset:0;background:rgb(10 12 16/35%);z-index:50;display:grid;place-items:start center;padding-top:12vh}
+.scrim{position:fixed;inset:0;background:rgb(10 12 16/35%);z-index:50;display:grid;place-items:start center;padding-top:calc(var(--apptop,48px) + 6vh)}
 .pal{width:min(620px,calc(100vw - 32px));background:var(--bg-raised);border-radius:16px;box-shadow:var(--shadow-2);overflow:hidden;border:1px solid var(--line)}
 .pal input{width:100%;border:0;outline:none;background:transparent;padding:16px 18px;font-size:var(--fs-lg);border-bottom:1px solid var(--line-2)}
 .pal .pl{max-height:420px;overflow:auto;padding:6px}
 .pal .pg{font-size:var(--fs-xs);color:var(--ink-3);padding:10px 12px 4px;font-weight:500}
 .pal .pi{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border-radius:9px;text-align:left;font-size:var(--fs-sm)}
 .pal .pi .ic{color:var(--ink-3)}
-.pal .pi .pr{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3)}
+.pal .pi .pr{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3);white-space:nowrap}
 .pal .pi.on{background:var(--bg-hover)}
 .pal .pf{display:flex;gap:14px;padding:10px 16px;border-top:1px solid var(--line-2);font-size:var(--fs-xs);color:var(--ink-3)}
 .modal{width:min(560px,calc(100vw - 32px));background:var(--bg-raised);border-radius:16px;box-shadow:var(--shadow-2);border:1px solid var(--line);max-height:76vh;display:flex;flex-direction:column}
@@ -468,16 +497,19 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 .rule ul{margin:6px 0 0;padding-left:18px;color:var(--ink-2)}
 .rule details summary{color:var(--ink-3);font-size:var(--fs-xs);cursor:pointer;margin-top:6px}
 .rule code{font:11.5px var(--mono);color:var(--ink-3)}
-.menu{position:absolute;z-index:30;min-width:200px;background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-2);padding:6px}
+.lease-row{display:flex;gap:8px;align-items:center;margin-top:6px}
+.arow{display:grid;grid-template-columns:44px 1fr auto;gap:2px 12px;padding:12px 0;border-top:1px solid var(--line-2);font-size:var(--fs-sm);align-items:start}
+.arow:first-child{border-top:0}
+.arow time{color:var(--ink-3);font-variant-numeric:tabular-nums}
+.arow .ar{font-size:var(--fs-xs);color:var(--ink-3);grid-column:2;margin-top:2px}
+.arow .btn{grid-row:1/3;grid-column:3}
+.menu{position:absolute;z-index:30;min-width:220px;background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-2);padding:6px}
 .menu button{display:flex;gap:10px;align-items:center;width:100%;padding:8px 10px;border-radius:8px;font-size:var(--fs-sm);text-align:left}
 .menu button:hover{background:var(--bg-hover)}
 .menu button .ic{color:var(--ink-3)}
-.menu button kbd{margin-left:auto}
 .menu hr{border:0;border-top:1px solid var(--line-2);margin:4px 0}
-.menu button.danger{color:var(--late)}
-.menu button.danger .ic{color:var(--late)}
-.toast{position:fixed;left:50%;top:64px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:var(--fs-sm);box-shadow:var(--shadow-2);z-index:60;display:flex;gap:12px;align-items:center;animation:tin .18s ease}
-.toast button{color:inherit;opacity:.7;font-weight:600}
+.toast{position:fixed;left:50%;top:calc(var(--apptop,48px) + 12px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:var(--fs-sm);box-shadow:var(--shadow-2);z-index:60;display:flex;gap:12px;align-items:center;animation:tin .18s ease}
+.toast button{color:inherit;opacity:.75;font-weight:600}
 .toast button:hover{opacity:1}
 @keyframes tin{from{opacity:0;transform:translate(-50%,-6px)}}
 .keys{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;font-size:var(--fs-sm);padding:10px 0}
@@ -497,7 +529,7 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
 </head>
 <body>
 <div class="demobar" role="banner">
-  <span class="tag">工作台重设计 <em>· 原型 · 数据虚构</em></span>
+  <span class="tag">工作台重设计 <em>· 原型 v1.1 · 数据虚构</em></span>
   <nav class="steps" id="steps" aria-label="剧本"></nav>
   <button class="tool" data-act="keys" title="快捷键">?</button>
   <button class="tool" data-act="theme" id="themeBtn"></button>
@@ -515,7 +547,6 @@ main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-hei
   <main id="main"></main>
   <aside class="right" id="right" aria-label="右栏"></aside>
 </div>
-
 <div id="layer"></div>
 
 <script>
@@ -525,10 +556,8 @@ const I = {
   chevR:'<path d="m9 18 6-6-6-6"/>', chevD:'<path d="m6 9 6 6 6-6"/>', chevL:'<path d="m15 18-6-6 6-6"/>',
   lock:'<rect width="16" height="10" x="4" y="11" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
   at:'<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>',
   zap:'<path d="M13 2 4 14h8l-1 8 9-12h-8l1-8z"/>',
-  up:'<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   check:'<path d="M20 6 9 17l-5-5"/>', x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   more:'<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
   ext:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
@@ -546,15 +575,16 @@ const I = {
   folder:'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/>',
   reply:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff:'<path d="M9.9 4.2A10 10 0 0 1 12 4c6.5 0 10 8 10 8a17 17 0 0 1-2.2 3.2"/><path d="M6.6 6.6A17 17 0 0 0 2 12s3.5 8 10 8a10 10 0 0 0 5.4-1.6"/><path d="M2 2l20 20"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
   cal:'<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   cols:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/>',
   max:'<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>',
   book:'<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
   shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
   list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
-  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   forward:'<path d="m15 17 5-5-5-5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/>',
-  send:'<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+  undo:'<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+  stamp:'<path d="M5 22h14"/><path d="M19.3 14.3a2 2 0 0 0-1.4-.6H6.1a2 2 0 0 0-2 2V18h15.8v-2.3a2 2 0 0 0-.6-1.4z"/><path d="M14 13.7V9.5a3 3 0 1 0-4 0v4.2"/>',
 }
 const ic = (n, c='') => `<svg class="ic ${c}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))
@@ -567,6 +597,8 @@ const PEOPLE = {
   zr:{name:'张锐', hue:198}, lt:{name:'李婷', hue:338}, zh:{name:'郑慧', hue:152},
   wc:{name:'王超', hue:28}, luo:{name:'罗总', hue:262}, hy:{name:'何燕', hue:300},
 }
+const NAMES = ['张锐','李婷','郑慧','王超','何燕','罗总']
+const pidOf = name => Object.keys(PEOPLE).find(k => PEOPLE[k].name === name)
 const av = (id, size='') => {
   const p = PEOPLE[id]
   if (p.ai) return `<span class="av ai ${size}" title="云小助">${ic('spark')}</span>`
@@ -584,15 +616,13 @@ places:{
     {t:'topic', id:'t-roadmap'},
     {t:'msg', by:'zr', aud:'pub', at:'09:41', text:'收到，两点可以'},
   ]},
-  'p-fin':{kind:'group', name:'财务群', members:8, unread:0, topics:['t-recon'], stream:[
-    {t:'day', text:'昨天'},{t:'topic', id:'t-recon'},
-  ]},
+  'p-fin':{kind:'group', name:'财务群', members:8, unread:0, topics:['t-recon'], stream:[{t:'day', text:'昨天'},{t:'topic', id:'t-recon'}]},
   'd-lt':{kind:'dm', person:'lt', unread:1, direct:'t-review'},
   'd-zr':{kind:'dm', person:'zr', unread:0, direct:'t-zr'},
   'p-design':{kind:'group', name:'设计评审群', members:6, unread:2, topics:[], stream:[
     {t:'day', text:'今天'},
     {t:'msg', by:'wc', aud:'pub', at:'09:20', text:'首页改版稿 v3 放好了，周五前给意见就行'},
-    {t:'msg', by:'hy', aud:'pub', at:'09:22', text:'👍'},
+    {t:'msg', by:'hy', aud:'pub', at:'09:22', text:'收到'},
   ]},
   'd-luo':{kind:'dm', person:'luo', unread:0, direct:'t-luo'},
 },
@@ -601,35 +631,36 @@ cold:51,
 topics:{
   't-compete':{place:'p-prod', title:'竞品对比表', by:'zr', at:'昨天 16:40', stream:[
     {t:'day', text:'昨天'},
-    {t:'msg', by:'zr', aud:'pub', at:'16:40', text:'@云小助 帮我们把 Notion、飞书、Airtable 三家的协作能力整理成一张对比表，周四评审会要用。'},
-    {t:'msg', by:'ai', aud:'pub', at:'16:41', text:'收到。周三下班前给初版，写进表格前会先请 Bruce 确认。', ack:'记下了：云小助负责 · 竞品对比表 · 周三前'},
-    {t:'msg', by:'zr', aud:'pub', at:'16:45', text:'价格页的数据我来补，明天给。', ack:'记下了：张锐负责 · 价格页数据 · 周二前'},
+    {t:'msg', id:'m-zr-req', by:'zr', aud:'pub', at:'16:40', text:'@云小助 帮我们把 Notion、飞书、Airtable 三家的协作能力整理成一张对比表，周四评审会要用。'},
+    {t:'msg', by:'ai', aud:'pub', at:'16:41', text:'收到。周三下班前给初版，写进表格前会先请 Bruce 确认。', ack:'记下了：云小助负责 · 竞品对比表 · 原话「周三下班前」'},
+    {t:'card', id:'c-ws'},
+    {t:'msg', by:'zr', aud:'pub', at:'16:45', text:'价格页的数据我来补，明天给。', ack:'记下了：张锐负责 · 价格页数据 · 原话「明天」→ 周二'},
     {t:'day', text:'今天'},
     {t:'msg', by:'me', aud:'pri', at:'09:05', text:'价格那一列用官网 10 月的价格，别用去年的。'},
     {t:'msg', by:'ai', aud:'pri', at:'09:05', text:'好，价格列以官网 10 月价为准，每格标注来源日期。'},
     {t:'work', aud:'pri', dur:'38 秒', steps:[
       {s:'ok', text:'确认你的身份和所在组织', tool:'contact.whoami'},
-      {s:'ok', text:'找到「产品组」工作区', tool:'doc.workspace.list'},
+      {s:'ok', text:'找到「竞品对比」工作区', tool:'doc.workspace.list'},
       {s:'ok', text:'汇总三家公开资料', tool:'web.search ×6'},
       {s:'wait', text:'准备写入 12 条记录 —— 等你确认', tool:'sheet.create'},
     ]},
     {t:'card', id:'c-write'},
     {t:'msg', by:'ai', aud:'pub', at:'09:07', text:'表格内容已经整理好，等 Bruce 确认后写入。'},
   ]},
-  't-roadmap':{place:'p-prod', title:'Q4 路线图整理', by:'wc', at:'今天 10:02', running:true, stream:[
+  't-roadmap':{place:'p-prod', title:'Q4 路线图整理', by:'wc', at:'今天 10:02', running:true, stall:'6 分钟没进展', stream:[
     {t:'day', text:'今天'},
     {t:'msg', by:'wc', aud:'pub', at:'10:02', text:'@云小助 把这三份规划会纪要合成一版 Q4 路线图草稿'},
-    {t:'msg', by:'ai', aud:'pub', at:'10:02', text:'收到，大约 10 分钟。', ack:'记下了：云小助负责 · Q4 路线图草稿 · 今天'},
-    {t:'work', aud:'pri', running:true, dur:'4 分钟', steps:[
+    {t:'msg', by:'ai', aud:'pub', at:'10:02', text:'收到，大约 10 分钟。', ack:'记下了：云小助负责 · Q4 路线图草稿 · 原话「大约 10 分钟」'},
+    {t:'work', aud:'pri', running:true, stall:'6 分钟没进展', dur:'14 分钟', steps:[
       {s:'ok', text:'读了 3 份会议纪要', tool:'doc.read ×3'},
       {s:'ok', text:'提取出 14 个事项', tool:''},
-      {s:'run', text:'按季度和负责人归并', tool:''},
+      {s:'stall', text:'按季度和负责人归并 —— 6 分钟没有新进展', tool:''},
       {s:'todo', text:'生成路线图草稿文档', tool:'doc.create'},
     ]},
   ]},
   't-recon':{place:'p-fin', title:'9 月对账核对', by:'zh', at:'昨天 17:30', stream:[
     {t:'day', text:'昨天'},
-    {t:'msg', by:'zh', aud:'pub', at:'17:30', text:'@云小助 9 月的银行流水和账面对一下'},
+    {t:'msg', by:'zh', aud:'pub', at:'17:30', text:'@云小助 9 月的银行流水和账面对一下，月结 25 号关账'},
     {t:'work', aud:'pri', dur:'2 分 10 秒', steps:[
       {s:'ok', text:'读取 9 月银行流水 217 笔', tool:'sheet.read'},
       {s:'ok', text:'读取账面明细 217 笔', tool:'sheet.read'},
@@ -640,10 +671,10 @@ topics:{
   ]},
   't-review':{place:'d-lt', title:'李婷', stream:[
     {t:'day', text:'上周五'},
-    {t:'msg', by:'me', aud:'pub', at:'11:20', text:'婷，Q3 复盘材料周一前给我一版初稿？'},
-    {t:'msg', by:'lt', aud:'pub', at:'11:24', text:'好的', ack:'记下了：李婷负责 · Q3 复盘材料初稿 · 周一前'},
+    {t:'msg', id:'m-lt-ask', by:'me', aud:'pub', at:'11:20', text:'婷，Q3 复盘材料周一前给我一版初稿？'},
+    {t:'msg', by:'lt', aud:'pub', at:'11:24', text:'好的', ack:'记下了：李婷负责 · Q3 复盘材料初稿 · 原话「周一前」'},
     {t:'day', text:'昨天'},
-    {t:'msg', by:'lt', aud:'pub', at:'20:14', text:'复盘材料初稿好了，你看下。数据部分按 9 月口径更新过。', file:'a-review', ack:'认出这是交付：李婷 · Q3 复盘材料初稿'},
+    {t:'msg', by:'lt', aud:'pub', at:'20:14', text:'复盘材料初稿好了，你看下。数据部分按 9 月口径更新过。', file:'a-review', ack:'认出这是交付：李婷 · Q3 复盘材料初稿（附了文件）'},
     {t:'card', id:'c-accept'},
   ]},
   't-zr':{place:'d-zr', title:'张锐', stream:[
@@ -654,21 +685,26 @@ topics:{
   't-luo':{place:'d-luo', title:'罗总', stream:[
     {t:'day', text:'周一'},
     {t:'msg', by:'luo', aud:'pub', at:'19:30', text:'Q4 预算口径，你周四前给我一个说法'},
-    {t:'msg', by:'me', aud:'pub', at:'19:41', text:'好的罗总，周四前给您', ack:'记下了：你欠罗总 · Q4 预算口径 · 周四前'},
+    {t:'msg', by:'me', aud:'pub', at:'19:41', text:'好的罗总，周四前给您', ack:'记下了：你欠罗总 · Q4 预算口径 · 原话「周四前」'},
   ]},
 },
+/* 「要你」只收阻塞层（layer=blocking）：有人或有事在等你。rank = 被你卡住的代价，越小越先。 */
 cards:{
-  'c-write':{topic:'t-compete', kind:'confirm', verb:'确认', short:'写入 12 条到竞品对比表', at:'09:06', age:'5 分钟',
+  'c-ws':{topic:'t-compete', kind:'confirm', state:'done', result:'你在云之家里回了「1」 · 确认新建工作区<b>「竞品对比」</b>', doneAt:'昨天 16:52'},
+  'c-write':{topic:'t-compete', kind:'confirm', rank:1, verb:'确认', short:'写入 12 条到竞品对比表', at:'09:06',
+    wait:{who:'ai', text:'云小助停在这一步等你', since:'5 分钟', for:'明天评审会要用'},
     title:'写入 12 条记录到「竞品对比 · 评审表」',
     why:'写操作。产品讨论群的规则：写表格前每次都问你。',
-    facts:[['工作区','产品组'],['表格','竞品对比 · 评审表（新建）'],['写入','12 条 · Notion 4 / 飞书 4 / Airtable 4'],['价格列','官网 10 月价，标注来源日期']],
-    opts:[{k:1,label:'确认写入',pri:true},{k:2,label:'先不写'}], state:'open'},
-  'c-accept':{topic:'t-review', kind:'accept', verb:'验收', short:'Q3 复盘材料初稿', at:'昨天 20:14', age:'昨天', from:'lt',
+    facts:[['工作区','竞品对比'],['表格','竞品对比 · 评审表（新建）'],['写入','12 条 · Notion 4 / 飞书 4 / Airtable 4'],['价格列','官网 10 月价，标注来源日期']],
+    streak:5, opts:[{k:1,label:'确认写入',pri:true},{k:2,label:'先不写'}], state:'open'},
+  'c-accept':{topic:'t-review', kind:'accept', rank:2, verb:'验收', short:'Q3 复盘材料初稿', at:'昨天 20:14', from:'lt',
+    wait:{who:'lt', text:'李婷在等你的结论', since:'13 小时'},
     title:'Q3 复盘材料 · 初稿',
     why:'李婷交的。完成要你验收。',
-    facts:[['原定','周一前 · 提前一天交'],['完成标准','覆盖四条业务线，数据用 9 月口径']],
+    facts:[['原定','原话「周一前」· 提前一天交'],['完成标准','覆盖四条业务线，数据用 9 月口径']],
     art:'a-review', state:'open'},
-  'c-recon':{topic:'t-recon', kind:'decide', verb:'定', short:'9 月对账 3 处差异', at:'昨天 17:52', age:'昨天',
+  'c-recon':{topic:'t-recon', kind:'decide', rank:3, verb:'定', short:'9 月对账 3 处差异', at:'昨天 17:52',
+    wait:{who:'zh', text:'郑慧的月结在等', since:'昨天', for:'25 号关账'},
     title:'9 月对账：3 处差异怎么处理',
     why:'账面和流水对不上的地方，入账口径要你定。',
     items:[
@@ -678,77 +714,96 @@ cards:{
     ], state:'open'},
 },
 arts:{
-  'a-review':{title:'Q3 复盘材料 · 初稿', kind:'doc', meta:'李婷 · 18 页 · 昨天 20:14', place:'d-lt'},
-  'a-table':{title:'竞品对比 · 评审表', kind:'sheet', meta:'云小助 · 等你确认后写入', place:'p-prod', topic:'t-compete', pending:true},
-  'a-min':{title:'Q4 规划会纪要（3 份）', kind:'doc', meta:'王超 · 上周', place:'p-prod', topic:'t-roadmap'},
-  'a-prev':{title:'Q3 竞品评审结论', kind:'doc', meta:'何燕 · 7 月', place:'p-prod', topic:'t-compete'},
+  'a-review':{title:'Q3 复盘材料 · 初稿', kind:'doc', meta:'李婷 · 18 页 · 昨天 20:14', place:'d-lt', topic:'t-review', from:{topic:'t-review', msg:'m-lt-ask', text:'你上周五让李婷做的'}},
+  'a-table':{title:'竞品对比 · 评审表', kind:'sheet', meta:'云小助 · 等你确认后写入', place:'p-prod', topic:'t-compete', from:{topic:'t-compete', msg:'m-zr-req', text:'张锐昨天 16:40 的请求'}},
+  'a-min':{title:'Q4 规划会纪要（3 份）', kind:'doc', meta:'王超 · 上周', place:'p-prod', topic:'t-roadmap', from:{topic:'t-roadmap', text:'王超上传'}},
+  'a-prev':{title:'Q3 竞品评审结论', kind:'doc', meta:'何燕 · 7 月', place:'p-prod', topic:'t-compete', from:{text:'7 月那次评审'}},
 },
 goals:{
   'g1':{name:'Q4 竞品评审会', owner:'me', verifier:'luo', due:'周四', crit:'Notion、飞书、Airtable 三家 × 5 个维度的对比表，评审会前罗总过目。', moved:'今天 09:07', changed:true},
   'g2':{name:'9 月月结', owner:'zh', verifier:'me', due:'10/25', crit:'账实相符、凭证齐全，10 月 25 日前关账。', moved:'昨天 17:52'},
 },
+/* st：late 逾期 · need 等你 · said 说交了没见到东西 · stale 没动静 · soon 快到期 · run 在做 · ok 正常 · done 已完成
+   证据三门：said 话语 / artifact 行为（有东西）/ platform 结构化（平台里勾了） */
 commits:[
-  {id:'k1', goal:'g1', who:'zr', to:'me', what:'价格页数据', due:'周二', st:'late', sig:'逾期 1 天', place:'p-prod', topic:'t-compete',
+  {id:'k1', goal:'g1', who:'zr', to:'me', what:'价格页数据', dueSaid:'明天给', st:'late', sig:'逾期 1 天', place:'p-prod', topic:'t-compete',
     born:{quote:'价格页的数据我来补，明天给。', by:'zr', at:'周一 16:45', where:'产品讨论群 · 竞品对比表', note:'「明天」按周二算。'},
-    after:[{at:'周二 18:00', text:'到期，没有回音', late:true},{at:'今天 09:00', text:'晨报里提过一次'}]},
-  {id:'k2', goal:'g1', who:'ai', to:'me', what:'竞品对比表初版', due:'今天', st:'need', sig:'等你确认', card:'c-write', place:'p-prod', topic:'t-compete',
+    after:[{at:'周二 18:00', text:'到期，没有回音', cls:'late'},{at:'今天 09:00', text:'晨报里提过一次'}]},
+  {id:'k2', goal:'g1', who:'ai', to:'me', what:'竞品对比表初版', dueSaid:'周三下班前', st:'need', sig:'等你确认', card:'c-write', place:'p-prod', topic:'t-compete',
     born:{quote:'收到。周三下班前给初版。', by:'ai', at:'周一 16:41', where:'产品讨论群 · 竞品对比表'},
-    after:[{at:'今天 09:06', text:'内容备好，等你确认写入'}]},
-  {id:'k3', goal:'g1', who:'zh', to:'me', what:'评审会议程', due:'周三', st:'ok', sig:'周三', place:'p-prod',
-    born:{quote:'议程我来排，周三发群里。', by:'zh', at:'周一 17:10', where:'产品讨论群'}, after:[{at:'昨天', text:'回了一句「在写」'}]},
-  {id:'k4', goal:'g1', who:'wc', to:'me', what:'设计走查截图', due:'上周五', st:'done', sig:'已交', place:'p-design',
-    born:{quote:'走查截图周五前补齐', by:'wc', at:'上周一', where:'设计评审群'}, after:[{at:'上周四', text:'交了，你验收过'}]},
-  {id:'k5', goal:'g2', who:'ai', to:'zh', what:'9 月银行流水对账', due:'今天', st:'need', sig:'3 处等你定', card:'c-recon', place:'p-fin', topic:'t-recon',
+    after:[{at:'今天 09:06', text:'内容备好，停在写入前等你确认'}]},
+  {id:'k3', goal:'g1', who:'zh', to:'me', what:'评审会议程', dueSaid:'周三发群里', st:'said', sig:'说发了 · 没见到', place:'p-prod',
+    born:{quote:'议程我来排，周三发群里。', by:'zh', at:'周一 17:10', where:'产品讨论群'},
+    after:[{at:'今天 08:50', text:'郑慧说「议程发群里了」——只有话语', cls:'warn'},{at:'今天 09:30', text:'云小助在群里没找到议程文件或消息', cls:'warn'}],
+    evq:true},
+  {id:'k4', goal:'g1', who:'wc', to:'me', what:'设计走查截图', dueSaid:'周五前', st:'done', sig:'交了 · 有文件', place:'p-design',
+    born:{quote:'走查截图周五前补齐', by:'wc', at:'上周一', where:'设计评审群'}, after:[{at:'上周四', text:'交了 12 张截图（文件）', cls:'ev'},{at:'上周四', text:'你验收了', cls:'ev'}]},
+  {id:'k11', goal:'g1', who:'hy', to:'me', what:'评审会会议室', dueSaid:'周四前', st:'ok', sig:'已订 · 有日程', place:'p-prod',
+    born:{quote:'会议室我来订', by:'hy', at:'昨天 17:02', where:'产品讨论群'}, after:[{at:'昨天 17:03', text:'日程里订好了会议室 C（平台记录）', cls:'ev'}]},
+  {id:'k12', goal:'g1', who:'hy', to:'me', what:'约罗总时间', dueSaid:'周三前', st:'ok', sig:'罗总已接受', place:'p-prod',
+    born:{quote:'罗总那边我去约', by:'hy', at:'昨天 17:05', where:'产品讨论群'}, after:[{at:'昨天 18:20', text:'罗总接受了日程邀请（平台记录）', cls:'ev'}]},
+  {id:'k5', goal:'g2', who:'ai', to:'zh', what:'9 月银行流水对账', dueSaid:'今天', st:'need', sig:'3 处等你定', card:'c-recon', place:'p-fin', topic:'t-recon',
     born:{quote:'9 月的银行流水和账面对一下', by:'zh', at:'昨天 17:30', where:'财务群 · 9 月对账核对'}, after:[{at:'昨天 17:52', text:'对完，3 处差异等你定'}]},
-  {id:'k6', goal:'g2', who:'zh', to:'me', what:'9 月凭证补录', due:'周五', st:'stale', sig:'6 天没动静', place:'p-fin',
-    born:{quote:'凭证我这周补完', by:'zh', at:'上周四', where:'财务群'}, after:[{at:'上周四', text:'之后没有新消息'}]},
-  {id:'k7', goal:null, who:'lt', to:'me', what:'Q3 复盘材料初稿', due:'周一', st:'need', sig:'交了 · 等你验收', card:'c-accept', place:'d-lt', topic:'t-review',
-    born:{quote:'好的', by:'lt', at:'上周五 11:24', where:'和李婷的私聊', note:'回的是你那句「周一前给我一版初稿？」'}, after:[{at:'昨天 20:14', text:'交了初稿（18 页）'}]},
-  {id:'k8', goal:null, who:'ai', to:'wc', what:'Q4 路线图草稿', due:'今天', st:'run', sig:'在做 · 第 3 步', place:'p-prod', topic:'t-roadmap',
-    born:{quote:'把这三份规划会纪要合成一版 Q4 路线图草稿', by:'wc', at:'今天 10:02', where:'产品讨论群 · Q4 路线图整理'}, after:[]},
-  {id:'k9', goal:null, who:'me', to:'luo', what:'Q4 预算口径', due:'周四', st:'soon', sig:'明天', place:'d-luo',
+  {id:'k6', goal:'g2', who:'zh', to:'me', what:'9 月凭证补录', dueSaid:'这周', st:'stale', sig:'6 天没动静', place:'p-fin',
+    born:{quote:'凭证我这周补完', by:'zh', at:'上周四', where:'财务群'}, after:[{at:'上周四', text:'之后没有新消息、新文件'}]},
+  {id:'k7', goal:null, who:'lt', to:'me', what:'Q3 复盘材料初稿', dueSaid:'周一前', st:'need', sig:'交了 · 等你验收', card:'c-accept', place:'d-lt', topic:'t-review',
+    born:{quote:'好的', by:'lt', at:'上周五 11:24', where:'和李婷的私聊', note:'回的是你那句「周一前给我一版初稿？」'}, after:[{at:'昨天 20:14', text:'交了初稿（18 页文件）', cls:'ev'}]},
+  {id:'k8', goal:null, who:'ai', to:'wc', what:'Q4 路线图草稿', dueSaid:'大约 10 分钟', st:'run', sig:'第 3 步卡住了', place:'p-prod', topic:'t-roadmap', stalled:true,
+    born:{quote:'把这三份规划会纪要合成一版 Q4 路线图草稿', by:'wc', at:'今天 10:02', where:'产品讨论群 · Q4 路线图整理'}, after:[{at:'10:12', text:'第 3 步开始后 6 分钟没有进展', cls:'warn'}]},
+  {id:'k9', goal:null, who:'me', to:'luo', what:'Q4 预算口径', dueSaid:'周四前', st:'soon', sig:'明天到期', place:'d-luo',
     born:{quote:'好的罗总，周四前给您', by:'me', at:'周一 19:41', where:'和罗总的私聊'}, after:[]},
-  {id:'k10', goal:null, who:'me', to:'wc', what:'首页改版稿意见', due:'周五', st:'ok', sig:'周五', place:'p-design',
+  {id:'k10', goal:null, who:'me', to:'wc', what:'首页改版稿意见', dueSaid:'周五前', st:'ok', sig:'', place:'p-design',
     born:{quote:'周五前给意见就行', by:'wc', at:'今天 09:20', where:'设计评审群', note:'王超说的；云小助认作你要给意见——不对就改。'}, after:[]},
 ],
 memory:{
   'p-prod':[{text:'价格以官网当月价为准，每格标来源日期', src:'你 · 今天 09:05'},{text:'评审会默认在会议室 C', src:'何燕 · 昨天'},{text:'王超负责设计相关的事', src:'从群聊推断 · 3 次'}],
   'p-fin':[{text:'对账差异超过 ¥1,000 要郑慧复核', src:'郑慧 · 8 月'}],
 },
+rules:[{text:'往「Q3 竞品评审结论」追加引用，不用问', by:'你 9/12 签的', left:'还剩 11 天'}],
+auto:[
+  {at:'08:40', text:'往「Q3 竞品评审结论」追加了 3 行引用', where:'产品讨论群', rule:'按你 9/12 签的：追加引用不用问'},
+  {at:'09:02', text:'把评审会日程同步给 6 位参会人', where:'产品讨论群', rule:'可撤回的写操作 · 群规则默认'},
+  {at:'09:30', text:'在晨报里提醒了张锐的价格页数据', where:'和你的私聊', rule:'逾期提醒 · 只发给你'},
+  {at:'10:05', text:'把郑慧的对账表另存了一份 9/30 快照', where:'财务群', rule:'可撤回的写操作 · 群规则默认'},
+],
 }}
 
 /* ═════════════════════ state ═════════════════════ */
 let D = seed()
 const S0 = () => ({view:{kind:'topic', id:'t-compete'}, back:[], focus:null, itemFocus:0, sel:null, lens:'all',
-  aud:'pri', ask:false, draft:'', drafted:null, preview:null, rtab:'out', viewed:{}, strip:{}, reason:{}, doneOpen:{}, stepIdx:-1})
+  aud:'pri', ask:false, draft:'', drafted:null, preview:null, rtab:'out', viewed:{}, strip:{}, reason:{}, open:{}, leaseOpen:false, lastDone:null, stepIdx:-1})
 let S = S0()
+let pending = null
 let theme = (()=>{ try { return localStorage.getItem('wr-theme') } catch { return null } })() || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
 
 /* ═════════════════════ derived ═════════════════════ */
 const placeName = id => { const p = D.places[id]; return p.kind === 'dm' ? PEOPLE[p.person].name : p.name }
+const placeShort = id => D.places[id].kind === 'dm' ? '私聊' : D.places[id].name
 const topicPlace = tid => D.topics[tid].place
-const openCards = () => ['c-write','c-accept','c-recon'].filter(id => D.cards[id].state === 'open')
+const openCards = () => Object.entries(D.cards).filter(([,c]) => c.state === 'open').sort((a,b) => a[1].rank - b[1].rank).map(([id]) => id)
 const running = () => Object.entries(D.topics).filter(([,t]) => t.running).map(([id]) => id)
-const cardWhere = cid => { const t = D.topics[D.cards[cid].topic]; const p = D.places[t.place]; return p.kind === 'dm' ? placeName(t.place) : `${p.name}` }
 const topicNeeds = tid => openCards().filter(c => D.cards[c].topic === tid)
 const placeNeeds = pid => openCards().filter(c => topicPlace(D.cards[c].topic) === pid)
 const lateCount = () => D.commits.filter(k => k.st === 'late').length
+const waitLine = c => `${PEOPLE[c.wait.who].name}等你 ${c.wait.since}${c.wait.for ? ' · '+c.wait.for : ''}`
 
 /* ═════════════════════ render: left ═════════════════════ */
 function renderNav(){
   const v = S.view, needs = openCards(), run = running()
   let h = `<button class="jump" data-act="palette">${ic('search')}跳到…<kbd>⌘K</kbd></button>`
-  h += `<div class="sec need"><span>要你</span>${needs.length ? `<span class="n">${needs.length}</span>` : ''}</div>`
-  if (!needs.length) h += `<div class="zero">${ic('check')}都处理完了</div>`
+  h += `<div class="sec need"><span>要你</span>${needs.length ? `<span class="kh"><kbd>N</kbd><span class="n">${needs.length}</span></span>` : ''}</div>`
+  if (!needs.length){
+    h += `<div class="zero">${ic('check')}都处理完了</div><button class="autolink" data-act="auto">今天云小助按你的规矩自己办了 ${D.auto.length} 件 ›</button>`
+  }
   for (const cid of needs){
     const c = D.cards[cid], on = (v.kind==='topic' && v.id===c.topic && S.focus===cid) ? ' on' : ''
-    h += `<button class="nrow${on}" data-card="${cid}"><span class="dot need"></span><span class="t"><b>${c.verb}</b>　${esc(c.short)}</span><span class="m">${esc(cardWhere(cid))} · ${c.age}</span></button>`
+    h += `<button class="nrow${on}" data-card="${cid}" title="${esc(c.wait.text)}"><span class="dot need"></span><span class="t"><b>${c.verb}</b>　${esc(c.short)}</span><span class="m">${esc(waitLine(c))}</span></button>`
   }
   if (run.length){
     h += `<div class="sec"><span>运行中</span><span class="n">${run.length}</span></div>`
     for (const tid of run){
       const t = D.topics[tid], on = v.kind==='topic' && v.id===tid ? ' on' : ''
-      h += `<button class="nrow${on}" data-topic="${tid}"><span class="spin"></span><span class="t">${esc(t.title)}</span><span class="m">${esc(placeName(t.place))} · 第 3 步，共 4 步</span></button>`
+      h += `<button class="nrow${on}" data-topic="${tid}"><span class="spin${t.stall?' warn':''}"></span><span class="t">${esc(t.title)}</span><span class="m${t.stall?' warn':''}">${t.stall ? `第 3 步 · ${t.stall}` : `${esc(placeName(t.place))} · 第 3 步，共 4 步`}</span></button>`
     }
   }
   h += `<div style="height:10px"></div>`
@@ -765,7 +820,7 @@ function renderNav(){
       const t = D.topics[tid], tn = topicNeeds(tid).length
       if (!tn && !t.running && !(v.kind==='topic' && v.id===tid)) continue
       const on = v.kind==='topic' && v.id===tid
-      const r = tn ? `<span class="dot need"></span>` : t.running ? `<span class="spin"></span>` : ''
+      const r = tn ? `<span class="dot need"></span>` : t.running ? `<span class="spin${t.stall?' warn':''}"></span>` : ''
       h += `<button class="sub${on?' on':''}" data-topic="${tid}"><span class="nm">${esc(t.title)}</span>${r}</button>`
     }
   }
@@ -776,66 +831,78 @@ function renderNav(){
 }
 
 /* ═════════════════════ render: stream pieces ═════════════════════ */
-function textHtml(t){ return esc(t).replace(/@云小助/g,'<span class="mention">@云小助</span>') }
+const textHtml = t => esc(t).replace(/@云小助/g,'<span class="mention">@云小助</span>')
 function msgHtml(m){
   const p = PEOPLE[m.by]
-  let h = `<div class="msg">${av(m.by)}<div><div class="who"><b>${esc(p.name)}</b><time>${esc(m.at)}</time></div><div class="tx">${textHtml(m.text)}</div>`
+  let h = `<div class="msg"${m.id?` id="msg-${m.id}"`:''}>${av(m.by)}<div><div class="who"><b>${esc(p.name)}</b><time>${esc(m.at)}</time></div><div class="tx">${textHtml(m.text)}</div>`
   if (m.file) h += artHtml(m.file)
   if (m.ack) h += `<div class="ack">${ic('check','sm')}${esc(m.ack)}<button data-act="ackfix">改</button></div>`
   return h + `</div></div>`
 }
 function artHtml(aid){
   const a = D.arts[aid]
-  return `<div class="art"><span class="fi ${a.kind}">${ic(a.kind)}</span><div class="an"><b>${esc(a.title)}</b><span>${esc(a.meta)}</span></div><div class="acts"><button class="btn sm" data-preview="${aid}">${ic('cols','sm')}并排看</button><button class="iconbtn" title="在云之家打开">${ic('ext','sm')}</button></div></div>`
+  return `<div class="art"><span class="fi ${a.kind}">${ic(a.kind)}</span><div class="an"><b>${esc(a.title)}</b><span>${esc(artMeta(aid, a))}</span></div><div class="acts"><button class="btn sm" data-preview="${aid}">${ic('cols','sm')}并排看</button><button class="iconbtn" title="在云之家打开">${ic('ext','sm')}</button></div></div>`
 }
 function workHtml(w){
   const n = w.steps.length, done = w.steps.filter(s => s.s==='ok').length
   const head = w.running
-    ? `<span class="spin"></span>云小助在做 · 第 ${done+1} 步，共 ${n} 步 <span class="muted">· ${w.dur}</span>`
+    ? (w.stall ? `<span class="spin warn"></span>云小助在做 · 第 ${done+1} 步，${w.stall}` : `<span class="spin"></span>云小助在做 · 第 ${done+1} 步，共 ${n} 步 <span class="muted">· ${w.dur}</span>`)
     : `${av('ai','xs')}云小助做了 ${n} 步 <span class="muted">· ${w.dur}</span>`
   const li = w.steps.map(s => {
-    const mark = s.s==='ok' ? ic('check','sm') : s.s==='run' ? '<span class="spin"></span>' : s.s==='wait' ? '<span class="dot need"></span>' : '<span class="ring"></span>'
+    const mark = s.s==='ok' ? ic('check','sm') : s.s==='run' ? '<span class="spin"></span>' : s.s==='stall' ? '<span class="spin warn"></span>' : s.s==='wait' ? '<span class="dot need"></span>' : '<span class="ring"></span>'
     return `<li class="${s.s}">${mark}<span>${esc(s.text)}</span>${s.tool?`<code>${esc(s.tool)}</code>`:''}</li>`
   }).join('')
-  return `<details class="work"${w.running?' open':''}><summary>${head}${ic('chevR','sm chev')}</summary><ol>${li}</ol><button class="full" data-act="trace">看完整过程 ›</button></details>`
+  const stall = w.stall ? `<div class="stallbar">${ic('clock','sm')}<span>不是要你拍板——但它可能卡住了。</span><button class="btn sm" data-act="retry">让它重试这一步</button><button class="btn sm ghost" data-act="stop">停下</button></div>` : ''
+  return `<details class="work"${w.running?' open':''}><summary class="${w.stall?'warn':''}">${head}${ic('chevR','sm chev')}</summary><ol>${li}</ol>${stall}<button class="full" data-act="trace">看完整过程 ›</button></details>`
+}
+function absorbedHtml(cid){
+  const c = D.cards[cid]
+  if (c.state === 'pending'){
+    const left = Math.max(1, Math.ceil((pending.until - Date.now())/1000))
+    var h = `<div class="absorbed pending">${ic('check')}<span>${c.result}</span><span class="undo"><span class="cd">${left}</span> 秒后生效<button data-act="undo">撤回</button><kbd>Z</kbd></span></div>`
+  } else var h = `<div class="absorbed">${ic('check')}<span>${c.result}</span><time>${c.doneAt||'刚刚'}</time></div>`
+  if (S.lastDone === cid){
+    const nx = openCards()[0]
+    h += nx ? `<button class="nextbtn" data-card="${nx}">下一件：<b>${D.cards[nx].verb}</b>${esc(D.cards[nx].short)}<span class="muted">· ${esc(waitLine(D.cards[nx]))}</span><kbd>N</kbd></button>`
+            : `<div class="nextbtn zero">${ic('check')}要你的都处理完了</div>`
+  }
+  return h
 }
 function cardHtml(cid){
   const c = D.cards[cid]
-  if (c.state === 'done') return `<div class="absorbed">${ic('check')}<span>${c.result}</span><time>${c.doneAt||'刚刚'}</time></div>`
+  if (c.state !== 'open') return absorbedHtml(cid)
   const f = S.focus === cid ? ' focus' : ''
   let h = `<article class="card open${f}" id="card-${cid}" data-cardbox="${cid}">`
-  h += `<div class="ch"><span class="ctag"><span class="dot need"></span>要你${c.verb}</span>`
+  h += `<div class="ch"><span class="ctag"><span class="dot need"></span>要你${c.verb}</span><span class="wait">${esc(c.wait.text)} · ${esc(c.wait.since)}</span>`
   h += `<span class="vis">${ic('lock','sm')}只有你看得到</span></div>`
   h += `<div class="ct">${esc(c.title)}</div><div class="cwhy">${esc(c.why)}</div>`
   if (c.facts) h += `<dl class="facts">${c.facts.map(([k,v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`
-  if (c.kind === 'accept'){
-    h += `<div style="padding:0 16px">${artHtml(c.art)}</div>`
-  }
+  if (c.kind === 'accept') h += `<div style="padding:0 16px">${artHtml(c.art)}</div>`
   if (c.kind === 'decide'){
     h += `<div class="items">${c.items.map((it,i) => `<div class="item${S.focus===cid && S.itemFocus===i?' focus':''}"><span class="num">${i+1}</span><span class="it">${esc(it.t)}</span><span class="id">${esc(it.d)}</span><span class="opts">${it.opts.map((o,j) => `<button class="opt${it.pick===j?' sel':''}" data-pick="${cid}:${i}:${j}"><kbd>${j+1}</kbd>${esc(o)}</button>`).join('')}</span></div>`).join('')}</div>`
   }
-  if (S.strip[cid]){
-    h += `<div class="strip" style="margin-top:12px">${ic('eye')}<p>你还没打开过这份交付。验收前看一眼？</p><button class="btn sm" data-preview="${c.art}">并排看</button><button class="btn sm ghost" data-ans="${cid}:force">不看，直接通过</button></div>`
+  if (c.streak && !D.rules.some(r => r.card===cid)){
+    h += S.leaseOpen
+      ? `<div class="leasebox"><p>签一条规矩：在「产品讨论群」，往云小助自己新建的表格里写记录，<b>不用再问你</b>。</p><small>30 天后自动到期；删除、覆盖、建群仍然每次都问。随时可以在规则里收回。</small><div class="rf"><button class="btn sm ghost" data-act="leasecancel">算了</button><button class="btn sm pri" data-act="leasesign">${ic('stamp','sm')}签下</button></div></div>`
+      : `<div class="lease">${ic('spark','sm')}<span>这类写入你已经连续确认 ${c.streak} 次，一次没撤回。</span><button data-act="leaseopen">以后同类不用问 ›</button></div>`
   }
+  if (S.strip[cid]) h += `<div class="strip">${ic('eye')}<p>你还没打开过这份交付。验收前看一眼？</p><button class="btn sm" data-preview="${c.art}">并排看 <kbd>V</kbd></button><button class="btn sm ghost" data-ans="${cid}:force">不看，直接通过</button></div>`
   if (S.reason[cid] !== undefined){
-    h += `<div class="reason" style="margin-top:12px"><textarea id="reason-${cid}" placeholder="哪里要改？说具体些，${PEOPLE[c.from].name}会照着改。">${esc(S.reason[cid])}</textarea><div class="rf"><span>会以你的名义发给${PEOPLE[c.from].name}</span><button class="btn sm ghost" data-ans="${cid}:cancelreason">算了</button><button class="btn sm pri" data-ans="${cid}:sendreason">打回</button></div></div>`
+    h += `<div class="reason"><textarea id="reason-${cid}" placeholder="哪里要改？说具体些，${PEOPLE[c.from].name}会照着改。">${esc(S.reason[cid])}</textarea><div class="rf"><span>5 秒后以你的名义发给${PEOPLE[c.from].name}，之前可撤回</span><button class="btn sm ghost" data-ans="${cid}:cancelreason">算了</button><button class="btn sm pri" data-ans="${cid}:sendreason">打回</button></div></div>`
   }
   h += `<div class="cf">`
   if (c.kind === 'confirm'){
     h += c.opts.map(o => `<button class="btn${o.pri?' pri':''}" data-ans="${cid}:${o.k}"><kbd>${o.k}</kbd>${esc(o.label)}</button>`).join('')
-    h += `<button class="btn ghost" data-act="params">看参数</button>`
-    h += `<span class="also">云之家里回 1 / 2 也行</span>`
+    h += `<button class="btn ghost" data-act="params">看参数</button><span class="also">云之家里回 1 / 2 也行</span>`
   } else if (c.kind === 'accept'){
     const seen = S.viewed[c.art]
-    h += `<button class="btn${seen?' pri':''}" data-ans="${cid}:1"><kbd>1</kbd>通过验收</button>`
-    h += `<button class="btn" data-ans="${cid}:2"><kbd>2</kbd>打回…</button>`
-    if (!seen) h += `<button class="btn pri" data-preview="${c.art}">${ic('cols','sm')}先并排看</button>`
+    if (!seen) h += `<button class="btn pri" data-preview="${c.art}">${ic('cols','sm')}先并排看<kbd>V</kbd></button>`
+    h += `<button class="btn${seen?' pri':''}" data-ans="${cid}:1"><kbd>1</kbd>通过验收</button><button class="btn" data-ans="${cid}:2"><kbd>2</kbd>打回…</button>`
     h += `<span class="also">云之家里回「验收」或「打回 原因」也行</span>`
   } else if (c.kind === 'decide'){
     const n = c.items.filter(i => i.pick !== null).length
-    h += `<button class="btn pri" data-ans="${cid}:submit"${n<c.items.length?' disabled':''}>定下这 ${c.items.length} 处</button>`
-    h += `<span class="muted" style="font-size:12px">${n}/${c.items.length} 已选 · <kbd>J</kbd><kbd>K</kbd> 换一条，数字键选</span>`
-    h += `<span class="also">云之家里按顺序回几个数字也行</span>`
+    h += `<button class="btn pri" data-ans="${cid}:submit"${n<c.items.length?' disabled':''}>定下这 ${c.items.length} 处<kbd>⏎</kbd></button>`
+    h += `<span class="muted" style="font-size:12px">${n}/${c.items.length} 已选 · 数字键选，自动跳下一条</span><span class="also">云之家里按顺序回几个数字也行</span>`
   }
   return h + `</div></article>`
 }
@@ -849,7 +916,6 @@ function streamHtml(items, inPlace){
     else if (it.t === 'work') x = workHtml(it)
     else if (it.t === 'card') x = cardHtml(it.id)
     else if (it.t === 'topic') x = topicCardHtml(it.id)
-    else if (it.t === 'file') x = `<div style="margin-left:40px">${artHtml(it.art)}</div>`
     const pri = it.aud === 'pri' || it.t === 'card'
     if (pri && !inPlace) band.push(x); else { flush(); h += x }
   }
@@ -859,14 +925,14 @@ function streamHtml(items, inPlace){
 function topicCardHtml(tid){
   const t = D.topics[tid], n = topicNeeds(tid)
   const sig = n.length ? `<span class="tsig need"><span class="dot need"></span>要你${D.cards[n[0]].verb}</span>`
-    : t.running ? `<span class="tsig"><span class="spin"></span>云小助在做</span>` : `<span class="tsig">${ic('check','sm')}办完了</span>`
+    : t.running ? `<span class="tsig${t.stall?' warn':''}"><span class="spin${t.stall?' warn':''}"></span>${t.stall?'云小助卡住了':'云小助在做'}</span>` : `<span class="tsig">${ic('check','sm')}办完了</span>`
   const count = t.stream.filter(i => i.t==='msg').length
   return `<div class="msg">${av(t.by)}<div><div class="who"><b>${esc(PEOPLE[t.by].name)}</b><time>${esc(t.at.split(' ').pop())}</time><span class="aud">开了一个话题</span></div>
-    <button class="tcard" data-topic="${tid}" style="margin-left:0;width:100%"><span class="gicon">${ic('list')}</span><span class="tn"><b>${esc(t.title)}</b><span>${count} 条 · ${esc(t.at)}</span></span>${sig}${ic('chevR','sm')}</button></div></div>`
+    <button class="tcard" data-topic="${tid}"><span class="gicon">${ic('list')}</span><span class="tn"><b>${esc(t.title)}</b><span>${count} 条 · ${esc(t.at)}</span></span>${sig}${ic('chevR','sm')}</button></div></div>`
 }
 
 /* ═════════════════════ render: main views ═════════════════════ */
-function headerHtml(left, right=''){ return `<header class="mh">${left}${right}</header>` }
+const headerHtml = (left, right='') => `<header class="mh">${left}${right}</header>`
 function backBtn(sep=true){
   if (!S.back.length) return ''
   const b = S.back[S.back.length-1]
@@ -879,95 +945,166 @@ function viewLabel(v){
   if (v.kind==='topic'){ const t = D.topics[v.id]; return D.places[t.place].kind==='dm' ? placeName(t.place) : t.title }
   return ''
 }
+const statusBtns = () => `<button class="status" data-act="rules"><i></i>云小助在岗</button><button class="iconbtn" data-act="menu" title="更多">${ic('more')}</button>`
 function topicView(tid){
   const t = D.topics[tid], p = D.places[t.place], dm = p.kind === 'dm'
   const crumb = dm
     ? `<div class="crumb">${backBtn()}${av(p.person,'s')}<h1>${esc(PEOPLE[p.person].name)}</h1><span class="sub2">私聊</span></div>`
     : `<div class="crumb">${backBtn()}<button class="up" data-place="${t.place}">${esc(p.name)}</button><span class="sl">/</span><h1>${esc(t.title)}</h1></div>`
-  const right = `<button class="status" data-act="rules"><i></i>云小助在岗</button><button class="iconbtn" data-act="menu" title="更多">${ic('more')}</button>`
-  let h = headerHtml(crumb, right)
-  const needs = topicNeeds(tid)
-  if (needs.length){
-    h += `<div class="dbar"><span class="lbl"><span class="dot need"></span>要你 ${needs.length}</span>${needs.map(c => `<button class="ptr" data-scroll="${c}"><b>${D.cards[c].verb}</b>${esc(D.cards[c].short)} ›</button>`).join('')}</div>`
-  }
-  h += `<div class="stream" id="stream"><div class="sw">${streamHtml(t.stream, false)}</div></div>`
-  h += composerHtml(dm ? {pub:`发给${PEOPLE[p.person].name}`, pubHint:`${PEOPLE[p.person].name}能看见`, send:`发给${PEOPLE[p.person].name}`} : {pub:`发到群里 · ${p.name}`, pubHint:`${p.members} 人能看见，以你的名义`, send:'发到群里'})
+  let h = headerHtml(crumb, statusBtns())
+  h += `<div class="streamwrap"><button class="ptrpill" id="ptrpill" hidden></button><div class="stream" id="stream"><div class="sw">${streamHtml(t.stream, false)}</div></div></div>`
+  h += composerHtml(dm ? {kind:'dm', person:p.person, pub:`发给${PEOPLE[p.person].name}`, send:`发给${PEOPLE[p.person].name}`} : {kind:'group', pub:`发到群里 · ${p.name} · ${p.members} 人`, send:'发到群里', place:p.name})
   return h
 }
 function placeView(pid){
   const p = D.places[pid]
   const crumb = `<div class="crumb">${backBtn()}<span class="gicon">${ic('hash')}</span><h1>${esc(p.name)}</h1><span class="sub2">${p.members} 人 · ${p.topics.length} 个话题</span></div>`
-  const right = `<button class="status" data-act="rules"><i></i>云小助在岗</button><button class="iconbtn" data-act="menu" title="更多">${ic('more')}</button>`
-  let h = headerHtml(crumb, right)
-  h += `<div class="stream" id="stream"><div class="sw">${p.stream.length ? streamHtml(p.stream, true) : ''}</div></div>`
-  h += composerHtml({pub:`发到群里 · ${p.name}`, pubHint:`${p.members} 人能看见，以你的名义`, send:'发到群里', forcePub:true})
+  let h = headerHtml(crumb, statusBtns())
+  h += `<div class="streamwrap"><div class="stream" id="stream"><div class="sw">${streamHtml(p.stream, true)}</div></div></div>`
+  h += composerHtml({kind:'group', pub:`发到群里 · ${p.name} · ${p.members} 人`, send:'发到群里', place:p.name, forcePub:true})
+  return h
+}
+
+/* ═════════════════════ composer ═════════════════════ */
+let composerCtx = null
+const effAud = () => composerCtx?.forcePub ? 'pub' : S.aud
+function detectReg(text){
+  const who = NAMES.find(n => text.includes(n)); if (!who) return null
+  const m = text.match(/(今天|明天|后天|下?周[一二三四五六日天]|\d{1,2}\s*[号日]|\d{1,2}\/\d{1,2})/)
+  return m ? {who, due:m[1]} : null
+}
+function risk(){
+  if (S.drafted || S.ask) return null
+  const r = detectReg(S.draft); if (!r) return null
+  const aud = effAud(), o = composerCtx
+  if (aud === 'pri') return {...r, fix: o.kind==='group' ? `改为发到群里` : o.kind==='dm' && PEOPLE[o.person].name===r.who ? `改为发给${r.who}` : null}
+  if (o.kind === 'dm' && PEOPLE[o.person].name !== r.who) return {...r, fix:null, dm:true}
+  return null
+}
+function cprevHtml(){
+  if (S.drafted){
+    const k = D.commits.find(x => x.id===S.drafted)
+    return `<div class="cchip">${ic('spark','sm')}<span><b>云小助拟的稿</b> · 改成你的话再发。这是在催「${esc(k.what)}」，不会另记一条。</span><button class="x" data-act="undraft" title="不用这个稿">${ic('x','sm')}</button></div>`
+  }
+  const rk = risk()
+  if (rk) return `<div class="cchip risk">${ic('alert','sm')}<span><b>${rk.who}听不见这句</b>——${rk.dm ? '这是另一个人的私聊' : '只有你和云小助看得见'}，这件事不会算到${rk.who}头上。</span>${rk.fix?`<button class="go" data-act="topub">${rk.fix}</button>`:''}</div>`
+  const r = !S.ask && detectReg(S.draft)
+  if (r) return `<div class="cchip reg">${ic('check','sm')}<span>发出后会记下：<b>${r.who}负责 · 原话「${esc(r.due)}」</b></span><button class="fix" data-act="ackfix">改</button></div>`
+  return ''
+}
+function cbarHtml(){
+  const o = composerCtx, aud = effAud(), rk = risk()
+  const label = rk && aud==='pri' ? `仅你和云小助 · ${rk.who}听不见` : aud==='pri' ? (S.ask ? '只问不办 · 仅你和云小助' : '仅你和云小助') : o.pub
+  const icon = rk && aud==='pri' ? 'alert' : aud==='pri' ? 'lock' : 'users'
+  const send = aud==='pri' ? (S.ask ? '问' : rk ? '仍只发给云小助' : '发给云小助') : o.send
+  let h = `<button class="aud${rk&&aud==='pri'?' risk':''}" data-act="aud" title="谁听得见（⌘.）">${ic(icon,'sm')}${esc(label)}${o.forcePub?'':ic('chevD','chev')}</button>`
+  h += `<button class="iconbtn" title="提到某人" style="width:28px;height:28px">${ic('at','sm')}</button>`
+  if (!o.forcePub) h += `<button class="tog${S.ask?' on':''}" data-act="ask" title="只问不办：云小助只读，不开任务、不动任何东西">${ic('zap','sm')}快问</button>`
+  h += `<span class="sp"></span><button class="send" data-act="send"${S.draft.trim()?'':' disabled'}>${esc(send)}<span style="opacity:.6;font-weight:400">⏎</span></button>`
   return h
 }
 function composerHtml(o){
-  const forcePub = o.forcePub
-  const aud = forcePub ? 'pub' : S.aud
-  const cls = S.ask && !forcePub ? 'pri ask' : aud
-  const label = aud==='pri' ? (S.ask ? '只问不办 · 仅你和云小助' : '仅你和云小助') : o.pub
-  const ph = S.ask ? '问一个数，云小助只读、不动手…' : aud==='pri' ? '对云小助说…' : (forcePub ? `在${o.pub.split('· ')[1]||'这里'}说点什么…  @云小助 可以叫上它` : `说点什么…  @云小助 可以叫上它`)
-  const send = aud==='pri' ? (S.ask ? '问' : '发给云小助') : o.send
   composerCtx = o
-  let h = `<div class="composer ${cls}" id="composer"><div class="cw">`
-  if (S.drafted) h += `<div class="cchip">${ic('spark','sm')}<span><b>云小助拟的稿</b> · 改成你的话再发</span><button class="x" data-act="undraft" title="不用这个稿">${ic('x','sm')}</button></div>`
-  h += `<textarea id="ta" rows="2" placeholder="${esc(ph)}">${esc(S.draft)}</textarea><div class="cbar">`
-  h += `<button class="aud" data-act="aud" title="谁听得见（⌘.）">${ic(aud==='pri'?'lock':'users','sm')}${esc(label)}${forcePub?'':ic('chevD','chev')}</button>`
-  h += `<button class="iconbtn" title="提到某人" style="width:28px;height:28px">${ic('at','sm')}</button>`
-  if (!forcePub) h += `<button class="tog${S.ask?' on':''}" data-act="ask" title="只问不办：云小助只读，不开任务、不动任何东西">${ic('zap','sm')}快问</button>`
-  h += `<span class="sp"></span><span class="hint">${aud==='pub'?esc(o.pubHint):(S.ask?'只读':'')}</span>`
-  h += `<button class="send" data-act="send"${S.draft.trim()?'':' disabled'}>${esc(send)}<span style="opacity:.6;font-weight:400">⏎</span></button>`
-  return h + `</div></div></div>`
+  const aud = effAud()
+  const ph = S.ask ? '问一个数，云小助只读、不动手…' : aud==='pri' ? '对云小助说…' : o.forcePub ? `在${o.place}说点什么…  @云小助 可以叫上它` : o.kind==='dm' ? `对${PEOPLE[o.person].name}说…` : '在群里说点什么…  @云小助 可以叫上它'
+  return `<div class="composer" id="composer"><div class="cw"><div id="cprev"></div><textarea id="ta" rows="2" placeholder="${esc(ph)}">${esc(S.draft)}</textarea><div class="cbar" id="cbar"></div></div></div>`
 }
-let composerCtx = null
+function paintComposer(){
+  const el = $('#composer'); if (!el) return
+  const aud = effAud(), rk = risk()
+  el.className = `composer ${S.ask && aud==='pri' ? 'pri ask' : aud}${rk?' risk':''}`
+  $('#cprev').innerHTML = cprevHtml()
+  $('#cbar').innerHTML = cbarHtml()
+}
+function wireComposer(){
+  const ta = $('#ta'); if (!ta) return
+  paintComposer()
+  const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 200)+'px' }
+  fit()
+  ta.addEventListener('input', () => { S.draft = ta.value; fit(); paintComposer() })
+  ta.addEventListener('keydown', e => {
+    if (e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); send() }
+    if (e.key==='.' && (e.metaKey||e.ctrlKey)){ e.preventDefault(); toggleAud() }
+    if (e.key==='Escape') ta.blur()
+  })
+}
+function toggleAud(){
+  if (composerCtx?.forcePub) return
+  S.aud = S.aud==='pri' ? 'pub' : 'pri'; S.ask = false
+  paintComposer(); $('#ta')?.focus()
+}
+function send(){
+  const text = S.draft.trim(); if (!text) return
+  const v = S.view, aud = effAud(), reg = !S.drafted && !S.ask && aud==='pub' && !risk() ? detectReg(text) : null
+  const stream = v.kind==='topic' ? D.topics[v.id].stream : D.places[v.id].stream
+  stream.push({t:'msg', by:'me', aud, at:'09:21', text, ack: reg ? `记下了：${reg.who}负责 · 原话「${reg.due}」` : undefined})
+  if (reg){
+    D.commits.push({id:'k'+Date.now(), goal:null, who:pidOf(reg.who), to:'me', what:text.replace(reg.who,'').replace(/[，,。]/g,' ').trim().slice(0,16), dueSaid:reg.due, st:'ok', sig:'', place: v.kind==='topic'?topicPlace(v.id):v.id, topic: v.kind==='topic'?v.id:undefined,
+      born:{quote:text, by:'me', at:'刚刚', where:placeName(v.kind==='topic'?topicPlace(v.id):v.id)}, after:[]})
+  }
+  const wasDraft = S.drafted, ask = S.ask
+  S.draft = ''; S.drafted = null
+  if (aud==='pri'){
+    setTimeout(() => {
+      stream.push({t:'msg', by:'ai', aud:'pri', at:'09:21', text: ask ? '目前 12 条里 4 条有价格，另外 8 条等张锐补。（只读，没有动任何东西）' : /^以后/.test(text) ? '记下了，以后在这个群里都照这个来。右边「记忆」里能看到、能删。' : '好的，我照这个来。'})
+      render()
+    }, 700)
+  }
+  if (wasDraft){ const k = D.commits.find(x => x.id===wasDraft); k.after.push({at:'刚刚', text:'你催了一次'}); toast(`已发给${PEOPLE[k.who].name}`) }
+  else if (aud==='pub') toast(reg ? `已发出 · 记下了：${reg.who}负责` : composerCtx.send.replace('发到','已发到').replace('发给','已发给'))
+  render()
+}
 
+/* ═════════════════════ 承诺 ═════════════════════ */
+const EXC = ['late','need','said','stale','soon','run']
+const ORDER = {late:0, need:1, said:2, stale:3, soon:4, run:5, ok:6, done:7}
+const sortRows = rs => [...rs].sort((a,b) => ORDER[a.st]-ORDER[b.st])
 function boardView(){
   const lenses = [['all','全部'],['owed','欠我的'],['iowe','我欠的'],['mine',`${ic('lock','sm')}我定过的`]]
   const head = `<div class="crumb">${backBtn()}<h1>承诺</h1></div><div class="seg" role="tablist">${lenses.map(([k,l]) => `<button class="${k==='mine'?'mine ':''}${S.lens===k?'on':''}" data-lens="${k}">${l}</button>`).join('')}</div><button class="btn" data-act="newgoal" style="margin-left:8px">${ic('plus','sm')}新目标</button>`
-  if (S.lens === 'mine') return `<div class="judg" style="display:contents">${headerHtml(head)}<div class="stream judg"><div class="sw" style="max-width:820px">${judgHtml()}</div></div></div>`
-  let h = headerHtml(head)
-  const ks = D.commits
-  const nNeed = ks.filter(k => k.st==='need').length, nLate = ks.filter(k => k.st==='late').length, nStale = ks.filter(k => k.st==='stale').length
+  if (S.lens === 'mine') return `${headerHtml(head)}<div class="stream judg"><div class="sw" style="max-width:820px">${judgHtml()}</div></div>`
+  const ks = D.commits, n = st => ks.filter(k => k.st===st).length
   let body = `<div class="today">`
-  body += `<button class="tchip late" data-jump="late"><b>${nLate}</b>逾期</button>`
-  body += `<button class="tchip need" data-jump="need"><b>${nNeed}</b>等你</button>`
-  body += `<button class="tchip" data-jump="stale"><b>${nStale}</b>没动静</button>`
-  body += `<button class="tchip" data-act="meeting">${ic('cal','sm')}明天 14:00 竞品评审会 · 材料 <b>2/3</b> 就绪 ›</button>`
-  body += `</div>`
+  if (n('late')) body += `<button class="tchip late" data-jump="late"><b>${n('late')}</b>逾期</button>`
+  if (n('need')) body += `<button class="tchip need" data-jump="need"><b>${n('need')}</b>等你</button>`
+  if (n('said')) body += `<button class="tchip" data-jump="said"><b>${n('said')}</b>说交了，没见到东西</button>`
+  if (n('stale')) body += `<button class="tchip" data-jump="stale"><b>${n('stale')}</b>没动静</button>`
+  body += `<button class="tchip" data-act="meeting">${ic('cal','sm')}明天 14:00 竞品评审会 · 材料 <b>2/3</b> 就绪 ›</button></div>`
   if (S.lens === 'all'){
     for (const gid of Object.keys(D.goals)){
       const g = D.goals[gid], rows = ks.filter(k => k.goal===gid)
-      const live = rows.filter(k => k.st!=='done'), done = rows.filter(k => k.st==='done'), late = rows.filter(k => k.st==='late').length
-      body += `<section class="grp"><div class="gh"><button class="gt" data-goal="${gid}">${ic('target','sm')} ${esc(g.name)} ${ic('chevR','sm')}</button><span class="gm">${g.owner==='me'?'你负责':PEOPLE[g.owner].name+'负责'} · ${g.due} · ${g.verifier==='me'?'你验收':PEOPLE[g.verifier].name+'验收'}</span><span class="gc">${live.length} 件在跟${late?` · <span class="late">${late} 逾期</span>`:''}</span></div>`
+      const exc = rows.filter(k => EXC.includes(k.st)), ok = rows.filter(k => k.st==='ok'), done = rows.filter(k => k.st==='done'), late = rows.filter(k => k.st==='late').length
+      body += `<section class="grp"><div class="gh"><button class="gt" data-goal="${gid}">${ic('target','sm')} ${esc(g.name)} ${ic('chevR','sm')}</button><span class="gm">${g.owner==='me'?'你负责':PEOPLE[g.owner].name+'负责'} · ${g.due} · ${g.verifier==='me'?'你验收':PEOPLE[g.verifier].name+'验收'}</span><span class="gc">${exc.length+ok.length} 件在跟${late?` · <span class="late">${late} 逾期</span>`:''}</span></div>`
       body += `<div class="crit"><b>完成标准</b>${esc(g.crit)}</div>`
-      body += sortRows(live).map(k => rowHtml(k)).join('')
-      if (done.length) body += S.doneOpen[gid] ? done.map(k => rowHtml(k)).join('') : `<button class="donefold" data-donefold="${gid}">已完成 ${done.length} ${ic('chevD','sm')}</button>`
+      body += sortRows(exc).map(k => rowHtml(k)).join('')
+      body += foldHtml(gid, ok, done)
       body += `</section>`
     }
     const free = ks.filter(k => !k.goal && k.who!=='me')
-    body += `<section class="grp"><div class="gh"><span class="gt" style="font-size:15px;color:var(--ink-2)">没挂目标</span><span class="gc">${free.length} 件</span></div>${sortRows(free).map(k => rowHtml(k)).join('')}</section>`
+    body += `<section class="grp"><div class="gh"><span class="gt" style="font-size:15px;color:var(--ink-2)">没挂目标</span><span class="gc">${free.length} 件</span></div>${sortRows(free.filter(k => EXC.includes(k.st))).map(k => rowHtml(k)).join('')}${foldHtml('free', free.filter(k=>k.st==='ok'), free.filter(k=>k.st==='done'))}</section>`
     const mine = ks.filter(k => k.who==='me')
     body += `<section class="grp"><div class="gh"><span class="gt" style="font-size:15px;color:var(--ink-2)">你答应别人的</span><span class="gc">${mine.length} 件</span></div>${sortRows(mine).map(k => rowHtml(k)).join('')}</section>`
   } else {
     const list = S.lens==='owed' ? ks.filter(k => k.to==='me' && k.who!=='me') : ks.filter(k => k.who==='me')
-    const axis = S.lens==='owed' ? 'who' : 'to'
-    const groups = {}
+    const axis = S.lens==='owed' ? 'who' : 'to', groups = {}
     for (const k of list) (groups[k[axis]] ||= []).push(k)
     for (const [pid, rows] of Object.entries(groups)){
       const live = rows.filter(k => k.st!=='done')
       body += `<section class="grp"><div class="whohead">${av(pid,'s')}<b>${esc(PEOPLE[pid].name)}</b><span>${S.lens==='owed' ? `欠你 ${live.length} 件` : `你欠 ${live.length} 件`}</span></div>${sortRows(rows).map(k => rowHtml(k, true)).join('')}</section>`
     }
   }
-  h += `<div class="stream board" id="stream"><div class="sw">${body}</div></div>`
+  return headerHtml(head) + `<div class="stream board" id="stream"><div class="sw">${body}</div></div>`
+}
+function foldHtml(key, ok, done){
+  let h = ''
+  if (ok.length) h += S.open['ok'+key] ? ok.map(k => rowHtml(k)).join('') : `<button class="fold" data-fold="ok${key}">其余 ${ok.length} 件正常 ${ic('chevD','sm')}</button>`
+  if (done.length) h += S.open['done'+key] ? done.map(k => rowHtml(k)).join('') : `<button class="fold" data-fold="done${key}">已完成 ${done.length} ${ic('chevD','sm')}</button>`
   return h
 }
-const ORDER = {late:0, need:1, stale:2, soon:3, run:4, ok:5, done:6}
-const sortRows = rs => [...rs].sort((a,b) => ORDER[a.st]-ORDER[b.st])
 function sigHtml(k){
-  const m = {late:['late',ic('alert','sm')], need:['need','<span class="dot need"></span>'], stale:['stale',ic('clock','sm')], run:['run','<span class="spin"></span>'], done:['done',ic('check','sm')], soon:['',''], ok:['','']}[k.st]
-  return `<span class="sig ${m[0]} hideable">${m[1]}${esc(k.sig)}</span>`
+  const m = {late:['late',ic('alert','sm')], need:['need','<span class="dot need"></span>'], said:['said',ic('eyeoff','sm')], stale:['stale',ic('clock','sm')], run:['run', `<span class="spin${k.stalled?' warn':''}"></span>`], done:['done',ic('check','sm')], soon:['',''], ok:['','']}[k.st]
+  if (!k.sig) return ''
+  return `<span class="sig ${m[0]}${k.stalled?' stale':''} hideable">${m[1]}${esc(k.sig)}</span>`
 }
 function rowHtml(k, showGoal){
   const sel = S.sel===k.id ? ' sel' : ''
@@ -976,23 +1113,22 @@ function rowHtml(k, showGoal){
   const verbs = k.st==='need' ? `<button class="btn sm pri" data-card="${k.card}">去${D.cards[k.card].verb}</button>`
     : k.st==='done' ? '' : k.who==='me' ? `<button class="btn sm" data-goto="${k.id}">去做</button>`
     : k.st==='run' ? `<button class="btn sm" data-goto="${k.id}">去看</button>`
+    : k.st==='said' ? `<button class="btn sm" data-act="findev">让云小助找找</button><button class="btn sm ghost" data-goto="${k.id}">去看</button>`
     : `<button class="btn sm" data-nudge="${k.id}">催</button><button class="btn sm ghost" data-goto="${k.id}">去看</button>`
-  return `<div class="row${sel}${k.st==='done'?' done':''}" data-row="${k.id}" id="row-${k.id}" tabindex="-1">${av(k.who,'s')}<div style="min-width:0"><div class="rt">${esc(k.what)}</div><div class="rm">${esc(who)} · ${D.places[k.place].kind==='dm' ? '私聊' : esc(placeName(k.place))}${gtag}</div></div><div style="display:flex;align-items:center;gap:8px">${sigHtml(k)}<span class="verbs">${verbs}</span></div></div>`
+  return `<div class="row${sel}${k.st==='done'?' done':''}" data-row="${k.id}" id="row-${k.id}">${av(k.who,'s')}<div style="min-width:0"><div class="rt">${esc(k.what)}</div><div class="rm">${esc(who)} · ${esc(placeShort(k.place))}${gtag}</div></div><div style="display:flex;align-items:center;gap:8px">${sigHtml(k)}<span class="verbs">${verbs}</span></div></div>`
 }
 function judgHtml(){
   return `<div class="jnote">${ic('lock','sm')}只有你看得到。不进公司的账，随时可以整本带走。</div>
   <div class="jg"><h4>验收 · 33 次</h4><div class="line">没有一次被推翻 · 平均 <b>22 小时</b>后才去验</div>
     <div class="pledge">${ic('spark')}<div><q>这份文档一周内不会有人再改</q><div class="pm">押在 · 私账层 dogfood 测试 · 9/3</div></div><span class="ps">结果还没回来</span></div></div>
-  <div class="jg"><h4>写入确认 · 3 次</h4><div class="line">全部同意 · 平均 <b>1 分钟</b>内答</div></div>
-  <div class="jg"><h4>目标提案 · 4 次</h4><div class="line">全部同意 · 平均 <b>21 天</b>后才答 —— 这类事在等你</div>
+  <div class="jg"><h4>写入确认 · 5 次</h4><div class="line">全部同意，没有一次撤回 · 平均 <b>1 分钟</b>内答</div></div>
+  <div class="jg"><h4>目标提案 · 4 次</h4><div class="line">全部同意 · 平均 <b>21 天</b>后才答</div>
     <div class="pledge"><span style="color:var(--pri-ink)">${ic('book')}</span><div>以后这类提案先把要求和交付摆给我看<div class="pm">你 9/12 定的规矩</div></div><button class="btn sm ghost">改</button></div></div>
   <div class="jg"><h4>对账裁决 · 1 次</h4><div class="line">同意 1 · 90 天内没有结果回来</div></div>`
 }
 function goalView(gid){
   const g = D.goals[gid], rows = D.commits.filter(k => k.goal===gid)
-  const live = rows.filter(k => k.st!=='done'), late = rows.filter(k => k.st==='late').length
-  const needs = rows.filter(k => k.st==='need')
-  let h = headerHtml(`<div class="crumb">${backBtn(false)}</div>`, `<button class="iconbtn" title="更多">${ic('more')}</button>`)
+  const live = rows.filter(k => k.st!=='done'), late = rows.filter(k => k.st==='late').length, needs = rows.filter(k => k.st==='need' && D.cards[k.card].state==='open')
   let b = `<div class="hero"><div class="eyebrow">${ic('target','sm')}目标 · ${g.owner==='me'?'你负责':PEOPLE[g.owner].name+'负责'} · ${g.verifier==='me'?'你验收':PEOPLE[g.verifier].name+'验收'}</div><h1>${esc(g.name)}</h1>`
   b += `<div class="crit2"><b>完成标准</b>${esc(g.crit)}</div>`
   b += `<div class="gfacts"><span>截止 <b>${g.due}</b></span><span><b>${live.length}</b> 件在跟</span>${late?`<span class="late"><b>${late}</b> 件逾期</span>`:''}<span>最近动静 ${g.moved}</span><a href="#" data-act="noop">在云之家打开 ${ic('ext','sm')}</a></div>`
@@ -1000,18 +1136,18 @@ function goalView(gid){
   b += `<div class="gacts"><button class="btn">${ic('forward','sm')}交给…</button><button class="btn">拆解</button><button class="btn">评估进度</button></div></div>`
   if (needs.length){
     b += `<div class="h3"><span class="dot need"></span>要你 <span class="n">${needs.length}</span></div>`
-    b += needs.map(k => `<button class="ptrrow" data-card="${k.card}"><b>${D.cards[k.card].verb}</b>${esc(D.cards[k.card].title)}<span class="pm">${esc(placeName(k.place))} ›</span></button>`).join('')
+    b += needs.map(k => `<button class="ptrrow" data-card="${k.card}"><b>${D.cards[k.card].verb}</b>${esc(D.cards[k.card].title)}<span class="pm">${esc(waitLine(D.cards[k.card]))} ›</span></button>`).join('')
   }
-  b += `<div class="h3">执行 <span class="n">${rows.length}</span></div>${sortRows(rows).map(k => rowHtml(k)).join('')}`
+  b += `<div class="h3">执行 <span class="n">${rows.length}</span></div>${sortRows(rows.filter(k => EXC.includes(k.st))).map(k => rowHtml(k)).join('')}${foldHtml('g'+gid, rows.filter(k=>k.st==='ok'), rows.filter(k=>k.st==='done'))}`
   const outs = Object.entries(D.arts).filter(([,a]) => a.topic==='t-compete')
   b += `<div class="h3">产出 <span class="n">${outs.length}</span></div><div class="olist">${outs.map(([id,a]) => objRow(id,a)).join('')}</div>`
-  return h + `<div class="stream goalp" id="stream"><div class="sw">${b}</div></div>`
+  return headerHtml(`<div class="crumb">${backBtn(false)}</div>`, `<button class="iconbtn" title="更多">${ic('more')}</button>`) + `<div class="stream goalp" id="stream"><div class="sw">${b}</div></div>`
 }
 
 /* ═════════════════════ render: right ═════════════════════ */
-function objRow(id, a){
-  return `<button class="orow" data-preview="${id}"><span class="fi ${a.kind}">${ic(a.kind)}</span><span class="on2"><b>${esc(a.title)}</b><span>${esc(a.meta)}</span></span>${ic('chevR','sm go')}</button>`
-}
+const provShort = a => !a.from ? '' : !a.from.topic ? `来自「${a.from.text}」` : D.places[D.topics[a.from.topic].place].kind==='dm' ? `来自和${placeName(D.topics[a.from.topic].place)}的私聊` : `来自「${D.topics[a.from.topic].title}」`
+const artMeta = (id, a) => id==='a-table' && D.cards['c-write'].state==='pending' ? '云小助 · 你确认了，撤回窗一过就写' : a.meta
+const objRow = (id, a) => `<button class="orow" data-preview="${id}"><span class="fi ${a.kind}">${ic(a.kind)}</span><span class="on2"><b>${esc(a.title)}</b><span>${esc(artMeta(id, a))}</span><span>${esc(provShort(a))}</span></span>${ic('chevR','sm go')}</button>`
 function rightState(){
   if (S.preview) return 'wide'
   const v = S.view
@@ -1020,20 +1156,19 @@ function rightState(){
   return 'off'
 }
 function renderRight(){
-  const st = rightState(), app = $('#app'), r = $('#right')
-  app.dataset.right = st
+  const st = rightState(), r = $('#right')
+  $('#app').dataset.right = st
   if (st === 'off'){ r.innerHTML = ''; return }
   if (S.preview) return void (r.innerHTML = previewHtml(S.preview))
   const v = S.view
   if ((v.kind==='board' || v.kind==='goal') && S.sel) return void (r.innerHTML = storyHtml(D.commits.find(k => k.id===S.sel)))
-  const pid = v.kind==='topic' ? topicPlace(v.id) : v.id
-  const tid = v.kind==='topic' ? v.id : null
+  const pid = v.kind==='topic' ? topicPlace(v.id) : v.id, tid = v.kind==='topic' ? v.id : null
   const tabs = [['out','产出'],['mem','记忆'],['ref','资料']]
   let h = `<div class="rh"><div class="tabs">${tabs.map(([k,l]) => `<button class="${S.rtab===k?'on':''}" data-rtab="${k}">${l}</button>`).join('')}</div></div><div class="rb">`
   if (S.rtab === 'out'){
-    const outs = Object.entries(D.arts).filter(([,a]) => tid ? (a.topic===tid || (!a.topic && a.place===pid)) : a.place===pid)
-    if (outs.length) h += `<div class="olist">${outs.map(([id,a]) => objRow(id,a)).join('')}</div>`
-    else h += `<div class="empty">${ic('doc')}<div>这里还没有产出</div><div class="eg">云小助写的文档、建的表格，和群里发的文件，会出现在这里——点一下就能并排看。</div></div>`
+    const outs = Object.entries(D.arts).filter(([,a]) => tid ? a.topic===tid : a.place===pid)
+    h += outs.length ? `<div class="olist">${outs.map(([id,a]) => objRow(id,a)).join('')}</div>`
+      : `<div class="empty">${ic('doc')}<div>这里还没有产出</div><div class="eg">云小助写的文档、建的表格，和群里发的文件，会出现在这里，并写明是从哪段对话长出来的。</div></div>`
   } else if (S.rtab === 'mem'){
     const ms = D.memory[pid] || []
     h += ms.length ? ms.map(m => `<div class="mem"><div><p>${esc(m.text)}</p><span>${esc(m.src)}</span></div><button title="让云小助忘掉这条">${ic('x','sm')}</button></div>`).join('') + `<div class="inote" style="padding:8px">云小助在${esc(placeName(pid))}里会记着这些。说「以后…」可以加一条。</div>`
@@ -1045,17 +1180,22 @@ function renderRight(){
 }
 function storyHtml(k){
   if (!k) return ''
-  const sigCls = k.st==='late' ? 'late' : ''
+  const cls = k.st==='late' ? 'late' : ['said','stale','soon'].includes(k.st) || k.stalled ? 'warn' : ''
   const owner = k.who==='me' ? `你欠${PEOPLE[k.to].name}` : `${PEOPLE[k.who].name}${k.to==='me'?'欠你':'欠'+PEOPLE[k.to].name}`
-  let h = `<div class="rh"><h2>来龙去脉</h2><button class="iconbtn" data-act="unsel" title="关闭">${ic('x')}</button></div><div class="rb">`
-  h += `<div class="insp-h">${av(k.who)}<div><div class="it">${esc(k.what)}</div><div class="im">${owner} · ${k.due}前 · <span class="${sigCls}">${esc(k.sig)}</span></div></div></div>`
+  let h = `<div class="rh"><h2>来龙去脉</h2><button class="iconbtn" data-act="unsel" title="关闭（Esc）">${ic('x')}</button></div><div class="rb">`
+  h += `<div class="insp-h">${av(k.who)}<div><div class="it">${esc(k.what)}</div><div class="im">${owner} · 原话「${esc(k.dueSaid)}」${k.sig?` · <span class="${cls}">${esc(k.sig)}</span>`:''}</div></div></div>`
   h += `<div class="isec"><h4>怎么来的</h4><blockquote class="quote">${esc(k.born.quote)}<cite>${esc(PEOPLE[k.born.by].name)} · ${esc(k.born.at)} · ${esc(k.born.where)}</cite></blockquote>`
-  h += `<div class="inote">${k.born.note ? esc(k.born.note)+' ' : ''}云小助从这句话记下的。<button data-act="noop">记错了？改</button></div></div>`
-  if (k.after.length) h += `<div class="isec"><h4>之后</h4><ul class="tl">${k.after.map(a => `<li class="${a.late?'late':''}"><time>${esc(a.at)}</time>${esc(a.text)}</li>`).join('')}</ul></div>`
+  h += `<div class="inote">${k.born.note ? esc(k.born.note)+' ' : ''}云小助从这句话记下的。<button data-act="ackfix">记错了？改</button></div></div>`
+  if (k.after.length){
+    h += `<div class="isec"><h4>之后 · 证据</h4><ul class="tl">${k.after.map(a => `<li class="${a.cls||''}"><time>${esc(a.at)}</time>${esc(a.text)}</li>`).join('')}</ul>`
+    if (k.evq) h += `<div class="evbox"><button class="btn sm" data-act="findev">让云小助找找</button><button class="btn sm ghost" data-act="takesaid">当它交了</button></div>`
+    h += `</div>`
+  }
   h += `<div class="isec"><h4>挂在</h4>${k.goal ? `<div class="linkrow">${ic('target','sm')}<button data-goal="${k.goal}">${esc(D.goals[k.goal].name)}</button></div>` : `<div class="linkrow muted">没挂目标<button data-act="noop" style="margin-left:6px">挂上…</button></div>`}<div class="linkrow">${ic('hash','sm')}<button data-goto="${k.id}">${esc(placeName(k.place))}${k.topic&&D.places[k.place].kind!=='dm'?' / '+esc(D.topics[k.topic].title):''}</button></div></div>`
   h += `<div class="iacts">`
-  if (k.st==='need') h += `<button class="btn pri" data-card="${k.card}">去${D.cards[k.card].verb}</button>`
-  else if (k.who!=='me' && k.st!=='done') h += `<button class="btn pri" data-nudge="${k.id}">催${PEOPLE[k.who].name}</button>`
+  if (k.st==='need' && D.cards[k.card].state==='open') h += `<button class="btn pri" data-card="${k.card}">去${D.cards[k.card].verb}</button>`
+  else if (k.who!=='me' && k.who!=='ai' && !['done','ok'].includes(k.st)) h += `<button class="btn pri" data-nudge="${k.id}">催${PEOPLE[k.who].name}</button>`
+  else if (k.stalled) h += `<button class="btn pri" data-goto="${k.id}">去看它卡在哪</button>`
   if (k.st!=='done') h += `<button class="btn">顺延</button><button class="btn">转给别人</button><button class="btn">合并</button><button class="btn ghost danger">作废…</button>`
   return h + `</div></div>`
 }
@@ -1067,16 +1207,18 @@ function previewHtml(aid){
     <h2>二、分业务线</h2><ul><li>协同办公：1,960 万，+31%。大客户续约率 94%。</li><li>财务云：1,410 万，+12%。</li><li>人力云：890 万，+4%，低于目标。</li><li>生态集成：560 万，+9%。</li></ul>
     <h2>三、没做好的</h2><p>人力云的季度目标差 11%。主要原因是两个大单延到 Q4 签约……</p>
     <h2>四、Q4 的三件事</h2><p>（待补）</p>`
-  : aid==='a-table' ? `<p class="meta">云小助 · 刚刚</p><h1>竞品对比 · 评审表</h1><p>12 条记录 · 3 家 × 4 个维度。价格列为官网 10 月价，每格附来源日期。</p>`
+  : aid==='a-table' ? `<p class="meta">${esc(artMeta(aid, a))}</p><h1>竞品对比 · 评审表</h1><p>12 条记录 · 3 家 × 4 个维度。价格列为官网 10 月价，每格附来源日期。</p>`
   : `<p class="meta">${esc(a.meta)}</p><h1>${esc(a.title)}</h1><p>（预览内容）</p>`
   const card = Object.entries(D.cards).find(([,c]) => c.art===aid && c.state==='open')
+  const prov = a.from ? `<div class="prov">${ic('reply','sm')}${a.from.topic ? `<button data-prov="${aid}">${esc(placeName(D.topics[a.from.topic].place))}${D.places[D.topics[a.from.topic].place].kind==='dm'?'':' / '+esc(D.topics[a.from.topic].title)} · ${esc(a.from.text)} ›</button>` : `来自${esc(a.from.text)}`}</div>` : ''
   return `<div class="rh">${ic(a.kind)}<h2>${esc(a.title)}</h2><button class="iconbtn" title="全屏">${ic('max','sm')}</button><button class="iconbtn" title="在云之家打开">${ic('ext','sm')}</button><button class="iconbtn" data-act="closepv" title="关闭（Esc）">${ic('x')}</button></div>
-    <div class="pv">${body}</div>
-    ${card ? `<div class="pvbar"><span>边看边验 · 中栏的卡还在</span><button class="btn sm" data-ans="${card[0]}:2">打回…</button><button class="btn sm pri" data-ans="${card[0]}:1">通过验收</button></div>` : ''}`
+    ${prov}<div class="pv">${body}</div>
+    ${card ? `<div class="pvbar"><span>边看边验 · 中栏的卡还在</span><button class="btn sm" data-ans="${card[0]}:2">打回…</button><button class="btn sm pri" data-ans="${card[0]}:1"><kbd>1</kbd>通过验收</button></div>` : ''}`
 }
 
 /* ═════════════════════ render: all ═════════════════════ */
 function renderMain(){
+  const ae = document.activeElement, taFocused = ae?.id === 'ta', sel = taFocused ? [ae.selectionStart, ae.selectionEnd] : null
   const prev = $('#stream'), keep = prev && S._sameView ? prev.scrollTop : null
   const v = S.view, m = $('#main')
   m.className = (v.kind==='board' && S.lens==='mine') ? 'judg' : ''
@@ -1089,12 +1231,35 @@ function renderMain(){
     st.style.scrollBehavior = ''
   }
   wireComposer()
+  if (taFocused){ const ta = $('#ta'); if (ta){ ta.focus(); ta.setSelectionRange(...sel) } }
+  watchPointer()
 }
+function syncTop(){ document.documentElement.style.setProperty('--apptop', $('#app').getBoundingClientRect().top + 'px') }
 function render(sameView=true){
   S._sameView = sameView
   document.documentElement.dataset.theme = theme
   $('#themeBtn').innerHTML = theme==='dark' ? `${ic('sun','sm')}浅色` : `${ic('moon','sm')}深色`
-  renderNav(); renderMain(); renderRight(); renderSteps()
+  renderNav(); renderMain(); renderRight(); renderSteps(); syncTop()
+}
+/* 决断指针只在卡不在视野里时出现——看得见目标，就不必再指一遍。 */
+let io = null
+function watchPointer(){
+  io?.disconnect()
+  const pill = $('#ptrpill'), st = $('#stream'); if (!pill || !st) return
+  const ids = S.view.kind==='topic' ? topicNeeds(S.view.id) : []
+  if (!ids.length){ pill.hidden = true; return }
+  const vis = {}
+  io = new IntersectionObserver(es => {
+    for (const e of es) vis[e.target.dataset.cardbox] = { seen: e.intersectionRatio > 0.25, above: e.boundingClientRect.top < e.rootBounds.top }
+    const off = ids.filter(id => vis[id] && !vis[id].seen)
+    if (!off.length){ pill.hidden = true; return }
+    const c = D.cards[off[0]]
+    pill.hidden = false
+    pill.dataset.scroll = off[0]
+    pill.innerHTML = `<span class="dot need"></span><b>要你${c.verb}</b><span>${esc(c.short)}</span>${ic(vis[off[0]].above ? 'chevL' : 'chevD','sm')}`
+    pill.querySelector('svg:last-child').style.transform = vis[off[0]].above ? 'rotate(90deg)' : ''
+  }, {root: st, threshold:[0, .25, 1]})
+  ids.forEach(id => { const el = document.getElementById('card-'+id); if (el) io.observe(el) })
 }
 
 /* ═════════════════════ navigation ═════════════════════ */
@@ -1102,9 +1267,8 @@ const sameV = (a,b) => a.kind===b.kind && a.id===b.id
 function go(view, {push=true}={}){
   if (sameV(view, S.view)) return
   if (push) S.back.push({view:S.view, scroll:$('#stream')?.scrollTop ?? 0})
-  S.view = view; S.preview = null; S.focus = null; S.drafted = null; S.draft = ''; S.rtab = 'out'
-  if (view.kind==='topic' && D.places[topicPlace(view.id)].kind==='dm') S.aud = 'pub'
-  else if (view.kind==='topic') S.aud = 'pri'
+  S.view = view; S.preview = null; S.focus = null; S.drafted = null; S.draft = ''; S.rtab = 'out'; S.leaseOpen = false
+  S.aud = view.kind==='topic' && D.places[topicPlace(view.id)].kind==='dm' ? 'pub' : 'pri'
   S.ask = false
   if (!['board','goal'].includes(view.kind)) S.sel = null
   render(false)
@@ -1115,25 +1279,17 @@ function goBack(){
   render(false)
   const st = $('#stream'); if (st){ st.style.scrollBehavior='auto'; st.scrollTop = b.scroll; st.style.scrollBehavior='' }
 }
-function openPlace(pid){
-  const p = D.places[pid]
-  if (p.direct) return go({kind:'topic', id:p.direct})
-  go({kind:'place', id:pid})
-}
+function openPlace(pid){ const p = D.places[pid]; if (p.direct) return go({kind:'topic', id:p.direct}); go({kind:'place', id:pid}) }
+function flashEl(el, cls){ if (!el) return; el.scrollIntoView({block:'center'}); el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls) }
 function landOnCard(cid){
   const c = D.cards[cid]
   go({kind:'topic', id:c.topic})
-  S.focus = cid; S.itemFocus = 0
+  S.focus = cid; S.itemFocus = Math.max(0, (c.items||[]).findIndex(i => i.pick===null))
   render()
-  requestAnimationFrame(() => {
-    const el = document.getElementById('card-'+cid)
-    if (el){ el.scrollIntoView({block:'center'}); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash') }
-  })
+  requestAnimationFrame(() => flashEl(document.getElementById('card-'+cid), 'flash'))
 }
-function gotoCommit(kid){
-  const k = D.commits.find(x => x.id===kid)
-  if (k.topic) go({kind:'topic', id:k.topic}); else openPlace(k.place)
-}
+function nextNeed(){ const nx = openCards()[0]; if (nx) landOnCard(nx); else toast('要你的都处理完了') }
+function gotoCommit(kid){ const k = D.commits.find(x => x.id===kid); if (k.topic) go({kind:'topic', id:k.topic}); else openPlace(k.place) }
 function nudge(kid){
   const k = D.commits.find(x => x.id===kid), who = PEOPLE[k.who].name
   const dm = Object.entries(D.places).find(([,p]) => p.kind==='dm' && p.person===k.who)
@@ -1144,58 +1300,92 @@ function nudge(kid){
   render()
   setTimeout(() => { const ta = $('#ta'); if (ta){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length) } }, 30)
 }
+function openProv(aid){
+  const a = D.arts[aid]
+  go({kind:'topic', id:a.from.topic})
+  S.preview = aid; render()
+  if (a.from.msg) requestAnimationFrame(() => flashEl(document.getElementById('msg-'+a.from.msg), 'flash'))
+}
 
-/* ═════════════════════ answering ═════════════════════ */
+/* ═════════════════════ answering · 5 秒撤回窗 ═════════════════════
+   键盘一按就生效、又收不回，和「主权时刻要稳」相冲。所以每个回答先进 5 秒的待生效：
+   卡立刻收成一行（要你立刻少一件），Z 撤回；5 秒后才真的落账、才投到云之家。 */
+function stage(cid, summary, toastText, effect){
+  if (pending) commitPending()
+  const c = D.cards[cid]
+  c.state = 'pending'; c.result = summary
+  pending = {cid, until: Date.now() + 5000, effect}
+  S.lastDone = cid
+  if (S.focus === cid) S.focus = null
+  toast(toastText + ' · 5 秒内可撤回', true)
+  render()
+}
+function commitPending(){
+  const p = pending; pending = null; if (!p) return
+  const c = D.cards[p.cid]; c.state = 'done'; c.doneAt = '刚刚'
+  p.effect?.()
+}
+function undo(){
+  if (!pending) return
+  const cid = pending.cid; pending = null
+  const c = D.cards[cid]; c.state = 'open'; c.result = null
+  S.focus = cid; S.lastDone = null
+  toast('撤回了，卡还在等你')
+  render()
+  requestAnimationFrame(() => document.getElementById('card-'+cid)?.scrollIntoView({block:'center'}))
+}
+setInterval(() => {
+  if (!pending) return
+  const left = Math.ceil((pending.until - Date.now())/1000)
+  if (left <= 0){ commitPending(); render() }
+  else document.querySelectorAll('.cd').forEach(e => e.textContent = left)
+}, 250)
+
 function answer(cid, a){
   const c = D.cards[cid]
   if (c.state !== 'open') return
   if (c.kind === 'confirm'){
-    if (a==='1'){
-      finish(cid, `你确认了写入 · <b>12 条进了「竞品对比 · 评审表」</b>`, '已确认 · 云小助开始写入')
+    if (a==='1') stage(cid, `你确认了写入 · <b>12 条进「竞品对比 · 评审表」</b>`, '已确认', () => {
       const k = D.commits.find(k => k.id==='k2'); k.st='run'; k.sig='在写'
+      D.arts['a-table'].meta = '云小助 · 在写 12 条'
       setTimeout(() => {
-        const t = D.topics['t-compete']
-        Object.assign(D.arts['a-table'], {meta:'云小助 · 12 条 · 刚刚', pending:false})
-        t.stream.push({t:'msg', by:'ai', aud:'pub', at:'09:15', text:'写好了：12 条已进「竞品对比 · 评审表」，价格列标了来源日期。', file:'a-table'})
-        k.st='ok'; k.sig='交了 · 等罗总过目'
-        if (S.view.kind==='topic' && S.view.id==='t-compete'){ render(); const st=$('#stream'); st.scrollTop = st.scrollHeight } else render()
-      }, 1400)
-    } else finish(cid, '你选了先不写 · 云小助等你下一句', '先不写')
+        Object.assign(D.arts['a-table'], {meta:'云小助 · 12 条 · 刚刚'})
+        D.topics['t-compete'].stream.push({t:'msg', by:'ai', aud:'pub', at:'09:15', text:'写好了：12 条已进「竞品对比 · 评审表」，价格列标了来源日期。', file:'a-table'})
+        k.st='ok'; k.sig='交了 · 有文件'
+        render()
+      }, 1200)
+    })
+    else if (a==='2') stage(cid, '你选了先不写 · 云小助等你下一句', '先不写')
   }
   if (c.kind === 'accept'){
     if (a==='1' && !S.viewed[c.art]){ S.strip[cid] = true; S.focus = cid; return render() }
     if (a==='1' || a==='force'){
       delete S.strip[cid]
-      finish(cid, `你通过了验收 · <b>Q3 复盘材料初稿</b> · 已告诉李婷`, '已验收 · 李婷会收到一句「通过」')
-      const k = D.commits.find(k => k.id==='k7'); k.st='done'; k.sig='验收了'
       if (S.preview===c.art) S.preview = null
-      render()
+      stage(cid, `你通过了验收 · <b>Q3 复盘材料初稿</b>`, '已验收', () => {
+        const k = D.commits.find(k => k.id==='k7'); k.st='done'; k.sig='验收了'
+        D.topics['t-review'].stream.push({t:'msg', by:'ai', aud:'pub', at:'09:20', text:'Bruce 验收通过了 Q3 复盘材料初稿。'})
+      })
     }
-    if (a==='2'){ S.reason[cid] = ''; delete S.strip[cid]; S.focus = cid; S.preview = null; render(); setTimeout(() => $('#reason-'+cid)?.focus(), 30) }
+    if (a==='2'){ S.reason[cid] = ''; delete S.strip[cid]; S.focus = cid; if (S.preview===c.art) S.preview = null; render(); setTimeout(() => $('#reason-'+cid)?.focus(), 30) }
     if (a==='cancelreason'){ delete S.reason[cid]; render() }
     if (a==='sendreason'){
       const r = ($('#reason-'+cid)?.value || '').trim()
       if (!r){ $('#reason-'+cid)?.focus(); return }
       delete S.reason[cid]
-      D.topics[c.topic].stream.push({t:'msg', by:'me', aud:'pub', at:'09:20', text:`打回：${r}`})
-      finish(cid, `你打回了 · <b>${esc(r)}</b>`, '已打回 · 李婷收到了原因')
-      const k = D.commits.find(k => k.id==='k7'); k.st='ok'; k.sig='打回重做'
-      render()
+      stage(cid, `你打回了 · <b>${esc(r)}</b>`, '已打回', () => {
+        D.topics[c.topic].stream.push({t:'msg', by:'me', aud:'pub', at:'09:20', text:`打回：${r}`})
+        const k = D.commits.find(k => k.id==='k7'); k.st='ok'; k.sig='打回重做'
+      })
     }
   }
   if (c.kind === 'decide' && a==='submit'){
-    const picks = c.items.map(i => i.opts[i.pick])
-    const sum = {}; picks.forEach(p => sum[p]=(sum[p]||0)+1)
-    finish(cid, `你定了 3 处差异 · <b>${Object.entries(sum).map(([k,v]) => `${v} 处${k}`).join('，')}</b>`, '已定 · 云小助按你的决定改账')
-    const k = D.commits.find(k => k.id==='k5'); k.st='ok'; k.sig='按你定的在改'
+    if (c.items.some(i => i.pick===null)) return
+    const sum = {}; c.items.forEach(i => { const p = i.opts[i.pick]; sum[p] = (sum[p]||0) + 1 })
+    stage(cid, `你定了 3 处差异 · <b>${Object.entries(sum).map(([k,v]) => `${v} 处${k}`).join('，')}</b>`, '已定', () => {
+      const k = D.commits.find(k => k.id==='k5'); k.st='ok'; k.sig='按你定的在改'
+    })
   }
-}
-function finish(cid, result, toastText){
-  const c = D.cards[cid]
-  c.state = 'done'; c.result = result; c.doneAt = '刚刚'
-  if (S.focus === cid) S.focus = null
-  toast(toastText)
-  render()
 }
 function pick(cid, i, j){
   const c = D.cards[cid]; c.items[i].pick = j
@@ -1205,74 +1395,34 @@ function pick(cid, i, j){
   render()
 }
 
-/* ═════════════════════ composer ═════════════════════ */
-function wireComposer(){
-  const ta = $('#ta'); if (!ta) return
-  const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 200)+'px' }
-  fit()
-  ta.addEventListener('input', () => {
-    S.draft = ta.value; fit()
-    const b = $('.send'); if (b) b.disabled = !ta.value.trim()
-  })
-  ta.addEventListener('keydown', e => {
-    if (e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); send() }
-    if (e.key==='.' && (e.metaKey||e.ctrlKey)){ e.preventDefault(); toggleAud() }
-    if (e.key==='Escape'){ ta.blur() }
-  })
-}
-function toggleAud(){
-  if (composerCtx?.forcePub) return
-  S.aud = S.aud==='pri' ? 'pub' : 'pri'; S.ask = false
-  const pos = $('#ta')?.selectionStart
-  renderMain()
-  const ta = $('#ta'); if (ta){ ta.focus(); if (pos!=null) ta.setSelectionRange(pos,pos) }
-}
-function send(){
-  const text = S.draft.trim(); if (!text) return
-  const v = S.view
-  const aud = composerCtx?.forcePub ? 'pub' : S.aud
-  const stream = v.kind==='topic' ? D.topics[v.id].stream : D.places[v.id].stream
-  stream.push({t:'msg', by:'me', aud, at:'09:21', text})
-  const wasDraft = S.drafted
-  S.draft = ''; S.drafted = null
-  if (aud==='pri'){
-    const ask = S.ask
-    setTimeout(() => {
-      stream.push({t:'msg', by:'ai', aud:'pri', at:'09:21', text: ask ? '目前 12 条里 4 条有价格，另外 8 条等张锐补。（只读，没有动任何东西）' : /^以后/.test(text) ? '记下了，以后在这个群里都照这个来。右边「记忆」里能看到、能删。' : '好的，我照这个来。'})
-      render()
-    }, 700)
-  }
-  if (wasDraft){
-    const k = D.commits.find(x => x.id===wasDraft); k.after.push({at:'刚刚', text:'你催了一次'})
-    toast(`已发给${PEOPLE[k.who].name}`)
-  } else if (aud==='pub') toast(composerCtx.send.replace('发到','已发到').replace('发给','已发给'))
-  render()
-}
-
 /* ═════════════════════ overlays ═════════════════════ */
-function toast(t){
-  const el = document.createElement('div'); el.className='toast'; el.innerHTML = esc(t)
+function toast(t, undoable){
   document.querySelectorAll('.toast').forEach(x => x.remove())
-  document.body.appendChild(el); setTimeout(() => el.remove(), 2600)
+  const el = document.createElement('div'); el.className='toast'
+  el.innerHTML = esc(t) + (undoable ? `<button data-act="undo">撤回</button>` : '')
+  document.body.appendChild(el); setTimeout(() => el.remove(), undoable ? 5000 : 2600)
 }
 function closeLayer(){ $('#layer').innerHTML = ''; palette = null }
 let palette = null
 function palItems(q){
   const all = []
-  openCards().forEach(c => all.push({g:'要你', icon:'<span class="dot need"></span>', label:`${D.cards[c].verb} · ${D.cards[c].title}`, r:cardWhere(c), run:() => landOnCard(c)}))
+  openCards().forEach(c => all.push({g:'要你', icon:'<span class="dot need"></span>', label:`${D.cards[c].verb} · ${D.cards[c].title}`, r:waitLine(D.cards[c]), run:() => landOnCard(c)}))
   D.order.forEach(pid => all.push({g:'地方', icon: D.places[pid].kind==='dm' ? av(D.places[pid].person,'xs') : ic('hash'), label:placeName(pid), r: D.places[pid].kind==='dm'?'私聊':`${D.places[pid].members} 人`, run:() => openPlace(pid)}))
   Object.entries(D.topics).filter(([,t]) => D.places[t.place].kind!=='dm').forEach(([tid,t]) => all.push({g:'地方', icon:ic('list'), label:t.title, r:placeName(t.place), run:() => go({kind:'topic', id:tid})}))
+  Object.entries(D.arts).forEach(([aid,a]) => all.push({g:'产出', icon:ic(a.kind), label:a.title, r:provShort(a), run:() => { if (a.from?.topic) openProv(aid); else { S.preview = aid; render() } }}))
   D.commits.filter(k => k.st!=='done').forEach(k => all.push({g:'承诺', icon:av(k.who,'xs'), label:k.what, r:k.sig, run:() => { go({kind:'board'}); S.sel=k.id; render() }}))
   Object.entries(D.goals).forEach(([gid,g]) => all.push({g:'目标', icon:ic('target'), label:g.name, r:g.due, run:() => go({kind:'goal', id:gid})}))
-  all.push({g:'操作', icon:ic('plus'), label:'新目标…', r:'', run:() => toast('（原型）新目标：先说一句话，云小助起草，你签发')})
+  all.push({g:'操作', icon:ic('check'), label:'今天不用问我就办了的', r:`${D.auto.length} 件`, run:() => showAuto()})
+  all.push({g:'操作', icon:ic('plus'), label:'新目标…', r:'', run:() => toast('（原型）新目标：先说一句话，云小助起草要件，你签发')})
   all.push({g:'操作', icon:ic('shield'), label:'云小助在这里的规则', r:'', run:() => showRules()})
+  all.push({g:'操作', icon:ic('eyeoff'), label:'演示隐身（投屏前）', r:'', run:() => toast('（原型）私语带、我定过的、押注一键收起')})
   all.push({g:'操作', icon:ic(theme==='dark'?'sun':'moon'), label: theme==='dark'?'切到浅色':'切到深色', r:'', run:() => { theme = theme==='dark'?'light':'dark'; saveTheme(); render() }})
   if (!q) return all
   return all.filter(x => (x.label + x.r + x.g).toLowerCase().includes(q.toLowerCase()))
 }
-function openPalette(){
-  palette = {q:'', i:0}
-  $('#layer').innerHTML = `<div class="scrim" data-act="scrim"><div class="pal" role="dialog" aria-label="跳转"><input id="palq" placeholder="跳到群、人、承诺、目标，或做点什么…" autocomplete="off"><div class="pl" id="pall"></div><div class="pf"><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>⏎</kbd> 打开</span><span><kbd>esc</kbd> 关闭</span></div></div></div>`
+function openPalette(q=''){
+  palette = {q, i:0}
+  $('#layer').innerHTML = `<div class="scrim" data-act="scrim"><div class="pal" role="dialog" aria-label="跳转"><input id="palq" placeholder="跳到群、人、文件、承诺、目标，或做点什么…" autocomplete="off" value="${esc(q)}"><div class="pl" id="pall"></div><div class="pf"><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>⏎</kbd> 打开</span><span><kbd>esc</kbd> 关闭</span></div></div></div>`
   const inp = $('#palq'); inp.focus()
   inp.addEventListener('input', () => { palette.q = inp.value; palette.i = 0; drawPal() })
   drawPal()
@@ -1286,24 +1436,31 @@ function drawPal(){
 }
 function showRules(){
   const v = S.view, pid = v.kind==='topic' ? topicPlace(v.id) : v.kind==='place' ? v.id : 'p-prod'
+  const rules = D.rules.map(r => `<div class="lease-row">${ic('stamp','sm')}<span style="flex:1">${esc(r.text)}<span class="muted"> · ${esc(r.by)} · ${esc(r.left)}${r.saved?` · 已替你省了 ${r.saved} 次确认`:''}</span></span><button class="btn sm ghost">收回</button></div>`).join('')
   $('#layer').innerHTML = `<div class="scrim" data-act="scrim"><div class="modal" role="dialog"><header>${av('ai')}<div style="flex:1"><h2>云小助在「${esc(placeName(pid))}」</h2><p>这些规则只管这个地方。改了马上生效。</p></div><button class="iconbtn" data-act="close">${ic('x')}</button></header><div class="mb"><dl>
     <div class="rule"><dt>接谁的话</dt><dd><div class="row2"><span class="pill"><span class="dot" style="background:var(--ok)"></span>在岗</span>群里有人 @云小助 或回复它，它都会接。</div><div class="row2" style="margin-top:8px"><button class="btn sm">改为只接你的</button><button class="btn sm ghost">暂停</button></div></dd></div>
     <div class="rule"><dt>每次都先问你</dt><dd>删文档、删表格、取消日程、建新群、作废承诺，以及另外 3 种收不回的操作。<details><summary>8 种 · 看明细</summary><ul><li>删除知识库文档 <code>yzj_doc_delete</code></li><li>删除整张表 <code>yzj_sheet_table_delete</code></li><li>取消日程 <code>yzj_calendar_event_delete</code></li><li>新建群 <code>yzj_im_group_create</code></li><li>作废承诺 <code>commitment_void</code></li><li>…</li></ul></details></dd></div>
     <div class="rule"><dt>写之前问一次</dt><dd>写文档、建表格、改记录 —— 能撤回的写操作。<details><summary>19 种 · 看明细</summary><ul><li>新建文档、写入内容、建表、写记录 …</li></ul></details></dd></div>
     <div class="rule"><dt>不会做</dt><dd>跑命令、派子任务、替你发群消息。</dd></div>
-    <div class="rule"><dt>你给过的授权</dt><dd class="muted">还没有。经常确认同一类操作时，可以在卡上说「以后这类不用问」。</dd></div>
+    <div class="rule"><dt>你签的规矩</dt><dd>${rules || '<span class="muted">还没有。</span>'}<div class="inote">规矩只能由你签，都会到期。卡上会在你连续同意同一类事之后提议一条。</div></dd></div>
     <div class="rule"><dt>它记着的</dt><dd>${(D.memory[pid]||[]).length} 条 <button class="btn sm ghost" data-act="close">在右栏「记忆」里看</button></dd></div>
   </dl></div></div></div>`
 }
+function showAuto(){
+  $('#layer').innerHTML = `<div class="scrim" data-act="scrim"><div class="modal" role="dialog"><header>${av('ai')}<div style="flex:1"><h2>今天不用问你就办了的</h2><p>${D.auto.length} 件 · 每件写着凭的哪条规矩</p></div><button class="iconbtn" data-act="close">${ic('x')}</button></header><div class="mb">${D.auto.map(a => `<div class="arow"><time>${a.at}</time><span>${esc(a.text)} <span class="muted">· ${esc(a.where)}</span></span><button class="btn sm ghost" data-act="tighten">这件不该自己办</button><span class="ar">${esc(a.rule)}</span></div>`).join('')}</div></div></div>`
+}
 function showKeys(){
   $('#layer').innerHTML = `<div class="scrim" data-act="scrim"><div class="modal" role="dialog"><header><h2>键盘</h2><button class="iconbtn" data-act="close">${ic('x')}</button></header><div class="mb"><dl class="keys">
-    <dt><kbd>⌘</kbd><kbd>K</kbd></dt><dd>跳到任何地方、做任何事</dd>
-    <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>下一个 / 上一个（要你的卡、承诺行、对账的每一条）</dd>
-    <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>回答当前的卡 —— 和在云之家里回 1 / 2 是同一件事</dd>
-    <dt><kbd>⏎</kbd></dt><dd>打开选中的那一行</dd>
+    <dt><kbd>⌘</kbd><kbd>K</kbd></dt><dd>跳到任何地方、找任何文件、做任何事</dd>
+    <dt><kbd>N</kbd></dt><dd>下一件要你的（跨群，不用回左栏找）</dd>
+    <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>回答当前的卡——和在云之家里回 1 / 2 是同一件事</dd>
+    <dt><kbd>Z</kbd></dt><dd>撤回刚才的回答（5 秒内）</dd>
+    <dt><kbd>V</kbd></dt><dd>并排看当前卡的交付物</dd>
+    <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>下一个 / 上一个：卡、承诺行、对账的每一条</dd>
+    <dt><kbd>⏎</kbd></dt><dd>打开选中的行；对账卡选满后提交</dd>
     <dt><kbd>/</kbd></dt><dd>到输入框</dd>
     <dt><kbd>⌘</kbd><kbd>.</kbd></dt><dd>输入框里切换：仅你和云小助 ⇄ 发到群里</dd>
-    <dt><kbd>esc</kbd></dt><dd>关预览 / 返回上一处（回到你离开时的位置）</dd>
+    <dt><kbd>esc</kbd></dt><dd>关预览 › 取消选中 › 返回原位</dd>
   </dl></div></div></div>`
 }
 function showMenu(btn){
@@ -1317,10 +1474,11 @@ function showMenu(btn){
 }
 function showAudMenu(btn){
   const r = btn.getBoundingClientRect(), o = composerCtx
-  const opt = (k, icon, title, sub) => `<button class="${(k==='ask'?S.ask:(!S.ask && S.aud===k))?'on':''}" data-setaud="${k}">${ic(icon)}<b>${title}</b>${(k==='ask'?S.ask:(!S.ask && S.aud===k))?ic('check','sm ck'):'<i></i>'}<span>${sub}</span></button>`
+  const isOn = k => k==='ask' ? S.ask : (!S.ask && S.aud===k)
+  const opt = (k, icon, title, sub) => `<button class="${isOn(k)?'on':''}" data-setaud="${k}">${ic(icon)}<b>${esc(title)}</b>${isOn(k)?ic('check','sm ck'):'<i></i>'}<span>${esc(sub)}</span></button>`
   $('#layer').innerHTML = `<div style="position:fixed;inset:0;z-index:29" data-act="close"></div><div class="audmenu" style="left:${r.left}px;bottom:${innerHeight-r.top+8}px">
     ${opt('pri','lock','仅你和云小助','群里看不到。云小助照你的话去做。')}
-    ${opt('pub','users',o.pub,o.pubHint+'。@云小助 才会叫上它。')}
+    ${opt('pub','users',o.pub, o.kind==='dm' ? `${PEOPLE[o.person].name}能看见。` : '以你的名义发出。@云小助 才会叫上它。')}
     ${opt('ask','zap','只问不办','仅你和云小助。只读，不开任务、不动任何东西。')}</div>`
 }
 function showTrace(){
@@ -1332,59 +1490,54 @@ function saveTheme(){ try { localStorage.setItem('wr-theme', theme) } catch {} }
 
 /* ═════════════════════ 剧本 ═════════════════════ */
 const STEPS = [
-  {t:'09:12 打开', s:'周三早上，Bruce 打开工作台。左上角「要你」列着三件事：每一行写着是什么、在哪、多久了——不用点进去就知道今天要拍板什么。底下「运行中」那条是云小助在替王超整理路线图，不需要他。',
-    d:'「要你」是唯一跨会话聚合的地方，从三枚计数换成逐条指针；运行中不是异常，用转圈不用颜色。', run(){ reset(); go({kind:'topic', id:'t-roadmap'}, {push:false}); S.back=[] ; render(false) }},
-  {t:'确认一次写入', s:'第一件：昨天张锐在产品讨论群里请云小助做竞品对比表。早上 Bruce 私下交代「价格用 10 月的」，云小助整理好了，写进表格前要他点头。点那一行，直接落在卡上——按 1 就确认。',
-    d:'私下的话收在一条米色带里，带头写着「只有你和云小助」；卡答完收成一行，「要你」少一件。键盘 1/2 和在云之家里回 1/2 是同一个动作。', run(){ landOnCard('c-write') }},
-  {t:'验收李婷的初稿', s:'李婷昨晚交了 Q3 复盘初稿。验收是 Bruce 的主权时刻——先并排看，中栏的对话不离场；没看就点「通过」，会多问一句。',
-    d:'摩擦只留在主权时刻，而且是被设计过的：不是禁止，是提醒你还没看。打回要写原因，会以你的名义发给李婷。', run(){ landOnCard('c-accept') }},
-  {t:'对账：谁没动静', s:'打开「承诺」。张锐答应周二给的价格页数据没来，排在最上面。点那一行，右边讲清它怎么来的——原话、谁说的、在哪说的。「催」把 Bruce 送到和张锐的私聊，云小助拟好了稿，他改成自己的话再发。',
-    d:'一行只亮一个信号，动词在悬停或选中时才出现；出生故事放进右栏（第二级披露）；催 = agent 拟稿 + 本人亲发。', run(){ reset(); go({kind:'board'}, {push:false}); S.back=[]; S.sel='k1'; render(false) }},
-  {t:'开口前知道谁听得见', s:'回到竞品对比表。底部那颗小标签就是听众：米色「仅你和云小助」，蓝色「发到群里 · 产品讨论群」。⌘. 切换；按钮上的字跟着变——「发给云小助」还是「发到群里」。',
-    d:'原来的「落点条 + 语态分段 + 提示句」三行，收成一颗随时可见的听众标签和一个会说话的发送键。', run(){ reset(); go({kind:'topic', id:'t-compete'}, {push:false}); S.back=[]; render(false); setTimeout(() => $('#ta')?.focus(), 50) }},
-  {t:'⌘K 到任何地方', s:'任何东西——群、人、一条承诺、一个目标、一个动作——⌘K 打两个字就到。',
-    d:'不增加入口：⌘K 只是到达已有的地方的捷径。', run(){ closeLayer(); openPalette() }},
+  {t:'09:12 打开', s:'周三早上，Bruce 打开工作台。左上角「要你」三件事，每一行写着是什么、谁在等他、等了多久：云小助停在写表格前等了 5 分钟（明天评审会要用），李婷等验收结论 13 个小时，郑慧的月结等他定对账口径。底下「运行中」那条是琥珀色——云小助替王超整理路线图，第 3 步 6 分钟没进展。',
+    d:'「要你」只收被你卡住的事，按被卡的代价排序，每行写清谁在等；运行中卡住了不算要你，但会变琥珀色，和「在做」「停了」分开。', run(){ reset(); go({kind:'topic', id:'t-roadmap'}, {push:false}); S.back=[]; render(false) }},
+  {t:'确认一次写入', s:'第一件：张锐昨天请云小助做竞品对比表；早上 Bruce 私下交代「价格用 10 月的」。云小助整理好了，停在写入前等他点头。按 1——卡收成一行，5 秒内按 Z 能撤回；下面直接给出「下一件」，按 N 就到，不用回左栏找。卡上还有一行：这类写入他已经连续确认 5 次了，要不要签一条规矩，以后同类不用问。',
+    d:'键盘一按就生效太危险，所以每个回答先进 5 秒撤回窗；连续同意同一类事，卡就提议一条由你签的、会到期的规矩——每一次判断都让下一次更少。', run(){ reset(); landOnCard('c-write') }},
+  {t:'验收李婷的初稿', s:'李婷昨晚交了 Q3 复盘初稿。验收是 Bruce 的主权时刻：先按 V 并排看，中栏的对话不离场；没看就点「通过」，会多问一句。预览顶上写着这份东西是从哪儿长出来的——点一下回到上周五他让李婷做的那句话。',
+    d:'摩擦只留在主权时刻，而且是设计过的：提醒你没看，不是禁止。每个产出都带出处，回答「这东西从哪次讨论长出来」。', run(){ reset(); landOnCard('c-accept') }},
+  {t:'对账：谁没动静', s:'打开「承诺」。最上面张锐的价格页数据逾期一天；郑慧说议程「发群里了」，可群里没找到——标成「说交了，没见到东西」。正常的事都收进「其余 2 件正常」。点张锐那一行，右边是原话、谁说的、在哪说的；「催」把 Bruce 送到和张锐的私聊，云小助拟好稿，他改成自己的话再发。',
+    d:'板默认只摊开不对劲的；完成要分证据：说了 / 有东西 / 平台记了。区分「做完了」和「只是聊过了」。', run(){ reset(); go({kind:'board'}, {push:false}); S.back=[]; S.sel='k1'; render(false) }},
+  {t:'开口前知道谁听得见', s:'回到竞品对比表，Bruce 在私下语态里打了一句「张锐周五前把价格页补上」。还没发，标签就变成琥珀色：张锐听不见这句，这件事不会算到他头上。点「改为发到群里」，提示变成「发出后会记下：张锐负责 · 原话「周五前」」——发出前就看到会记成什么。',
+    d:'委派是说一句话就成立的，所以登记要在发出前亮出来、听众风险要在发出前拦下；最小听众律在键盘上兑现。', run(){ reset(); go({kind:'topic', id:'t-compete'}, {push:false}); S.back=[]; S.draft='张锐周五前把价格页补上'; render(false); setTimeout(() => { const ta=$('#ta'); ta?.focus(); ta?.setSelectionRange(ta.value.length, ta.value.length) }, 50) }},
+  {t:'清零之后', s:'三件都答完，「要你」清零。清零不是一片空白：它告诉 Bruce 今天云小助按他签过的规矩自己办了 4 件——每件都写着凭哪条规矩，哪件不该自己办，点一下规矩就收紧。',
+    d:'复利要看得见：规矩是一次次判断攒下的，所以要你的事会越来越少；而每件「没问你」的事都摊开、可纠正。', run(){ reset(); ['c-write','c-accept','c-recon'].forEach(id => { D.cards[id].state='done'; D.cards[id].result = {'c-write':'你确认了写入 · <b>12 条进「竞品对比 · 评审表」</b>','c-accept':'你通过了验收 · <b>Q3 复盘材料初稿</b>','c-recon':'你定了 3 处差异'}[id]; D.cards[id].doneAt='09:16' }); D.arts['a-table'].meta='云小助 · 12 条 · 09:16'; S.lastDone='c-write'; go({kind:'topic', id:'t-compete'}, {push:false}); S.back=[]; render(false); setTimeout(showAuto, 60) }},
+  {t:'⌘K', s:'任何东西——群、人、一个文件、一条承诺、一个目标、一个动作——⌘K 打两个字就到。搜「复盘」，连文件带它从哪儿来的一起出来。',
+    d:'不增加入口：⌘K 只是到已有地方的捷径；产出也在里面，回答「结果散落各处，没法归集」。', run(){ closeLayer(); openPalette('复盘') }},
 ]
-function renderSteps(){
-  $('#steps').innerHTML = STEPS.map((s,i) => `<button class="step${S.stepIdx===i?' on':''}" data-step="${i}"><b>${i+1}</b>${esc(s.t)}</button>`).join('')
-}
+function renderSteps(){ $('#steps').innerHTML = STEPS.map((s,i) => `<button class="step${S.stepIdx===i?' on':''}" data-step="${i}"><b>${i+1}</b>${esc(s.t)}</button>`).join('') }
 function showStory(i){
   const s = STEPS[i], el = $('#story')
   el.hidden = false
   el.innerHTML = `<span class="sn">${i+1}/${STEPS.length}</span><p>${esc(s.s)}<small>${esc(s.d)}</small></p>${i<STEPS.length-1?`<button class="nx" data-step="${i+1}">下一步</button>`:''}<button class="x" data-act="hidestory" title="收起">${ic('x')}</button>`
 }
-function runStep(i){
-  closeLayer()
-  STEPS[i].run(); S.stepIdx = i; renderSteps(); showStory(i)
-}
-function reset(){
-  const keepTheme = theme, step = S.stepIdx
-  D = seed(); S = S0(); S.stepIdx = step; theme = keepTheme
-}
+function runStep(i){ closeLayer(); S.stepIdx = i; showStory(i); syncTop(); STEPS[i].run(); S.stepIdx = i; renderSteps(); syncTop() }
+function reset(){ const keep = theme, step = S.stepIdx; pending = null; D = seed(); S = S0(); S.stepIdx = step; theme = keep }
 
 /* ═════════════════════ events ═════════════════════ */
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-act],[data-card],[data-topic],[data-place],[data-go],[data-goal],[data-ans],[data-pick],[data-preview],[data-scroll],[data-lens],[data-row],[data-nudge],[data-goto],[data-rtab],[data-step],[data-pi],[data-setaud],[data-donefold],[data-jump]')
+  const t = e.target.closest('[data-act],[data-card],[data-topic],[data-place],[data-go],[data-goal],[data-ans],[data-pick],[data-preview],[data-scroll],[data-lens],[data-row],[data-nudge],[data-goto],[data-rtab],[data-step],[data-pi],[data-setaud],[data-fold],[data-jump],[data-prov]')
   if (!t) return
   const d = t.dataset
   if (d.step !== undefined) return runStep(+d.step)
   if (d.pi !== undefined){ const x = palette.items[+d.pi]; closeLayer(); x.run(); return }
-  if (d.setaud){ closeLayer(); if (d.setaud==='ask'){ S.ask = true; S.aud = 'pri' } else { S.ask = false; S.aud = d.setaud } renderMain(); $('#ta')?.focus(); return }
+  if (d.setaud){ closeLayer(); if (d.setaud==='ask'){ S.ask = true; S.aud = 'pri' } else { S.ask = false; S.aud = d.setaud } paintComposer(); $('#ta')?.focus(); return }
   if (d.card) return landOnCard(d.card)
   if (d.topic) return go({kind:'topic', id:d.topic})
   if (d.place) return openPlace(d.place)
   if (d.go) return go({kind:d.go})
   if (d.goal) return go({kind:'goal', id:d.goal})
+  if (d.prov) return openProv(d.prov)
   if (d.ans){ const [cid, a] = d.ans.split(':'); return answer(cid, a) }
   if (d.pick){ const [cid,i,j] = d.pick.split(':'); return pick(cid, +i, +j) }
   if (d.preview){ S.preview = d.preview; S.viewed[d.preview] = true; Object.keys(S.strip).forEach(k => delete S.strip[k]); return render() }
-  if (d.scroll){ S.focus = d.scroll; render(); const el = document.getElementById('card-'+d.scroll); el?.scrollIntoView({block:'center'}); el?.classList.add('flash'); return }
+  if (d.scroll){ S.focus = d.scroll; render(); flashEl(document.getElementById('card-'+d.scroll), 'flash'); return }
   if (d.lens){ S.lens = d.lens; S.sel = null; return render(false) }
   if (d.nudge){ e.stopPropagation(); return nudge(d.nudge) }
   if (d.goto){ e.stopPropagation(); return gotoCommit(d.goto) }
   if (d.row){ S.sel = S.sel===d.row ? null : d.row; return render() }
   if (d.rtab){ S.rtab = d.rtab; return renderRight() }
-  if (d.donefold){ S.doneOpen[d.donefold] = true; return render() }
+  if (d.fold){ S.open[d.fold] = true; return render() }
   if (d.jump){ const k = D.commits.find(k => k.st===d.jump); if (k){ S.sel = k.id; render(); document.getElementById('row-'+k.id)?.scrollIntoView({block:'center'}) } return }
   switch (d.act){
     case 'palette': return openPalette()
@@ -1393,22 +1546,33 @@ document.addEventListener('click', e => {
     case 'keys': return showKeys()
     case 'back': return goBack()
     case 'aud': return showAudMenu(t)
-    case 'ask': S.ask = !S.ask; if (S.ask) S.aud='pri'; renderMain(); $('#ta')?.focus(); return
+    case 'ask': S.ask = !S.ask; if (S.ask) S.aud='pri'; paintComposer(); $('#ta')?.focus(); return
+    case 'topub': S.aud = 'pub'; S.ask = false; paintComposer(); $('#ta')?.focus(); return
     case 'send': return send()
     case 'undraft': S.drafted = null; S.draft = ''; return renderMain()
+    case 'undo': return undo()
     case 'closepv': S.preview = null; return render()
     case 'unsel': S.sel = null; return render()
     case 'rules': closeLayer(); return showRules()
+    case 'auto': return showAuto()
     case 'trace': closeLayer(); return showTrace()
     case 'menu': return showMenu(t)
     case 'scrim': if (e.target === t) closeLayer(); return
     case 'close': return closeLayer()
-    case 'hidestory': $('#story').hidden = true; return
+    case 'hidestory': $('#story').hidden = true; syncTop(); return
+    case 'leaseopen': S.leaseOpen = true; return render()
+    case 'leasecancel': S.leaseOpen = false; return render()
+    case 'leasesign': S.leaseOpen = false; D.rules.push({text:'在产品讨论群，往云小助新建的表格写记录，不用问', by:'你刚签的', left:'30 天后到期', card:'c-write', saved:0}); toast('签好了 · 30 天后到期 · 这一张还要你答'); return render()
+    case 'tighten': t.outerHTML = `<span class="muted" style="grid-row:1/3;grid-column:3;font-size:12px">已收紧，下次先问你</span>`; return
+    case 'findev': return toast('（原型）云小助去群里和文件里找议程；找到就挂成证据，找不到就问郑慧要')
+    case 'takesaid': return toast('（原型）你认了这句话就算交付——记作「话语回执 · 你认可」')
+    case 'retry': return toast('（原型）云小助重试第 3 步')
+    case 'stop': return toast('（原型）停下，并在群里说明停在哪一步')
     case 'cold': return toast('（原型）51 个没接入云小助的群，按最近活动列出；接入在群规则里一键完成')
     case 'local': return toast('（原型）本地工作夹：和今天一样，只是换了这套样式')
     case 'meeting': return toast('（原型）右栏打开这场会：材料就绪度、关联的承诺、「为这场会准备」')
     case 'newgoal': return toast('（原型）新目标：先说一句话，云小助起草要件，你签发')
-    case 'ackfix': return toast('（原型）就地改：谁负责、什么时候、挂哪个目标')
+    case 'ackfix': return toast('（原型）就地改：谁负责、原话里的时间、挂哪个目标')
     case 'params': return toast('（原型）展开工具参数原文')
   }
 })
@@ -1423,39 +1587,34 @@ document.addEventListener('keydown', e => {
     return
   }
   if (e.key==='Escape' && $('#layer').innerHTML){ closeLayer(); return }
-  if (inField){
-    if (e.key==='Escape') document.activeElement.blur()
-    return
-  }
+  if (inField){ if (e.key==='Escape') document.activeElement.blur(); return }
   if (e.metaKey || e.ctrlKey || e.altKey) return
-  const v = S.view
+  const v = S.view, key = e.key.toLowerCase()
   if (e.key==='Escape'){ if (S.preview){ S.preview=null; return render() } if (S.sel){ S.sel=null; return render() } return goBack() }
   if (e.key==='/'){ e.preventDefault(); $('#ta')?.focus(); return }
-  if (e.key==='?'){ return showKeys() }
-  if (v.kind==='topic' || v.kind==='place'){
-    const cards = v.kind==='topic' ? D.topics[v.id].stream.filter(i => i.t==='card' && D.cards[i.id].state==='open').map(i => i.id) : []
-    const fc = S.focus && D.cards[S.focus]
-    if ((e.key==='j' || e.key==='k') && fc && fc.kind==='decide'){
-      S.itemFocus = Math.max(0, Math.min(fc.items.length-1, S.itemFocus + (e.key==='j'?1:-1))); return render()
-    }
-    if ((e.key==='j' || e.key==='k') && cards.length){
-      const i = cards.indexOf(S.focus), n = e.key==='j' ? Math.min(cards.length-1, i+1) : Math.max(0, i-1)
+  if (e.key==='?') return showKeys()
+  if (key==='n') return nextNeed()
+  if (key==='z') return undo()
+  if (v.kind==='topic'){
+    const cards = topicNeeds(v.id)
+    if (!S.focus && cards.length===1) S.focus = cards[0]
+    const fc = S.focus && D.cards[S.focus]?.state==='open' ? D.cards[S.focus] : null
+    if (key==='v' && fc?.art){ S.preview = fc.art; S.viewed[fc.art] = true; delete S.strip[S.focus]; return render() }
+    if ((key==='j' || key==='k') && fc?.kind==='decide'){ S.itemFocus = Math.max(0, Math.min(fc.items.length-1, S.itemFocus + (key==='j'?1:-1))); return render() }
+    if ((key==='j' || key==='k') && cards.length){
+      const i = cards.indexOf(S.focus), n = key==='j' ? Math.min(cards.length-1, i+1) : Math.max(0, i-1)
       S.focus = cards[n<0?0:n]; S.itemFocus = 0; render(); document.getElementById('card-'+S.focus)?.scrollIntoView({block:'center'}); return
     }
-    if (/^[1-3]$/.test(e.key)){
-      if (!fc && cards.length===1){ S.focus = cards[0] }
-      const c = S.focus && D.cards[S.focus]; if (!c || c.state!=='open') return
-      if (c.kind==='decide'){ const it = c.items[S.itemFocus]; if (+e.key <= it.opts.length) pick(S.focus, S.itemFocus, +e.key-1); return }
+    if (/^[1-3]$/.test(e.key) && fc){
+      if (fc.kind==='decide'){ const it = fc.items[S.itemFocus]; if (+e.key <= it.opts.length) pick(S.focus, S.itemFocus, +e.key-1); return }
       if (+e.key <= 2) answer(S.focus, e.key)
     }
-    if (e.key==='Enter' && S.focus && D.cards[S.focus]?.kind==='decide'){
-      const c = D.cards[S.focus]; if (c.items.every(i => i.pick!==null)) answer(S.focus, 'submit')
-    }
+    if (e.key==='Enter' && fc?.kind==='decide') answer(S.focus, 'submit')
   }
   if (v.kind==='board' || v.kind==='goal'){
     const rows = [...document.querySelectorAll('.row[data-row]')].map(x => x.dataset.row)
-    if (e.key==='j' || e.key==='k'){
-      const i = rows.indexOf(S.sel), n = e.key==='j' ? Math.min(rows.length-1, i+1) : Math.max(0, i-1)
+    if (key==='j' || key==='k'){
+      const i = rows.indexOf(S.sel), n = key==='j' ? Math.min(rows.length-1, i+1) : Math.max(0, i-1)
       S.sel = rows[n<0?0:n]; render(); document.getElementById('row-'+S.sel)?.scrollIntoView({block:'nearest'}); return
     }
     if (e.key==='Enter' && S.sel){ const k = D.commits.find(x => x.id===S.sel); return k.st==='need' ? landOnCard(k.card) : gotoCommit(k.id) }
