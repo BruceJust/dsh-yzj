@@ -744,6 +744,7 @@ describe('催办拟稿', () => {
  */
 describe('信号序', () => {
   const NOW = 1_700_000_000_000
+  const DAY = 86_400_000
   const row = (over: Partial<Record<string, unknown>>): never => ({
     id: 'x', what: 'x', executorKind: 'human', who: '张锐', overdue: false,
     status: 'open', remindable: false, signal: 'evidence', lastSignalAt: NOW,
@@ -759,7 +760,7 @@ describe('信号序', () => {
       row({ id: 'running' }),
       row({ id: 'today', due: { text: '今天', ts: NOW + 3_600_000 } }),
       row({ id: 'stale', signal: 'stale' }),
-      row({ id: 'silent', signal: 'silent' }),
+      row({ id: 'silent', signal: 'silent', lastSignalAt: NOW - 4 * DAY }),
       row({ id: 'late', overdue: true }),
       row({ id: 'await', awaitingAcceptance: true }),
     ])).toEqual(['await', 'late', 'silent', 'stale', 'today', 'running', 'done'])
@@ -790,6 +791,13 @@ describe('信号序', () => {
     ])
     expect(ids).toEqual(['today', 'vague', 'done'])
     expect(ids).toContain('vague')
+  })
+
+  it('刚登记的不浮上来：和在跑的同档，等静够三天再说', () => {
+    expect(order([
+      row({ id: 'fresh', signal: 'silent', lastSignalAt: NOW - 3_600_000 }),
+      row({ id: 'today', due: { text: '今天', ts: NOW + 3_600_000 } }),
+    ])).toEqual(['today', 'fresh'])
   })
 
   it('同档之内，账龄越老越靠前', () => {
@@ -1186,9 +1194,16 @@ describe('一行一个信号；今天条的数字是门', () => {
     expect(signalOf(row({ awaitingAcceptance: true, evidence: 'artifact', overdue: true }), NOW).key).toBe('wait')
     expect(signalOf(row({ overdue: true, due: { text: '昨天', ts: NOW - 2 * 86_400_000 } }), NOW)).toMatchObject({ key: 'late', text: '逾期 2 天' })
     expect(signalOf(row({ acceptance: { state: 'declined' } }), NOW).key).toBe('declined')
-    expect(signalOf(row({ signal: 'silent' }), NOW).text).toBe('登记后没动静')
+    expect(signalOf(row({ signal: 'silent', lastSignalAt: NOW - 4 * 86_400_000 }), NOW).text).toBe('4 天没动静')
     expect(signalOf(row({ due: { text: '明天', ts: NOW + 3_600_000 } }), NOW).key).toBe('soon')
     expect(signalOf(row({ signal: 'evidence', evidence: 'artifact' }), NOW).text).toBe('在做 · 有东西')
+  })
+
+  it('刚登记、还没人碰过的不算「没动静」——静够三天才算', () => {
+    const fresh = row({ signal: 'silent', lastSignalAt: NOW - 3_600_000 })
+    expect(signalOf(fresh, NOW).key).toBe('normal')
+    expect(todayOf([fresh], NOW).quiet).toBe(0)
+    expect(signalOf(row({ signal: 'silent', lastSignalAt: NOW - 3 * 86_400_000 - 1 }), NOW)).toMatchObject({ key: 'quiet', text: '3 天没动静' })
   })
 
   it('只有一句话的「交了」单独亮出来', () => {

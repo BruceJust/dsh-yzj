@@ -1128,7 +1128,8 @@ export function bySignal(now: number): (left: BoardRow, right: BoardRow) => numb
     */
     if (row.awaitingAcceptance === true) return 0
     if (row.overdue) return 1
-    if (row.signal === 'silent') return 2
+    // 没动静要够久才浮上来：刚登记、还没人碰过的，是正常的——和屏上「N 天没动静」同一道门。
+    if (row.signal === 'silent' && now - row.lastSignalAt > STALE_MS) return 2
     if (row.signal === 'stale') return 3
     // 今日到期：有戳才谈得上，无戳的落到普通「运行」档而不是被顶上来。
     if (row.due?.ts !== undefined && row.due.ts - now < DAY_MS && row.due.ts >= now) return 4

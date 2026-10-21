@@ -10,6 +10,8 @@ import { AGENT } from './words.ts'
 
 const SOON_MS = 36 * 60 * 60_000
 const DAY_MS = 24 * 60 * 60_000
+/** 多久没动静才算不对劲——和服务端判「过时」的 `STALE_MS` 同一个三天。 */
+const QUIET_MS = 3 * DAY_MS
 
 /** 「多久没动了」的人话。刻意粗：只到天/小时——精确的数字会让人以为它精确。 */
 export function sinceText(at: number, now: number = Date.now()): string {
@@ -75,8 +77,13 @@ export function signalOf(row: BoardRowWire, now: number = Date.now()): RowSignal
   if (row.awaitingAcceptance === true) return { key: 'doing', text: `交了 · 等${row.acceptor ?? row.stewardedBy ?? '对方'}验收`, tone: 'quiet' }
   if (row.acceptance?.state === 'declined') return { key: 'declined', text: '对方没接', tone: 'need' }
   if (row.notified === 'failed') return { key: 'unheard', text: '对方还不知道', tone: 'need' }
-  if (row.signal === 'silent') return { key: 'quiet', text: '登记后没动静', tone: 'warn' }
-  if (row.signal === 'stale') return { key: 'quiet', text: `${sinceText(row.lastSignalAt, now)}没动静`, tone: 'warn' }
+  /*
+    没动静要**够久**才算：刚登记五分钟、还没人碰过，是正常的，不是不对劲。门槛和服务端
+    判「过时」的是同一个三天（工作日的量级）；没到门槛的照常落进「其余 N 件正常」。
+  */
+  if ((row.signal === 'silent' || row.signal === 'stale') && now - row.lastSignalAt > QUIET_MS) {
+    return { key: 'quiet', text: `${sinceText(row.lastSignalAt, now)}没动静`, tone: 'warn' }
+  }
   if (row.due?.ts !== undefined && row.due.ts >= now && row.due.ts - now < SOON_MS) {
     return { key: 'soon', text: `${row.due.text}到期`, tone: 'warn' }
   }
