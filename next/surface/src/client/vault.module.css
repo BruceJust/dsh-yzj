@@ -8,29 +8,29 @@
 
 .vault {
   display: flex; flex-direction: column; height: 100%; min-height: 0;
-  background: #FBF8F1;
+  background: var(--yzj-need-bg);
 }
 
 .head {
   display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-  padding: 12px 20px 10px; border-bottom: 1px solid #E4DAC4;
+  padding: 12px 20px 10px; border-bottom: 1px solid var(--yzj-pri-line);
 }
-.title { font-size: 15px; font-weight: 700; color: #4A3E22; }
-.sub { font-size: 11.5px; color: #8A7A55; }
+.title { font-size:var(--yzj-fs-lg); font-weight: 700; color: var(--yzj-ink); }
+.sub { font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); }
 .back {
   margin-left: auto; padding: 4px 11px;
-  border: 1px solid #E4DAC4; border-radius: 8px; background: #FFFDF8;
-  font: inherit; font-size: 12px; color: #6B5A36; cursor: pointer;
+  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
+  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); cursor: pointer;
 }
-.back:hover { box-shadow: 0 1px 4px rgb(74 62 34 / 12%); }
+.back:hover { box-shadow:var(--yzj-shadow-1); }
 
 /* 硬合同 chips —— 一份人看不见的合同不是合同，所以它在最上面一行。 */
 .contract { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 20px 0; }
 .chip {
-  font: inherit; font-size: 10px; padding: 2px 8px; border-radius: 5px;
-  background: #F0E7D2; color: #6B5A36; border: 1px solid #E4DAC4; cursor: pointer;
+  font: inherit; font-size:var(--yzj-fs-xs); padding: 2px 8px; border-radius:var(--yzj-r-sm);
+  background: var(--yzj-pri-line); color: var(--yzj-pri-ink); border: 1px solid var(--yzj-pri-line); cursor: pointer;
 }
-.chip:hover { background: #E7DBBF; }
+.chip:hover { background: var(--yzj-pri-line); }
 
 /*
   金库是**中栏**，一列 —— 右栏在宿主的对象面槽位上（v2.2 对象面账本律①）。
@@ -48,103 +48,103 @@
 .hit {
   display: flex; gap: 8px; align-items: baseline;
   padding: 6px 11px; margin-bottom: 4px;
-  border: 1px solid #E9E1CE; border-radius: 8px; background: #FFFDF8;
-  font-size: 11.5px; color: #3F3721;
+  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
+  font-size:var(--yzj-fs-xs); color: var(--yzj-ink);
 }
 
 /* 证据面：摘要为主、锚为辅、锚死显形。 */
 .evidenceRow {
   padding: 8px 11px; margin-bottom: 5px;
-  border: 1px solid #E9E1CE; border-radius: 9px; background: #FFFDF8;
-  font-size: 11.5px; color: #3F3721; line-height: 1.55;
+  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
+  font-size:var(--yzj-fs-xs); color: var(--yzj-ink); line-height: 1.55;
 }
-.evidenceDead { border-color: #E9C8BE; background: #FDF4F1; }
-.evidenceMeta { display: block; font-size: 10px; color: #A2946F; margin-top: 3px; }
+.evidenceDead { border-color: var(--yzj-late-line); background: var(--yzj-late-bg); }
+.evidenceMeta { display: block; font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); margin-top: 3px; }
 
 /* 只读预览：组织侧此刻的样子。它在快照**下面**，因为快照才是正文。 */
 .preview {
   margin-top: 6px; padding: 6px 9px;
-  border-left: 2px solid #E4DAC4; background: #F7F1E4;
-  border-radius: 0 6px 6px 0;
-  font-size: 11px; color: #5B5033; line-height: 1.55;
+  border-left: 2px solid var(--yzj-pri-line); background: var(--yzj-pri-bg);
+  border-radius:0 var(--yzj-r-sm) var(--yzj-r-sm) 0;
+  font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.55;
 }
 
 /* chips 是入口摘要，所以它长得像可以按 —— 信号即门。 */
 .chipMore {
-  font: inherit; font-size: 10px; padding: 2px 8px; border-radius: 5px;
-  background: #FFFDF8; color: #6B5A36; border: 1px solid #E4DAC4; cursor: pointer;
+  font: inherit; font-size:var(--yzj-fs-xs); padding: 2px 8px; border-radius:var(--yzj-r-sm);
+  background: var(--yzj-need-bg); color: var(--yzj-pri-ink); border: 1px solid var(--yzj-pri-line); cursor: pointer;
 }
-.chipMore:hover { background: #F5EFE2; }
+.chipMore:hover { background: var(--yzj-pri-line); }
 
 /* 取走：拷得走 ≠ 取得走。生成出来的东西要能当场看见。 */
 .take { white-space: pre-wrap; max-height: 220px; overflow-y: auto; }
 
 .section {
-  font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
-  color: #8A7A55; margin: 16px 0 6px; text-transform: none;
+  font-size:var(--yzj-fs-xs); font-weight: 700; letter-spacing: .06em;
+  color: var(--yzj-pri-ink); margin: 16px 0 6px; text-transform: none;
 }
-.sectionNote { font-weight: 400; letter-spacing: 0; color: #A2946F; }
+.sectionNote { font-weight: 400; letter-spacing: 0; color: var(--yzj-pri-ink); }
 
 .row {
   display: flex; align-items: flex-start; gap: 10px;
   padding: 9px 13px; margin-bottom: 6px;
-  border: 1px solid #E9E1CE; border-radius: 10px; background: #FFFDF8;
+  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
 }
-.rowMain { flex: 1; min-width: 0; font-size: 12px; color: #3F3721; line-height: 1.55; }
-.rowNote { display: block; font-size: 10.5px; color: #A2946F; margin-top: 3px; }
-.mark { flex: none; font-size: 13px; }
+.rowMain { flex: 1; min-width: 0; font-size:var(--yzj-fs-xs); color: var(--yzj-ink); line-height: 1.55; }
+.rowNote { display: block; font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); margin-top: 3px; }
+.mark { flex: none; font-size:var(--yzj-fs-sm); }
 
 /* 四格标签：判例的标签，不是分数的原料。 */
 .tag {
-  flex: none; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 5px;
-  background: #F0E7D2; color: #6B5A36; border: 1px solid #E4DAC4; white-space: nowrap;
+  flex: none; font-size:var(--yzj-fs-xs); font-weight: 700; padding: 2px 8px; border-radius:var(--yzj-r-sm);
+  background: var(--yzj-pri-line); color: var(--yzj-pri-ink); border: 1px solid var(--yzj-pri-line); white-space: nowrap;
 }
 
 /* 行内动词 —— 每一行既可见又可动。说明文字占位同罪。 */
 .verbs { display: flex; gap: 5px; flex: none; align-items: center; flex-wrap: wrap; }
 .verb {
-  font: inherit; font-size: 10.5px; padding: 2px 9px; border-radius: 7px;
-  border: 1px solid #E4DAC4; background: #FFFDF8; color: #6B5A36; cursor: pointer;
+  font: inherit; font-size:var(--yzj-fs-xs); padding: 2px 9px; border-radius:var(--yzj-r-sm);
+  border: 1px solid var(--yzj-pri-line); background: var(--yzj-need-bg); color: var(--yzj-pri-ink); cursor: pointer;
 }
-.verb:hover { background: #F5EFE2; }
-.verbOn { background: #6B5A36; color: #FFFDF8; border-color: #6B5A36; }
+.verb:hover { background: var(--yzj-pri-line); }
+.verbOn { background: var(--yzj-pri-solid); color: var(--yzj-on-color); border-color: var(--yzj-pri-solid); }
 .verb:disabled { opacity: .45; cursor: default; }
 
 .door {
   font: inherit; font-size: inherit; padding: 0; border: 0; background: none;
-  color: #6B5A36; text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+  color: var(--yzj-pri-ink); text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
 }
 
 .empty {
-  padding: 10px 13px; border: 1px dashed #E4DAC4; border-radius: 10px;
-  background: #F7F1E4; font-size: 11.5px; color: #8A7A55; line-height: 1.65;
+  padding: 10px 13px; border: 1px dashed var(--yzj-pri-line); border-radius:var(--yzj-r-md);
+  background: var(--yzj-pri-bg); font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.65;
 }
 
 /* 明拒 —— 故意没有的东西，不说出来就只是还没做。 */
 .refuse {
   margin-top: 18px; padding: 10px 13px;
-  border: 1px solid #E4DAC4; border-radius: 10px; background: #F7F1E4;
-  font-size: 11px; color: #6B5A36; line-height: 1.7;
+  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-pri-bg);
+  font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.7;
 }
 
 .input {
-  flex: 1; min-width: 0; font: inherit; font-size: 12px;
-  padding: 5px 9px; border: 1px solid #E4DAC4; border-radius: 8px;
-  background: #FFFDF8; color: #3F3721; resize: vertical;
+  flex: 1; min-width: 0; font: inherit; font-size:var(--yzj-fs-xs);
+  padding: 5px 9px; border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md);
+  background: var(--yzj-need-bg); color: var(--yzj-ink); resize: vertical;
 }
 
 .error {
-  margin: 6px 0 0; padding: 7px 11px; border-radius: 8px;
-  background: #FBEDE9; border: 1px solid #E9C8BE; color: #8A3B22;
-  font-size: 11px; line-height: 1.6;
+  margin: 6px 0 0; padding: 7px 11px; border-radius:var(--yzj-r-md);
+  background: var(--yzj-late-bg); border: 1px solid var(--yzj-late-line); color: var(--yzj-late-ink);
+  font-size:var(--yzj-fs-xs); line-height: 1.6;
 }
 
 /* 销毁：不可逆终态的门。它得看起来像一扇不该随手推的门。 */
-.destroy { margin-top: 20px; padding-top: 14px; border-top: 1px dashed #E4DAC4; }
+.destroy { margin-top: 20px; padding-top: 14px; border-top: 1px dashed var(--yzj-pri-line); }
 .destroyRow { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
 .danger {
-  font: inherit; font-size: 10.5px; padding: 3px 10px; border-radius: 7px;
-  border: 1px solid #E9C8BE; background: #FBEDE9; color: #8A3B22; cursor: pointer;
+  font: inherit; font-size:var(--yzj-fs-xs); padding: 3px 10px; border-radius:var(--yzj-r-sm);
+  border: 1px solid var(--yzj-late-line); background: var(--yzj-late-bg); color: var(--yzj-late-ink); cursor: pointer;
 }
 .danger:disabled { opacity: .45; cursor: default; }
 
@@ -152,15 +152,15 @@
 .private { margin-bottom: 4px; }
 .privateCard {
   padding: 10px 13px; margin-bottom: 6px;
-  border: 1px solid #E4DAC4; border-radius: 10px; background: #FFFDF8;
+  border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
 }
 .privateHead { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
 .domain {
-  font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px;
-  background: #EFE6D0; color: #6B5A36; border: 1px solid #E4DAC4;
+  font-size:var(--yzj-fs-xs); font-weight: 700; padding: 2px 8px; border-radius:var(--yzj-r-sm);
+  background: var(--yzj-pri-line); color: var(--yzj-pri-ink); border: 1px solid var(--yzj-pri-line);
 }
-.privateTitle { font-size: 12px; font-weight: 600; color: #3F3721; }
-.privateBody { font-size: 11.5px; color: #5B5033; line-height: 1.65; white-space: pre-wrap; }
-.privateFoot { font-size: 10px; color: #A2946F; margin-top: 5px; }
+.privateTitle { font-size:var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-ink); }
+.privateBody { font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.65; white-space: pre-wrap; }
+.privateFoot { font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); margin-top: 5px; }
 .actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
-.primary { background: #6B5A36; color: #FFFDF8; border-color: #6B5A36; }
+.primary { background: var(--yzj-pri-solid); color: var(--yzj-on-color); border-color: var(--yzj-pri-solid); }

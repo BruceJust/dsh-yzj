@@ -13,8 +13,8 @@
   max-width: 340px;
   padding: 8px 11px;
   border: 1px solid var(--yzj-line);
-  border-radius: 10px;
-  background: #FBFCFE;
+  border-radius:var(--yzj-r-md);
+  background: var(--yzj-pub-tint);
   text-align: left;
   text-decoration: none;
   color: inherit;
@@ -23,7 +23,7 @@
   transition: box-shadow .15s, border-color .15s;
 }
 
-.card:hover { box-shadow: var(--yzj-shadow); border-color: var(--yzj-pub-line); }
+.card:hover { box-shadow: var(--yzj-shadow-1); border-color: var(--yzj-pub-line); }
 
 /* 正被并排看着的那一张:标出来,免得开着预览的人不知道看的是哪一个。 */
 .looking { border-color: var(--yzj-pub); background: var(--yzj-pub-tint); }
@@ -31,29 +31,29 @@
 .inert { cursor: default; }
 .inert:hover { box-shadow: none; border-color: var(--yzj-line); }
 
-.dense { max-width: none; padding: 5px 9px; gap: 8px; border-radius: 8px; }
+.dense { max-width: none; padding: 5px 9px; gap: 8px; border-radius:var(--yzj-r-md); }
 
 .badge {
   flex: none;
   width: 32px;
   height: 32px;
-  border-radius: 7px;
+  border-radius:var(--yzj-r-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #E3ECFB;
-  color: var(--yzj-pub-deep);
-  font-size: 9.5px;
+  background: var(--yzj-pub-tint);
+  color: var(--yzj-pub-ink);
+  font-size:var(--yzj-fs-xs);
   font-weight: 700;
   letter-spacing: .02em;
 }
 
-.dense .badge { width: 24px; height: 24px; font-size: 8.5px; border-radius: 6px; }
+.dense .badge { width: 24px; height: 24px; font-size:var(--yzj-fs-xs); border-radius:var(--yzj-r-sm); }
 
 .text { min-width: 0; flex: 1; display: flex; flex-direction: column; }
 
 .title {
-  font-size: 12.5px;
+  font-size:var(--yzj-fs-sm);
   font-weight: 600;
   color: var(--yzj-ink);
   line-height: 1.45;
@@ -65,10 +65,10 @@
   word-break: break-word;
 }
 
-.dense .title { font-size: 11.5px; -webkit-line-clamp: 1; }
+.dense .title { font-size:var(--yzj-fs-xs); -webkit-line-clamp: 1; }
 
 .meta {
-  font-size: 10.5px;
+  font-size:var(--yzj-fs-xs);
   color: var(--yzj-ink-3);
   margin-top: 1px;
   overflow: hidden;
@@ -83,16 +83,16 @@
 .marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 
 .mark {
-  font-size: 10px;
+  font-size:var(--yzj-fs-xs);
   line-height: 1.5;
   padding: 1px 7px;
-  border-radius: 10px;
-  background: var(--yzj-amber-bg);
-  border: 1px solid var(--yzj-amber-line);
-  color: var(--yzj-amber);
+  border-radius:var(--yzj-r-md);
+  background: var(--yzj-need-bg);
+  border: 1px solid var(--yzj-need-line);
+  color: var(--yzj-need-ink);
   font-weight: 650;
   cursor: help;
 }
 
-.arrow { flex: none; color: var(--yzj-ink-3); font-size: 13px; }
+.arrow { flex: none; color: var(--yzj-ink-3); font-size:var(--yzj-fs-sm); }
 .card:hover .arrow { color: var(--yzj-pub); }

@@ -8,11 +8,11 @@
 
 .thumb {
   position: relative; min-width: 120px; min-height: 72px; max-width: 260px;
-  padding: 0; border: 1px solid var(--yzj-line); border-radius: 10px;
-  background: var(--yzj-surface); cursor: zoom-in; overflow: hidden; line-height: 0;
+  padding: 0; border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md);
+  background: var(--yzj-bg); cursor: zoom-in; overflow: hidden; line-height: 0;
   transition: box-shadow .15s;
 }
-.thumb:hover { box-shadow: var(--yzj-shadow); }
+.thumb:hover { box-shadow: var(--yzj-shadow-1); }
 .thumb img { max-width: 220px; max-height: 180px; display: block; object-fit: cover; }
 
 /* 还没取到时的槽:保住真实宽高比,免得图到位时整屋跳动。 */
@@ -20,6 +20,6 @@
   display: flex; align-items: center; justify-content: center;
   width: 100%; height: 100%; min-height: 72px;
   padding: 0 8px; text-align: center; line-height: 1.5;
-  font-size: 11px; color: var(--yzj-ink-3);
-  background: #F4F6F9; border-radius: 8px;
+  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
+  background: var(--yzj-bg-sunk); border-radius:var(--yzj-r-md);
 }

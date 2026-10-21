@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { CardInject, CardWire } from './rpc.ts'
 import css from './card.module.css'
+import tokens from './tokens.module.css'
 
 const STATUS_LABEL: Record<string, string> = {
   pending: '等待确认',
@@ -107,7 +108,7 @@ export function YzjApprovalCard(props: ApprovalCardProps): ReactNode {
   }
 
   return (
-    <div className={`${css.card} ${strong ? css.strong : ''}`}>
+    <div className={`${tokens.tokens} ${css.card} ${strong ? css.strong : ''}`}>
       <div className={css.head}>
         <span className={`${css.badge} ${strong ? css.badgeStrong : ''} ${card.resolved ? css.badgeDone : ''}`}>
           {STATUS_LABEL[status] ?? status}

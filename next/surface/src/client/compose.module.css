@@ -3,9 +3,9 @@
 .iconBtn {
   flex: none; width: 26px; height: 26px;
   display: grid; place-items: center;
-  border: 1px solid var(--yzj-line); border-radius: 7px;
-  background: var(--yzj-surface); color: var(--yzj-ink-2);
-  font: inherit; font-size: 14px; line-height: 1; cursor: pointer;
+  border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-sm);
+  background: var(--yzj-bg); color: var(--yzj-ink-2);
+  font: inherit; font-size:var(--yzj-fs-md); line-height: 1; cursor: pointer;
   transition: color .12s, border-color .12s;
 }
 .iconBtn:hover { color: var(--yzj-pub); border-color: var(--yzj-pub-line); }
@@ -14,20 +14,20 @@
 .pop {
   position: absolute; bottom: 32px; left: 0; z-index: 60;
   display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
-  padding: 6px; border-radius: 10px;
-  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
-  box-shadow: var(--yzj-shadow-pop);
+  padding: 6px; border-radius:var(--yzj-r-md);
+  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
+  box-shadow: var(--yzj-shadow-2);
 }
 .emoji {
-  width: 28px; height: 28px; border: 0; border-radius: 6px;
-  background: none; font-size: 17px; line-height: 1; cursor: pointer;
+  width: 28px; height: 28px; border: 0; border-radius:var(--yzj-r-sm);
+  background: none; font-size:var(--yzj-fs-lg); line-height: 1; cursor: pointer;
 }
-.emoji:hover { background: #EEF1F6; }
+.emoji:hover { background: var(--yzj-pub-tint); }
 
 .verb {
-  font: inherit; font-size: 10.5px; font-weight: 650;
-  padding: 2px 8px; border-radius: 12px;
-  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
+  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
+  padding: 2px 8px; border-radius:var(--yzj-r-md);
+  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
   color: var(--yzj-ink-2); cursor: pointer;
 }
 .verb:hover { color: var(--yzj-pub); border-color: var(--yzj-pub-line); background: var(--yzj-pub-tint); }
@@ -35,33 +35,33 @@
 /* ---------- 转发：走的是同一条发送路径,所以同一套规则 ---------- */
 .mask {
   position: fixed; inset: 0; z-index: 90;
-  background: rgb(24 30 42 / 28%);
+  background: var(--yzj-scrim);
   display: flex; align-items: center; justify-content: center;
 }
 .panel {
   width: 380px; max-height: 72vh; display: flex; flex-direction: column;
-  border-radius: 14px; background: var(--yzj-surface);
-  box-shadow: var(--yzj-shadow-pop); overflow: hidden;
+  border-radius:var(--yzj-r-lg); background: var(--yzj-bg);
+  box-shadow: var(--yzj-shadow-2); overflow: hidden;
 }
 .head { display: flex; align-items: center; padding: 12px 14px 8px; }
-.headTitle { font-size: 13px; font-weight: 700; color: var(--yzj-ink); }
+.headTitle { font-size:var(--yzj-fs-sm); font-weight: 700; color: var(--yzj-ink); }
 .close {
   margin-left: auto; border: 0; background: none; cursor: pointer;
-  font-size: 17px; line-height: 1; color: var(--yzj-ink-3);
+  font-size:var(--yzj-fs-lg); line-height: 1; color: var(--yzj-ink-3);
 }
 .close:hover { color: var(--yzj-ink); }
 
 .quote {
   margin: 0 14px 10px; padding: 7px 10px;
-  border-left: 2px solid var(--yzj-line); border-radius: 0 8px 8px 0;
-  background: #F7F8FA; font-size: 11.5px; line-height: 1.6; color: var(--yzj-ink-2);
+  border-left: 2px solid var(--yzj-line); border-radius:0 var(--yzj-r-md) var(--yzj-r-md) 0;
+  background: var(--yzj-bg-sunk); font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-2);
   max-height: 76px; overflow: hidden;
 }
 
 .search {
-  margin: 0 14px 8px; font: inherit; font-size: 12px;
-  padding: 7px 10px; border-radius: 8px;
-  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
+  margin: 0 14px 8px; font: inherit; font-size:var(--yzj-fs-xs);
+  padding: 7px 10px; border-radius:var(--yzj-r-md);
+  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
   color: var(--yzj-ink); outline: none;
 }
 .search:focus { border-color: var(--yzj-pub); }
@@ -69,34 +69,34 @@
 .list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 12px; }
 .row {
   width: 100%; display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px; border: 0; border-radius: 8px;
+  padding: 8px 10px; border: 0; border-radius:var(--yzj-r-md);
   background: none; text-align: left; cursor: pointer;
-  font: inherit; font-size: 12.5px; color: var(--yzj-ink);
+  font: inherit; font-size:var(--yzj-fs-sm); color: var(--yzj-ink);
 }
-.row:hover:not(:disabled) { background: #EEF1F6; }
+.row:hover:not(:disabled) { background: var(--yzj-pub-tint); }
 .row:disabled { opacity: .5; cursor: default; }
 .rowName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rowNote { flex: none; font-size: 10px; color: var(--yzj-ink-3); }
+.rowNote { flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
 
-.calm { padding: 18px 10px; text-align: center; font-size: 12px; color: var(--yzj-ink-3); }
+.calm { padding: 18px 10px; text-align: center; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
 
 /* 转发面板：一个真正的选择面,不是一列光秃秃的名字 */
-.headSub { margin-left: 8px; font-size: 10.5px; color: var(--yzj-ink-3); }
+.headSub { margin-left: 8px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
 .rowFace {
-  flex: none; width: 28px; height: 28px; border-radius: 8px; overflow: hidden;
+  flex: none; width: 28px; height: 28px; border-radius:var(--yzj-r-md); overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600; color: #fff;
+  font-size:var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-on-color);
 }
 .rowPhoto { width: 100%; height: 100%; object-fit: cover; }
 .rowText { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .rowSub {
-  font-size: 10.5px; color: var(--yzj-ink-3); margin-top: 1px;
+  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); margin-top: 1px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .rowRight { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .rowOff {
-  font-size: 9.5px; font-weight: 600; padding: 1px 6px; border-radius: 10px;
-  background: #F1F3F6; color: var(--yzj-ink-3);
+  font-size:var(--yzj-fs-xs); font-weight: 600; padding: 1px 6px; border-radius:var(--yzj-r-md);
+  background: var(--yzj-pub-tint); color: var(--yzj-ink-3);
 }
 
 /*
@@ -108,26 +108,26 @@
 .mentionPop { width: 260px; padding: 8px; display: block; }
 .mentionInput {
   width: 100%; box-sizing: border-box;
-  font: inherit; font-size: 12px; padding: 6px 8px;
-  border: 1px solid var(--yzj-line); border-radius: 7px; outline: none;
-  background: var(--yzj-surface); color: var(--yzj-ink);
+  font: inherit; font-size:var(--yzj-fs-xs); padding: 6px 8px;
+  border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-sm); outline: none;
+  background: var(--yzj-bg); color: var(--yzj-ink);
 }
 .mentionInput:focus { border-color: var(--yzj-pub); }
-.mentionNote { padding: 8px 4px; font-size: 11.5px; color: var(--yzj-ink-3); }
+.mentionNote { padding: 8px 4px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
 .mentionRow {
   width: 100%; display: flex; align-items: baseline; gap: 8px;
   padding: 6px 6px; margin-top: 2px;
-  border: 0; border-radius: 6px; background: none; cursor: pointer;
+  border: 0; border-radius:var(--yzj-r-sm); background: none; cursor: pointer;
   font: inherit; text-align: left;
 }
 .mentionRow:hover { background: var(--yzj-pub-tint); }
-.mentionName { flex: none; font-size: 12.5px; color: var(--yzj-ink); }
+.mentionName { flex: none; font-size:var(--yzj-fs-sm); color: var(--yzj-ink); }
 .mentionMeta {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 11px; color: var(--yzj-ink-3);
+  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
 }
 /* 如实说的那一行：搜的是全公司，不是这个群。 */
 .mentionFoot {
   margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--yzj-line);
-  font-size: 10.5px; color: var(--yzj-ink-3);
+  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
 }

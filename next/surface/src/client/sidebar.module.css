@@ -1,33 +1,33 @@
 .sidebar {
   display: flex; flex-direction: column;
   height: 100%; min-height: 0;
-  background: #F3F4F6;
+  background: var(--yzj-hover);
   border-right: 1px solid var(--yzj-line);
   overflow: hidden;
 }
 
 .head { padding: 14px 14px 8px; display: flex; align-items: baseline; gap: 8px; }
-.title { margin: 0; flex: none; font-size: 13px; font-weight: 700; color: var(--yzj-ink); }
+.title { margin: 0; flex: none; font-size:var(--yzj-fs-sm); font-weight: 700; color: var(--yzj-ink); }
 .sub {
-  flex: 1; min-width: 0; font-size: 11px; color: var(--yzj-ink-3);
+  flex: 1; min-width: 0; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 .new {
   margin-left: auto; width: 26px; height: 26px;
-  border: 1px solid var(--yzj-line); border-radius: 8px;
-  background: var(--yzj-surface); color: var(--yzj-ink-2);
-  font-size: 15px; line-height: 1; cursor: pointer;
+  border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md);
+  background: var(--yzj-bg); color: var(--yzj-ink-2);
+  font-size:var(--yzj-fs-lg); line-height: 1; cursor: pointer;
   transition: box-shadow .15s;
 }
-.new:hover { box-shadow: var(--yzj-shadow); }
+.new:hover { box-shadow: var(--yzj-shadow-1); }
 
 /* 分诊 chips：计数 + 跳转。会筛选的 chip 等于又造了第二个列表 */
 .chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 12px 10px; }
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
-  font: inherit; font-size: 11.5px; padding: 3px 9px;
-  border-radius: 20px; border: 1px solid transparent; cursor: pointer;
+  font: inherit; font-size:var(--yzj-fs-xs); padding: 3px 9px;
+  border-radius:var(--yzj-r-pill); border: 1px solid transparent; cursor: pointer;
   transition: transform .12s;
 }
 .chip:hover:not(:disabled) { transform: translateY(-1px); }
@@ -38,15 +38,15 @@
 .board {
   margin: 0 12px 8px; width: calc(100% - 24px);
   display: flex; align-items: center; gap: 8px;
-  padding: 9px 11px; border: 0; border-radius: 9px;
-  background: #1D2432; color: #DCE4F5;
-  font: inherit; font-size: 12px; font-weight: 650; cursor: pointer;
+  padding: 9px 11px; border: 0; border-radius:var(--yzj-r-md);
+  background: var(--yzj-solid); color: var(--yzj-on-solid);
+  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650; cursor: pointer;
   transition: background .15s;
 }
-.board:hover { background: #171B22; }
-.boardOn { background: #0F1219; }
-.boardCount { margin-left: auto; font-size: 10px; font-weight: 700; color: #9AA3B5; }
-.boardOverdue { margin-left: auto; font-size: 10px; font-weight: 700; color: #F0B44A; }
+.board:hover { background: var(--yzj-solid); }
+.boardOn { background: var(--yzj-solid); }
+.boardCount { margin-left: auto; font-size:var(--yzj-fs-xs); font-weight: 700; color: var(--yzj-ink-3); }
+.boardOverdue { margin-left: auto; font-size:var(--yzj-fs-xs); font-weight: 700; color: var(--yzj-need-ink); }
 
 /* ---------- 唯一的那个列表 ---------- */
 .tree { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 8px 20px; }
@@ -66,7 +66,7 @@
   width: 100%; display: flex; align-items: center; gap: 4px;
   margin: 20px 0 4px; padding: 8px 6px 4px;
   border: 0; border-top: 1px solid var(--yzj-line); background: none;
-  font: inherit; font-size: 12px; font-weight: 800; letter-spacing: .08em;
+  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 800; letter-spacing: .08em;
   color: var(--yzj-ink-2); text-align: left; cursor: pointer;
   transition: color .12s;
 }
@@ -74,10 +74,10 @@
 .sec:first-child { border-top: 0; margin-top: 6px; }
 .secHint {
   margin-left: auto;
-  font-size: 10px; font-weight: 600; letter-spacing: .02em; color: var(--yzj-ink-3);
+  font-size:var(--yzj-fs-xs); font-weight: 600; letter-spacing: .02em; color: var(--yzj-ink-3);
 }
 /* 示位线递归到分栏这一层：整界收起时，场所行也没了,位置得由这里说。 */
-.secHolds { box-shadow: inset 2.5px 0 0 var(--yzj-pub); border-radius: 0 6px 6px 0; }
+.secHolds { box-shadow: inset 2.5px 0 0 var(--yzj-pub); border-radius:0 var(--yzj-r-sm) var(--yzj-r-sm) 0; }
 
 /*
   节点是行，标签是字 (D13⑤).
@@ -91,13 +91,13 @@
   display: flex; align-items: center; gap: 6px; width: 100%;
   margin-top: 10px; padding: 0 8px 4px 0;
   border: 0; background: none; text-align: left; cursor: pointer;
-  font: inherit; font-size: 11px; font-weight: 600;
+  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 600;
   letter-spacing: .04em; color: var(--yzj-ink-3);
 }
 .groupLabel:hover { color: var(--yzj-ink-2); }
 .gline { flex: 1; height: 1px; background: var(--yzj-line); }
 .labelCount {
-  flex: none; font-size: 10px; font-weight: 600; letter-spacing: 0;
+  flex: none; font-size:var(--yzj-fs-xs); font-weight: 600; letter-spacing: 0;
   color: var(--yzj-ink-3); opacity: .8;
 }
 
@@ -110,9 +110,9 @@
 */
 .filter {
   width: calc(100% - 4px); margin: 0 2px 8px;
-  font: inherit; font-size: 11.5px; color: var(--yzj-ink);
-  padding: 6px 9px; border-radius: 8px;
-  border: 1px solid var(--yzj-line); background: var(--yzj-surface); outline: none;
+  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink);
+  padding: 6px 9px; border-radius:var(--yzj-r-md);
+  border: 1px solid var(--yzj-line); background: var(--yzj-bg); outline: none;
   transition: border-color .15s;
 }
 .filter:focus { border-color: var(--yzj-pub); }
@@ -127,8 +127,8 @@
 .unread {
   flex: none; min-width: 17px; height: 17px; padding: 0 5px;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 9px; background: var(--yzj-red); color: #fff;
-  font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
+  border-radius:var(--yzj-r-md); background: var(--yzj-late-solid); color: var(--yzj-on-color);
+  font-size:var(--yzj-fs-xs); font-weight: 700; font-variant-numeric: tabular-nums;
 }
 
 /* 真头像；加载不出来就退回字母瓦片，不退回碎图标。 */
@@ -136,13 +136,13 @@
 
 .item {
   width: 100%; display: flex; align-items: center; gap: 8px;
-  padding: 8px 9px; border: 0; border-radius: 8px;
+  padding: 8px 9px; border: 0; border-radius:var(--yzj-r-md);
   background: transparent; text-align: left; cursor: pointer;
   position: relative;
   transition: background .12s;
 }
-.item:hover { background: #E9EBEF; }
-.itemActive { background: var(--yzj-surface); box-shadow: var(--yzj-shadow); }
+.item:hover { background: var(--yzj-hover); }
+.itemActive { background: var(--yzj-bg); box-shadow: var(--yzj-shadow-1); }
 
 /*
   场所行 — a first-class row, because a place is a resident of the graph with
@@ -161,11 +161,11 @@
 .row {
   position: relative;
   display: flex; align-items: center; width: 100%;
-  border-radius: 8px; background: transparent; border: 0; padding: 0;
+  border-radius:var(--yzj-r-md); background: transparent; border: 0; padding: 0;
   font: inherit; text-align: left; cursor: pointer;
   transition: background .12s;
 }
-.row:hover { background: #E9EBEF; }
+.row:hover { background: var(--yzj-hover); }
 .rowBody {
   flex: 1; min-width: 0;
   display: flex; align-items: center; gap: 8px;
@@ -190,14 +190,14 @@
 .chev {
   flex: none; width: 18px; height: 26px;
   display: grid; place-items: center;
-  margin-left: 6px; border-radius: 5px;
+  margin-left: 6px; border-radius:var(--yzj-r-sm);
   border: 0; background: none; cursor: pointer;
-  color: #9AA3B2;
+  color: var(--yzj-ink-3);
   transition: transform .16s cubic-bezier(.2, .7, .3, 1), opacity .12s, background .12s, color .12s;
 }
 .chev svg { display: block; }
 .chevSmall { width: 16px; height: 18px; }
-.chev:hover { background: rgb(70 83 107 / 10%); color: var(--yzj-ink); }
+.chev:hover { background: var(--yzj-pub-tint); color: var(--yzj-ink); }
 .chevClosed { transform: rotate(-90deg); }
 /* Each register's own indent, so every mark lands on its level's left edge. */
 .sec .chev { margin-left: -4px; }
@@ -214,7 +214,7 @@
   mark: a hairline down the collapsed place row's left edge.
 */
 .holds { box-shadow: inset 2.5px 0 0 var(--yzj-pub); }
-.itemActive.holds { box-shadow: inset 2.5px 0 0 var(--yzj-pub), var(--yzj-shadow); }
+.itemActive.holds { box-shadow: inset 2.5px 0 0 var(--yzj-pub), var(--yzj-shadow-1); }
 
 /*
   话题子行 — indented, with the subordination line. The attention lease prunes
@@ -227,13 +227,13 @@
 .itemSub::before {
   content: ''; position: absolute;
   left: -10px; top: 8px; bottom: 8px; width: 2px;
-  border-radius: 2px; background: #DCE1E9;
+  border-radius:var(--yzj-r-sm); background: var(--yzj-pub-line);
 }
 
 .icon {
-  width: 26px; height: 26px; border-radius: 7px; flex: none;
+  width: 26px; height: 26px; border-radius:var(--yzj-r-sm); flex: none;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600; color: #fff;
+  font-size:var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-on-color);
   overflow: hidden;
 }
 
@@ -241,24 +241,24 @@
  /* 标题行要能并排放一个状态标——名字仍然该省略,标不该被挤掉 */
 .itemTitle {
   display: flex; align-items: center; min-width: 0;
-  font-size: 12.8px; font-weight: 600; color: var(--yzj-ink);
+  font-size:var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink);
 }
 .itemTitle > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .itemPreview {
-  display: block; font-size: 11px; color: var(--yzj-ink-3); margin-top: 1px;
+  display: block; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); margin-top: 1px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 /* 徽标：注意力的顺序就是颜色的顺序 */
 .badge {
   flex: none; display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 20px;
+  font-size:var(--yzj-fs-xs); font-weight: 600; padding: 2px 7px; border-radius:var(--yzj-r-pill);
 }
-.badgeConfirm { background: var(--yzj-amber-bg); color: var(--yzj-amber); border: 1px solid var(--yzj-amber-line); }
-.badgeReview { background: var(--yzj-green-bg); color: var(--yzj-green); border: 1px solid var(--yzj-green-line); }
+.badgeConfirm { background: var(--yzj-need-bg); color: var(--yzj-need-ink); border: 1px solid var(--yzj-need-line); }
+.badgeReview { background: var(--yzj-ok-bg); color: var(--yzj-ok-ink); border: 1px solid var(--yzj-ok-line); }
 .badgeRunning { background: var(--yzj-pub-tint); color: var(--yzj-pub); border: 1px solid var(--yzj-pub-line); }
-.badgeWaiting { background: #E5E8ED; color: var(--yzj-ink-2); }
-.badgeIdle { background: #E5E8ED; color: var(--yzj-ink-3); }
+.badgeWaiting { background: var(--yzj-pub-line); color: var(--yzj-ink-2); }
+.badgeIdle { background: var(--yzj-pub-line); color: var(--yzj-ink-3); }
 
 .pulse { width: 6px; height: 6px; border-radius: 50%; background: currentcolor; animation: pulse 1.6s ease-in-out infinite; }
 
@@ -270,17 +270,17 @@
 /* 租约收回的那些行去哪了 —— 说清楚,归档才不是一个洞 */
 .archived {
   width: 100%; margin: 2px 0 4px;
-  padding: 5px 9px 5px 62px; border: 0; border-radius: 8px;
+  padding: 5px 9px 5px 62px; border: 0; border-radius:var(--yzj-r-md);
   background: transparent; text-align: left; cursor: pointer;
-  font: inherit; font-size: 10.5px; color: var(--yzj-ink-3);
+  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
   transition: background .12s, color .12s;
 }
-.archived:hover { background: #E9EBEF; color: var(--yzj-pub); }
+.archived:hover { background: var(--yzj-hover); color: var(--yzj-pub); }
 
-.calm { padding: 14px 10px; font-size: 11.5px; color: var(--yzj-ink-3); line-height: 1.8; }
+.calm { padding: 14px 10px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.8; }
 .calm code {
-  padding: 1px 5px; border-radius: 4px; background: #E7EAEF;
-  font-family: var(--yzj-mono); font-size: 10.5px;
+  padding: 1px 5px; border-radius:var(--yzj-r-sm); background: var(--yzj-pub-line);
+  font-family: var(--yzj-mono); font-size:var(--yzj-fs-xs);
 }
 
 /*
@@ -291,70 +291,70 @@
 .subIcon { margin: 0 8px 0 9px; }
 .rowTime {
   flex: none; padding-right: 4px;
-  font-size: 10px; color: var(--yzj-ink-3);
+  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .more {
   flex: none; width: 20px; height: 22px; margin-right: 5px;
   display: grid; place-items: center;
-  border: 0; border-radius: 5px; background: none; cursor: pointer;
-  font: inherit; font-size: 13px; line-height: 1; color: var(--yzj-ink-3);
+  border: 0; border-radius:var(--yzj-r-sm); background: none; cursor: pointer;
+  font: inherit; font-size:var(--yzj-fs-sm); line-height: 1; color: var(--yzj-ink-3);
   opacity: 0; transition: opacity .12s, background .12s, color .12s;
 }
 .row:hover .more, .more[aria-expanded='true'] { opacity: 1; }
-.more:hover { background: rgb(70 83 107 / 14%); color: var(--yzj-ink); }
+.more:hover { background: var(--yzj-pub-tint); color: var(--yzj-ink); }
 
 .renameInput {
   flex: 1; min-width: 0; margin: 4px 6px 4px 0;
-  font: inherit; font-size: 12.8px; font-weight: 600; color: var(--yzj-ink);
-  padding: 4px 7px; border-radius: 6px;
-  border: 1px solid var(--yzj-pub); background: var(--yzj-surface); outline: none;
+  font: inherit; font-size:var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink);
+  padding: 4px 7px; border-radius:var(--yzj-r-sm);
+  border: 1px solid var(--yzj-pub); background: var(--yzj-bg); outline: none;
 }
 
 /* 归档在这一面没有回头路,所以它先问一句 */
 .confirm {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   margin: 2px 0 4px 26px; padding: 6px 9px;
-  border: 1px solid var(--yzj-amber-line); border-radius: 8px;
-  background: var(--yzj-amber-bg);
-  font-size: 10.5px; line-height: 1.6; color: var(--yzj-amber);
+  border: 1px solid var(--yzj-need-line); border-radius:var(--yzj-r-md);
+  background: var(--yzj-need-bg);
+  font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-need-ink);
 }
 .confirmYes, .confirmNo {
-  font: inherit; font-size: 10.5px; font-weight: 700;
-  padding: 2px 9px; border-radius: 12px; cursor: pointer;
+  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 700;
+  padding: 2px 9px; border-radius:var(--yzj-r-md); cursor: pointer;
 }
-.confirmYes { border: 0; background: var(--yzj-red); color: #fff; }
-.confirmNo { border: 1px solid var(--yzj-line); background: var(--yzj-surface); color: var(--yzj-ink-2); }
+.confirmYes { border: 0; background: var(--yzj-late-solid); color: var(--yzj-on-color); }
+.confirmNo { border: 1px solid var(--yzj-line); background: var(--yzj-bg); color: var(--yzj-ink-2); }
 
 .rowError {
-  margin: 6px 2px 0; padding: 6px 9px; border-radius: 8px;
-  background: #FBEAEA; border: 1px solid #F0CACA;
-  font-size: 10.5px; line-height: 1.6; color: var(--yzj-red);
+  margin: 6px 2px 0; padding: 6px 9px; border-radius:var(--yzj-r-md);
+  background: var(--yzj-late-bg); border: 1px solid var(--yzj-late-line);
+  font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-late-ink);
 }
 
 /* 目录选择走宿主自己的对话框：它开在跑 dsh 的那台机器上,不在浏览器里 */
-.pickNote { margin: 6px 2px 0; font-size: 10.5px; line-height: 1.6; color: var(--yzj-ink-3); }
+.pickNote { margin: 6px 2px 0; font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-3); }
 .pickError {
-  margin: 6px 2px 0; padding: 6px 9px; border-radius: 8px;
-  background: #FBEAEA; border: 1px solid #F0CACA;
-  font-size: 10.5px; line-height: 1.7; color: var(--yzj-red);
+  margin: 6px 2px 0; padding: 6px 9px; border-radius:var(--yzj-r-md);
+  background: var(--yzj-late-bg); border: 1px solid var(--yzj-late-line);
+  font-size:var(--yzj-fs-xs); line-height: 1.7; color: var(--yzj-late-ink);
 }
 .pickRetry {
-  margin: 4px 6px 0 0; font: inherit; font-size: 10.5px; font-weight: 700;
-  padding: 2px 9px; border-radius: 12px; cursor: pointer;
-  border: 1px solid #F0CACA; background: var(--yzj-surface); color: var(--yzj-red);
+  margin: 4px 6px 0 0; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 700;
+  padding: 2px 9px; border-radius:var(--yzj-r-md); cursor: pointer;
+  border: 1px solid var(--yzj-late-line); background: var(--yzj-bg); color: var(--yzj-late-ink);
 }
 
 .addDir {
   width: 100%; margin-top: 10px;
-  font: inherit; font-size: 11px; font-weight: 650;
-  padding: 7px 10px; border-radius: 8px;
+  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
+  padding: 7px 10px; border-radius:var(--yzj-r-md);
   border: 1px dashed var(--yzj-line); background: transparent;
   color: var(--yzj-ink-3); cursor: pointer; text-align: left;
   transition: color .15s, border-color .15s;
 }
 .addDir:hover:not(:disabled) { color: var(--yzj-pub); border-color: var(--yzj-pub-line); }
-.addDir:hover:not(:disabled) { color: var(--yzj-ink); box-shadow: var(--yzj-shadow); }
+.addDir:hover:not(:disabled) { color: var(--yzj-ink); box-shadow: var(--yzj-shadow-1); }
 .addDir:disabled { opacity: .45; cursor: default; }
 
 /* 徽标说「你欠一个答复」，脉冲说「现在正在跑」——两件事同时为真时都得说 */
@@ -369,15 +369,15 @@
 }
 /* 「该评估了」——一个时刻,不是一个存量 */
 .boardAssess {
-  flex: none; font-size: 10.5px; font-weight: 700;
-  padding: 1px 8px; border-radius: 10px;
-  background: var(--yzj-pub-tint); color: var(--yzj-pub-deep);
+  flex: none; font-size:var(--yzj-fs-xs); font-weight: 700;
+  padding: 1px 8px; border-radius:var(--yzj-r-md);
+  background: var(--yzj-pub-tint); color: var(--yzj-pub-ink);
 }
 /* 不在服务范围：沉默必须有个看得见的理由 */
 .offDuty {
-  flex: none; margin-left: 6px; font-size: 9.5px; font-weight: 650;
-  padding: 0 5px; border-radius: 8px; vertical-align: middle;
-  background: #F1F2F5; color: var(--yzj-ink-3); border: 1px solid var(--yzj-line);
+  flex: none; margin-left: 6px; font-size:var(--yzj-fs-xs); font-weight: 650;
+  padding: 0 5px; border-radius:var(--yzj-r-md); vertical-align: middle;
+  background: var(--yzj-pub-tint); color: var(--yzj-ink-3); border: 1px solid var(--yzj-line);
 }
 
 
@@ -397,12 +397,12 @@
 .railNew, .railChip, .railBoard {
   font: inherit; cursor: pointer; color: var(--yzj-ink-2);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  width: 30px; border-radius: 8px;
+  width: 30px; border-radius:var(--yzj-r-md);
   border: 1px solid transparent; background: transparent;
 }
-.railNew { font-size: 15px; height: 30px; }
-.railChip { font-size: 11px; line-height: 1.25; padding: 4px 0; gap: 1px; }
+.railNew { font-size:var(--yzj-fs-lg); height: 30px; }
+.railChip { font-size:var(--yzj-fs-xs); line-height: 1.25; padding: 4px 0; gap: 1px; }
 .railChip:hover:not(:disabled) { background: var(--yzj-pub-tint); color: var(--yzj-ink); }
-.railCount { font-weight: 700; font-size: 11px; }
-.railBoard { font-size: 14px; height: 30px; margin-top: 2px; }
+.railCount { font-weight: 700; font-size:var(--yzj-fs-xs); }
+.railBoard { font-size:var(--yzj-fs-md); height: 30px; margin-top: 2px; }
 .railBoard:hover { background: var(--yzj-pub-tint); color: var(--yzj-ink); }

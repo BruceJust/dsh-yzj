@@ -1,29 +1,29 @@
 /* 选人:打字只是搜索,落到表单上的必须是一次选中 */
 .input {
-  font: inherit; font-size: 12.5px; color: var(--yzj-ink);
-  padding: 7px 10px; border-radius: 8px;
-  border: 1px solid var(--yzj-line); background: var(--yzj-surface); outline: none;
+  font: inherit; font-size:var(--yzj-fs-sm); color: var(--yzj-ink);
+  padding: 7px 10px; border-radius:var(--yzj-r-md);
+  border: 1px solid var(--yzj-line); background: var(--yzj-bg); outline: none;
 }
 .input:focus { border-color: var(--yzj-pub); }
-.note { font-size: 10px; line-height: 1.6; color: var(--yzj-ink-3); }
+.note { font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-3); }
 .hits {
   display: flex; flex-direction: column; gap: 2px; margin-top: 4px;
   max-height: 148px; overflow: auto;
-  border: 1px solid var(--yzj-line); border-radius: 8px; background: var(--yzj-surface);
+  border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md); background: var(--yzj-bg);
 }
 .hit {
   display: flex; align-items: baseline; gap: 6px; text-align: left;
   padding: 6px 9px; border: 0; background: transparent; cursor: pointer;
-  font: inherit; font-size: 12px; color: var(--yzj-ink);
+  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink);
 }
-.hit:hover { background: #F4F6F9; }
-.meta { font-size: 10.5px; color: var(--yzj-ink-3); }
+.hit:hover { background: var(--yzj-bg-sunk); }
+.meta { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
 .picked {
   display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
-  padding: 6px 10px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--yzj-line); background: var(--yzj-surface);
-  font: inherit; font-size: 12.5px; color: var(--yzj-ink);
+  padding: 6px 10px; border-radius:var(--yzj-r-md); cursor: pointer;
+  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
+  font: inherit; font-size:var(--yzj-fs-sm); color: var(--yzj-ink);
 }
 .drop { color: var(--yzj-ink-3); }
 /* 读不了 ≠ 没有：这一格说的是故障，不是答案 */
-.broken { font-size: 10.5px; line-height: 1.6; color: var(--yzj-red); }
+.broken { font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-late-ink); }

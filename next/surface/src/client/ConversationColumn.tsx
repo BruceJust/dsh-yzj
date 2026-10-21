@@ -1448,7 +1448,7 @@ function renderRow(row: StreamRow, context: RowContext): ReactNode {
       const label = SPEAKER[row.speaker] ?? row.speaker
       const projection = row.speaker === 'ask' || row.speaker === 'askAnswer'
       const avatar = row.speaker === 'agent' || row.speaker === 'askAnswer'
-        ? { text: 'AI', color: '#1D2432' }
+        ? { text: 'AI', color: 'var(--yzj-agent)' }
         : avatarOf(label)
       return shell(row.key, row.voice, (
         <>
@@ -1578,7 +1578,7 @@ function renderRow(row: StreamRow, context: RowContext): ReactNode {
       return shell(row.key, 'private', (
         <>
           <div className={css.mhead}>
-            <span className={css.avatar} style={{ background: '#1D2432' }}>AI</span>
+            <span className={css.avatar} style={{ background: 'var(--yzj-agent)' }}>AI</span>
             <span className={css.name}>云小助</span>
             <span className={css.liveMark}>
               <span className={css.pulse} />

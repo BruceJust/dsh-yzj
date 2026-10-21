@@ -10,16 +10,16 @@
   flex-direction: column;
   gap: 10px;
   padding: 12px 14px;
-  border: 1px solid var(--dsh-color-border, rgb(0 0 0 / 12%));
-  border-left: 3px solid var(--dsh-color-accent, #3b6ef6);
-  border-radius: 8px;
-  background: var(--dsh-color-surface, rgb(0 0 0 / 2%));
-  font-size: 13px;
+  border: 1px solid var(--yzj-line);
+  border-left: 3px solid var(--yzj-pub);
+  border-radius:var(--yzj-r-md);
+  background: var(--yzj-bg);
+  font-size:var(--yzj-fs-sm);
   line-height: 1.55;
 }
 
 .strong {
-  border-left-color: var(--dsh-color-danger, #d64545);
+  border-left-color: var(--yzj-late);
 }
 
 .head {
@@ -31,26 +31,26 @@
 
 .badge {
   padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--dsh-color-accent, #3b6ef6);
-  color: #fff;
-  font-size: 11px;
+  border-radius:var(--yzj-r-sm);
+  background: var(--yzj-pub);
+  color: var(--yzj-on-color);
+  font-size:var(--yzj-fs-xs);
   font-weight: 500;
   white-space: nowrap;
 }
 
 .badgeStrong {
-  background: var(--dsh-color-danger, #d64545);
+  background: var(--yzj-late);
 }
 
 .badgeDone {
-  background: var(--dsh-color-muted, #7a7a7a);
+  background: var(--yzj-ink-3);
 }
 
 .tool {
-  color: var(--dsh-color-text-muted, rgb(0 0 0 / 55%));
-  font-family: var(--dsh-font-mono, ui-monospace, monospace);
-  font-size: 12px;
+  color: var(--yzj-ink-3);
+  font-family: var(--yzj-mono);
+  font-size:var(--yzj-fs-xs);
 }
 
 .args {
@@ -59,8 +59,8 @@
   gap: 3px;
   margin: 0;
   padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--dsh-color-surface-sunken, rgb(0 0 0 / 4%));
+  border-radius:var(--yzj-r-sm);
+  background: var(--yzj-bg-sunk);
 }
 
 .arg {
@@ -71,7 +71,7 @@
 
 .argKey {
   flex: none;
-  color: var(--dsh-color-text-muted, rgb(0 0 0 / 55%));
+  color: var(--yzj-ink-3);
 }
 
 .actions {
@@ -83,16 +83,16 @@
 
 .button {
   padding: 4px 14px;
-  border: 1px solid var(--dsh-color-border, rgb(0 0 0 / 15%));
-  border-radius: 6px;
-  background: var(--dsh-color-surface-raised, #fff);
+  border: 1px solid var(--yzj-line);
+  border-radius:var(--yzj-r-sm);
+  background: var(--yzj-bg);
   color: inherit;
   font: inherit;
   cursor: pointer;
 }
 
 .button:hover:not(:disabled) {
-  border-color: var(--dsh-color-accent, #3b6ef6);
+  border-color: var(--yzj-pub);
 }
 
 .button:disabled {
@@ -102,27 +102,27 @@
 
 .primary {
   border-color: transparent;
-  background: var(--dsh-color-accent, #3b6ef6);
-  color: #fff;
+  background: var(--yzj-pub);
+  color: var(--yzj-on-color);
 }
 
 .danger {
-  border-color: var(--dsh-color-danger, #d64545);
-  color: var(--dsh-color-danger, #d64545);
+  border-color: var(--yzj-late);
+  color: var(--yzj-late);
 }
 
 .input {
   flex: 1 1 180px;
   min-width: 120px;
   padding: 4px 8px;
-  border: 1px solid var(--dsh-color-border, rgb(0 0 0 / 15%));
-  border-radius: 6px;
-  background: var(--dsh-color-surface-raised, #fff);
+  border: 1px solid var(--yzj-line);
+  border-radius:var(--yzj-r-sm);
+  background: var(--yzj-bg);
   color: inherit;
   font: inherit;
 }
 
 .foot {
-  color: var(--dsh-color-text-muted, rgb(0 0 0 / 55%));
-  font-size: 12px;
+  color: var(--yzj-ink-3);
+  font-size:var(--yzj-fs-xs);
 }

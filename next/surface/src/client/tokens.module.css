@@ -1,58 +1,169 @@
 /**
- * The workbench's palette, in one place.
+ * The workbench's palette, type scale and shape — in one place (界面重设计 §6).
  *
- * Two of these are load-bearing rather than cosmetic. `--pub-*` is the blue of
- * things other people can see; `--paper-*` is the warm paper of things only
- * the operator and the agent can. Every surface in the product borrows from
- * exactly one of those two families, so "who can hear this" is answered by
- * peripheral vision before anybody reads a word.
+ * **静为常态，色为例外.** The base is the host's own neutral ramp; colour is
+ * spent on exactly two kinds of fact and nothing else:
  *
- * Applied as a class on each column root rather than only at `:root`: the three
- * columns are independent slot entries mounted by the host, and a variable that
- * exists only if some other entry happened to render is a variable that will
- * one day not exist.
+ * - who can hear it — `--yzj-pub-*` is the blue of things other people can
+ *   see, `--yzj-pri-*` the warm paper of things only the operator and the
+ *   agent can, so "who can hear this" is answered by peripheral vision;
+ * - something is off — `--yzj-need-*` (要你 / 不对劲), `--yzj-late-*` (逾期 /
+ *   失败), `--yzj-ok-*` (刚做完 / 有证据).
+ *
+ * Neutrals defer to the host's alias tokens (its theme presenter writes them
+ * onto `body`), so the workbench follows the host's light/dark switch instead
+ * of staying lit in a dark shell. The one neutral we keep for ourselves is
+ * `--yzj-ink-3`: the host's tertiary label is ~3.8:1 on white, and 12px meta
+ * text needs 4.5:1.
+ *
+ * Applied as a class on each column root rather than only at `:root`: the
+ * columns are independent slot entries, and a variable that exists only if
+ * some other entry happened to render will one day not exist.
+ *
+ * `tests/style-ratchet.spec.ts` holds every other stylesheet to these names:
+ * no literal colours, no font sizes outside the scale, no undefined variables.
  */
 .tokens {
-  --yzj-bg: #EDEFF2;
-  --yzj-surface: #FFFFFF;
-  --yzj-ink: #20242C;
-  --yzj-ink-2: #5A6272;
-  --yzj-ink-3: #8B93A3;
-  --yzj-line: #E2E5EA;
+  /* ── neutrals (host-backed) ── */
+  --yzj-bg: var(--dsw-alias-bg-base, #FFFFFF);
+  --yzj-bg-sunk: #F6F7F9;
+  --yzj-bg-raised: var(--dsw-alias-bg-layer-1, #FFFFFF);
+  --yzj-hover: var(--dsw-alias-interactive-bg-hover, rgb(38 49 72 / 6%));
+  --yzj-press: var(--dsw-alias-interactive-bg-active, rgb(38 49 72 / 10%));
+  --yzj-ink: var(--dsw-alias-label-primary, #1D2129);
+  --yzj-ink-2: var(--dsw-alias-label-secondary, #4E5969);
+  --yzj-ink-3: #697180;
+  /* Decoration only (chevrons, hollow rings). Never carries words. */
+  --yzj-ink-4: #A3A9B4;
+  --yzj-line: var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  --yzj-line-2: var(--dsw-alias-border-l1, rgb(0 0 0 / 4%));
 
+  /*
+    Filled controls. A fill that carries words gets its own token, because the
+    tint that reads as a link on dark is too light to put white text on:
+    `--yzj-solid` is the inverse ink button (dark on light, light on dark), the
+    `-solid` hues are deep enough for `--yzj-on-color` in both modes.
+  */
+  --yzj-solid: var(--dsw-alias-label-primary, #1D2129);
+  --yzj-on-solid: var(--dsw-alias-bg-base, #FFFFFF);
+  --yzj-on-color: #FFFFFF;
+  --yzj-pub-solid: #2E63D9;
+  --yzj-pri-solid: #8A6A33;
+  --yzj-need-solid: #A85A00;
+  --yzj-late-solid: #D92D20;
+  --yzj-ok-solid: #12A150;
+
+  /* ── audience ── */
   --yzj-pub: #2E63D9;
-  --yzj-pub-deep: #1E4FBD;
-  --yzj-pub-tint: #EEF4FF;
+  --yzj-pub-ink: #1E4FBD;
+  --yzj-pub-tint: #EEF3FE;
   --yzj-pub-line: #C9DBFA;
-  --yzj-pub-rail: #D8E5FB;
+  --yzj-pri-bg: #FBF7EE;
+  --yzj-pri-rail: #E3D3AE;
+  --yzj-pri-line: #EDE3CC;
+  --yzj-pri-ink: #7A5E2E;
 
-  --yzj-paper: #FAF6EC;
-  --yzj-paper-line: #E9DFC8;
-  --yzj-paper-rail: #EFE6D0;
-  --yzj-paper-ink: #6B5A36;
+  /* ── exceptions ── */
+  --yzj-need: #E08A00;
+  --yzj-need-ink: #A85A00;
+  --yzj-need-bg: #FFF4E0;
+  --yzj-need-line: #F3D9A8;
+  --yzj-late: #D92D20;
+  --yzj-late-ink: #B42318;
+  --yzj-late-bg: #FDECEA;
+  --yzj-late-line: #F5C6C2;
+  --yzj-ok: #12A150;
+  --yzj-ok-ink: #0E7A3D;
+  --yzj-ok-bg: #E7F6EE;
+  --yzj-ok-line: #BFE5CF;
 
-  --yzj-amber: #B45309;
-  --yzj-amber-bg: #FDF1E0;
-  --yzj-amber-line: #F0D9B4;
-  --yzj-green: #15803D;
-  --yzj-green-bg: #E8F6EE;
-  --yzj-green-line: #C4E6D1;
-  --yzj-red: #B91C1C;
-  --yzj-violet: #6D4FA3;
-  --yzj-violet-bg: #F3EFFA;
-  --yzj-violet-line: #DFD3F0;
+  /* ── identity ── */
+  --yzj-agent: linear-gradient(135deg, #5B7CFA 0%, #8B5CF6 100%);
+  --yzj-av-1: #3E6FD8;
+  --yzj-av-2: #7A5AB8;
+  --yzj-av-3: #B8691C;
+  --yzj-av-4: #2F8A57;
+  --yzj-av-5: #1F7F96;
+  --yzj-av-6: #C04848;
+  --yzj-av-7: #5B6577;
 
-  --yzj-radius: 10px;
-  --yzj-shadow: 0 1px 2px rgb(24 30 42 / 5%), 0 4px 16px rgb(24 30 42 / 6%);
-  --yzj-shadow-pop: 0 6px 32px rgb(24 30 42 / 18%);
+  /* ── layers ── */
+  --yzj-scrim: rgb(16 18 24 / 36%);
+  --yzj-shadow-1: 0 1px 2px rgb(16 18 24 / 6%), 0 2px 8px rgb(16 18 24 / 5%);
+  --yzj-shadow-2: 0 8px 32px rgb(16 18 24 / 16%), 0 2px 6px rgb(16 18 24 / 8%);
+
+  /* ── type: six sizes, three weights ── */
+  --yzj-fs-xs: 12px;
+  --yzj-fs-sm: 13px;
+  --yzj-fs-md: 14px;
+  --yzj-fs-lg: 16px;
+  --yzj-fs-xl: 20px;
+  --yzj-fs-2xl: 24px;
   --yzj-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  font-size: 13.5px;
+  /* ── shape ── */
+  --yzj-r-sm: 6px;
+  --yzj-r-md: 10px;
+  --yzj-r-lg: 14px;
+  --yzj-r-pill: 999px;
+
+  font-size: var(--yzj-fs-md);
+  line-height: 1.55;
   color: var(--yzj-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+  Dark: the host flips its alias tokens on `body`; what follows is everything
+  we own. Tints become low-alpha washes so they sit on whichever dark the host
+  chose rather than on a dark of our own guessing.
+*/
+:global(body[data-ds-dark-theme]) .tokens {
+  --yzj-bg-sunk: #0F0F11;
+  --yzj-ink-3: #8A909B;
+  --yzj-ink-4: #5B606A;
+  --yzj-pub-solid: #3D6FE0;
+  --yzj-late-solid: #DC3D31;
+  --yzj-ok-solid: #1E9E57;
+
+  --yzj-pub: #6E9BFF;
+  --yzj-pub-ink: #8DB1FF;
+  --yzj-pub-tint: rgb(110 155 255 / 12%);
+  --yzj-pub-line: rgb(110 155 255 / 30%);
+  --yzj-pri-bg: #1F1C16;
+  --yzj-pri-rail: #5C4D2E;
+  --yzj-pri-line: #3A3222;
+  --yzj-pri-ink: #D8C08A;
+
+  --yzj-need: #F5A524;
+  --yzj-need-ink: #F7B955;
+  --yzj-need-bg: rgb(245 165 36 / 13%);
+  --yzj-need-line: rgb(245 165 36 / 30%);
+  --yzj-late: #FF6B5E;
+  --yzj-late-ink: #FF8A80;
+  --yzj-late-bg: rgb(255 107 94 / 13%);
+  --yzj-late-line: rgb(255 107 94 / 30%);
+  --yzj-ok: #3CCB7F;
+  --yzj-ok-ink: #5FD896;
+  --yzj-ok-bg: rgb(60 203 127 / 13%);
+  --yzj-ok-line: rgb(60 203 127 / 30%);
+
+  --yzj-scrim: rgb(0 0 0 / 55%);
+  --yzj-shadow-1: 0 1px 2px rgb(0 0 0 / 40%), 0 2px 8px rgb(0 0 0 / 30%);
+  --yzj-shadow-2: 0 8px 32px rgb(0 0 0 / 50%), 0 2px 6px rgb(0 0 0 / 40%);
 }
 
 .tokens :focus-visible {
   outline: 2px solid var(--yzj-pub);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--yzj-r-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tokens *,
+  .tokens *::before,
+  .tokens *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
 }

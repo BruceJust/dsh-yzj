@@ -585,7 +585,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
         className={`${css.row} ${css.itemSub} ${active ? css.itemActive : ''}`}
         key={entry.id}
       >
-        <span className={`${css.icon} ${css.subIcon}`} style={{ background: '#8B93A3' }}>▢</span>
+        <span className={`${css.icon} ${css.subIcon}`} style={{ background: 'var(--yzj-av-7)' }}>▢</span>
         {renaming === entry.id
           ? (
             <input
@@ -1022,7 +1022,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
                 onClick={() => { toggle(workspace.id) }}
               >
                 {chevMark(workspace.id)}
-                <span className={css.icon} style={{ background: '#46536B' }}>⌂</span>
+                <span className={css.icon} style={{ background: 'var(--yzj-av-7)' }}>⌂</span>
                 <span className={css.itemText}>
                   <span className={`${css.itemTitle} ${css.placeTitle}`}>{workspace.title}</span>
                   <span className={css.itemPreview}>{workspace.path} · {own.length} 个会话</span>

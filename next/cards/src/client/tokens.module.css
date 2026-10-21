@@ -1,0 +1,22 @@
+/**
+ * The few tokens the host-seated confirmation card needs.
+ *
+ * This card renders in the host's own tool-call seat, outside any of the
+ * workbench columns, so it cannot borrow the workbench's `.tokens` root. It
+ * reads the host's alias tokens directly (the host's theme presenter writes
+ * them onto `body`, light and dark), with the workbench's values as fallbacks.
+ */
+.tokens {
+  --yzj-bg: var(--dsw-alias-bg-base, #FFFFFF);
+  --yzj-bg-sunk: var(--dsw-alias-interactive-bg-hover, #F6F7F9);
+  --yzj-ink-3: var(--dsw-alias-label-secondary, #697180);
+  --yzj-line: var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  --yzj-pub: #2E63D9;
+  --yzj-late: var(--dsw-alias-state-error-primary, #D92D20);
+  --yzj-on-color: #FFFFFF;
+  --yzj-fs-xs: 12px;
+  --yzj-fs-sm: 13px;
+  --yzj-r-sm: 6px;
+  --yzj-r-md: 10px;
+  --yzj-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}

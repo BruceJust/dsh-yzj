@@ -5,17 +5,17 @@
   padding: 10px 18px 8px; border-bottom: 1px solid var(--yzj-line);
 }
 .crumb {
-  font: inherit; font-size: 11.5px; color: var(--yzj-pub);
-  padding: 2px 6px; border: 0; border-radius: 6px; background: none; cursor: pointer;
+  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-pub);
+  padding: 2px 6px; border: 0; border-radius:var(--yzj-r-sm); background: none; cursor: pointer;
 }
 .crumb:hover { background: var(--yzj-pub-tint); }
 .crumb::after { content: "/"; color: var(--yzj-ink-3); margin-left: 6px; }
 .crumb:last-of-type::after { content: ""; }
 
 .hidden {
-  margin-left: auto; font: inherit; font-size: 10.5px;
-  padding: 2px 8px; border: 1px solid var(--yzj-line); border-radius: 12px;
-  background: var(--yzj-surface); color: var(--yzj-ink-3); cursor: pointer;
+  margin-left: auto; font: inherit; font-size:var(--yzj-fs-xs);
+  padding: 2px 8px; border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md);
+  background: var(--yzj-bg); color: var(--yzj-ink-3); cursor: pointer;
 }
 .hidden:hover { color: var(--yzj-ink); }
 
@@ -25,29 +25,29 @@
   display: flex; align-items: center; gap: 10px;
   padding: 12px 18px 10px; border-bottom: 1px solid var(--yzj-line);
 }
-.nativeNote { flex: 1; min-width: 0; font-size: 10.5px; color: var(--yzj-ink-3); line-height: 1.6; }
+.nativeNote { flex: 1; min-width: 0; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.6; }
 
 .note {
-  margin: 10px 18px; padding: 9px 11px; border-radius: 9px;
-  border: 1px dashed #C9CFDA; background: #FAFBFC;
-  font-size: 11.5px; color: var(--yzj-ink-2); line-height: 1.75;
+  margin: 10px 18px; padding: 9px 11px; border-radius:var(--yzj-r-md);
+  border: 1px dashed var(--yzj-pub-line); background: var(--yzj-bg-sunk);
+  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.75;
 }
 
 .path {
-  flex: 1; min-width: 0; font: inherit; font-size: 11.5px;
+  flex: 1; min-width: 0; font: inherit; font-size:var(--yzj-fs-xs);
   font-family: var(--yzj-mono);
-  padding: 7px 10px; border: 1px solid var(--yzj-line); border-radius: 9px;
-  background: var(--yzj-surface); color: var(--yzj-ink);
+  padding: 7px 10px; border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md);
+  background: var(--yzj-bg); color: var(--yzj-ink);
 }
 
 .entry {
   display: flex; align-items: center; gap: 8px; width: 100%;
-  padding: 6px 9px; border: 0; border-radius: 8px; background: none;
-  font: inherit; font-size: 12.5px; color: var(--yzj-ink);
+  padding: 6px 9px; border: 0; border-radius:var(--yzj-r-md); background: none;
+  font: inherit; font-size:var(--yzj-fs-sm); color: var(--yzj-ink);
   text-align: left; cursor: pointer;
 }
-.entry:hover { background: #F2F3F6; }
-.folder { color: var(--yzj-ink-3); font-size: 10px; }
+.entry:hover { background: var(--yzj-pub-tint); }
+.folder { color: var(--yzj-ink-3); font-size:var(--yzj-fs-xs); }
 .entryName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .foot {
@@ -55,17 +55,17 @@
   padding: 10px 18px 14px; border-top: 1px solid var(--yzj-line);
 }
 .use {
-  flex: none; font: inherit; font-size: 12.5px; font-weight: 650;
-  padding: 7px 14px; border: 0; border-radius: 9px;
-  background: var(--yzj-ink); color: #fff; cursor: pointer;
+  flex: none; font: inherit; font-size:var(--yzj-fs-sm); font-weight: 650;
+  padding: 7px 14px; border: 0; border-radius:var(--yzj-r-md);
+  background: var(--yzj-solid); color: var(--yzj-on-solid); cursor: pointer;
 }
-.use:hover:not(:disabled) { background: #000; }
+.use:hover:not(:disabled) { background: var(--yzj-solid); }
 .use:disabled { opacity: .5; cursor: default; }
 
 .error {
-  margin: 8px 18px 0; padding: 7px 10px; border-radius: 8px;
-  background: var(--yzj-amber-bg); border: 1px solid var(--yzj-amber-line);
-  color: var(--yzj-amber); font-size: 11.5px;
+  margin: 8px 18px 0; padding: 7px 10px; border-radius:var(--yzj-r-md);
+  background: var(--yzj-need-bg); border: 1px solid var(--yzj-need-line);
+  color: var(--yzj-need-ink); font-size:var(--yzj-fs-xs);
 }
 
-.calm { padding: 14px 10px; font-size: 11.5px; color: var(--yzj-ink-3); text-align: center; }
+.calm { padding: 14px 10px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); text-align: center; }

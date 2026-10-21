@@ -10,10 +10,10 @@
   display: flex; align-items: center; gap: 8px;
   padding: 6px 20px;
   min-height: 30px;
-  font-size: 12px;
-  color: var(--yzj-amber);
-  background: var(--yzj-amber-bg);
-  border-bottom: 1px solid var(--yzj-amber-line);
+  font-size:var(--yzj-fs-xs);
+  color: var(--yzj-need-ink);
+  background: var(--yzj-need-bg);
+  border-bottom: 1px solid var(--yzj-need-line);
 }
 
 .count { flex: none; font-weight: 700; letter-spacing: .02em; }
@@ -37,13 +37,13 @@
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
   flex: 0 1 auto; min-width: 0; max-width: 34%;
-  font: inherit; font-size: 11.5px;
-  padding: 2px 9px; border-radius: 11px; cursor: pointer;
-  border: 1px solid var(--yzj-amber-line);
-  background: var(--yzj-surface);
-  color: var(--yzj-amber);
+  font: inherit; font-size:var(--yzj-fs-xs);
+  padding: 2px 9px; border-radius:var(--yzj-r-md); cursor: pointer;
+  border: 1px solid var(--yzj-need-line);
+  background: var(--yzj-bg);
+  color: var(--yzj-need-ink);
 }
-.chip:hover { background: var(--yzj-amber); color: #fff; border-color: var(--yzj-amber); }
+.chip:hover { background: var(--yzj-need-bg); color: var(--yzj-need-ink); border-color: var(--yzj-need-line); }
 
 .chipBadge { flex: none; font-weight: 700; }
 
@@ -52,7 +52,7 @@
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--yzj-ink-2);
 }
-.chip:hover .chipLabel { color: #fff; }
+.chip:hover .chipLabel { color: var(--yzj-need-ink); }
 
 .more { flex: none; font-weight: 700; }
 
@@ -61,9 +61,9 @@
   刻意不做成按钮的样子：它是一句**观察**（你在这儿确认得太频繁了），点进去才是动作。
 */
 .lease {
-  flex: none; font: inherit; font-size: 11px;
-  padding: 2px 8px; border-radius: 11px; cursor: pointer;
-  border: 1px dashed var(--yzj-amber-line);
-  background: transparent; color: var(--yzj-amber);
+  flex: none; font: inherit; font-size:var(--yzj-fs-xs);
+  padding: 2px 8px; border-radius:var(--yzj-r-md); cursor: pointer;
+  border: 1px dashed var(--yzj-need-line);
+  background: transparent; color: var(--yzj-need-ink);
 }
-.lease:hover { background: var(--yzj-surface); border-style: solid; }
+.lease:hover { background: var(--yzj-bg); border-style: solid; }

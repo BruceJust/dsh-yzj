@@ -676,12 +676,13 @@ function looksLikeOpenId(value: string): boolean {
  * 认不出是谁就画一个中性记号：**不知道就说不知道**，不编一个像模像样的缩写。
  */
 export function avatarOf(name: string): { text: string; color: string } {
-  const palette = ['#2E63D9', '#6D4FA3', '#B45309', '#15803D', '#0E7490', '#B91C1C', '#4B5563']
+  // 身份色走 token（tokens.module.css 的 --yzj-av-*），深浅两档各自保证白字可读。
+  const palette = [1, 2, 3, 4, 5, 6, 7].map(index => `var(--yzj-av-${String(index)})`)
   let hash = 0
   for (const char of name) hash = (hash * 31 + char.codePointAt(0)!) % 100_000
   return {
     text: looksLikeOpenId(name) ? '·' : name.trim().slice(0, 1).toUpperCase() || '·',
-    color: palette[hash % palette.length] ?? '#4B5563',
+    color: palette[hash % palette.length] ?? 'var(--yzj-av-7)',
   }
 }
 
