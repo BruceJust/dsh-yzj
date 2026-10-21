@@ -410,6 +410,9 @@ export interface RuleRow {
  * （发消息的人叫它做的）、而且真的办成了（`action/settled` 为 ok）的那几次写。**不复用审计
  * 报告**——审计不进界面；这里只回答「哪几件没问你就办了、凭的是什么」。
  */
+/** 近处候选的第一种出处。排序认的就是它，所以只写一处。 */
+const IN_GOAL = '这个目标里已经有活在跟'
+
 export interface AutoHandledRow {
   readonly at: number
   /** 做了什么：写表格「竞品对比表」。 */
@@ -4666,18 +4669,18 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               // 我委派过的才算「最近委派过」——别人委派的活不是我的事实。
               const mine = asString(state?.delegatedBy) === me
               if (!here && !mine) continue
-              const why = here ? '这个目标里已经有他的活' : '你最近委派过他'
+              const why = here ? IN_GOAL : '最近交给过'
               const seen = out.get(openId)
               // 同一个人两条来源时，语境那一条更贴近此刻的问题。
-              if (seen === undefined || (here && seen.why !== '这个目标里已经有他的活')
+              if (seen === undefined || (here && seen.why !== IN_GOAL)
                 || (seen.why === why && object.updatedAt > seen.at)) {
                 out.set(openId, { openId, name: name ?? openId, why, at: object.updatedAt })
               }
             }
             const ranked = [...out.values()]
               .sort((left, right) => {
-                const byContext = Number(right.why === '这个目标里已经有他的活')
-                  - Number(left.why === '这个目标里已经有他的活')
+                const byContext = Number(right.why === IN_GOAL)
+                  - Number(left.why === IN_GOAL)
                 return byContext !== 0 ? byContext : right.at - left.at
               })
               .slice(0, 6)

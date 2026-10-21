@@ -231,12 +231,12 @@ describe('近处候选', () => {
     return (result as { value: { candidates: { name: string; why: string }[] } }).value.candidates
   }
 
-  it('这个目标里已经有他的活 —— 排在最前，出处说得出口', async () => {
+  it('这个目标里已经有活在跟 —— 排在最前，出处说得出口', async () => {
     await person('c1', 'u-li', '李婷', { parentGoalRef: GOAL })
     await person('c2', 'u-zhang', '张锐')
     const rows = await candidates(GOAL)
-    expect(rows[0]).toEqual({ openId: 'u-li', name: '李婷', why: '这个目标里已经有他的活' })
-    expect(rows[1]?.why).toBe('你最近委派过他')
+    expect(rows[0]).toEqual({ openId: 'u-li', name: '李婷', why: '这个目标里已经有活在跟' })
+    expect(rows[1]?.why).toBe('最近交给过')
   })
 
   /*
@@ -290,7 +290,7 @@ describe('近处候选', () => {
       actor: ME,
     })
     const rows = await candidates()
-    expect(rows.find(one => one.openId === 'u-zhang')?.why).toBe('你最近委派过他')
+    expect(rows.find(one => one.openId === 'u-zhang')?.why).toBe('最近交给过')
   })
 
   it('一个候选都没有就是空的 —— 第一次用这个产品的人本来就没有近处', async () => {

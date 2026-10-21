@@ -143,7 +143,7 @@ describe('最小听众：算过的事实要活到发送键跟前', () => {
   it('他没在这个群里有过登记 —— 警示跟着这一句走', () => {
     const choice = portalChoice(BASE, ZHANG, { known: false, kind: 'group' })
     expect(choice?.audienceRisk).toContain('张锐')
-    expect(choice?.audienceRisk).toContain('答不了')
+    expect(choice?.audienceRisk).toContain('不确定')
   })
 
   it('他在这儿有过登记：不无中生有一句警告', () => {

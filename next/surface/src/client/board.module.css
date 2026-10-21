@@ -1,9 +1,7 @@
 /*
- * 选择条（传送门）与「新目标」表单共用的样式。承诺页本身的样式在 ledger.module.css。
+ * 「新目标」表单的样式（DeclareGoal）。「交给…」那一层在 portal.module.css，承诺页在 ledger.module.css。
+ * 表单即确认卡。
  */
-
-.goalEmpty { padding: 8px 12px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-/* ---------- 立目标：表单即确认卡 ---------- */
 .mask {
   position: fixed; inset: 0; z-index: 100;
   background: var(--yzj-scrim);
@@ -19,10 +17,6 @@
   margin-left: auto; border: 0; background: none; cursor: pointer;
   font-size:var(--yzj-fs-xl); line-height: 1; color: var(--yzj-ink-3);
 }
-.sheetNote {
-  margin-bottom: 12px; padding: 8px 10px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-bg-sunk); font-size:var(--yzj-fs-xs); line-height: 1.7; color: var(--yzj-ink-2);
-}
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; flex: 1; }
 .fieldRow { display: flex; gap: 10px; }
 .fieldLabel { font-size:var(--yzj-fs-xs); font-weight: 650; color: var(--yzj-ink-3); }
@@ -33,7 +27,6 @@
 }
 .input:focus { border-color: var(--yzj-pub); }
 .sheetFoot { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
-.sheetHint { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.5; }
 .sheetGo {
   flex: none; font: inherit; font-size:var(--yzj-fs-sm); font-weight: 650;
   padding: 7px 16px; border: 0; border-radius:var(--yzj-r-md);
@@ -51,86 +44,7 @@
 }
 .sheetGrind:hover { border-color: var(--yzj-pub-line); color: var(--yzj-pub-ink); }
 .sheetGrind:disabled { opacity: .45; cursor: default; }
-/* 传送门选场所：只问一件事——在哪儿说 */
-.rooms { max-height: 320px; overflow: auto; margin: 10px 0 4px; }
-.roomGroup { margin-bottom: 10px; }
-/*
-  场所本身就是落点，所以它是一颗键 —— 不再是话题上面那行灰标题。
 
-  它比话题行**更重**（实心边框、深一号的字），因为主楼才是委派的默认落点：这一句发
-  出去，话题从它长出来。反过来的排版会把「挂进一个正在跑的话题」显示成常态，而那是
-  更少见、后果更重的那一种（承诺会继承那个话题的语境）。
-*/
-.roomPlace {
-  display: block; width: 100%; text-align: left;
-  font: inherit; font-size:var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink);
-  padding: 7px 10px; margin-bottom: 2px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg); cursor: pointer;
-}
-.roomPlace:hover { border-color: var(--yzj-pub); background: var(--yzj-pub-tint); }
-/* 次级落点的门：默认收着，点开才是「挂进正在跑的那一段」。 */
-.roomMore {
-  display: block; font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
-  padding: 2px 10px 4px; border: none; background: transparent; cursor: pointer;
-}
-.roomMore:hover { color: var(--yzj-pub-ink); }
-.room {
-  display: block; width: 100%; text-align: left;
-  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink);
-  padding: 6px 10px; margin-bottom: 3px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg); cursor: pointer;
-}
-.room:hover { border-color: var(--yzj-pub); background: var(--yzj-pub-tint); }
-/* 话题挂在场所底下：缩进说的是从属关系——它是那间屋子里的一段，不是另一间屋子。 */
-.roomTopic { width: auto; margin-left: 16px; font-size:var(--yzj-fs-xs); }
-/* 候选的出处：它凭什么在这里，人一眼看得见（v4.24 选项集第②层） */
-.roomWhy { margin-left: 8px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-/*
-  新建专项群 —— 尾项，虚线，和现成的场所长得**不一样**。
-
-  实线的行是「用一个已经存在的听众集合」；虚线的这一行是「造一个出来」。两者在一屏
-  里并排，就必须在一眼之内区分得开——否则「顺手点一下」和「创造一个新的听众集合」
-  会长成同一个动作。
-*/
-.roomNew {
-  display: block; width: 100%; text-align: left;
-  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2);
-  padding: 6px 10px; margin-top: 4px; border-radius:var(--yzj-r-md);
-  border: 1px dashed var(--yzj-line); background: transparent; cursor: pointer;
-}
-.roomNew:hover { border-color: var(--yzj-pub); color: var(--yzj-ink); }
-.newPlace {
-  margin: 8px 0 4px; padding: 10px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg-sunk, var(--yzj-bg));
-  display: flex; flex-direction: column; gap: 7px;
-}
-.newPlaceHead { font-size:var(--yzj-fs-xs); font-weight: 700; color: var(--yzj-ink); }
-.newPlaceNote { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.65; }
-.newPlaceHint { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.5; }
-.newPlaceError { font-size:var(--yzj-fs-xs); color: var(--yzj-need-ink, var(--yzj-late-ink)); line-height: 1.6; }
-.newPlaceFound { max-height: 150px; overflow: auto; }
-.newPlacePicked { display: flex; flex-wrap: wrap; gap: 4px; }
-.newPlaceChip {
-  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink);
-  padding: 2px 8px; border-radius:var(--yzj-r-pill); cursor: pointer;
-  border: 1px solid var(--yzj-line); background: var(--yzj-pub-tint);
-}
-.newPlaceServe {
-  display: flex; align-items: flex-start; gap: 6px;
-  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.5; cursor: pointer;
-}
-.newPlaceActions { display: flex; justify-content: flex-end; gap: 6px; }
-.newPlacePrimary {
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-on-color);
-  padding: 5px 14px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-pub-solid); background: var(--yzj-pub-solid);
-}
-.newPlacePrimary:disabled { opacity: 0.45; cursor: not-allowed; }
-.newPlaceGhost {
-  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2);
-  padding: 5px 12px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-line); background: transparent;
-}
 .area {
   font: inherit; font-size:var(--yzj-fs-sm); color: var(--yzj-ink); resize: vertical;
   padding: 7px 10px; border-radius:var(--yzj-r-md); line-height: 1.6;
@@ -144,29 +58,7 @@
   background: var(--yzj-late-bg); border: 1px solid var(--yzj-late-line);
   font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-late-ink);
 }
-/* 两维真选择第一维：谁来做（委派五步②）——选完即传送，这不是一张表单 */
-.execPick {
-  display: block; width: 100%; text-align: left; font: inherit;
-  font-size:var(--yzj-fs-sm); font-weight: 650; color: var(--yzj-ink);
-  padding: 9px 12px; margin: 4px 0; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg); cursor: pointer;
-}
-.execPick:hover { border-color: var(--yzj-pub-line); background: var(--yzj-pub-tint); }
-.execNote { display: block; font-size:var(--yzj-fs-xs); font-weight: 400; color: var(--yzj-ink-3); margin-top: 2px; }
-.execBack {
-  font: inherit; font-size:var(--yzj-fs-xs); margin-left: 6px; padding: 1px 8px;
-  border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg); color: var(--yzj-ink-3);
-}
-.execBack:hover { color: var(--yzj-pub-ink); border-color: var(--yzj-pub-line); }
-/* 这句话会让谁听见——写在场所名旁边，不让人自己推断 */
-.roomKind { font-size:var(--yzj-fs-xs); font-weight: 400; color: var(--yzj-ink-3); margin-left: 6px; }
-/* 移交预选当前值：现场所要看得见，「都不改」那颗才解释得清自己为什么点不动。 */
-.roomNow {
-  margin-left: 6px; font-size:var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-pub-ink);
-  padding: 1px 6px; border-radius:var(--yzj-r-md); background: var(--yzj-pub-tint);
-}
-.roomPlace:disabled, .room:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* 建真身：人选知识库，系统建文档——损耗归系统，判断留给人 */
 .bodyMake {
   align-self: flex-start; margin-top: 4px;
@@ -203,21 +95,4 @@
   font: inherit; font-size:var(--yzj-fs-sm); color: var(--yzj-ink);
 }
 .spaceDrop { color: var(--yzj-ink-3); }
-/* 场所分节：说清哪些是事实、哪些是我们答不了的（v4.24 场所选项集） */
-/*
-  移交不吞裁决：亮出来，但不拦（v3.19r③）。
 
-  琥珀而不是红：它不是错误，也不是一道门——它是一句「你知道了再按」。红色会让人以为
-  这里被挡住了，而挡住 owner 换人恰恰是这条裁决明确不做的事。
-*/
-.handoffPending {
-  display: flex; flex-direction: column; gap: 3px;
-  margin: 2px 0 8px; padding: 8px 11px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-need-line); background: var(--yzj-need-bg);
-  font-size:var(--yzj-fs-xs); line-height: 1.7; color: var(--yzj-need-ink);
-}
-.handoffPending b { color: var(--yzj-need-ink); }
-.handoffPendingTail { color: var(--yzj-ink-3); }
-.roomSection {
-  margin: 8px 2px 3px; font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-3);
-}

@@ -305,7 +305,7 @@ export function CommitmentStoryPanel(props: {
                             pick: 'executor',
                             seed: delegateSeed(story.what),
                             subCommitmentOf: story.id,
-                            title: '拆一部分交给谁、在哪儿说？',
+                            title: '拆一部分交给谁？',
                             note: `拆出去的那条挂在你这条底下——你仍然对${story.stewardedBy ?? '对方'}负责。`,
                           })
                           if (!asked) setNote('从承诺页或目标页里才能拆出去。')

@@ -497,7 +497,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           它比「已发到群里」具体，所以它先说；`armBorn` 那句次之，通用回执垫底。
         */
         setToast(result.note ?? note ?? (result.toCommitmentId !== undefined
-          ? '已移交：这句话说出去了，新的那条承诺从它出生。'
+          ? '转好了：新的一条从这句话算起。'
           : result.ignited === true
             ? '已发出，正在长出一个话题。'
             : '已发到群里。'))
@@ -558,7 +558,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           ? {
             kind: 'register',
             ok: true,
-            line: `发出后：原来那条转为「已移交」留档，新的一条交给 ${pendingHandoff.name ?? '对方'}。`,
+            line: `发出后：这件事转给${pendingHandoff.name ?? '对方'}，原来那条留档。`,
             drop: () => { setPendingHandoff(undefined) },
           }
           : replyTo !== undefined

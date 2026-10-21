@@ -238,11 +238,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
   }
 
   /** 交给…：先问谁来做，再问在哪儿说——当着全组说和私下说，是你的社交决定。 */
-  const delegate = (seed: string, title = '交给谁、在哪儿说？'): void => {
-    setPortal({
-      subject: 'goal', goalRef, goalName: name, voice: 'place', seed, pick: 'executor',
-      title, note: '话由你自己说，发出去才算数。',
-    })
+  const delegate = (seed: string, title = '交给谁？'): void => {
+    setPortal({ subject: 'goal', goalRef, goalName: name, voice: 'place', seed, pick: 'executor', title })
   }
 
   const assessLead = hint?.kind === 'silent'
@@ -578,7 +575,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                           <button
                             type="button"
                             className={css.ghost}
-                            onClick={() => { delegate(gapSeed(name, line.criterion), '这条差距交给谁、在哪儿说？') }}
+                            onClick={() => { delegate(gapSeed(name, line.criterion), '这条差距交给谁？') }}
                           >
                             交给…
                           </button>

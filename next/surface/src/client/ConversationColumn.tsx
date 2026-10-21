@@ -407,7 +407,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         if (result.error !== undefined) say(result.error)
         else {
           if (result.note !== undefined) setToast(result.note)
-          else if (result.toCommitmentId !== undefined) setToast('已移交：这句话说出去了，新的那条承诺从它出生。')
+          else if (result.toCommitmentId !== undefined) setToast('转好了：新的一条从这句话算起。')
           setPendingHandoff(undefined)
           setAudienceRisk('')
           setPendingNudge(undefined)
@@ -710,7 +710,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
             ? {
               kind: 'register',
               ok: true,
-              line: `发出后：原来那条转为「已移交」留档，新的一条交给 ${pendingHandoff.name ?? '对方'}。`,
+              line: `发出后：这件事转给${pendingHandoff.name ?? '对方'}，原来那条留档。`,
               drop: () => { setPendingHandoff(undefined) },
             }
             : replyTo !== undefined

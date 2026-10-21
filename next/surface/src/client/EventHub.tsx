@@ -348,8 +348,7 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
             seed: eventPrepSeed(event.title),
             // 会前补的那一刀也要派给谁——同一个动词，同样两维（板与 hub 同构）。
             pick: 'executor',
-            title: '谁来准备、在哪儿说？',
-            note: '话由你自己说，发出去才算数。',
+            title: '谁来准备？',
           })
         }}
       >

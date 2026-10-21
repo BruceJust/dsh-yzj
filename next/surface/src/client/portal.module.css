@@ -1,0 +1,126 @@
+/*
+ * 「交给…」那一层：先问谁来做，再问在哪儿说。和 ⌘K 同一种层——盖在整框上，Esc 就走。
+ * 每个选项一行：一张脸 · 名字和一句后果 · 右边写谁听得见。
+ */
+
+.mask {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: 12vh 16px 16px;
+  background: var(--yzj-scrim);
+}
+.sheet {
+  width: min(520px, 100%); max-height: 76vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--yzj-line-2); border-radius: var(--yzj-r-lg);
+  background: var(--yzj-bg-raised); color: var(--yzj-ink); box-shadow: var(--yzj-shadow-2);
+}
+
+.head { flex: none; display: flex; align-items: center; gap: 8px; padding: 14px 14px 2px 18px; }
+.title { flex: 1; min-width: 0; font-size: var(--yzj-fs-lg); font-weight: 600; }
+.iconBtn {
+  flex: none; width: 28px; height: 28px; display: grid; place-items: center;
+  border: 0; border-radius: var(--yzj-r-sm); background: none; color: var(--yzj-ink-3); cursor: pointer;
+}
+.iconBtn:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+
+.about {
+  flex: none; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+  padding: 0 18px 10px; font-size: var(--yzj-fs-sm); color: var(--yzj-ink-3);
+}
+.aboutWhat { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aboutTo { color: var(--yzj-ink-2); }
+.aboutTo::before { content: '·'; margin-right: 6px; color: var(--yzj-ink-4); }
+.link { border: 0; background: none; padding: 0; font: inherit; color: var(--yzj-pub-ink); cursor: pointer; }
+.link:hover { text-decoration: underline; }
+
+.note {
+  flex: none; margin: 0 18px 10px; padding: 8px 12px; border-radius: var(--yzj-r-md);
+  background: var(--yzj-bg-sunk); font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink-2);
+}
+/* 转走会一并收起的东西：亮出来，不拦——琥珀，不是红。 */
+.pending {
+  flex: none; display: flex; flex-direction: column; gap: 2px;
+  margin: 0 18px 10px; padding: 8px 12px; border-radius: var(--yzj-r-md);
+  background: var(--yzj-need-bg); font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink-2);
+}
+.pendingHead { font-weight: 600; color: var(--yzj-need-ink); }
+.pendingTail { color: var(--yzj-ink-3); }
+
+.searchRow { flex: none; position: relative; margin: 0 18px 6px; }
+.searchIcon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--yzj-ink-3); pointer-events: none; }
+.search, .field {
+  width: 100%; height: 34px; padding: 0 10px;
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-md);
+  background: var(--yzj-bg); color: var(--yzj-ink);
+  font: inherit; font-size: var(--yzj-fs-md);
+}
+.search { padding-left: 32px; }
+.search:focus-visible, .field:focus-visible { outline: none; border-color: var(--yzj-pub); }
+.search::placeholder, .field::placeholder { color: var(--yzj-ink-3); }
+
+.list { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 10px 10px; display: flex; flex-direction: column; }
+.section { padding: 10px 8px 4px; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.calm { padding: 10px 8px; font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink-3); }
+
+.option {
+  flex: none; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 8px;
+  border: 0; border-radius: var(--yzj-r-md); background: none; text-align: left;
+  font: inherit; color: var(--yzj-ink); cursor: pointer;
+}
+.option:hover, .option:focus-visible { outline: none; background: var(--yzj-hover); }
+.option:disabled { opacity: .45; cursor: default; background: none; }
+/* 话题挂在群底下：缩进说的是从属——它是那个群里的一段，不是另一个地方。 */
+.indent { min-height: 32px; padding-left: 46px; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.name { font-size: var(--yzj-fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.indent .name { font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2); }
+.sub { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side { flex: none; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.avatar {
+  flex: none; width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center;
+  font-size: var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-on-color);
+}
+.photo { width: 100%; height: 100%; object-fit: cover; }
+.glyph {
+  flex: none; width: 28px; height: 28px; border-radius: var(--yzj-r-md);
+  display: grid; place-items: center; background: var(--yzj-bg-sunk); color: var(--yzj-ink-2);
+}
+.more {
+  flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 4px;
+  margin: 0 0 2px 46px; padding: 2px 6px; border: 0; border-radius: var(--yzj-r-sm); background: none;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); cursor: pointer;
+}
+.more:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+
+.foot { flex: none; padding: 10px 18px 12px; border-top: 1px solid var(--yzj-line-2); font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+
+/* 新建一个群：一张小表，占列表的位置。 */
+.form { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 2px 18px 12px; }
+.formHead { font-size: var(--yzj-fs-md); font-weight: 600; }
+.formNote { font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink-2); }
+.formError { font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-late-ink); }
+.found { display: flex; flex-direction: column; max-height: 180px; overflow-y: auto; margin: 0 -8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px;
+  border: 0; border-radius: var(--yzj-r-pill); background: var(--yzj-bg-sunk);
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink); cursor: pointer;
+}
+.chip:hover { background: var(--yzj-hover); }
+.check { display: flex; align-items: center; gap: 8px; font-size: var(--yzj-fs-sm); color: var(--yzj-ink); cursor: pointer; }
+.check input { margin: 0; }
+.formActions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.formCount { flex: 1; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.primary {
+  height: 32px; padding: 0 14px; border: 0; border-radius: var(--yzj-r-md);
+  background: var(--yzj-solid); color: var(--yzj-on-solid);
+  font: inherit; font-size: var(--yzj-fs-sm); font-weight: 600; cursor: pointer;
+}
+.primary:disabled { opacity: .4; cursor: default; }
+.ghost {
+  height: 32px; padding: 0 12px; border: 0; border-radius: var(--yzj-r-md); background: none;
+  font: inherit; font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2); cursor: pointer;
+}
+.ghost:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
