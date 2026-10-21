@@ -321,6 +321,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   }, [window_.cards])
 
   const topic = window_.topic
+  /** 这个话题在一间私聊里：听众是一个人，处处说「发给李婷」，不说「发到群里」。 */
+  const direct = topic?.conversationKind === 'direct'
   const rows = useMemo(
     () => buildStream(
       nodes, window_.messages, window_.cards, window_.artifacts, topic !== undefined,
@@ -734,7 +736,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           kind: 'risk',
           who: unheard,
           text: `${unheard}听不见这句——只有你和${AGENT}看得见，这件事不会算到${unheard}头上。`,
-          fix: { label: '改为发到群里', run: () => { setVoice('place'); boxRef.current?.focus() } },
+          fix: { label: direct ? `改为发给${topic?.groupName ?? '对方'}` : '改为发到群里', run: () => { setVoice('place'); boxRef.current?.focus() } },
         }
         : pendingRegister !== undefined && voice === 'place'
           ? { kind: 'register', ...registrationLine(draft, pendingRegister), drop: () => { setPendingRegister(undefined) } }
@@ -759,12 +761,12 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
                   ? { kind: 'context', text: `为「${pendingEvent}」准备——只是提示，这个话题不会因此挂到这场会上。`, drop: () => { setPendingEvent(undefined) } }
                   : undefined
   const sendLabel = voice === 'place'
-    ? '发到群里'
+    ? direct ? `发给${topic?.groupName ?? '对方'}` : '发到群里'
     : voice === 'ask'
       ? '快问'
       : unheard !== undefined ? `仍只发给${AGENT}` : `发给${AGENT}`
   const placeholder = voice === 'place'
-    ? replyTo === undefined ? `发到「${topic?.groupName ?? '群里'}」…` : `回复 ${replyTo.who}…`
+    ? replyTo === undefined ? direct ? `发给${topic?.groupName ?? '对方'}…` : `发到「${topic?.groupName ?? '群里'}」…` : `回复 ${replyTo.who}…`
     : voice === 'ask'
       ? '问一个数…'
       : running ? `${AGENT}在做，这句会插进去…` : `对${AGENT}说…${window_.privateHint ?? ''}`
@@ -917,6 +919,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           context={{
             now: tick,
             hasPlace: topic !== undefined,
+            directWith: direct ? topic?.groupName : undefined,
             inject,
             sessionId,
             openWork,
@@ -965,7 +968,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
               void inject.sendToPlace(sessionId, text).then((result) => {
                 setBusy(false)
                 if (result.error !== undefined) say(result.error)
-                else setToast(`已以你的名义发到「${topic?.groupName ?? '群里'}」。`)
+                else setToast(direct ? `已以你的名义发给${topic?.groupName ?? '对方'}。` : `已以你的名义发到「${topic?.groupName ?? '群里'}」。`)
                 void refresh()
               })
             },
@@ -1023,6 +1026,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         voices={topic === undefined ? ['private'] : ['private', 'place', 'ask']}
         setVoice={setVoice}
         placeName={topic?.groupName}
+        direct={direct}
         draft={draft}
         setDraft={setDraft}
         busy={busy}

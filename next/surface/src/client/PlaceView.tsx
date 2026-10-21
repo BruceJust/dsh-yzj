@@ -432,6 +432,9 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     .test(aliases.reduce((rest, alias) => rest.split(alias).join(' '), draft))
   const addressed = aliases.some(alias => draft.includes(alias))
     || (replyTo !== undefined && replyTo.agent === true && !mentionsPeople)
+  /** 私聊：听众是一个人。图标、听众标签、发送键都说「发给李婷」，不说「发到群里」。 */
+  const direct = newDm !== undefined || view.kind === 'direct'
+  const roomName = newDm?.name ?? (view.groupName || groupName)
   /** 本实例不在岗时，观察到的对群在岗的同侪实例——锚定条与发送键都按它说话。 */
   const peerOnDuty = view.presence?.peers[0]
 
@@ -510,7 +513,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           ? '转好了：新的一条从这句话算起。'
           : result.ignited === true
             ? '已发出，正在长出一个话题。'
-            : '已发到群里。'))
+            : direct ? `已发给${roomName}。` : '已发到群里。'))
       })
     }
     setBusy(false)
@@ -597,7 +600,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           <Icon name="chevL" size={14} />返回
         </button>
         <span className={css.headRule} />
-        <span className={css.icon}><Icon name={newDm === undefined ? 'hash' : 'users'} size={16} /></span>
+        <span className={css.icon}><Icon name={newDm !== undefined || view.kind === 'direct' ? 'user' : 'hash'} size={16} /></span>
         <span className={css.title}>{view.groupName || groupName}</span>
         <span className={css.sub}>
           {newDm === undefined
@@ -910,22 +913,23 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           voice="place"
           voices={['place']}
           setVoice={() => undefined}
-          placeName={view.groupName || groupName}
+          placeName={roomName}
+          direct={direct}
           draft={draft}
           setDraft={setDraft}
           busy={busy}
           send={send}
           boxRef={boxRef}
           hint={hint}
-          sendLabel={newDm !== undefined
-            ? `发给${newDm.name}`
+          sendLabel={direct
+            ? addressed && view.onDuty !== false ? `发给${roomName} · 交给${AGENT}` : `发给${roomName}`
             : addressed && view.onDuty !== false
               ? `发到群里 · 交给${AGENT}`
               : addressed && peerOnDuty !== undefined
                 ? `发到群里 · 由 ${peerOnDuty.name} 接`
                 : '发到群里'}
           placeholder={replyTo === undefined
-            ? `发到「${view.groupName || groupName}」…`
+            ? direct ? `发给${roomName}…` : `发到「${roomName}」…`
             : `回复 ${replyTo.who}…`}
           tools={(
             <>

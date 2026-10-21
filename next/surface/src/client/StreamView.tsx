@@ -37,6 +37,8 @@ export interface StreamContext {
   now: number
   /** 是否是云之家话题。本地会话没有群，也就没有私语带、没有「发到群里」。 */
   hasPlace: boolean
+  /** 私聊里是对方的名字：按钮说「发给李婷」「回私聊里看」，不说「发到群里」。 */
+  directWith?: string | undefined
   inject: SurfaceInject
   sessionId?: string | undefined
   openWork: Record<string, boolean>
@@ -174,8 +176,8 @@ function renderRow(row: StreamRow, context: StreamContext, runningWork: boolean)
                     </button>
                   )}
                 {context.hasPlace && (
-                  <button type="button" className={css.quoteMore} title="回群里看这段话的前后" onClick={context.openPlace}>
-                    在群里看<Icon name="chevR" size={12} />
+                  <button type="button" className={css.quoteMore} title="回去看这段话的前后" onClick={context.openPlace}>
+                    {context.directWith === undefined ? '在群里看' : '在私聊里看'}<Icon name="chevR" size={12} />
                   </button>
                 )}
               </div>
@@ -212,8 +214,14 @@ function renderRow(row: StreamRow, context: StreamContext, runningWork: boolean)
               {agent && row.voice === 'private' && (
                 <span className={css.verbs}>
                   {context.hasPlace && (
-                    <button type="button" className={css.verb} title="以你的名义把这段发到群里——发不发由你定" onClick={() => { context.publish(row.text) }}>
-                      <Icon name="users" size={14} />发到群里
+                    <button
+                      type="button"
+                      className={css.verb}
+                      title={context.directWith === undefined ? '以你的名义把这段发到群里——发不发由你定' : `以你的名义把这段发给${context.directWith}——发不发由你定`}
+                      onClick={() => { context.publish(row.text) }}
+                    >
+                      <Icon name={context.directWith === undefined ? 'users' : 'user'} size={14} />
+                      {context.directWith === undefined ? '发到群里' : `发给${context.directWith}`}
                     </button>
                   )}
                   <CopyButton text={row.text} className={css.verb} />
