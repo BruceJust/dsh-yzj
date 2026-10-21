@@ -20,7 +20,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { countedRows, foldNormalText, goalTitleOf, groupsOf, jumpTarget, matchWorkspaces, nudgeDraft, signalOf, sinceText, todayOf } from '../src/client/Board.tsx'
+import { countedRows, eventChipText, foldNormalText, goalTitleOf, groupsOf, jumpTarget, matchWorkspaces, nudgeDraft, signalOf, sinceText, todayOf } from '../src/client/Board.tsx'
 import type { BoardRowWire, BoardViewWire } from '../src/client/rpc.ts'
 import { cascadeLine, voidGate } from '../src/client/RepairVerbs.tsx'
 import {
@@ -1393,5 +1393,24 @@ describe('正常的总是收起来', () => {
   it('上面有不对劲的说「其余」，没有就说「都正常」', () => {
     expect(foldNormalText(3, 2)).toBe('其余 3 件正常')
     expect(foldNormalText(3, 0)).toBe('3 件都正常')
+  })
+})
+
+describe('今天条上那颗会', () => {
+  const NOW = new Date(2026, 9, 21, 10, 0).getTime()
+  const base = { eventId: 'ev-1', title: '竞品评审会', readiness: 'partial' as const, readinessLine: '', known: true }
+  const prep = (status: string, artifacts: number) => ({
+    commitmentId: `c-${status}-${String(artifacts)}`, what: 'x', who: '李婷', status,
+    artifacts: Array.from({ length: artifacts }, (_, index) => ({ uri: `https://s/${String(index)}`, title: 't' })),
+  })
+
+  it('带上哪天几点，材料按就绪/总数说；作废的不算分母', () => {
+    const event = { ...base, startAt: new Date(2026, 9, 22, 14, 0).getTime(), prepares: [prep('closed', 0), prep('open', 1), prep('open', 0), prep('voided', 0)] }
+    expect(eventChipText(event, NOW)).toBe('明天 14:00 竞品评审会 · 材料 2/3 就绪')
+  })
+
+  it('什么都没挂的会不上条', () => {
+    expect(eventChipText({ ...base, startAt: NOW + 3_600_000, prepares: [] }, NOW)).toBeUndefined()
+    expect(eventChipText({ ...base, startAt: NOW + 3_600_000, prepares: [prep('voided', 0)] }, NOW)).toBeUndefined()
   })
 })

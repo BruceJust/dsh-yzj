@@ -25,7 +25,7 @@ import { DeclareGoal } from './DeclareGoal.tsx'
 import { LedgerRow, StoryDock, useLedger, useRowKeys } from './LedgerRow.tsx'
 import { useBackKey } from './keys.ts'
 import { usePoll } from './poll.ts'
-import { TODAY_LABEL, TODAY_OF, UNUSUAL, foldNormalText, goalTitleOf, rowSub, signalOf, todayOf, type TodayKey } from './ledger.ts'
+import { TODAY_LABEL, TODAY_OF, UNUSUAL, eventChipText, foldNormalText, goalTitleOf, rowSub, signalOf, todayOf, type TodayKey } from './ledger.ts'
 import { Avatar } from './Avatar.tsx'
 import { AgentFace, Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
@@ -37,7 +37,7 @@ import css from './ledger.module.css'
 export { safeHref } from './preview.ts'
 export { matchWorkspaces } from './DeclareGoal.tsx'
 export {
-  TODAY_LABEL, foldNormalText, goalTitleOf, nudgeDraft, signalOf, sinceText, todayOf, type RowSignal, type SignalKey, type TodayKey,
+  TODAY_LABEL, eventChipText, foldNormalText, goalTitleOf, nudgeDraft, signalOf, sinceText, todayOf, type RowSignal, type SignalKey, type TodayKey,
 } from './ledger.ts'
 
 export interface BoardProps {
@@ -205,7 +205,9 @@ export function YzjBoard(props: BoardProps): ReactNode {
   }, [toast])
   const groups = useMemo(() => groupsOf(view, lens), [view, lens])
   const today = useMemo(() => todayOf(countedRows(view), now), [view, now])
-  const nextEvent = events.find(event => event.startAt === 0 || event.startAt + 60 * 60_000 > now)
+  // 只说挂了东西的会（见 `eventChipText`）。
+  const prepared = events.filter(event => (event.startAt === 0 || event.startAt + 60 * 60_000 > now) && eventChipText(event, now) !== undefined)
+  const nextEvent = prepared[0]
 
   const { spotlight, selected, docked, staged, actions } = useLedger({ inject, commission, openSession, refresh, say: setToast })
   useRowKeys(bodyRef, view.rows, selected)
@@ -460,9 +462,8 @@ export function YzjBoard(props: BoardProps): ReactNode {
               }}
             >
               <Icon name="calendar" size={13} />
-              {nextEvent.startAt === 0 ? '' : `${new Date(nextEvent.startAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })} `}
-              {nextEvent.title} · {nextEvent.readinessLine}
-              {events.length > 1 && <span className={css.chipMore}>还有 {events.length - 1} 场</span>}
+              {eventChipText(nextEvent, now)}
+              {prepared.length > 1 && <span className={css.chipMore}>还有 {prepared.length - 1} 场</span>}
               <Icon name="chevR" size={12} />
             </button>
           )}

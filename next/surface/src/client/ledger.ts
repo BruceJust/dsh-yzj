@@ -5,8 +5,8 @@
  * 迟早有一页说「逾期」而另一页说「等你」。
  */
 
-import type { BoardRowWire } from './rpc.ts'
-import { AGENT } from './words.ts'
+import type { BoardEventWire, BoardRowWire } from './rpc.ts'
+import { AGENT, dueDayText } from './words.ts'
 
 const SOON_MS = 36 * 60 * 60_000
 const DAY_MS = 24 * 60 * 60_000
@@ -156,4 +156,19 @@ export function goalTitleOf(ref: string): string {
     // 不是链接：它本身可能就是个名字。
     return named(ref.trim())
   }
+}
+
+/**
+ * 今天条上那颗会：「明天 14:00 竞品评审会 · 材料 2/3 就绪」。
+ *
+ * 只给挂了要准备的事的会——一场什么都没挂的会不是今天要你知道的事，它在日历里；
+ * 往会上挂东西是跟云小助说一句「把 X 挂到明天的评审会」。就绪 = 那件留下了东西或者
+ * 办完了；作废了的不算在分母里。
+ */
+export function eventChipText(event: BoardEventWire, now: number = Date.now()): string | undefined {
+  const counted = event.prepares.filter(prep => prep.status !== 'voided')
+  if (counted.length === 0) return undefined
+  const ready = counted.filter(prep => prep.status === 'closed' || prep.artifacts.length > 0).length
+  const when = event.startAt === 0 ? '' : `${dueDayText(event.startAt, now)} `
+  return `${when}${event.title} · 材料 ${String(ready)}/${String(counted.length)} 就绪`
 }
