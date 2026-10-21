@@ -143,10 +143,10 @@ export const sameRef = (left: CardRefWire | undefined, right: CardRefWire | unde
  * 话题行右边那一个信号。活还开着、却没有一回合在跑 = 停着，不转圈：转圈说的是「此刻在跑」，
  * 一件十一个小时没人动的活转着圈，是这一栏能说的另一句假话（实测 dsh-2 那一条）。
  */
-function signalOf(tone: TopicTone, live: boolean): 'need' | 'run' | 'still' | undefined {
+function signalOf(tone: TopicTone, openWork: boolean, turning: boolean): 'need' | 'run' | 'still' | undefined {
   if (tone === 'confirm' || tone === 'review') return 'need'
-  if (live) return 'run'
-  if (tone === 'running') return 'still'
+  if (turning) return 'run'
+  if (tone === 'running' || openWork) return 'still'
   return undefined
 }
 
@@ -514,7 +514,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     >
       <span className={css.subLine} />
       <span className={css.title}>{stealth ? '一个话题' : row.title}</span>
-      <Signal kind={signalOf(row.tone, row.live === true || hostById[row.sessionId]?.running === true)} />
+      <Signal kind={signalOf(row.tone, row.live === true, hostById[row.sessionId]?.running === true)} />
     </button>
   )
 
@@ -556,7 +556,9 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     const topics = place?.topics ?? []
     // 自聊行的未读不算「有人找你」：它的可应答流量已在「要你」里，私账消息读即清。
     const unread = stealth || row.selfChat ? 0 : row.unread
-    const signal = place === undefined ? undefined : signalOf(place.tone, topics.some(topic => topic.live === true || hostById[topic.sessionId]?.running === true))
+    const signal = place === undefined
+      ? undefined
+      : signalOf(place.tone, topics.some(topic => topic.live === true), topics.some(topic => hostById[topic.sessionId]?.running === true))
     return (
       <div key={row.placeKey} className={css.place}>
         <button
