@@ -1,0 +1,1468 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工作台重设计 · 原型</title>
+<style>
+/* ───────────────────────── tokens ─────────────────────────
+   两族语义色是承重的：蓝 = 别人听得见（公），纸 = 只有你和 agent（私）。
+   其余颜色只给异常：琥珀 = 要你，红 = 逾期/失败，绿 = 刚做完。运行中不是异常，用动效。 */
+:root{
+  --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --fs-xs:12px;--fs-sm:13px;--fs-md:14px;--fs-lg:16px;--fs-xl:20px;--fs-2xl:24px;
+  --r-sm:6px;--r-md:10px;--r-lg:14px;
+
+  --bg:#FFFFFF;--bg-sunk:#F6F7F9;--bg-hover:#F1F2F5;--bg-press:#E9EBEF;--bg-raised:#FFFFFF;
+  --ink:#1D2129;--ink-2:#4E5969;--ink-3:#86909C;--ink-4:#C2C7D0;
+  --line:#E5E6EB;--line-2:#EFF0F3;
+  --pub:#2E63D9;--pub-ink:#1E4FBD;--pub-tint:#EEF3FE;--pub-line:#C9DBFA;
+  --pri-bg:#FBF7EE;--pri-rail:#E3D3AE;--pri-ink:#7A5E2E;--pri-line:#ECE2CB;
+  --need:#E08A00;--need-ink:#A85A00;--need-bg:#FFF4E0;
+  --late:#D92D20;--late-bg:#FDECEA;
+  --ok:#12A150;--ok-bg:#E7F6EE;
+  --shadow-1:0 1px 2px rgb(16 24 40/6%);
+  --shadow-2:0 12px 32px rgb(16 24 40/16%),0 1px 3px rgb(16 24 40/8%);
+  --demo:#14161A;
+  color-scheme:light;
+}
+[data-theme=dark]{
+  --bg:#18191C;--bg-sunk:#131417;--bg-hover:#222327;--bg-press:#2A2C31;--bg-raised:#1E1F23;
+  --ink:#E8E9EC;--ink-2:#AEB2BB;--ink-3:#7C818C;--ink-4:#474B54;
+  --line:#2B2D32;--line-2:#232529;
+  --pub:#6E9BFF;--pub-ink:#9DBBFF;--pub-tint:rgb(110 155 255/12%);--pub-line:rgb(110 155 255/30%);
+  --pri-bg:#211E17;--pri-rail:#5C4D2E;--pri-ink:#D8C08A;--pri-line:#3A3324;
+  --need:#F5A524;--need-ink:#F7B955;--need-bg:rgb(245 165 36/13%);
+  --late:#FF6B5E;--late-bg:rgb(255 107 94/13%);
+  --ok:#3CCB7F;--ok-bg:rgb(60 203 127/13%);
+  --shadow-2:0 12px 32px rgb(0 0 0/55%),0 0 0 1px #2B2D32;
+  --demo:#0B0C0E;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg-sunk);color:var(--ink);font:var(--fs-md)/1.55 var(--font);-webkit-font-smoothing:antialiased;overflow:hidden;display:flex;flex-direction:column;height:100vh}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--pub);outline-offset:2px;border-radius:6px}
+.ic{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+.ic.sm{width:14px;height:14px;vertical-align:-2px}
+.ic.lg{width:18px;height:18px}
+kbd{font:500 11px/1 var(--mono);color:var(--ink-3);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:2px 4px;background:var(--bg)}
+.muted{color:var(--ink-3)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ───────────── demo chrome（不是产品的一部分） ───────────── */
+.demobar{height:48px;flex:none;background:var(--demo);color:#C9CDD4;display:flex;align-items:center;gap:6px;padding:0 12px;font-size:var(--fs-sm);position:relative;z-index:5}
+.demobar .tag{font:600 12px/1 var(--mono);color:#fff;letter-spacing:.02em;margin-right:6px;white-space:nowrap}
+.demobar .tag em{font-style:normal;color:#8B93A3;font-weight:400}
+.steps{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.steps::-webkit-scrollbar{display:none}
+.step{white-space:nowrap;padding:6px 10px;border-radius:999px;color:#AEB4BF;font-size:var(--fs-sm)}
+.step b{font-weight:600;color:#6F7785;margin-right:4px}
+.step:hover{background:#23262C;color:#fff}
+.step.on{background:#fff;color:#14161A}
+.step.on b{color:#14161A}
+.demobar .tool{padding:6px 8px;border-radius:8px;color:#AEB4BF;display:flex;gap:6px;align-items:center;white-space:nowrap}
+.demobar .tool:hover{background:#23262C;color:#fff}
+.story{flex:none;background:#1C1F24;color:#E6E8EC;border-top:1px solid #2A2E35;padding:10px 16px 12px;font-size:var(--fs-md);line-height:1.65;display:flex;gap:14px;align-items:flex-start}
+.story[hidden]{display:none}
+.story .sn{font:600 12px/23px var(--mono);color:#8B93A3;white-space:nowrap}
+.story p{margin:0;flex:1;max-width:1100px}
+.story p small{display:block;color:#9AA1AD;font-size:var(--fs-sm);margin-top:2px}
+.story p small::before{content:"设计 · ";color:#6F7785}
+.story .x{color:#8B93A3;padding:2px;align-self:center}
+.story .x:hover{color:#fff}
+.story .nx{white-space:nowrap;background:#fff;color:#14161A;border-radius:8px;padding:4px 10px;font-size:var(--fs-sm);font-weight:600;align-self:center;margin-left:auto}
+
+/* ───────────── 宿主三栏几何（左 280 / 中 ≥640 / 右 360–520） ───────────── */
+.app{position:relative;display:grid;grid-template-columns:280px minmax(0,1fr) var(--rw,360px);flex:1;min-height:0;transition:grid-template-columns .2s ease}
+.app[data-right=off]{--rw:0px}
+.app[data-right=wide]{--rw:500px}
+.left{background:var(--bg-sunk);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;min-width:0}
+.host-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px}
+.wordmark{font:700 15px/1 var(--mono);letter-spacing:-.02em}
+.wordmark i{font-style:normal;color:var(--pub)}
+.host-btn{color:var(--ink-3);padding:4px;border-radius:6px}
+.host-btn:hover{background:var(--bg-hover);color:var(--ink)}
+.host-new{margin:0 12px 8px;display:flex;align-items:center;justify-content:center;gap:6px;height:34px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:var(--fs-sm);color:var(--ink-2)}
+.host-new:hover{border-color:var(--ink-4);color:var(--ink)}
+.host-foot{padding:10px 16px;border-top:1px solid var(--line);color:var(--ink-2);font-size:var(--fs-sm);display:flex;gap:8px;align-items:center}
+.host-note{font-size:11px;color:var(--ink-4);letter-spacing:.02em;padding:0 16px 4px}
+main{background:var(--bg);display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+.right{background:var(--bg);border-left:1px solid var(--line);min-height:0;min-width:0;overflow:hidden;display:flex;flex-direction:column}
+.app[data-right=off] .right{border-left:0}
+
+/* ───────────── 左栏：我们的区域 ───────────── */
+.nav{flex:1;overflow:auto;padding:4px 8px 16px;min-height:0;scrollbar-width:thin}
+.jump{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border-radius:8px;color:var(--ink-3);font-size:var(--fs-sm);margin-bottom:10px;background:var(--bg-hover)}
+.jump:hover{color:var(--ink-2);background:var(--bg-press)}
+.jump kbd{margin-left:auto}
+.sec{display:flex;align-items:center;justify-content:space-between;padding:14px 8px 4px;font-size:var(--fs-xs);color:var(--ink-3);font-weight:500}
+.sec .n{font-variant-numeric:tabular-nums}
+.sec.need{color:var(--need-ink)}
+.sec.need .n{background:var(--need);color:#fff;border-radius:999px;min-width:18px;height:18px;display:inline-grid;place-items:center;padding:0 5px;font-size:11px;font-weight:600}
+.nrow{display:grid;grid-template-columns:14px 1fr;gap:2px 8px;width:100%;text-align:left;padding:7px 8px;border-radius:8px;align-items:center}
+.nrow:hover{background:var(--bg-hover)}
+.nrow.on{background:var(--bg-press)}
+.nrow .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-sm)}
+.nrow .t b{font-weight:600}
+.nrow .m{grid-column:2;font-size:var(--fs-xs);color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:-2px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.dot.need{background:var(--need);box-shadow:0 0 0 3px var(--need-bg)}
+.dot.late{background:var(--late)}
+.spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink-4);border-top-color:var(--ink-2);display:inline-block;animation:sp 1s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+.zero{display:flex;align-items:center;gap:8px;padding:8px;color:var(--ink-3);font-size:var(--fs-sm)}
+.zero .ic{color:var(--ok)}
+.navlink{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border-radius:8px;font-size:var(--fs-sm);color:var(--ink)}
+.navlink:hover{background:var(--bg-hover)}
+.navlink.on{background:var(--bg-press);font-weight:500}
+.navlink .ic{color:var(--ink-3)}
+.navlink .r{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3);font-variant-numeric:tabular-nums}
+.navlink .r.late{color:var(--late);font-weight:500}
+.place{display:flex;align-items:center;gap:10px;width:100%;padding:6px 8px;border-radius:8px;font-size:var(--fs-sm);text-align:left}
+.place:hover{background:var(--bg-hover)}
+.place.on{background:var(--bg-press);font-weight:500}
+.place .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.place .r{display:flex;gap:6px;align-items:center;font-size:var(--fs-xs);color:var(--ink-3);font-variant-numeric:tabular-nums}
+.gicon{width:22px;height:22px;border-radius:6px;background:var(--bg-press);color:var(--ink-2);display:grid;place-items:center;flex:none}
+.gicon .ic{width:13px;height:13px}
+.sub{display:flex;align-items:center;gap:8px;width:100%;padding:5px 8px 5px 40px;border-radius:8px;font-size:var(--fs-sm);color:var(--ink-2);text-align:left;position:relative}
+.sub::before{content:"";position:absolute;left:19px;top:0;bottom:0;border-left:1px solid var(--line)}
+.sub:hover{background:var(--bg-hover);color:var(--ink)}
+.sub.on{background:var(--bg-press);color:var(--ink);font-weight:500}
+.sub .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cold{display:flex;align-items:center;gap:10px;width:100%;padding:6px 8px;border-radius:8px;font-size:var(--fs-sm);color:var(--ink-3)}
+.cold:hover{background:var(--bg-hover);color:var(--ink-2)}
+.cold .ic{margin-left:auto}
+.unread{font-size:11px;color:var(--ink-3)}
+
+/* avatars */
+.av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:600;flex:none;letter-spacing:0}
+.av.s{width:22px;height:22px;font-size:11px}
+.av.xs{width:18px;height:18px;font-size:10px}
+.av.ai{background:linear-gradient(135deg,#5B7CFA,#8E63F5);}
+.av.ai .ic{width:60%;height:60%;stroke:#fff;fill:#fff;stroke-width:1}
+
+/* ───────────── 中栏 ───────────── */
+.mh{display:flex;align-items:center;gap:12px;padding:0 24px;height:56px;border-bottom:1px solid var(--line-2);flex:none}
+.crumb{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+.crumb .up{color:var(--ink-3);font-size:var(--fs-md);white-space:nowrap}
+.crumb .up:hover{color:var(--ink)}
+.crumb .sl{color:var(--ink-4)}
+.crumb h1{font-size:var(--fs-lg);font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crumb .sub2{font-size:var(--fs-sm);color:var(--ink-3);white-space:nowrap}
+.back{display:inline-flex;align-items:center;gap:2px;color:var(--ink-3);padding:4px 6px 4px 2px;border-radius:6px;margin-left:-6px;white-space:nowrap}
+.back:hover{background:var(--bg-hover);color:var(--ink)}
+.status{display:flex;align-items:center;gap:6px;font-size:var(--fs-sm);color:var(--ink-2);padding:4px 8px;border-radius:8px;white-space:nowrap}
+.status:hover{background:var(--bg-hover)}
+.status i{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.iconbtn{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
+.iconbtn:hover{background:var(--bg-hover);color:var(--ink)}
+.dbar{display:flex;align-items:center;gap:8px;padding:8px 24px;border-bottom:1px solid var(--line-2);font-size:var(--fs-sm);background:var(--bg);flex:none;min-width:0}
+.dbar .lbl{color:var(--need-ink);font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.dbar .ptr{color:var(--ink);padding:3px 8px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.dbar .ptr:hover{background:var(--need-bg)}
+.dbar .ptr b{font-weight:600;color:var(--need-ink);margin-right:4px}
+
+.stream{flex:1;overflow:auto;min-height:0;scroll-behavior:smooth}
+.sw{max-width:760px;margin:0 auto;padding:12px 24px 40px}
+.day{display:flex;align-items:center;gap:12px;color:var(--ink-3);font-size:var(--fs-xs);margin:18px 0 6px}
+.day::before,.day::after{content:"";flex:1;border-top:1px solid var(--line-2)}
+.msg{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:6px 0}
+.msg .who{display:flex;gap:8px;align-items:baseline;font-size:var(--fs-sm)}
+.msg .who b{font-weight:600}
+.msg .who time{color:var(--ink-3);font-size:var(--fs-xs)}
+.msg .who .aud{font-size:var(--fs-xs);color:var(--ink-3)}
+.msg .tx{white-space:pre-wrap;word-break:break-word}
+.mention{color:var(--pub);font-weight:500}
+.ack{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:4px 8px 4px 6px;border-radius:8px;background:var(--bg-sunk);font-size:var(--fs-sm);color:var(--ink-2)}
+.ack .ic{color:var(--ok)}
+.ack button{color:var(--ink-3);margin-left:2px}
+.ack button:hover{color:var(--pub)}
+.band{margin:10px -14px;padding:6px 14px 8px;background:var(--pri-bg);border-radius:12px;box-shadow:inset 3px 0 0 var(--pri-rail)}
+.band-h{display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);color:var(--pri-ink);padding:4px 0 2px;font-weight:500}
+.work{margin:4px 0 4px 40px;border-radius:10px;font-size:var(--fs-sm)}
+.work summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-2);padding:4px 8px;margin-left:-8px;border-radius:8px;width:max-content;max-width:100%}
+.work summary::-webkit-details-marker{display:none}
+.work summary:hover{background:var(--bg-hover)}
+.work summary .ic.chev{transition:transform .15s}
+.work[open] summary .ic.chev{transform:rotate(90deg)}
+.work ol{list-style:none;margin:4px 0 2px;padding:0 0 0 2px}
+.work li{display:flex;align-items:center;gap:10px;padding:3px 0;color:var(--ink-2)}
+.work li code{margin-left:auto;font:11.5px/1 var(--mono);color:var(--ink-3)}
+.work li .ic{color:var(--ok)}
+.work li.run{color:var(--ink)}
+.work li.wait{color:var(--need-ink)}
+.work li.todo{color:var(--ink-3)}
+.work .full{color:var(--ink-3);font-size:var(--fs-xs);margin:2px 0 0 0}
+.work .full:hover{color:var(--pub)}
+.ring{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--ink-4);flex:none}
+
+/* artifact chip */
+.art{display:flex;align-items:center;gap:12px;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;max-width:440px;background:var(--bg-raised)}
+.art .fi{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:var(--pub-tint);color:var(--pub);flex:none}
+.art .fi.sheet{background:var(--ok-bg);color:var(--ok)}
+.art .an{flex:1;min-width:0}
+.art .an b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.art .an span{font-size:var(--fs-xs);color:var(--ink-3)}
+.art .acts{display:flex;gap:4px}
+
+/* ───────────── 卡：一套语法 ───────────── */
+.card{margin:10px 0 10px 40px;border:1px solid var(--line);border-radius:14px;background:var(--bg-raised);box-shadow:var(--shadow-1);overflow:hidden;scroll-margin:120px}
+.card.open{border-color:color-mix(in srgb,var(--need) 45%,var(--line))}
+.card.focus{box-shadow:0 0 0 2px color-mix(in srgb,var(--need) 28%,transparent),var(--shadow-1)}
+.card.flash{animation:fl 1.4s ease}
+@keyframes fl{0%,40%{box-shadow:0 0 0 5px color-mix(in srgb,var(--need) 30%,transparent)}100%{box-shadow:0 0 0 2px color-mix(in srgb,var(--need) 28%,transparent)}}
+.ch{display:flex;align-items:center;gap:10px;padding:14px 16px 0}
+.ctag{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:600;color:var(--need-ink);white-space:nowrap}
+.ch .vis{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3);display:flex;gap:4px;align-items:center;white-space:nowrap}
+.ct{padding:6px 16px 0;font-size:var(--fs-lg);font-weight:600;line-height:1.45}
+.cwhy{padding:4px 16px 0;color:var(--ink-2);font-size:var(--fs-sm)}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:12px 16px 0;padding:12px 14px;background:var(--bg-sunk);border-radius:10px;font-size:var(--fs-sm)}
+.facts dt{color:var(--ink-3)}
+.facts dd{margin:0}
+.cf{display:flex;align-items:center;gap:8px;padding:14px 16px;flex-wrap:wrap}
+.cf .also{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3)}
+.btn{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);font-size:var(--fs-sm);font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--bg-hover);border-color:var(--ink-4)}
+.btn kbd{font-size:10.5px;padding:1px 4px}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.btn.pri:hover{opacity:.88}
+.btn.pri kbd{background:transparent;color:inherit;opacity:.6;border-color:currentColor}
+.btn.ghost{border-color:transparent;color:var(--ink-2)}
+.btn.ghost:hover{background:var(--bg-hover);color:var(--ink)}
+.btn.danger{color:var(--late)}
+.btn.sm{height:28px;padding:0 10px;font-size:var(--fs-xs)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.items{margin:12px 16px 0;border:1px solid var(--line-2);border-radius:10px}
+.item{display:grid;grid-template-columns:22px 1fr;gap:4px 10px;padding:12px 14px;border-top:1px solid var(--line-2)}
+.item:first-child{border-top:0}
+.item.focus{background:var(--bg-sunk)}
+.item .num{font:600 12px/20px var(--mono);color:var(--ink-3)}
+.item .it{font-weight:500}
+.item .id{grid-column:2;font-size:var(--fs-sm);color:var(--ink-2)}
+.item .opts{grid-column:2;display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.opt{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line);font-size:var(--fs-xs);display:inline-flex;align-items:center;gap:6px;background:var(--bg)}
+.opt:hover{border-color:var(--ink-4)}
+.opt kbd{font-size:10px;padding:0 3px;border-bottom-width:1px}
+.opt.sel{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.opt.sel kbd{color:inherit;border-color:currentColor;background:transparent;opacity:.6}
+.strip{margin:0 16px 14px;padding:10px 12px;border-radius:10px;background:var(--need-bg);font-size:var(--fs-sm);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.strip p{margin:0;flex:1;min-width:200px}
+.reason{margin:0 16px 14px;display:flex;flex-direction:column;gap:8px}
+.reason textarea{width:100%;min-height:64px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);outline:none}
+.reason textarea:focus{border-color:var(--pub)}
+.reason .rf{display:flex;gap:8px;align-items:center}
+.reason .rf span{font-size:var(--fs-xs);color:var(--ink-3);margin-right:auto}
+.absorbed{display:flex;align-items:center;gap:8px;margin:6px 0 6px 40px;padding:8px 12px;border-radius:10px;background:var(--bg-sunk);font-size:var(--fs-sm);color:var(--ink-2)}
+.absorbed .ic{color:var(--ok)}
+.absorbed b{font-weight:500;color:var(--ink)}
+.absorbed time{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3)}
+
+/* topic card in place view */
+.tcard{display:flex;align-items:center;gap:12px;margin:8px 0 8px 40px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;width:calc(100% - 40px);text-align:left;background:var(--bg-raised)}
+.tcard:hover{border-color:var(--ink-4)}
+.tcard .tn{flex:1;min-width:0}
+.tcard .tn b{display:block;font-weight:500}
+.tcard .tn span{font-size:var(--fs-xs);color:var(--ink-3)}
+.tcard .tsig{font-size:var(--fs-xs);display:flex;align-items:center;gap:6px;white-space:nowrap;color:var(--ink-2)}
+.tcard .tsig.need{color:var(--need-ink);font-weight:600}
+
+/* ───────────── composer ───────────── */
+.composer{flex:none;padding:0 24px 18px}
+.cw{max-width:760px;margin:0 auto;border:1px solid var(--line);border-radius:14px;background:var(--bg);transition:border-color .15s,background .15s,box-shadow .15s}
+.cw:focus-within{box-shadow:0 0 0 3px var(--line-2)}
+.composer.pri .cw{background:var(--pri-bg);border-color:var(--pri-line)}
+.composer.pri .cw:focus-within{border-color:var(--pri-rail);box-shadow:0 0 0 3px color-mix(in srgb,var(--pri-rail) 30%,transparent)}
+.composer.pub .cw{border-color:var(--pub-line)}
+.composer.pub .cw:focus-within{border-color:var(--pub);box-shadow:0 0 0 3px var(--pub-tint)}
+.composer.ask .cw{border-style:dashed}
+.cchip{display:flex;align-items:center;gap:8px;margin:10px 12px 0;padding:6px 10px;border-radius:8px;background:var(--bg-sunk);font-size:var(--fs-sm);color:var(--ink-2)}
+.cchip .ic{color:var(--ink-3)}
+.cchip b{font-weight:500;color:var(--ink)}
+.cchip .x{margin-left:auto;color:var(--ink-3)}
+.cchip .x:hover{color:var(--ink)}
+.composer textarea{display:block;width:100%;border:0;background:transparent;resize:none;outline:none;padding:12px 14px 4px;min-height:52px;max-height:200px;line-height:1.6}
+.composer textarea::placeholder{color:var(--ink-3)}
+.cbar{display:flex;align-items:center;gap:4px;padding:6px 8px 8px}
+.aud{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 8px 0 9px;border-radius:999px;font-size:var(--fs-xs);font-weight:500;white-space:nowrap}
+.composer.pri .aud{background:color-mix(in srgb,var(--pri-rail) 35%,transparent);color:var(--pri-ink)}
+.composer.pub .aud{background:var(--pub-tint);color:var(--pub-ink)}
+.aud:hover{filter:brightness(.97)}
+.aud .ic.chev{width:12px;height:12px;opacity:.7}
+.tog{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 9px;border-radius:999px;font-size:var(--fs-xs);color:var(--ink-3)}
+.tog:hover{background:var(--bg-hover);color:var(--ink-2)}
+.tog.on{background:var(--ink);color:var(--bg)}
+.cbar .sp{flex:1}
+.cbar .hint{font-size:11px;color:var(--ink-3);margin-right:6px;white-space:nowrap}
+.send{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:9px;font-size:var(--fs-sm);font-weight:600;white-space:nowrap}
+.composer.pri .send{background:var(--pri-ink);color:var(--pri-bg)}
+.composer.pub .send{background:var(--pub);color:#fff}
+.send[disabled]{opacity:.4;cursor:default}
+.audmenu{position:absolute;z-index:30;width:300px;background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-2);padding:6px}
+.audmenu button{display:grid;grid-template-columns:20px 1fr auto;gap:2px 10px;width:100%;padding:8px 10px;border-radius:8px;text-align:left;align-items:center}
+.audmenu button:hover,.audmenu button.on{background:var(--bg-hover)}
+.audmenu b{font-weight:500;font-size:var(--fs-sm)}
+.audmenu span{grid-column:2;font-size:var(--fs-xs);color:var(--ink-3)}
+.audmenu .ic.ck{color:var(--pub);grid-row:1}
+
+/* ───────────── 承诺 ───────────── */
+.board .sw,.goalp .sw{max-width:960px}
+.seg{display:inline-flex;padding:3px;background:var(--bg-hover);border-radius:10px;gap:2px}
+.seg button{height:28px;padding:0 12px;border-radius:7px;font-size:var(--fs-sm);color:var(--ink-2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:var(--bg);color:var(--ink);font-weight:500;box-shadow:var(--shadow-1)}
+.seg button.mine.on{background:var(--pri-bg);color:var(--pri-ink)}
+.today{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}
+.tchip{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;background:var(--bg-sunk);font-size:var(--fs-sm);color:var(--ink-2)}
+.tchip:hover{background:var(--bg-hover);color:var(--ink)}
+.tchip b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.tchip.late b{color:var(--late)}
+.tchip.need b{color:var(--need-ink)}
+.grp{margin-top:28px}
+.gh{display:flex;align-items:baseline;gap:12px;padding:0 8px 8px;border-bottom:1px solid var(--line-2)}
+.gh .gt{font-size:var(--fs-lg);font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.gh .gt:hover{color:var(--pub)}
+.gh .gm{font-size:var(--fs-sm);color:var(--ink-3)}
+.gh .gc{margin-left:auto;font-size:var(--fs-sm);color:var(--ink-3);white-space:nowrap}
+.gh .gc .late{color:var(--late)}
+.crit{padding:8px 8px 4px;font-size:var(--fs-sm);color:var(--ink-2)}
+.crit b{font-weight:500;color:var(--ink-3);margin-right:8px}
+.row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 8px;border-radius:10px;cursor:pointer;position:relative}
+.row:hover,.row.sel{background:var(--bg-hover)}
+.row.sel{box-shadow:inset 3px 0 0 var(--ink)}
+.row .rt{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .rm{font-size:var(--fs-xs);color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .rm .gtag{color:var(--ink-2)}
+.sig{font-size:var(--fs-sm);white-space:nowrap;display:flex;align-items:center;gap:6px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.sig.need{color:var(--need-ink);font-weight:600}
+.sig.late{color:var(--late);font-weight:600}
+.sig.stale{color:var(--need-ink)}
+.sig.done{color:var(--ok)}
+.sig.run{color:var(--ink-2)}
+.row .verbs{display:none;gap:4px;align-items:center}
+.row:hover .verbs{display:flex}
+.row:hover .sig.hideable{display:none}
+.donefold{margin:6px 8px 0;font-size:var(--fs-sm);color:var(--ink-3);display:inline-flex;gap:4px;align-items:center}
+.donefold:hover{color:var(--ink)}
+.row.done .rt{color:var(--ink-3);font-weight:400}
+.whohead{display:flex;align-items:center;gap:10px;padding:0 8px 8px;border-bottom:1px solid var(--line-2)}
+.whohead b{font-size:var(--fs-lg);font-weight:600}
+.whohead span{font-size:var(--fs-sm);color:var(--ink-3)}
+
+/* goal page */
+.hero{padding:24px 0 8px}
+.eyebrow{font-size:var(--fs-sm);color:var(--ink-3);display:flex;gap:8px;align-items:center}
+.hero h1{font-size:var(--fs-2xl);margin:6px 0 10px;font-weight:650;letter-spacing:-.01em}
+.hero .crit2{font-size:var(--fs-md);color:var(--ink);padding:12px 14px;background:var(--bg-sunk);border-radius:10px}
+.hero .crit2 b{color:var(--ink-3);font-weight:500;margin-right:10px;font-size:var(--fs-sm)}
+.gfacts{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0 0;font-size:var(--fs-sm);color:var(--ink-2)}
+.gfacts span b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.gfacts .late b{color:var(--late)}
+.gfacts a{color:var(--pub);text-decoration:none;display:inline-flex;gap:4px;align-items:center}
+.alert{display:flex;gap:10px;align-items:center;margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--need-bg);font-size:var(--fs-sm)}
+.alert .ic{color:var(--need-ink)}
+.alert p{margin:0;flex:1}
+.gacts{display:flex;gap:8px;margin-top:16px}
+.h3{font-size:var(--fs-sm);font-weight:600;color:var(--ink-2);margin:28px 0 6px;padding:0 8px;display:flex;gap:8px;align-items:center}
+.h3 .n{color:var(--ink-3);font-weight:400}
+.ptrrow{display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:10px;width:100%;text-align:left}
+.ptrrow:hover{background:var(--need-bg)}
+.ptrrow b{font-weight:600;color:var(--need-ink)}
+.ptrrow .pm{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3)}
+
+/* judg */
+.judg{background:var(--pri-bg)}
+.judg .mh{border-color:var(--pri-line)}
+.jnote{display:flex;gap:8px;align-items:center;font-size:var(--fs-sm);color:var(--pri-ink);margin:16px 0 0}
+.jg{margin-top:26px}
+.jg h4{margin:0 0 4px;font-size:var(--fs-md);font-weight:600}
+.jg .line{font-size:var(--fs-sm);color:var(--ink-2)}
+.jg .line b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.pledge{display:flex;gap:12px;align-items:flex-start;margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--pri-line)}
+.pledge q{quotes:"「" "」";font-weight:500}
+.pledge .pm{font-size:var(--fs-xs);color:var(--ink-3);margin-top:4px}
+.pledge .ps{margin-left:auto;font-size:var(--fs-xs);color:var(--pri-ink);white-space:nowrap}
+
+/* ───────────── 右栏 ───────────── */
+.rh{display:flex;align-items:center;gap:8px;padding:0 16px;height:56px;border-bottom:1px solid var(--line-2);flex:none}
+.rh h2{font-size:var(--fs-md);font-weight:600;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs{display:flex;gap:2px}
+.tabs button{height:28px;padding:0 10px;border-radius:7px;font-size:var(--fs-sm);color:var(--ink-3)}
+.tabs button:hover{color:var(--ink)}
+.tabs button.on{background:var(--bg-hover);color:var(--ink);font-weight:500}
+.rb{flex:1;overflow:auto;padding:12px 16px 24px;min-height:0}
+.olist{display:flex;flex-direction:column;gap:2px}
+.orow{display:flex;gap:12px;align-items:center;padding:10px 8px;border-radius:10px;text-align:left;width:100%}
+.orow:hover{background:var(--bg-hover)}
+.orow .fi{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--pub-tint);color:var(--pub);flex:none}
+.orow .fi.sheet{background:var(--ok-bg);color:var(--ok)}
+.orow .on2{flex:1;min-width:0}
+.orow .on2 b{display:block;font-weight:500;font-size:var(--fs-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.orow .on2 span{font-size:var(--fs-xs);color:var(--ink-3)}
+.orow .go{color:var(--ink-4)}
+.mem{padding:10px 8px;border-radius:10px;display:flex;gap:10px}
+.mem:hover{background:var(--bg-hover)}
+.mem p{margin:0;font-size:var(--fs-sm);flex:1}
+.mem span{display:block;font-size:var(--fs-xs);color:var(--ink-3);margin-top:2px}
+.mem button{color:var(--ink-4);align-self:flex-start}
+.mem button:hover{color:var(--late)}
+.empty{padding:28px 12px;text-align:center;color:var(--ink-3);font-size:var(--fs-sm)}
+.empty .ic{width:22px;height:22px;color:var(--ink-4);margin-bottom:6px}
+.empty .eg{margin:12px auto 0;max-width:240px;text-align:left;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;font-size:var(--fs-xs);opacity:.85}
+.insp-h{display:flex;gap:12px;align-items:flex-start;padding:4px 0 14px}
+.insp-h .it{font-size:var(--fs-lg);font-weight:600;line-height:1.4}
+.insp-h .im{font-size:var(--fs-sm);color:var(--ink-2);margin-top:2px}
+.insp-h .im .late{color:var(--late);font-weight:600}
+.isec{padding:14px 0;border-top:1px solid var(--line-2)}
+.isec h4{margin:0 0 8px;font-size:var(--fs-xs);font-weight:600;color:var(--ink-3)}
+.quote{margin:0;padding:10px 12px;border-radius:10px;background:var(--bg-sunk);font-size:var(--fs-sm)}
+.quote cite{display:block;font-style:normal;font-size:var(--fs-xs);color:var(--ink-3);margin-top:6px}
+.inote{font-size:var(--fs-xs);color:var(--ink-3);margin-top:8px}
+.inote button{color:var(--pub)}
+.tl{list-style:none;margin:0;padding:0}
+.tl li{position:relative;padding:0 0 10px 18px;font-size:var(--fs-sm);color:var(--ink-2)}
+.tl li::before{content:"";position:absolute;left:3px;top:7px;width:7px;height:7px;border-radius:50%;background:var(--ink-4)}
+.tl li::after{content:"";position:absolute;left:6px;top:16px;bottom:0;border-left:1px solid var(--line)}
+.tl li:last-child::after{display:none}
+.tl li.late::before{background:var(--late)}
+.tl li time{color:var(--ink-3);margin-right:6px;font-variant-numeric:tabular-nums}
+.iacts{display:flex;flex-wrap:wrap;gap:6px;padding-top:14px;border-top:1px solid var(--line-2)}
+.linkrow{display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);padding:6px 0}
+.linkrow button{color:var(--pub)}
+/* preview */
+.pv{flex:1;overflow:auto;padding:24px 28px 40px;min-height:0;background:var(--bg)}
+.pv h1{font-size:20px;margin:0 0 4px}
+.pv h2{font-size:15px;margin:22px 0 6px}
+.pv p,.pv li{font-size:13.5px;color:var(--ink-2);line-height:1.75}
+.pv .meta{font-size:var(--fs-xs);color:var(--ink-3)}
+.pvbar{display:flex;gap:6px;align-items:center;padding:10px 16px;border-top:1px solid var(--line-2);flex:none;background:var(--bg)}
+.pvbar span{font-size:var(--fs-xs);color:var(--ink-3);margin-right:auto}
+
+/* ───────────── overlays ───────────── */
+.scrim{position:fixed;inset:0;background:rgb(10 12 16/35%);z-index:50;display:grid;place-items:start center;padding-top:12vh}
+.pal{width:min(620px,calc(100vw - 32px));background:var(--bg-raised);border-radius:16px;box-shadow:var(--shadow-2);overflow:hidden;border:1px solid var(--line)}
+.pal input{width:100%;border:0;outline:none;background:transparent;padding:16px 18px;font-size:var(--fs-lg);border-bottom:1px solid var(--line-2)}
+.pal .pl{max-height:420px;overflow:auto;padding:6px}
+.pal .pg{font-size:var(--fs-xs);color:var(--ink-3);padding:10px 12px 4px;font-weight:500}
+.pal .pi{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border-radius:9px;text-align:left;font-size:var(--fs-sm)}
+.pal .pi .ic{color:var(--ink-3)}
+.pal .pi .pr{margin-left:auto;font-size:var(--fs-xs);color:var(--ink-3)}
+.pal .pi.on{background:var(--bg-hover)}
+.pal .pf{display:flex;gap:14px;padding:10px 16px;border-top:1px solid var(--line-2);font-size:var(--fs-xs);color:var(--ink-3)}
+.modal{width:min(560px,calc(100vw - 32px));background:var(--bg-raised);border-radius:16px;box-shadow:var(--shadow-2);border:1px solid var(--line);max-height:76vh;display:flex;flex-direction:column}
+.modal header{display:flex;align-items:center;gap:12px;padding:18px 20px 14px;border-bottom:1px solid var(--line-2)}
+.modal header h2{margin:0;font-size:var(--fs-lg);font-weight:600;flex:1}
+.modal header p{margin:2px 0 0;font-size:var(--fs-sm);color:var(--ink-3);font-weight:400}
+.modal .mb{overflow:auto;padding:6px 20px 18px}
+.rule{display:grid;grid-template-columns:120px 1fr;gap:12px;padding:14px 0;border-top:1px solid var(--line-2);font-size:var(--fs-sm)}
+.rule:first-child{border-top:0}
+.rule dt{color:var(--ink-3)}
+.rule dd{margin:0}
+.rule dd .row2{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rule .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;background:var(--ok-bg);color:var(--ok);font-size:var(--fs-xs);font-weight:600}
+.rule ul{margin:6px 0 0;padding-left:18px;color:var(--ink-2)}
+.rule details summary{color:var(--ink-3);font-size:var(--fs-xs);cursor:pointer;margin-top:6px}
+.rule code{font:11.5px var(--mono);color:var(--ink-3)}
+.menu{position:absolute;z-index:30;min-width:200px;background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-2);padding:6px}
+.menu button{display:flex;gap:10px;align-items:center;width:100%;padding:8px 10px;border-radius:8px;font-size:var(--fs-sm);text-align:left}
+.menu button:hover{background:var(--bg-hover)}
+.menu button .ic{color:var(--ink-3)}
+.menu button kbd{margin-left:auto}
+.menu hr{border:0;border-top:1px solid var(--line-2);margin:4px 0}
+.menu button.danger{color:var(--late)}
+.menu button.danger .ic{color:var(--late)}
+.toast{position:fixed;left:50%;top:64px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:var(--fs-sm);box-shadow:var(--shadow-2);z-index:60;display:flex;gap:12px;align-items:center;animation:tin .18s ease}
+.toast button{color:inherit;opacity:.7;font-weight:600}
+.toast button:hover{opacity:1}
+@keyframes tin{from{opacity:0;transform:translate(-50%,-6px)}}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;font-size:var(--fs-sm);padding:10px 0}
+.keys dt{text-align:right}
+.keys dd{margin:0;color:var(--ink-2)}
+
+@media (max-width:1180px){
+  .app{grid-template-columns:280px minmax(0,1fr) 0}
+  .app:not([data-right=off]) .right{position:absolute;right:0;top:0;bottom:0;width:min(400px,92vw);z-index:20;box-shadow:var(--shadow-2)}
+}
+@media (max-width:860px){
+  .app{grid-template-columns:0 minmax(0,1fr) 0}
+  .left{display:none}
+  .demobar .tag em{display:none}
+}
+</style>
+</head>
+<body>
+<div class="demobar" role="banner">
+  <span class="tag">工作台重设计 <em>· 原型 · 数据虚构</em></span>
+  <nav class="steps" id="steps" aria-label="剧本"></nav>
+  <button class="tool" data-act="keys" title="快捷键">?</button>
+  <button class="tool" data-act="theme" id="themeBtn"></button>
+  <button class="tool" data-act="reset">重来</button>
+</div>
+<div class="story" id="story" hidden></div>
+
+<div class="app" id="app">
+  <aside class="left" aria-label="左栏">
+    <div class="host-top"><span class="wordmark">DSH<i>_</i></span><button class="host-btn" title="收起左栏（宿主）"><svg class="ic" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></button></div>
+    <button class="host-new"><svg class="ic sm" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>新会话</button>
+    <div class="nav" id="nav"></div>
+    <div class="host-foot"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>设置</div>
+  </aside>
+  <main id="main"></main>
+  <aside class="right" id="right" aria-label="右栏"></aside>
+</div>
+
+<div id="layer"></div>
+
+<script>
+/* ═════════════════════ icons ═════════════════════ */
+const I = {
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  chevR:'<path d="m9 18 6-6-6-6"/>', chevD:'<path d="m6 9 6 6 6-6"/>', chevL:'<path d="m15 18-6-6 6-6"/>',
+  lock:'<rect width="16" height="10" x="4" y="11" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
+  at:'<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>',
+  zap:'<path d="M13 2 4 14h8l-1 8 9-12h-8l1-8z"/>',
+  up:'<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>', x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  more:'<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  ext:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  doc:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/>',
+  sheet:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M3 15h18M12 3v18"/>',
+  spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  alert:'<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
+  plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  ledger:'<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8M13 12h8M13 18h8"/>',
+  hash:'<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
+  folder:'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/>',
+  reply:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  cal:'<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  cols:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/>',
+  max:'<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>',
+  book:'<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  forward:'<path d="m15 17 5-5-5-5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+}
+const ic = (n, c='') => `<svg class="ic ${c}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))
+const $ = (s, r=document) => r.querySelector(s)
+
+/* ═════════════════════ 数据（虚构） ═════════════════════
+   周三 10 月 21 日。Bruce 是操作者，云小助是 agent。 */
+const PEOPLE = {
+  me:{name:'Bruce', hue:222}, ai:{name:'云小助', ai:true},
+  zr:{name:'张锐', hue:198}, lt:{name:'李婷', hue:338}, zh:{name:'郑慧', hue:152},
+  wc:{name:'王超', hue:28}, luo:{name:'罗总', hue:262}, hy:{name:'何燕', hue:300},
+}
+const av = (id, size='') => {
+  const p = PEOPLE[id]
+  if (p.ai) return `<span class="av ai ${size}" title="云小助">${ic('spark')}</span>`
+  return `<span class="av ${size}" style="background:hsl(${p.hue} 52% 48%)" title="${esc(p.name)}">${esc(/^[A-Za-z]/.test(p.name) ? p.name[0] : p.name.slice(-1))}</span>`
+}
+
+function seed(){ return {
+places:{
+  'p-prod':{kind:'group', name:'产品讨论群', members:12, unread:4, topics:['t-compete','t-roadmap'], stream:[
+    {t:'day', text:'昨天'},
+    {t:'msg', by:'wc', aud:'pub', at:'15:10', text:'首页改版稿我放群文件了，大家有空看看'},
+    {t:'topic', id:'t-compete'},
+    {t:'msg', by:'hy', aud:'pub', at:'17:02', text:'周四的评审会改到下午两点，会议室 C'},
+    {t:'day', text:'今天'},
+    {t:'topic', id:'t-roadmap'},
+    {t:'msg', by:'zr', aud:'pub', at:'09:41', text:'收到，两点可以'},
+  ]},
+  'p-fin':{kind:'group', name:'财务群', members:8, unread:0, topics:['t-recon'], stream:[
+    {t:'day', text:'昨天'},{t:'topic', id:'t-recon'},
+  ]},
+  'd-lt':{kind:'dm', person:'lt', unread:1, direct:'t-review'},
+  'd-zr':{kind:'dm', person:'zr', unread:0, direct:'t-zr'},
+  'p-design':{kind:'group', name:'设计评审群', members:6, unread:2, topics:[], stream:[
+    {t:'day', text:'今天'},
+    {t:'msg', by:'wc', aud:'pub', at:'09:20', text:'首页改版稿 v3 放好了，周五前给意见就行'},
+    {t:'msg', by:'hy', aud:'pub', at:'09:22', text:'👍'},
+  ]},
+  'd-luo':{kind:'dm', person:'luo', unread:0, direct:'t-luo'},
+},
+order:['p-prod','p-fin','d-lt','d-zr','p-design','d-luo'],
+cold:51,
+topics:{
+  't-compete':{place:'p-prod', title:'竞品对比表', by:'zr', at:'昨天 16:40', stream:[
+    {t:'day', text:'昨天'},
+    {t:'msg', by:'zr', aud:'pub', at:'16:40', text:'@云小助 帮我们把 Notion、飞书、Airtable 三家的协作能力整理成一张对比表，周四评审会要用。'},
+    {t:'msg', by:'ai', aud:'pub', at:'16:41', text:'收到。周三下班前给初版，写进表格前会先请 Bruce 确认。', ack:'记下了：云小助负责 · 竞品对比表 · 周三前'},
+    {t:'msg', by:'zr', aud:'pub', at:'16:45', text:'价格页的数据我来补，明天给。', ack:'记下了：张锐负责 · 价格页数据 · 周二前'},
+    {t:'day', text:'今天'},
+    {t:'msg', by:'me', aud:'pri', at:'09:05', text:'价格那一列用官网 10 月的价格，别用去年的。'},
+    {t:'msg', by:'ai', aud:'pri', at:'09:05', text:'好，价格列以官网 10 月价为准，每格标注来源日期。'},
+    {t:'work', aud:'pri', dur:'38 秒', steps:[
+      {s:'ok', text:'确认你的身份和所在组织', tool:'contact.whoami'},
+      {s:'ok', text:'找到「产品组」工作区', tool:'doc.workspace.list'},
+      {s:'ok', text:'汇总三家公开资料', tool:'web.search ×6'},
+      {s:'wait', text:'准备写入 12 条记录 —— 等你确认', tool:'sheet.create'},
+    ]},
+    {t:'card', id:'c-write'},
+    {t:'msg', by:'ai', aud:'pub', at:'09:07', text:'表格内容已经整理好，等 Bruce 确认后写入。'},
+  ]},
+  't-roadmap':{place:'p-prod', title:'Q4 路线图整理', by:'wc', at:'今天 10:02', running:true, stream:[
+    {t:'day', text:'今天'},
+    {t:'msg', by:'wc', aud:'pub', at:'10:02', text:'@云小助 把这三份规划会纪要合成一版 Q4 路线图草稿'},
+    {t:'msg', by:'ai', aud:'pub', at:'10:02', text:'收到，大约 10 分钟。', ack:'记下了：云小助负责 · Q4 路线图草稿 · 今天'},
+    {t:'work', aud:'pri', running:true, dur:'4 分钟', steps:[
+      {s:'ok', text:'读了 3 份会议纪要', tool:'doc.read ×3'},
+      {s:'ok', text:'提取出 14 个事项', tool:''},
+      {s:'run', text:'按季度和负责人归并', tool:''},
+      {s:'todo', text:'生成路线图草稿文档', tool:'doc.create'},
+    ]},
+  ]},
+  't-recon':{place:'p-fin', title:'9 月对账核对', by:'zh', at:'昨天 17:30', stream:[
+    {t:'day', text:'昨天'},
+    {t:'msg', by:'zh', aud:'pub', at:'17:30', text:'@云小助 9 月的银行流水和账面对一下'},
+    {t:'work', aud:'pri', dur:'2 分 10 秒', steps:[
+      {s:'ok', text:'读取 9 月银行流水 217 笔', tool:'sheet.read'},
+      {s:'ok', text:'读取账面明细 217 笔', tool:'sheet.read'},
+      {s:'ok', text:'逐笔比对金额、日期、对方户名', tool:''},
+    ]},
+    {t:'msg', by:'ai', aud:'pub', at:'17:52', text:'对完了：217 笔里 214 笔一致，3 处差异需要 Bruce 定。'},
+    {t:'card', id:'c-recon'},
+  ]},
+  't-review':{place:'d-lt', title:'李婷', stream:[
+    {t:'day', text:'上周五'},
+    {t:'msg', by:'me', aud:'pub', at:'11:20', text:'婷，Q3 复盘材料周一前给我一版初稿？'},
+    {t:'msg', by:'lt', aud:'pub', at:'11:24', text:'好的', ack:'记下了：李婷负责 · Q3 复盘材料初稿 · 周一前'},
+    {t:'day', text:'昨天'},
+    {t:'msg', by:'lt', aud:'pub', at:'20:14', text:'复盘材料初稿好了，你看下。数据部分按 9 月口径更新过。', file:'a-review', ack:'认出这是交付：李婷 · Q3 复盘材料初稿'},
+    {t:'card', id:'c-accept'},
+  ]},
+  't-zr':{place:'d-zr', title:'张锐', stream:[
+    {t:'day', text:'上周'},
+    {t:'msg', by:'zr', aud:'pub', at:'周四 18:10', text:'下周我在外面跑客户，周二周三回复会慢一点'},
+    {t:'msg', by:'me', aud:'pub', at:'周四 18:12', text:'好，有事群里说'},
+  ]},
+  't-luo':{place:'d-luo', title:'罗总', stream:[
+    {t:'day', text:'周一'},
+    {t:'msg', by:'luo', aud:'pub', at:'19:30', text:'Q4 预算口径，你周四前给我一个说法'},
+    {t:'msg', by:'me', aud:'pub', at:'19:41', text:'好的罗总，周四前给您', ack:'记下了：你欠罗总 · Q4 预算口径 · 周四前'},
+  ]},
+},
+cards:{
+  'c-write':{topic:'t-compete', kind:'confirm', verb:'确认', short:'写入 12 条到竞品对比表', at:'09:06', age:'5 分钟',
+    title:'写入 12 条记录到「竞品对比 · 评审表」',
+    why:'写操作。产品讨论群的规则：写表格前每次都问你。',
+    facts:[['工作区','产品组'],['表格','竞品对比 · 评审表（新建）'],['写入','12 条 · Notion 4 / 飞书 4 / Airtable 4'],['价格列','官网 10 月价，标注来源日期']],
+    opts:[{k:1,label:'确认写入',pri:true},{k:2,label:'先不写'}], state:'open'},
+  'c-accept':{topic:'t-review', kind:'accept', verb:'验收', short:'Q3 复盘材料初稿', at:'昨天 20:14', age:'昨天', from:'lt',
+    title:'Q3 复盘材料 · 初稿',
+    why:'李婷交的。完成要你验收。',
+    facts:[['原定','周一前 · 提前一天交'],['完成标准','覆盖四条业务线，数据用 9 月口径']],
+    art:'a-review', state:'open'},
+  'c-recon':{topic:'t-recon', kind:'decide', verb:'定', short:'9 月对账 3 处差异', at:'昨天 17:52', age:'昨天',
+    title:'9 月对账：3 处差异怎么处理',
+    why:'账面和流水对不上的地方，入账口径要你定。',
+    items:[
+      {t:'9/3 招行 ¥12,400', d:'账面记「服务费收入」，流水显示是一笔退款。', opts:['按流水改账','保持账面','先挂起'], pick:null},
+      {t:'9/11 ¥3,180', d:'账面有、流水没有，疑似客户还没付款。', opts:['转应收','冲掉这笔','先挂起'], pick:null},
+      {t:'9/27 ¥860', d:'金额差 ¥60，像是跨行手续费。', opts:['记手续费','问银行','先挂起'], pick:null},
+    ], state:'open'},
+},
+arts:{
+  'a-review':{title:'Q3 复盘材料 · 初稿', kind:'doc', meta:'李婷 · 18 页 · 昨天 20:14', place:'d-lt'},
+  'a-table':{title:'竞品对比 · 评审表', kind:'sheet', meta:'云小助 · 等你确认后写入', place:'p-prod', topic:'t-compete', pending:true},
+  'a-min':{title:'Q4 规划会纪要（3 份）', kind:'doc', meta:'王超 · 上周', place:'p-prod', topic:'t-roadmap'},
+  'a-prev':{title:'Q3 竞品评审结论', kind:'doc', meta:'何燕 · 7 月', place:'p-prod', topic:'t-compete'},
+},
+goals:{
+  'g1':{name:'Q4 竞品评审会', owner:'me', verifier:'luo', due:'周四', crit:'Notion、飞书、Airtable 三家 × 5 个维度的对比表，评审会前罗总过目。', moved:'今天 09:07', changed:true},
+  'g2':{name:'9 月月结', owner:'zh', verifier:'me', due:'10/25', crit:'账实相符、凭证齐全，10 月 25 日前关账。', moved:'昨天 17:52'},
+},
+commits:[
+  {id:'k1', goal:'g1', who:'zr', to:'me', what:'价格页数据', due:'周二', st:'late', sig:'逾期 1 天', place:'p-prod', topic:'t-compete',
+    born:{quote:'价格页的数据我来补，明天给。', by:'zr', at:'周一 16:45', where:'产品讨论群 · 竞品对比表', note:'「明天」按周二算。'},
+    after:[{at:'周二 18:00', text:'到期，没有回音', late:true},{at:'今天 09:00', text:'晨报里提过一次'}]},
+  {id:'k2', goal:'g1', who:'ai', to:'me', what:'竞品对比表初版', due:'今天', st:'need', sig:'等你确认', card:'c-write', place:'p-prod', topic:'t-compete',
+    born:{quote:'收到。周三下班前给初版。', by:'ai', at:'周一 16:41', where:'产品讨论群 · 竞品对比表'},
+    after:[{at:'今天 09:06', text:'内容备好，等你确认写入'}]},
+  {id:'k3', goal:'g1', who:'zh', to:'me', what:'评审会议程', due:'周三', st:'ok', sig:'周三', place:'p-prod',
+    born:{quote:'议程我来排，周三发群里。', by:'zh', at:'周一 17:10', where:'产品讨论群'}, after:[{at:'昨天', text:'回了一句「在写」'}]},
+  {id:'k4', goal:'g1', who:'wc', to:'me', what:'设计走查截图', due:'上周五', st:'done', sig:'已交', place:'p-design',
+    born:{quote:'走查截图周五前补齐', by:'wc', at:'上周一', where:'设计评审群'}, after:[{at:'上周四', text:'交了，你验收过'}]},
+  {id:'k5', goal:'g2', who:'ai', to:'zh', what:'9 月银行流水对账', due:'今天', st:'need', sig:'3 处等你定', card:'c-recon', place:'p-fin', topic:'t-recon',
+    born:{quote:'9 月的银行流水和账面对一下', by:'zh', at:'昨天 17:30', where:'财务群 · 9 月对账核对'}, after:[{at:'昨天 17:52', text:'对完，3 处差异等你定'}]},
+  {id:'k6', goal:'g2', who:'zh', to:'me', what:'9 月凭证补录', due:'周五', st:'stale', sig:'6 天没动静', place:'p-fin',
+    born:{quote:'凭证我这周补完', by:'zh', at:'上周四', where:'财务群'}, after:[{at:'上周四', text:'之后没有新消息'}]},
+  {id:'k7', goal:null, who:'lt', to:'me', what:'Q3 复盘材料初稿', due:'周一', st:'need', sig:'交了 · 等你验收', card:'c-accept', place:'d-lt', topic:'t-review',
+    born:{quote:'好的', by:'lt', at:'上周五 11:24', where:'和李婷的私聊', note:'回的是你那句「周一前给我一版初稿？」'}, after:[{at:'昨天 20:14', text:'交了初稿（18 页）'}]},
+  {id:'k8', goal:null, who:'ai', to:'wc', what:'Q4 路线图草稿', due:'今天', st:'run', sig:'在做 · 第 3 步', place:'p-prod', topic:'t-roadmap',
+    born:{quote:'把这三份规划会纪要合成一版 Q4 路线图草稿', by:'wc', at:'今天 10:02', where:'产品讨论群 · Q4 路线图整理'}, after:[]},
+  {id:'k9', goal:null, who:'me', to:'luo', what:'Q4 预算口径', due:'周四', st:'soon', sig:'明天', place:'d-luo',
+    born:{quote:'好的罗总，周四前给您', by:'me', at:'周一 19:41', where:'和罗总的私聊'}, after:[]},
+  {id:'k10', goal:null, who:'me', to:'wc', what:'首页改版稿意见', due:'周五', st:'ok', sig:'周五', place:'p-design',
+    born:{quote:'周五前给意见就行', by:'wc', at:'今天 09:20', where:'设计评审群', note:'王超说的；云小助认作你要给意见——不对就改。'}, after:[]},
+],
+memory:{
+  'p-prod':[{text:'价格以官网当月价为准，每格标来源日期', src:'你 · 今天 09:05'},{text:'评审会默认在会议室 C', src:'何燕 · 昨天'},{text:'王超负责设计相关的事', src:'从群聊推断 · 3 次'}],
+  'p-fin':[{text:'对账差异超过 ¥1,000 要郑慧复核', src:'郑慧 · 8 月'}],
+},
+}}
+
+/* ═════════════════════ state ═════════════════════ */
+let D = seed()
+const S0 = () => ({view:{kind:'topic', id:'t-compete'}, back:[], focus:null, itemFocus:0, sel:null, lens:'all',
+  aud:'pri', ask:false, draft:'', drafted:null, preview:null, rtab:'out', viewed:{}, strip:{}, reason:{}, doneOpen:{}, stepIdx:-1})
+let S = S0()
+let theme = (()=>{ try { return localStorage.getItem('wr-theme') } catch { return null } })() || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+
+/* ═════════════════════ derived ═════════════════════ */
+const placeName = id => { const p = D.places[id]; return p.kind === 'dm' ? PEOPLE[p.person].name : p.name }
+const topicPlace = tid => D.topics[tid].place
+const openCards = () => ['c-write','c-accept','c-recon'].filter(id => D.cards[id].state === 'open')
+const running = () => Object.entries(D.topics).filter(([,t]) => t.running).map(([id]) => id)
+const cardWhere = cid => { const t = D.topics[D.cards[cid].topic]; const p = D.places[t.place]; return p.kind === 'dm' ? placeName(t.place) : `${p.name}` }
+const topicNeeds = tid => openCards().filter(c => D.cards[c].topic === tid)
+const placeNeeds = pid => openCards().filter(c => topicPlace(D.cards[c].topic) === pid)
+const lateCount = () => D.commits.filter(k => k.st === 'late').length
+
+/* ═════════════════════ render: left ═════════════════════ */
+function renderNav(){
+  const v = S.view, needs = openCards(), run = running()
+  let h = `<button class="jump" data-act="palette">${ic('search')}跳到…<kbd>⌘K</kbd></button>`
+  h += `<div class="sec need"><span>要你</span>${needs.length ? `<span class="n">${needs.length}</span>` : ''}</div>`
+  if (!needs.length) h += `<div class="zero">${ic('check')}都处理完了</div>`
+  for (const cid of needs){
+    const c = D.cards[cid], on = (v.kind==='topic' && v.id===c.topic && S.focus===cid) ? ' on' : ''
+    h += `<button class="nrow${on}" data-card="${cid}"><span class="dot need"></span><span class="t"><b>${c.verb}</b>　${esc(c.short)}</span><span class="m">${esc(cardWhere(cid))} · ${c.age}</span></button>`
+  }
+  if (run.length){
+    h += `<div class="sec"><span>运行中</span><span class="n">${run.length}</span></div>`
+    for (const tid of run){
+      const t = D.topics[tid], on = v.kind==='topic' && v.id===tid ? ' on' : ''
+      h += `<button class="nrow${on}" data-topic="${tid}"><span class="spin"></span><span class="t">${esc(t.title)}</span><span class="m">${esc(placeName(t.place))} · 第 3 步，共 4 步</span></button>`
+    }
+  }
+  h += `<div style="height:10px"></div>`
+  const late = lateCount()
+  h += `<button class="navlink${['board','goal'].includes(v.kind)?' on':''}" data-go="board">${ic('ledger')}承诺<span class="r${late?' late':''}">${late?late+' 逾期':''}</span></button>`
+  h += `<div class="sec"><span>云之家</span></div>`
+  for (const pid of D.order){
+    const p = D.places[pid], pn = placeNeeds(pid).length
+    const active = (v.kind==='place' && v.id===pid) || (p.direct && v.kind==='topic' && v.id===p.direct)
+    const icon = p.kind==='dm' ? av(p.person,'s') : `<span class="gicon">${ic('hash')}</span>`
+    const right = pn ? `<span class="dot need" title="${pn} 件要你"></span>` : (p.unread ? `<span class="unread">${p.unread}</span>` : '')
+    h += `<button class="place${active?' on':''}" data-place="${pid}">${icon}<span class="nm">${esc(placeName(pid))}</span><span class="r">${right}</span></button>`
+    for (const tid of (p.topics||[])){
+      const t = D.topics[tid], tn = topicNeeds(tid).length
+      if (!tn && !t.running && !(v.kind==='topic' && v.id===tid)) continue
+      const on = v.kind==='topic' && v.id===tid
+      const r = tn ? `<span class="dot need"></span>` : t.running ? `<span class="spin"></span>` : ''
+      h += `<button class="sub${on?' on':''}" data-topic="${tid}"><span class="nm">${esc(t.title)}</span>${r}</button>`
+    }
+  }
+  h += `<button class="cold" data-act="cold"><span class="gicon" style="opacity:.6">${ic('hash')}</span>${D.cold} 个群未接入${ic('chevR','sm')}</button>`
+  h += `<div class="sec"><span>本地</span></div>`
+  h += `<button class="place" data-act="local"><span class="gicon">${ic('folder')}</span><span class="nm">dsh-yzj</span></button>`
+  $('#nav').innerHTML = h
+}
+
+/* ═════════════════════ render: stream pieces ═════════════════════ */
+function textHtml(t){ return esc(t).replace(/@云小助/g,'<span class="mention">@云小助</span>') }
+function msgHtml(m){
+  const p = PEOPLE[m.by]
+  let h = `<div class="msg">${av(m.by)}<div><div class="who"><b>${esc(p.name)}</b><time>${esc(m.at)}</time></div><div class="tx">${textHtml(m.text)}</div>`
+  if (m.file) h += artHtml(m.file)
+  if (m.ack) h += `<div class="ack">${ic('check','sm')}${esc(m.ack)}<button data-act="ackfix">改</button></div>`
+  return h + `</div></div>`
+}
+function artHtml(aid){
+  const a = D.arts[aid]
+  return `<div class="art"><span class="fi ${a.kind}">${ic(a.kind)}</span><div class="an"><b>${esc(a.title)}</b><span>${esc(a.meta)}</span></div><div class="acts"><button class="btn sm" data-preview="${aid}">${ic('cols','sm')}并排看</button><button class="iconbtn" title="在云之家打开">${ic('ext','sm')}</button></div></div>`
+}
+function workHtml(w){
+  const n = w.steps.length, done = w.steps.filter(s => s.s==='ok').length
+  const head = w.running
+    ? `<span class="spin"></span>云小助在做 · 第 ${done+1} 步，共 ${n} 步 <span class="muted">· ${w.dur}</span>`
+    : `${av('ai','xs')}云小助做了 ${n} 步 <span class="muted">· ${w.dur}</span>`
+  const li = w.steps.map(s => {
+    const mark = s.s==='ok' ? ic('check','sm') : s.s==='run' ? '<span class="spin"></span>' : s.s==='wait' ? '<span class="dot need"></span>' : '<span class="ring"></span>'
+    return `<li class="${s.s}">${mark}<span>${esc(s.text)}</span>${s.tool?`<code>${esc(s.tool)}</code>`:''}</li>`
+  }).join('')
+  return `<details class="work"${w.running?' open':''}><summary>${head}${ic('chevR','sm chev')}</summary><ol>${li}</ol><button class="full" data-act="trace">看完整过程 ›</button></details>`
+}
+function cardHtml(cid){
+  const c = D.cards[cid]
+  if (c.state === 'done') return `<div class="absorbed">${ic('check')}<span>${c.result}</span><time>${c.doneAt||'刚刚'}</time></div>`
+  const f = S.focus === cid ? ' focus' : ''
+  let h = `<article class="card open${f}" id="card-${cid}" data-cardbox="${cid}">`
+  h += `<div class="ch"><span class="ctag"><span class="dot need"></span>要你${c.verb}</span>`
+  h += `<span class="vis">${ic('lock','sm')}只有你看得到</span></div>`
+  h += `<div class="ct">${esc(c.title)}</div><div class="cwhy">${esc(c.why)}</div>`
+  if (c.facts) h += `<dl class="facts">${c.facts.map(([k,v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`
+  if (c.kind === 'accept'){
+    h += `<div style="padding:0 16px">${artHtml(c.art)}</div>`
+  }
+  if (c.kind === 'decide'){
+    h += `<div class="items">${c.items.map((it,i) => `<div class="item${S.focus===cid && S.itemFocus===i?' focus':''}"><span class="num">${i+1}</span><span class="it">${esc(it.t)}</span><span class="id">${esc(it.d)}</span><span class="opts">${it.opts.map((o,j) => `<button class="opt${it.pick===j?' sel':''}" data-pick="${cid}:${i}:${j}"><kbd>${j+1}</kbd>${esc(o)}</button>`).join('')}</span></div>`).join('')}</div>`
+  }
+  if (S.strip[cid]){
+    h += `<div class="strip" style="margin-top:12px">${ic('eye')}<p>你还没打开过这份交付。验收前看一眼？</p><button class="btn sm" data-preview="${c.art}">并排看</button><button class="btn sm ghost" data-ans="${cid}:force">不看，直接通过</button></div>`
+  }
+  if (S.reason[cid] !== undefined){
+    h += `<div class="reason" style="margin-top:12px"><textarea id="reason-${cid}" placeholder="哪里要改？说具体些，${PEOPLE[c.from].name}会照着改。">${esc(S.reason[cid])}</textarea><div class="rf"><span>会以你的名义发给${PEOPLE[c.from].name}</span><button class="btn sm ghost" data-ans="${cid}:cancelreason">算了</button><button class="btn sm pri" data-ans="${cid}:sendreason">打回</button></div></div>`
+  }
+  h += `<div class="cf">`
+  if (c.kind === 'confirm'){
+    h += c.opts.map(o => `<button class="btn${o.pri?' pri':''}" data-ans="${cid}:${o.k}"><kbd>${o.k}</kbd>${esc(o.label)}</button>`).join('')
+    h += `<button class="btn ghost" data-act="params">看参数</button>`
+    h += `<span class="also">云之家里回 1 / 2 也行</span>`
+  } else if (c.kind === 'accept'){
+    const seen = S.viewed[c.art]
+    h += `<button class="btn${seen?' pri':''}" data-ans="${cid}:1"><kbd>1</kbd>通过验收</button>`
+    h += `<button class="btn" data-ans="${cid}:2"><kbd>2</kbd>打回…</button>`
+    if (!seen) h += `<button class="btn pri" data-preview="${c.art}">${ic('cols','sm')}先并排看</button>`
+    h += `<span class="also">云之家里回「验收」或「打回 原因」也行</span>`
+  } else if (c.kind === 'decide'){
+    const n = c.items.filter(i => i.pick !== null).length
+    h += `<button class="btn pri" data-ans="${cid}:submit"${n<c.items.length?' disabled':''}>定下这 ${c.items.length} 处</button>`
+    h += `<span class="muted" style="font-size:12px">${n}/${c.items.length} 已选 · <kbd>J</kbd><kbd>K</kbd> 换一条，数字键选</span>`
+    h += `<span class="also">云之家里按顺序回几个数字也行</span>`
+  }
+  return h + `</div></article>`
+}
+function streamHtml(items, inPlace){
+  let h = '', band = []
+  const flush = () => { if (band.length){ h += `<div class="band"><div class="band-h">${ic('lock','sm')}只有你和云小助</div>${band.join('')}</div>`; band = [] } }
+  for (const it of items){
+    let x
+    if (it.t === 'day'){ flush(); h += `<div class="day">${esc(it.text)}</div>`; continue }
+    if (it.t === 'msg') x = msgHtml(it)
+    else if (it.t === 'work') x = workHtml(it)
+    else if (it.t === 'card') x = cardHtml(it.id)
+    else if (it.t === 'topic') x = topicCardHtml(it.id)
+    else if (it.t === 'file') x = `<div style="margin-left:40px">${artHtml(it.art)}</div>`
+    const pri = it.aud === 'pri' || it.t === 'card'
+    if (pri && !inPlace) band.push(x); else { flush(); h += x }
+  }
+  flush()
+  return h
+}
+function topicCardHtml(tid){
+  const t = D.topics[tid], n = topicNeeds(tid)
+  const sig = n.length ? `<span class="tsig need"><span class="dot need"></span>要你${D.cards[n[0]].verb}</span>`
+    : t.running ? `<span class="tsig"><span class="spin"></span>云小助在做</span>` : `<span class="tsig">${ic('check','sm')}办完了</span>`
+  const count = t.stream.filter(i => i.t==='msg').length
+  return `<div class="msg">${av(t.by)}<div><div class="who"><b>${esc(PEOPLE[t.by].name)}</b><time>${esc(t.at.split(' ').pop())}</time><span class="aud">开了一个话题</span></div>
+    <button class="tcard" data-topic="${tid}" style="margin-left:0;width:100%"><span class="gicon">${ic('list')}</span><span class="tn"><b>${esc(t.title)}</b><span>${count} 条 · ${esc(t.at)}</span></span>${sig}${ic('chevR','sm')}</button></div></div>`
+}
+
+/* ═════════════════════ render: main views ═════════════════════ */
+function headerHtml(left, right=''){ return `<header class="mh">${left}${right}</header>` }
+function backBtn(sep=true){
+  if (!S.back.length) return ''
+  const b = S.back[S.back.length-1]
+  return `<button class="back" data-act="back" title="返回（Esc）">${ic('chevL')}${esc(viewLabel(b.view))}</button>${sep?'<span class="sl" style="color:var(--line)">|</span>':''}`
+}
+function viewLabel(v){
+  if (v.kind==='board') return '承诺'
+  if (v.kind==='goal') return D.goals[v.id].name
+  if (v.kind==='place') return placeName(v.id)
+  if (v.kind==='topic'){ const t = D.topics[v.id]; return D.places[t.place].kind==='dm' ? placeName(t.place) : t.title }
+  return ''
+}
+function topicView(tid){
+  const t = D.topics[tid], p = D.places[t.place], dm = p.kind === 'dm'
+  const crumb = dm
+    ? `<div class="crumb">${backBtn()}${av(p.person,'s')}<h1>${esc(PEOPLE[p.person].name)}</h1><span class="sub2">私聊</span></div>`
+    : `<div class="crumb">${backBtn()}<button class="up" data-place="${t.place}">${esc(p.name)}</button><span class="sl">/</span><h1>${esc(t.title)}</h1></div>`
+  const right = `<button class="status" data-act="rules"><i></i>云小助在岗</button><button class="iconbtn" data-act="menu" title="更多">${ic('more')}</button>`
+  let h = headerHtml(crumb, right)
+  const needs = topicNeeds(tid)
+  if (needs.length){
+    h += `<div class="dbar"><span class="lbl"><span class="dot need"></span>要你 ${needs.length}</span>${needs.map(c => `<button class="ptr" data-scroll="${c}"><b>${D.cards[c].verb}</b>${esc(D.cards[c].short)} ›</button>`).join('')}</div>`
+  }
+  h += `<div class="stream" id="stream"><div class="sw">${streamHtml(t.stream, false)}</div></div>`
+  h += composerHtml(dm ? {pub:`发给${PEOPLE[p.person].name}`, pubHint:`${PEOPLE[p.person].name}能看见`, send:`发给${PEOPLE[p.person].name}`} : {pub:`发到群里 · ${p.name}`, pubHint:`${p.members} 人能看见，以你的名义`, send:'发到群里'})
+  return h
+}
+function placeView(pid){
+  const p = D.places[pid]
+  const crumb = `<div class="crumb">${backBtn()}<span class="gicon">${ic('hash')}</span><h1>${esc(p.name)}</h1><span class="sub2">${p.members} 人 · ${p.topics.length} 个话题</span></div>`
+  const right = `<button class="status" data-act="rules"><i></i>云小助在岗</button><button class="iconbtn" data-act="menu" title="更多">${ic('more')}</button>`
+  let h = headerHtml(crumb, right)
+  h += `<div class="stream" id="stream"><div class="sw">${p.stream.length ? streamHtml(p.stream, true) : ''}</div></div>`
+  h += composerHtml({pub:`发到群里 · ${p.name}`, pubHint:`${p.members} 人能看见，以你的名义`, send:'发到群里', forcePub:true})
+  return h
+}
+function composerHtml(o){
+  const forcePub = o.forcePub
+  const aud = forcePub ? 'pub' : S.aud
+  const cls = S.ask && !forcePub ? 'pri ask' : aud
+  const label = aud==='pri' ? (S.ask ? '只问不办 · 仅你和云小助' : '仅你和云小助') : o.pub
+  const ph = S.ask ? '问一个数，云小助只读、不动手…' : aud==='pri' ? '对云小助说…' : (forcePub ? `在${o.pub.split('· ')[1]||'这里'}说点什么…  @云小助 可以叫上它` : `说点什么…  @云小助 可以叫上它`)
+  const send = aud==='pri' ? (S.ask ? '问' : '发给云小助') : o.send
+  composerCtx = o
+  let h = `<div class="composer ${cls}" id="composer"><div class="cw">`
+  if (S.drafted) h += `<div class="cchip">${ic('spark','sm')}<span><b>云小助拟的稿</b> · 改成你的话再发</span><button class="x" data-act="undraft" title="不用这个稿">${ic('x','sm')}</button></div>`
+  h += `<textarea id="ta" rows="2" placeholder="${esc(ph)}">${esc(S.draft)}</textarea><div class="cbar">`
+  h += `<button class="aud" data-act="aud" title="谁听得见（⌘.）">${ic(aud==='pri'?'lock':'users','sm')}${esc(label)}${forcePub?'':ic('chevD','chev')}</button>`
+  h += `<button class="iconbtn" title="提到某人" style="width:28px;height:28px">${ic('at','sm')}</button>`
+  if (!forcePub) h += `<button class="tog${S.ask?' on':''}" data-act="ask" title="只问不办：云小助只读，不开任务、不动任何东西">${ic('zap','sm')}快问</button>`
+  h += `<span class="sp"></span><span class="hint">${aud==='pub'?esc(o.pubHint):(S.ask?'只读':'')}</span>`
+  h += `<button class="send" data-act="send"${S.draft.trim()?'':' disabled'}>${esc(send)}<span style="opacity:.6;font-weight:400">⏎</span></button>`
+  return h + `</div></div></div>`
+}
+let composerCtx = null
+
+function boardView(){
+  const lenses = [['all','全部'],['owed','欠我的'],['iowe','我欠的'],['mine',`${ic('lock','sm')}我定过的`]]
+  const head = `<div class="crumb">${backBtn()}<h1>承诺</h1></div><div class="seg" role="tablist">${lenses.map(([k,l]) => `<button class="${k==='mine'?'mine ':''}${S.lens===k?'on':''}" data-lens="${k}">${l}</button>`).join('')}</div><button class="btn" data-act="newgoal" style="margin-left:8px">${ic('plus','sm')}新目标</button>`
+  if (S.lens === 'mine') return `<div class="judg" style="display:contents">${headerHtml(head)}<div class="stream judg"><div class="sw" style="max-width:820px">${judgHtml()}</div></div></div>`
+  let h = headerHtml(head)
+  const ks = D.commits
+  const nNeed = ks.filter(k => k.st==='need').length, nLate = ks.filter(k => k.st==='late').length, nStale = ks.filter(k => k.st==='stale').length
+  let body = `<div class="today">`
+  body += `<button class="tchip late" data-jump="late"><b>${nLate}</b>逾期</button>`
+  body += `<button class="tchip need" data-jump="need"><b>${nNeed}</b>等你</button>`
+  body += `<button class="tchip" data-jump="stale"><b>${nStale}</b>没动静</button>`
+  body += `<button class="tchip" data-act="meeting">${ic('cal','sm')}明天 14:00 竞品评审会 · 材料 <b>2/3</b> 就绪 ›</button>`
+  body += `</div>`
+  if (S.lens === 'all'){
+    for (const gid of Object.keys(D.goals)){
+      const g = D.goals[gid], rows = ks.filter(k => k.goal===gid)
+      const live = rows.filter(k => k.st!=='done'), done = rows.filter(k => k.st==='done'), late = rows.filter(k => k.st==='late').length
+      body += `<section class="grp"><div class="gh"><button class="gt" data-goal="${gid}">${ic('target','sm')} ${esc(g.name)} ${ic('chevR','sm')}</button><span class="gm">${g.owner==='me'?'你负责':PEOPLE[g.owner].name+'负责'} · ${g.due} · ${g.verifier==='me'?'你验收':PEOPLE[g.verifier].name+'验收'}</span><span class="gc">${live.length} 件在跟${late?` · <span class="late">${late} 逾期</span>`:''}</span></div>`
+      body += `<div class="crit"><b>完成标准</b>${esc(g.crit)}</div>`
+      body += sortRows(live).map(k => rowHtml(k)).join('')
+      if (done.length) body += S.doneOpen[gid] ? done.map(k => rowHtml(k)).join('') : `<button class="donefold" data-donefold="${gid}">已完成 ${done.length} ${ic('chevD','sm')}</button>`
+      body += `</section>`
+    }
+    const free = ks.filter(k => !k.goal && k.who!=='me')
+    body += `<section class="grp"><div class="gh"><span class="gt" style="font-size:15px;color:var(--ink-2)">没挂目标</span><span class="gc">${free.length} 件</span></div>${sortRows(free).map(k => rowHtml(k)).join('')}</section>`
+    const mine = ks.filter(k => k.who==='me')
+    body += `<section class="grp"><div class="gh"><span class="gt" style="font-size:15px;color:var(--ink-2)">你答应别人的</span><span class="gc">${mine.length} 件</span></div>${sortRows(mine).map(k => rowHtml(k)).join('')}</section>`
+  } else {
+    const list = S.lens==='owed' ? ks.filter(k => k.to==='me' && k.who!=='me') : ks.filter(k => k.who==='me')
+    const axis = S.lens==='owed' ? 'who' : 'to'
+    const groups = {}
+    for (const k of list) (groups[k[axis]] ||= []).push(k)
+    for (const [pid, rows] of Object.entries(groups)){
+      const live = rows.filter(k => k.st!=='done')
+      body += `<section class="grp"><div class="whohead">${av(pid,'s')}<b>${esc(PEOPLE[pid].name)}</b><span>${S.lens==='owed' ? `欠你 ${live.length} 件` : `你欠 ${live.length} 件`}</span></div>${sortRows(rows).map(k => rowHtml(k, true)).join('')}</section>`
+    }
+  }
+  h += `<div class="stream board" id="stream"><div class="sw">${body}</div></div>`
+  return h
+}
+const ORDER = {late:0, need:1, stale:2, soon:3, run:4, ok:5, done:6}
+const sortRows = rs => [...rs].sort((a,b) => ORDER[a.st]-ORDER[b.st])
+function sigHtml(k){
+  const m = {late:['late',ic('alert','sm')], need:['need','<span class="dot need"></span>'], stale:['stale',ic('clock','sm')], run:['run','<span class="spin"></span>'], done:['done',ic('check','sm')], soon:['',''], ok:['','']}[k.st]
+  return `<span class="sig ${m[0]} hideable">${m[1]}${esc(k.sig)}</span>`
+}
+function rowHtml(k, showGoal){
+  const sel = S.sel===k.id ? ' sel' : ''
+  const who = k.who==='me' ? `你 → ${PEOPLE[k.to].name}` : `${PEOPLE[k.who].name}${k.to!=='me'?` → ${PEOPLE[k.to].name}`:''}`
+  const gtag = showGoal && k.goal ? ` · <span class="gtag">${ic('target','sm')} ${esc(D.goals[k.goal].name)}</span>` : ''
+  const verbs = k.st==='need' ? `<button class="btn sm pri" data-card="${k.card}">去${D.cards[k.card].verb}</button>`
+    : k.st==='done' ? '' : k.who==='me' ? `<button class="btn sm" data-goto="${k.id}">去做</button>`
+    : k.st==='run' ? `<button class="btn sm" data-goto="${k.id}">去看</button>`
+    : `<button class="btn sm" data-nudge="${k.id}">催</button><button class="btn sm ghost" data-goto="${k.id}">去看</button>`
+  return `<div class="row${sel}${k.st==='done'?' done':''}" data-row="${k.id}" id="row-${k.id}" tabindex="-1">${av(k.who,'s')}<div style="min-width:0"><div class="rt">${esc(k.what)}</div><div class="rm">${esc(who)} · ${D.places[k.place].kind==='dm' ? '私聊' : esc(placeName(k.place))}${gtag}</div></div><div style="display:flex;align-items:center;gap:8px">${sigHtml(k)}<span class="verbs">${verbs}</span></div></div>`
+}
+function judgHtml(){
+  return `<div class="jnote">${ic('lock','sm')}只有你看得到。不进公司的账，随时可以整本带走。</div>
+  <div class="jg"><h4>验收 · 33 次</h4><div class="line">没有一次被推翻 · 平均 <b>22 小时</b>后才去验</div>
+    <div class="pledge">${ic('spark')}<div><q>这份文档一周内不会有人再改</q><div class="pm">押在 · 私账层 dogfood 测试 · 9/3</div></div><span class="ps">结果还没回来</span></div></div>
+  <div class="jg"><h4>写入确认 · 3 次</h4><div class="line">全部同意 · 平均 <b>1 分钟</b>内答</div></div>
+  <div class="jg"><h4>目标提案 · 4 次</h4><div class="line">全部同意 · 平均 <b>21 天</b>后才答 —— 这类事在等你</div>
+    <div class="pledge"><span style="color:var(--pri-ink)">${ic('book')}</span><div>以后这类提案先把要求和交付摆给我看<div class="pm">你 9/12 定的规矩</div></div><button class="btn sm ghost">改</button></div></div>
+  <div class="jg"><h4>对账裁决 · 1 次</h4><div class="line">同意 1 · 90 天内没有结果回来</div></div>`
+}
+function goalView(gid){
+  const g = D.goals[gid], rows = D.commits.filter(k => k.goal===gid)
+  const live = rows.filter(k => k.st!=='done'), late = rows.filter(k => k.st==='late').length
+  const needs = rows.filter(k => k.st==='need')
+  let h = headerHtml(`<div class="crumb">${backBtn(false)}</div>`, `<button class="iconbtn" title="更多">${ic('more')}</button>`)
+  let b = `<div class="hero"><div class="eyebrow">${ic('target','sm')}目标 · ${g.owner==='me'?'你负责':PEOPLE[g.owner].name+'负责'} · ${g.verifier==='me'?'你验收':PEOPLE[g.verifier].name+'验收'}</div><h1>${esc(g.name)}</h1>`
+  b += `<div class="crit2"><b>完成标准</b>${esc(g.crit)}</div>`
+  b += `<div class="gfacts"><span>截止 <b>${g.due}</b></span><span><b>${live.length}</b> 件在跟</span>${late?`<span class="late"><b>${late}</b> 件逾期</span>`:''}<span>最近动静 ${g.moved}</span><a href="#" data-act="noop">在云之家打开 ${ic('ext','sm')}</a></div>`
+  if (g.changed) b += `<div class="alert">${ic('alert')}<p>完成标准上周改过，上次评估还是按旧标准做的。</p><button class="btn sm">按新标准重新评估</button></div>`
+  b += `<div class="gacts"><button class="btn">${ic('forward','sm')}交给…</button><button class="btn">拆解</button><button class="btn">评估进度</button></div></div>`
+  if (needs.length){
+    b += `<div class="h3"><span class="dot need"></span>要你 <span class="n">${needs.length}</span></div>`
+    b += needs.map(k => `<button class="ptrrow" data-card="${k.card}"><b>${D.cards[k.card].verb}</b>${esc(D.cards[k.card].title)}<span class="pm">${esc(placeName(k.place))} ›</span></button>`).join('')
+  }
+  b += `<div class="h3">执行 <span class="n">${rows.length}</span></div>${sortRows(rows).map(k => rowHtml(k)).join('')}`
+  const outs = Object.entries(D.arts).filter(([,a]) => a.topic==='t-compete')
+  b += `<div class="h3">产出 <span class="n">${outs.length}</span></div><div class="olist">${outs.map(([id,a]) => objRow(id,a)).join('')}</div>`
+  return h + `<div class="stream goalp" id="stream"><div class="sw">${b}</div></div>`
+}
+
+/* ═════════════════════ render: right ═════════════════════ */
+function objRow(id, a){
+  return `<button class="orow" data-preview="${id}"><span class="fi ${a.kind}">${ic(a.kind)}</span><span class="on2"><b>${esc(a.title)}</b><span>${esc(a.meta)}</span></span>${ic('chevR','sm go')}</button>`
+}
+function rightState(){
+  if (S.preview) return 'wide'
+  const v = S.view
+  if (v.kind==='topic' || v.kind==='place') return 'on'
+  if ((v.kind==='board' && S.lens!=='mine') || v.kind==='goal') return S.sel ? 'on' : 'off'
+  return 'off'
+}
+function renderRight(){
+  const st = rightState(), app = $('#app'), r = $('#right')
+  app.dataset.right = st
+  if (st === 'off'){ r.innerHTML = ''; return }
+  if (S.preview) return void (r.innerHTML = previewHtml(S.preview))
+  const v = S.view
+  if ((v.kind==='board' || v.kind==='goal') && S.sel) return void (r.innerHTML = storyHtml(D.commits.find(k => k.id===S.sel)))
+  const pid = v.kind==='topic' ? topicPlace(v.id) : v.id
+  const tid = v.kind==='topic' ? v.id : null
+  const tabs = [['out','产出'],['mem','记忆'],['ref','资料']]
+  let h = `<div class="rh"><div class="tabs">${tabs.map(([k,l]) => `<button class="${S.rtab===k?'on':''}" data-rtab="${k}">${l}</button>`).join('')}</div></div><div class="rb">`
+  if (S.rtab === 'out'){
+    const outs = Object.entries(D.arts).filter(([,a]) => tid ? (a.topic===tid || (!a.topic && a.place===pid)) : a.place===pid)
+    if (outs.length) h += `<div class="olist">${outs.map(([id,a]) => objRow(id,a)).join('')}</div>`
+    else h += `<div class="empty">${ic('doc')}<div>这里还没有产出</div><div class="eg">云小助写的文档、建的表格，和群里发的文件，会出现在这里——点一下就能并排看。</div></div>`
+  } else if (S.rtab === 'mem'){
+    const ms = D.memory[pid] || []
+    h += ms.length ? ms.map(m => `<div class="mem"><div><p>${esc(m.text)}</p><span>${esc(m.src)}</span></div><button title="让云小助忘掉这条">${ic('x','sm')}</button></div>`).join('') + `<div class="inote" style="padding:8px">云小助在${esc(placeName(pid))}里会记着这些。说「以后…」可以加一条。</div>`
+      : `<div class="empty">${ic('book')}<div>还没有记住什么</div><div class="eg">在这里对云小助说「以后价格都用官网当月价」，它就会记下，并在这里列出来。</div></div>`
+  } else {
+    h += `<div class="empty">${ic('list')}<div>还没有引用的资料</div><div class="eg">云小助读过的文档、表格和网页会列在这里，标明是哪一步用到的。</div></div>`
+  }
+  r.innerHTML = h + `</div>`
+}
+function storyHtml(k){
+  if (!k) return ''
+  const sigCls = k.st==='late' ? 'late' : ''
+  const owner = k.who==='me' ? `你欠${PEOPLE[k.to].name}` : `${PEOPLE[k.who].name}${k.to==='me'?'欠你':'欠'+PEOPLE[k.to].name}`
+  let h = `<div class="rh"><h2>来龙去脉</h2><button class="iconbtn" data-act="unsel" title="关闭">${ic('x')}</button></div><div class="rb">`
+  h += `<div class="insp-h">${av(k.who)}<div><div class="it">${esc(k.what)}</div><div class="im">${owner} · ${k.due}前 · <span class="${sigCls}">${esc(k.sig)}</span></div></div></div>`
+  h += `<div class="isec"><h4>怎么来的</h4><blockquote class="quote">${esc(k.born.quote)}<cite>${esc(PEOPLE[k.born.by].name)} · ${esc(k.born.at)} · ${esc(k.born.where)}</cite></blockquote>`
+  h += `<div class="inote">${k.born.note ? esc(k.born.note)+' ' : ''}云小助从这句话记下的。<button data-act="noop">记错了？改</button></div></div>`
+  if (k.after.length) h += `<div class="isec"><h4>之后</h4><ul class="tl">${k.after.map(a => `<li class="${a.late?'late':''}"><time>${esc(a.at)}</time>${esc(a.text)}</li>`).join('')}</ul></div>`
+  h += `<div class="isec"><h4>挂在</h4>${k.goal ? `<div class="linkrow">${ic('target','sm')}<button data-goal="${k.goal}">${esc(D.goals[k.goal].name)}</button></div>` : `<div class="linkrow muted">没挂目标<button data-act="noop" style="margin-left:6px">挂上…</button></div>`}<div class="linkrow">${ic('hash','sm')}<button data-goto="${k.id}">${esc(placeName(k.place))}${k.topic&&D.places[k.place].kind!=='dm'?' / '+esc(D.topics[k.topic].title):''}</button></div></div>`
+  h += `<div class="iacts">`
+  if (k.st==='need') h += `<button class="btn pri" data-card="${k.card}">去${D.cards[k.card].verb}</button>`
+  else if (k.who!=='me' && k.st!=='done') h += `<button class="btn pri" data-nudge="${k.id}">催${PEOPLE[k.who].name}</button>`
+  if (k.st!=='done') h += `<button class="btn">顺延</button><button class="btn">转给别人</button><button class="btn">合并</button><button class="btn ghost danger">作废…</button>`
+  return h + `</div></div>`
+}
+function previewHtml(aid){
+  const a = D.arts[aid]
+  const body = aid==='a-review' ? `
+    <p class="meta">李婷 · 18 页 · 昨天 20:14 更新</p><h1>Q3 复盘材料（初稿）</h1>
+    <h2>一、总体</h2><p>Q3 四条业务线合计收入 4,820 万，同比 +18%，环比 +6%。其中协同办公线贡献增量的 62%。所有数据按 9 月口径（含退款冲销）重算。</p>
+    <h2>二、分业务线</h2><ul><li>协同办公：1,960 万，+31%。大客户续约率 94%。</li><li>财务云：1,410 万，+12%。</li><li>人力云：890 万，+4%，低于目标。</li><li>生态集成：560 万，+9%。</li></ul>
+    <h2>三、没做好的</h2><p>人力云的季度目标差 11%。主要原因是两个大单延到 Q4 签约……</p>
+    <h2>四、Q4 的三件事</h2><p>（待补）</p>`
+  : aid==='a-table' ? `<p class="meta">云小助 · 刚刚</p><h1>竞品对比 · 评审表</h1><p>12 条记录 · 3 家 × 4 个维度。价格列为官网 10 月价，每格附来源日期。</p>`
+  : `<p class="meta">${esc(a.meta)}</p><h1>${esc(a.title)}</h1><p>（预览内容）</p>`
+  const card = Object.entries(D.cards).find(([,c]) => c.art===aid && c.state==='open')
+  return `<div class="rh">${ic(a.kind)}<h2>${esc(a.title)}</h2><button class="iconbtn" title="全屏">${ic('max','sm')}</button><button class="iconbtn" title="在云之家打开">${ic('ext','sm')}</button><button class="iconbtn" data-act="closepv" title="关闭（Esc）">${ic('x')}</button></div>
+    <div class="pv">${body}</div>
+    ${card ? `<div class="pvbar"><span>边看边验 · 中栏的卡还在</span><button class="btn sm" data-ans="${card[0]}:2">打回…</button><button class="btn sm pri" data-ans="${card[0]}:1">通过验收</button></div>` : ''}`
+}
+
+/* ═════════════════════ render: all ═════════════════════ */
+function renderMain(){
+  const prev = $('#stream'), keep = prev && S._sameView ? prev.scrollTop : null
+  const v = S.view, m = $('#main')
+  m.className = (v.kind==='board' && S.lens==='mine') ? 'judg' : ''
+  m.innerHTML = v.kind==='topic' ? topicView(v.id) : v.kind==='place' ? placeView(v.id) : v.kind==='board' ? boardView() : goalView(v.id)
+  const st = $('#stream')
+  if (st){
+    st.style.scrollBehavior = 'auto'
+    if (keep !== null) st.scrollTop = keep
+    else if (v.kind==='topic' || v.kind==='place') st.scrollTop = st.scrollHeight
+    st.style.scrollBehavior = ''
+  }
+  wireComposer()
+}
+function render(sameView=true){
+  S._sameView = sameView
+  document.documentElement.dataset.theme = theme
+  $('#themeBtn').innerHTML = theme==='dark' ? `${ic('sun','sm')}浅色` : `${ic('moon','sm')}深色`
+  renderNav(); renderMain(); renderRight(); renderSteps()
+}
+
+/* ═════════════════════ navigation ═════════════════════ */
+const sameV = (a,b) => a.kind===b.kind && a.id===b.id
+function go(view, {push=true}={}){
+  if (sameV(view, S.view)) return
+  if (push) S.back.push({view:S.view, scroll:$('#stream')?.scrollTop ?? 0})
+  S.view = view; S.preview = null; S.focus = null; S.drafted = null; S.draft = ''; S.rtab = 'out'
+  if (view.kind==='topic' && D.places[topicPlace(view.id)].kind==='dm') S.aud = 'pub'
+  else if (view.kind==='topic') S.aud = 'pri'
+  S.ask = false
+  if (!['board','goal'].includes(view.kind)) S.sel = null
+  render(false)
+}
+function goBack(){
+  const b = S.back.pop(); if (!b) return
+  S.view = b.view; S.preview = null; S.focus = null; S.drafted = null; S.draft = ''
+  render(false)
+  const st = $('#stream'); if (st){ st.style.scrollBehavior='auto'; st.scrollTop = b.scroll; st.style.scrollBehavior='' }
+}
+function openPlace(pid){
+  const p = D.places[pid]
+  if (p.direct) return go({kind:'topic', id:p.direct})
+  go({kind:'place', id:pid})
+}
+function landOnCard(cid){
+  const c = D.cards[cid]
+  go({kind:'topic', id:c.topic})
+  S.focus = cid; S.itemFocus = 0
+  render()
+  requestAnimationFrame(() => {
+    const el = document.getElementById('card-'+cid)
+    if (el){ el.scrollIntoView({block:'center'}); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash') }
+  })
+}
+function gotoCommit(kid){
+  const k = D.commits.find(x => x.id===kid)
+  if (k.topic) go({kind:'topic', id:k.topic}); else openPlace(k.place)
+}
+function nudge(kid){
+  const k = D.commits.find(x => x.id===kid), who = PEOPLE[k.who].name
+  const dm = Object.entries(D.places).find(([,p]) => p.kind==='dm' && p.person===k.who)
+  if (dm) go({kind:'topic', id:dm[1].direct}); else openPlace(k.place)
+  S.aud = 'pub'
+  S.draft = `${who}，${k.what}今天能给吗？明天下午两点评审会要用，缺这块价格那列就空着。`
+  S.drafted = kid
+  render()
+  setTimeout(() => { const ta = $('#ta'); if (ta){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length) } }, 30)
+}
+
+/* ═════════════════════ answering ═════════════════════ */
+function answer(cid, a){
+  const c = D.cards[cid]
+  if (c.state !== 'open') return
+  if (c.kind === 'confirm'){
+    if (a==='1'){
+      finish(cid, `你确认了写入 · <b>12 条进了「竞品对比 · 评审表」</b>`, '已确认 · 云小助开始写入')
+      const k = D.commits.find(k => k.id==='k2'); k.st='run'; k.sig='在写'
+      setTimeout(() => {
+        const t = D.topics['t-compete']
+        Object.assign(D.arts['a-table'], {meta:'云小助 · 12 条 · 刚刚', pending:false})
+        t.stream.push({t:'msg', by:'ai', aud:'pub', at:'09:15', text:'写好了：12 条已进「竞品对比 · 评审表」，价格列标了来源日期。', file:'a-table'})
+        k.st='ok'; k.sig='交了 · 等罗总过目'
+        if (S.view.kind==='topic' && S.view.id==='t-compete'){ render(); const st=$('#stream'); st.scrollTop = st.scrollHeight } else render()
+      }, 1400)
+    } else finish(cid, '你选了先不写 · 云小助等你下一句', '先不写')
+  }
+  if (c.kind === 'accept'){
+    if (a==='1' && !S.viewed[c.art]){ S.strip[cid] = true; S.focus = cid; return render() }
+    if (a==='1' || a==='force'){
+      delete S.strip[cid]
+      finish(cid, `你通过了验收 · <b>Q3 复盘材料初稿</b> · 已告诉李婷`, '已验收 · 李婷会收到一句「通过」')
+      const k = D.commits.find(k => k.id==='k7'); k.st='done'; k.sig='验收了'
+      if (S.preview===c.art) S.preview = null
+      render()
+    }
+    if (a==='2'){ S.reason[cid] = ''; delete S.strip[cid]; S.focus = cid; S.preview = null; render(); setTimeout(() => $('#reason-'+cid)?.focus(), 30) }
+    if (a==='cancelreason'){ delete S.reason[cid]; render() }
+    if (a==='sendreason'){
+      const r = ($('#reason-'+cid)?.value || '').trim()
+      if (!r){ $('#reason-'+cid)?.focus(); return }
+      delete S.reason[cid]
+      D.topics[c.topic].stream.push({t:'msg', by:'me', aud:'pub', at:'09:20', text:`打回：${r}`})
+      finish(cid, `你打回了 · <b>${esc(r)}</b>`, '已打回 · 李婷收到了原因')
+      const k = D.commits.find(k => k.id==='k7'); k.st='ok'; k.sig='打回重做'
+      render()
+    }
+  }
+  if (c.kind === 'decide' && a==='submit'){
+    const picks = c.items.map(i => i.opts[i.pick])
+    const sum = {}; picks.forEach(p => sum[p]=(sum[p]||0)+1)
+    finish(cid, `你定了 3 处差异 · <b>${Object.entries(sum).map(([k,v]) => `${v} 处${k}`).join('，')}</b>`, '已定 · 云小助按你的决定改账')
+    const k = D.commits.find(k => k.id==='k5'); k.st='ok'; k.sig='按你定的在改'
+  }
+}
+function finish(cid, result, toastText){
+  const c = D.cards[cid]
+  c.state = 'done'; c.result = result; c.doneAt = '刚刚'
+  if (S.focus === cid) S.focus = null
+  toast(toastText)
+  render()
+}
+function pick(cid, i, j){
+  const c = D.cards[cid]; c.items[i].pick = j
+  S.focus = cid
+  const next = c.items.findIndex(x => x.pick===null)
+  S.itemFocus = next >= 0 ? next : i
+  render()
+}
+
+/* ═════════════════════ composer ═════════════════════ */
+function wireComposer(){
+  const ta = $('#ta'); if (!ta) return
+  const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 200)+'px' }
+  fit()
+  ta.addEventListener('input', () => {
+    S.draft = ta.value; fit()
+    const b = $('.send'); if (b) b.disabled = !ta.value.trim()
+  })
+  ta.addEventListener('keydown', e => {
+    if (e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); send() }
+    if (e.key==='.' && (e.metaKey||e.ctrlKey)){ e.preventDefault(); toggleAud() }
+    if (e.key==='Escape'){ ta.blur() }
+  })
+}
+function toggleAud(){
+  if (composerCtx?.forcePub) return
+  S.aud = S.aud==='pri' ? 'pub' : 'pri'; S.ask = false
+  const pos = $('#ta')?.selectionStart
+  renderMain()
+  const ta = $('#ta'); if (ta){ ta.focus(); if (pos!=null) ta.setSelectionRange(pos,pos) }
+}
+function send(){
+  const text = S.draft.trim(); if (!text) return
+  const v = S.view
+  const aud = composerCtx?.forcePub ? 'pub' : S.aud
+  const stream = v.kind==='topic' ? D.topics[v.id].stream : D.places[v.id].stream
+  stream.push({t:'msg', by:'me', aud, at:'09:21', text})
+  const wasDraft = S.drafted
+  S.draft = ''; S.drafted = null
+  if (aud==='pri'){
+    const ask = S.ask
+    setTimeout(() => {
+      stream.push({t:'msg', by:'ai', aud:'pri', at:'09:21', text: ask ? '目前 12 条里 4 条有价格，另外 8 条等张锐补。（只读，没有动任何东西）' : /^以后/.test(text) ? '记下了，以后在这个群里都照这个来。右边「记忆」里能看到、能删。' : '好的，我照这个来。'})
+      render()
+    }, 700)
+  }
+  if (wasDraft){
+    const k = D.commits.find(x => x.id===wasDraft); k.after.push({at:'刚刚', text:'你催了一次'})
+    toast(`已发给${PEOPLE[k.who].name}`)
+  } else if (aud==='pub') toast(composerCtx.send.replace('发到','已发到').replace('发给','已发给'))
+  render()
+}
+
+/* ═════════════════════ overlays ═════════════════════ */
+function toast(t){
+  const el = document.createElement('div'); el.className='toast'; el.innerHTML = esc(t)
+  document.querySelectorAll('.toast').forEach(x => x.remove())
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2600)
+}
+function closeLayer(){ $('#layer').innerHTML = ''; palette = null }
+let palette = null
+function palItems(q){
+  const all = []
+  openCards().forEach(c => all.push({g:'要你', icon:'<span class="dot need"></span>', label:`${D.cards[c].verb} · ${D.cards[c].title}`, r:cardWhere(c), run:() => landOnCard(c)}))
+  D.order.forEach(pid => all.push({g:'地方', icon: D.places[pid].kind==='dm' ? av(D.places[pid].person,'xs') : ic('hash'), label:placeName(pid), r: D.places[pid].kind==='dm'?'私聊':`${D.places[pid].members} 人`, run:() => openPlace(pid)}))
+  Object.entries(D.topics).filter(([,t]) => D.places[t.place].kind!=='dm').forEach(([tid,t]) => all.push({g:'地方', icon:ic('list'), label:t.title, r:placeName(t.place), run:() => go({kind:'topic', id:tid})}))
+  D.commits.filter(k => k.st!=='done').forEach(k => all.push({g:'承诺', icon:av(k.who,'xs'), label:k.what, r:k.sig, run:() => { go({kind:'board'}); S.sel=k.id; render() }}))
+  Object.entries(D.goals).forEach(([gid,g]) => all.push({g:'目标', icon:ic('target'), label:g.name, r:g.due, run:() => go({kind:'goal', id:gid})}))
+  all.push({g:'操作', icon:ic('plus'), label:'新目标…', r:'', run:() => toast('（原型）新目标：先说一句话，云小助起草，你签发')})
+  all.push({g:'操作', icon:ic('shield'), label:'云小助在这里的规则', r:'', run:() => showRules()})
+  all.push({g:'操作', icon:ic(theme==='dark'?'sun':'moon'), label: theme==='dark'?'切到浅色':'切到深色', r:'', run:() => { theme = theme==='dark'?'light':'dark'; saveTheme(); render() }})
+  if (!q) return all
+  return all.filter(x => (x.label + x.r + x.g).toLowerCase().includes(q.toLowerCase()))
+}
+function openPalette(){
+  palette = {q:'', i:0}
+  $('#layer').innerHTML = `<div class="scrim" data-act="scrim"><div class="pal" role="dialog" aria-label="跳转"><input id="palq" placeholder="跳到群、人、承诺、目标，或做点什么…" autocomplete="off"><div class="pl" id="pall"></div><div class="pf"><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>⏎</kbd> 打开</span><span><kbd>esc</kbd> 关闭</span></div></div></div>`
+  const inp = $('#palq'); inp.focus()
+  inp.addEventListener('input', () => { palette.q = inp.value; palette.i = 0; drawPal() })
+  drawPal()
+}
+function drawPal(){
+  const items = palItems(palette.q); palette.items = items
+  let h = '', g = null
+  items.forEach((x, i) => { if (x.g!==g){ g = x.g; h += `<div class="pg">${g}</div>` } h += `<button class="pi${i===palette.i?' on':''}" data-pi="${i}">${x.icon}<span>${esc(x.label)}</span><span class="pr">${esc(x.r)}</span></button>` })
+  $('#pall').innerHTML = h || `<div class="empty">没找到「${esc(palette.q)}」</div>`
+  $('#pall .pi.on')?.scrollIntoView({block:'nearest'})
+}
+function showRules(){
+  const v = S.view, pid = v.kind==='topic' ? topicPlace(v.id) : v.kind==='place' ? v.id : 'p-prod'
+  $('#layer').innerHTML = `<div class="scrim" data-act="scrim"><div class="modal" role="dialog"><header>${av('ai')}<div style="flex:1"><h2>云小助在「${esc(placeName(pid))}」</h2><p>这些规则只管这个地方。改了马上生效。</p></div><button class="iconbtn" data-act="close">${ic('x')}</button></header><div class="mb"><dl>
+    <div class="rule"><dt>接谁的话</dt><dd><div class="row2"><span class="pill"><span class="dot" style="background:var(--ok)"></span>在岗</span>群里有人 @云小助 或回复它，它都会接。</div><div class="row2" style="margin-top:8px"><button class="btn sm">改为只接你的</button><button class="btn sm ghost">暂停</button></div></dd></div>
+    <div class="rule"><dt>每次都先问你</dt><dd>删文档、删表格、取消日程、建新群、作废承诺，以及另外 3 种收不回的操作。<details><summary>8 种 · 看明细</summary><ul><li>删除知识库文档 <code>yzj_doc_delete</code></li><li>删除整张表 <code>yzj_sheet_table_delete</code></li><li>取消日程 <code>yzj_calendar_event_delete</code></li><li>新建群 <code>yzj_im_group_create</code></li><li>作废承诺 <code>commitment_void</code></li><li>…</li></ul></details></dd></div>
+    <div class="rule"><dt>写之前问一次</dt><dd>写文档、建表格、改记录 —— 能撤回的写操作。<details><summary>19 种 · 看明细</summary><ul><li>新建文档、写入内容、建表、写记录 …</li></ul></details></dd></div>
+    <div class="rule"><dt>不会做</dt><dd>跑命令、派子任务、替你发群消息。</dd></div>
+    <div class="rule"><dt>你给过的授权</dt><dd class="muted">还没有。经常确认同一类操作时，可以在卡上说「以后这类不用问」。</dd></div>
+    <div class="rule"><dt>它记着的</dt><dd>${(D.memory[pid]||[]).length} 条 <button class="btn sm ghost" data-act="close">在右栏「记忆」里看</button></dd></div>
+  </dl></div></div></div>`
+}
+function showKeys(){
+  $('#layer').innerHTML = `<div class="scrim" data-act="scrim"><div class="modal" role="dialog"><header><h2>键盘</h2><button class="iconbtn" data-act="close">${ic('x')}</button></header><div class="mb"><dl class="keys">
+    <dt><kbd>⌘</kbd><kbd>K</kbd></dt><dd>跳到任何地方、做任何事</dd>
+    <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>下一个 / 上一个（要你的卡、承诺行、对账的每一条）</dd>
+    <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>回答当前的卡 —— 和在云之家里回 1 / 2 是同一件事</dd>
+    <dt><kbd>⏎</kbd></dt><dd>打开选中的那一行</dd>
+    <dt><kbd>/</kbd></dt><dd>到输入框</dd>
+    <dt><kbd>⌘</kbd><kbd>.</kbd></dt><dd>输入框里切换：仅你和云小助 ⇄ 发到群里</dd>
+    <dt><kbd>esc</kbd></dt><dd>关预览 / 返回上一处（回到你离开时的位置）</dd>
+  </dl></div></div></div>`
+}
+function showMenu(btn){
+  const r = btn.getBoundingClientRect()
+  $('#layer').innerHTML = `<div style="position:fixed;inset:0;z-index:29" data-act="close"></div><div class="menu" style="top:${r.bottom+6}px;right:${innerWidth-r.right}px">
+    <button data-act="rules">${ic('shield')}云小助在这里的规则</button>
+    <button data-act="trace">${ic('list')}完整过程</button>
+    <button data-act="close">${ic('ext')}在云之家打开</button><hr>
+    <button data-act="close">${ic('forward')}转交这个话题…</button>
+    <button data-act="close">${ic('plus')}从这里另起一个话题</button></div>`
+}
+function showAudMenu(btn){
+  const r = btn.getBoundingClientRect(), o = composerCtx
+  const opt = (k, icon, title, sub) => `<button class="${(k==='ask'?S.ask:(!S.ask && S.aud===k))?'on':''}" data-setaud="${k}">${ic(icon)}<b>${title}</b>${(k==='ask'?S.ask:(!S.ask && S.aud===k))?ic('check','sm ck'):'<i></i>'}<span>${sub}</span></button>`
+  $('#layer').innerHTML = `<div style="position:fixed;inset:0;z-index:29" data-act="close"></div><div class="audmenu" style="left:${r.left}px;bottom:${innerHeight-r.top+8}px">
+    ${opt('pri','lock','仅你和云小助','群里看不到。云小助照你的话去做。')}
+    ${opt('pub','users',o.pub,o.pubHint+'。@云小助 才会叫上它。')}
+    ${opt('ask','zap','只问不办','仅你和云小助。只读，不开任务、不动任何东西。')}</div>`
+}
+function showTrace(){
+  const t = S.view.kind==='topic' ? D.topics[S.view.id] : null
+  const works = t ? t.stream.filter(i => i.t==='work') : []
+  $('#layer').innerHTML = `<div class="scrim" data-act="scrim"><div class="modal" role="dialog" style="width:min(640px,calc(100vw - 32px))"><header><h2>完整过程<p>${t?esc(t.title):''} · 云小助每一步做了什么、用了什么</p></h2><button class="iconbtn" data-act="close">${ic('x')}</button></header><div class="mb">${works.map(w => `<ol style="list-style:none;padding:0;margin:10px 0">${w.steps.map(s => `<li style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line-2);font-size:13px"><span style="width:16px">${s.s==='ok'?ic('check','sm'):'·'}</span><span style="flex:1">${esc(s.text)}</span><code style="font:12px var(--mono);color:var(--ink-3)">${esc(s.tool)}</code></li>`).join('')}</ol>`).join('') || '<div class="empty">这里还没有云小助的过程</div>'}<div class="inote">原始输入、模型思考与工具返回值都还在，按「看原始记录」逐条展开。</div></div></div></div>`
+}
+function saveTheme(){ try { localStorage.setItem('wr-theme', theme) } catch {} }
+
+/* ═════════════════════ 剧本 ═════════════════════ */
+const STEPS = [
+  {t:'09:12 打开', s:'周三早上，Bruce 打开工作台。左上角「要你」列着三件事：每一行写着是什么、在哪、多久了——不用点进去就知道今天要拍板什么。底下「运行中」那条是云小助在替王超整理路线图，不需要他。',
+    d:'「要你」是唯一跨会话聚合的地方，从三枚计数换成逐条指针；运行中不是异常，用转圈不用颜色。', run(){ reset(); go({kind:'topic', id:'t-roadmap'}, {push:false}); S.back=[] ; render(false) }},
+  {t:'确认一次写入', s:'第一件：昨天张锐在产品讨论群里请云小助做竞品对比表。早上 Bruce 私下交代「价格用 10 月的」，云小助整理好了，写进表格前要他点头。点那一行，直接落在卡上——按 1 就确认。',
+    d:'私下的话收在一条米色带里，带头写着「只有你和云小助」；卡答完收成一行，「要你」少一件。键盘 1/2 和在云之家里回 1/2 是同一个动作。', run(){ landOnCard('c-write') }},
+  {t:'验收李婷的初稿', s:'李婷昨晚交了 Q3 复盘初稿。验收是 Bruce 的主权时刻——先并排看，中栏的对话不离场；没看就点「通过」，会多问一句。',
+    d:'摩擦只留在主权时刻，而且是被设计过的：不是禁止，是提醒你还没看。打回要写原因，会以你的名义发给李婷。', run(){ landOnCard('c-accept') }},
+  {t:'对账：谁没动静', s:'打开「承诺」。张锐答应周二给的价格页数据没来，排在最上面。点那一行，右边讲清它怎么来的——原话、谁说的、在哪说的。「催」把 Bruce 送到和张锐的私聊，云小助拟好了稿，他改成自己的话再发。',
+    d:'一行只亮一个信号，动词在悬停或选中时才出现；出生故事放进右栏（第二级披露）；催 = agent 拟稿 + 本人亲发。', run(){ reset(); go({kind:'board'}, {push:false}); S.back=[]; S.sel='k1'; render(false) }},
+  {t:'开口前知道谁听得见', s:'回到竞品对比表。底部那颗小标签就是听众：米色「仅你和云小助」，蓝色「发到群里 · 产品讨论群」。⌘. 切换；按钮上的字跟着变——「发给云小助」还是「发到群里」。',
+    d:'原来的「落点条 + 语态分段 + 提示句」三行，收成一颗随时可见的听众标签和一个会说话的发送键。', run(){ reset(); go({kind:'topic', id:'t-compete'}, {push:false}); S.back=[]; render(false); setTimeout(() => $('#ta')?.focus(), 50) }},
+  {t:'⌘K 到任何地方', s:'任何东西——群、人、一条承诺、一个目标、一个动作——⌘K 打两个字就到。',
+    d:'不增加入口：⌘K 只是到达已有的地方的捷径。', run(){ closeLayer(); openPalette() }},
+]
+function renderSteps(){
+  $('#steps').innerHTML = STEPS.map((s,i) => `<button class="step${S.stepIdx===i?' on':''}" data-step="${i}"><b>${i+1}</b>${esc(s.t)}</button>`).join('')
+}
+function showStory(i){
+  const s = STEPS[i], el = $('#story')
+  el.hidden = false
+  el.innerHTML = `<span class="sn">${i+1}/${STEPS.length}</span><p>${esc(s.s)}<small>${esc(s.d)}</small></p>${i<STEPS.length-1?`<button class="nx" data-step="${i+1}">下一步</button>`:''}<button class="x" data-act="hidestory" title="收起">${ic('x')}</button>`
+}
+function runStep(i){
+  closeLayer()
+  STEPS[i].run(); S.stepIdx = i; renderSteps(); showStory(i)
+}
+function reset(){
+  const keepTheme = theme, step = S.stepIdx
+  D = seed(); S = S0(); S.stepIdx = step; theme = keepTheme
+}
+
+/* ═════════════════════ events ═════════════════════ */
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-act],[data-card],[data-topic],[data-place],[data-go],[data-goal],[data-ans],[data-pick],[data-preview],[data-scroll],[data-lens],[data-row],[data-nudge],[data-goto],[data-rtab],[data-step],[data-pi],[data-setaud],[data-donefold],[data-jump]')
+  if (!t) return
+  const d = t.dataset
+  if (d.step !== undefined) return runStep(+d.step)
+  if (d.pi !== undefined){ const x = palette.items[+d.pi]; closeLayer(); x.run(); return }
+  if (d.setaud){ closeLayer(); if (d.setaud==='ask'){ S.ask = true; S.aud = 'pri' } else { S.ask = false; S.aud = d.setaud } renderMain(); $('#ta')?.focus(); return }
+  if (d.card) return landOnCard(d.card)
+  if (d.topic) return go({kind:'topic', id:d.topic})
+  if (d.place) return openPlace(d.place)
+  if (d.go) return go({kind:d.go})
+  if (d.goal) return go({kind:'goal', id:d.goal})
+  if (d.ans){ const [cid, a] = d.ans.split(':'); return answer(cid, a) }
+  if (d.pick){ const [cid,i,j] = d.pick.split(':'); return pick(cid, +i, +j) }
+  if (d.preview){ S.preview = d.preview; S.viewed[d.preview] = true; Object.keys(S.strip).forEach(k => delete S.strip[k]); return render() }
+  if (d.scroll){ S.focus = d.scroll; render(); const el = document.getElementById('card-'+d.scroll); el?.scrollIntoView({block:'center'}); el?.classList.add('flash'); return }
+  if (d.lens){ S.lens = d.lens; S.sel = null; return render(false) }
+  if (d.nudge){ e.stopPropagation(); return nudge(d.nudge) }
+  if (d.goto){ e.stopPropagation(); return gotoCommit(d.goto) }
+  if (d.row){ S.sel = S.sel===d.row ? null : d.row; return render() }
+  if (d.rtab){ S.rtab = d.rtab; return renderRight() }
+  if (d.donefold){ S.doneOpen[d.donefold] = true; return render() }
+  if (d.jump){ const k = D.commits.find(k => k.st===d.jump); if (k){ S.sel = k.id; render(); document.getElementById('row-'+k.id)?.scrollIntoView({block:'center'}) } return }
+  switch (d.act){
+    case 'palette': return openPalette()
+    case 'theme': theme = theme==='dark'?'light':'dark'; saveTheme(); return render()
+    case 'reset': reset(); S.stepIdx=-1; $('#story').hidden = true; return render(false)
+    case 'keys': return showKeys()
+    case 'back': return goBack()
+    case 'aud': return showAudMenu(t)
+    case 'ask': S.ask = !S.ask; if (S.ask) S.aud='pri'; renderMain(); $('#ta')?.focus(); return
+    case 'send': return send()
+    case 'undraft': S.drafted = null; S.draft = ''; return renderMain()
+    case 'closepv': S.preview = null; return render()
+    case 'unsel': S.sel = null; return render()
+    case 'rules': closeLayer(); return showRules()
+    case 'trace': closeLayer(); return showTrace()
+    case 'menu': return showMenu(t)
+    case 'scrim': if (e.target === t) closeLayer(); return
+    case 'close': return closeLayer()
+    case 'hidestory': $('#story').hidden = true; return
+    case 'cold': return toast('（原型）51 个没接入云小助的群，按最近活动列出；接入在群规则里一键完成')
+    case 'local': return toast('（原型）本地工作夹：和今天一样，只是换了这套样式')
+    case 'meeting': return toast('（原型）右栏打开这场会：材料就绪度、关联的承诺、「为这场会准备」')
+    case 'newgoal': return toast('（原型）新目标：先说一句话，云小助起草要件，你签发')
+    case 'ackfix': return toast('（原型）就地改：谁负责、什么时候、挂哪个目标')
+    case 'params': return toast('（原型）展开工具参数原文')
+  }
+})
+document.addEventListener('keydown', e => {
+  const inField = /INPUT|TEXTAREA/.test(document.activeElement?.tagName)
+  if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); return palette ? closeLayer() : (closeLayer(), openPalette()) }
+  if (palette){
+    if (e.key==='Escape'){ closeLayer(); return }
+    if (e.key==='ArrowDown'){ e.preventDefault(); palette.i = Math.min(palette.i+1, palette.items.length-1); drawPal() }
+    if (e.key==='ArrowUp'){ e.preventDefault(); palette.i = Math.max(palette.i-1, 0); drawPal() }
+    if (e.key==='Enter'){ e.preventDefault(); const x = palette.items[palette.i]; closeLayer(); x?.run() }
+    return
+  }
+  if (e.key==='Escape' && $('#layer').innerHTML){ closeLayer(); return }
+  if (inField){
+    if (e.key==='Escape') document.activeElement.blur()
+    return
+  }
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  const v = S.view
+  if (e.key==='Escape'){ if (S.preview){ S.preview=null; return render() } if (S.sel){ S.sel=null; return render() } return goBack() }
+  if (e.key==='/'){ e.preventDefault(); $('#ta')?.focus(); return }
+  if (e.key==='?'){ return showKeys() }
+  if (v.kind==='topic' || v.kind==='place'){
+    const cards = v.kind==='topic' ? D.topics[v.id].stream.filter(i => i.t==='card' && D.cards[i.id].state==='open').map(i => i.id) : []
+    const fc = S.focus && D.cards[S.focus]
+    if ((e.key==='j' || e.key==='k') && fc && fc.kind==='decide'){
+      S.itemFocus = Math.max(0, Math.min(fc.items.length-1, S.itemFocus + (e.key==='j'?1:-1))); return render()
+    }
+    if ((e.key==='j' || e.key==='k') && cards.length){
+      const i = cards.indexOf(S.focus), n = e.key==='j' ? Math.min(cards.length-1, i+1) : Math.max(0, i-1)
+      S.focus = cards[n<0?0:n]; S.itemFocus = 0; render(); document.getElementById('card-'+S.focus)?.scrollIntoView({block:'center'}); return
+    }
+    if (/^[1-3]$/.test(e.key)){
+      if (!fc && cards.length===1){ S.focus = cards[0] }
+      const c = S.focus && D.cards[S.focus]; if (!c || c.state!=='open') return
+      if (c.kind==='decide'){ const it = c.items[S.itemFocus]; if (+e.key <= it.opts.length) pick(S.focus, S.itemFocus, +e.key-1); return }
+      if (+e.key <= 2) answer(S.focus, e.key)
+    }
+    if (e.key==='Enter' && S.focus && D.cards[S.focus]?.kind==='decide'){
+      const c = D.cards[S.focus]; if (c.items.every(i => i.pick!==null)) answer(S.focus, 'submit')
+    }
+  }
+  if (v.kind==='board' || v.kind==='goal'){
+    const rows = [...document.querySelectorAll('.row[data-row]')].map(x => x.dataset.row)
+    if (e.key==='j' || e.key==='k'){
+      const i = rows.indexOf(S.sel), n = e.key==='j' ? Math.min(rows.length-1, i+1) : Math.max(0, i-1)
+      S.sel = rows[n<0?0:n]; render(); document.getElementById('row-'+S.sel)?.scrollIntoView({block:'nearest'}); return
+    }
+    if (e.key==='Enter' && S.sel){ const k = D.commits.find(x => x.id===S.sel); return k.st==='need' ? landOnCard(k.card) : gotoCommit(k.id) }
+  }
+})
+
+render(false)
+</script>
+</body>
+</html>
