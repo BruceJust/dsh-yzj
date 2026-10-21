@@ -258,7 +258,7 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                     : rules.map(rule => (
                       <div className={css.rule} key={rule.leaseId}>
                         <div className={css.ruleMain}>
-                          <b>往{TOOL_CLASS[rule.toolClass] ?? rule.toolClass}里写不用每次问</b>
+                          <b>往{TOOL_CLASS[rule.toolClass] ?? rule.toolClass}里新加东西不用每次问</b>
                           <span className={css.ruleMeta}>
                             {rule.scoped ? '只在这个群' : '不限群'}
                             {' · '}

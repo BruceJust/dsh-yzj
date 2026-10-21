@@ -560,8 +560,8 @@ function whyOf(card: StreamCard, state: Record<string, unknown>): string[] {
     const scope = record(state.scope)
     const cls = TOOL_CLASS[text(scope.toolClass)] ?? text(scope.toolClass)
     return [
-      `范围：往${cls}里写${text(scope.placeKey) === '' ? '，不限群' : '，只在这一个群'} · ${text(state.periodText)}，到期自动失效，随时可以收回。`,
-      '删除、覆盖、建群照旧每次都问。',
+      `范围：往${cls}里新加东西${text(scope.placeKey) === '' ? '，不限群' : '，只在这一个群'} · ${text(state.periodText)}，到期自动失效，随时可以收回。`,
+      '改已有的、删除、建群照旧每次都问。',
     ]
   }
   if (card.kind === 'conflict') {

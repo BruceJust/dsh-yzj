@@ -76,6 +76,17 @@ export function leaseIdFor(decider: string, toolClass: string, placeKey: string 
   return `lse-${hash.digest('hex').slice(0, 20)}`
 }
 
+/**
+ * 改已有的：动的是已经在那儿、别人可能正在读的东西（文档正文、表格记录、日程、改名、挪位置）。
+ *
+ * 规矩卡上那句「改已有的、删除、建群照旧每次都问」是对人的承诺——一张「以后在这个群往文档
+ * 里新加东西不用问」的规矩，不该顺带放行把别人的文档正文改掉。删除与建群是强写（guard 的
+ * 安全地板）；改已有的在这里拦，和那一层合起来才兑现那句话。规矩只免「新加」。
+ */
+export function overwrites(toolName: string): boolean {
+  return /_(?:update|replace|overwrite|rename|move)$/u.test(toolName)
+}
+
 /** 工具的类：`yzj_doc_create` → `doc`。租约按类覆盖，不按单个工具名。 */
 export function toolClassOf(toolName: string): string | undefined {
   const match = /^yzj_([a-z]+)_/u.exec(toolName)

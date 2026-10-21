@@ -217,7 +217,10 @@ describe('规则面板：你签的规矩', () => {
     // 放行账的族由工具包装；这里只要它的形状，所以用一张不校验的表。
     graph.defineFamily({
       kind: 'action',
-      events: { 'action/released': { schema: { parse: (data: unknown) => data } as never } },
+      events: {
+        'action/released': { schema: { parse: (data: unknown) => data } as never },
+        'action/settled': { schema: { parse: (data: unknown) => data } as never },
+      },
       objectIdOf: () => undefined,
       reduce: previous => previous ?? null,
     } as never)
@@ -226,7 +229,8 @@ describe('规则面板：你签的规矩', () => {
     await lease('l-any', undefined, 'p-li')
     await lease('l-else', 'yzj-group-other', 'op-1')
     await lease('l-draft', TOPIC.placeKey)
-    for (const callId of ['c1', 'c2']) {
+    // 「替你省了几次」只数真办成了的：c3 没办成，它没替你省掉什么。
+    for (const [callId, outcome] of [['c1', 'ok'], ['c2', 'ok'], ['c3', 'failed']] as const) {
       await graph.append({
         type: 'action/released',
         data: {
@@ -235,6 +239,7 @@ describe('规则面板：你签的规矩', () => {
         },
         actor: { kind: 'agent' },
       })
+      await graph.append({ type: 'action/settled', data: { sessionId: 's', callId, outcome, durationMs: 1 }, actor: { kind: 'agent' } })
     }
     const rows = rulesFor(ctx, TOPIC.placeKey)
     expect(rows.map(row => [row.leaseId, row.status, row.scoped, row.signedBy, row.saved])).toEqual([
@@ -271,12 +276,14 @@ describe('规则面板：你签的规矩', () => {
     await release('a2', { kind: 'message', messageId: 'm-1', senderOpenId: 'p-li' }, 'ok')
     await release('a3', { kind: 'approval', approvalId: 'ap-1', decidedBy: 'op-1' }, 'ok')
     await release('a4', { kind: 'lease', leaseId: 'l-here', grantedBy: 'op-1' }, 'failed')
+    // 你自己在群里叫它做的不算「没问你就办了」——那是你问过了。
+    await release('a5', { kind: 'message', messageId: 'm-2', senderOpenId: 'op-1' }, 'ok')
     const rows = autoHandled(ctx, 0)
     expect(rows.map(row => row.by.kind)).toEqual(['message', 'lease'])
     expect(rows[0]?.by).toEqual({ kind: 'message', who: '李婷' })
     expect(rows[1]?.what).toBe('写表格')
     expect(rows[1]?.by).toMatchObject({ kind: 'lease', leaseId: 'l-here', active: true })
-    expect((rows[1]?.by as { rule: string }).rule).toContain('往表格里写不用每次问')
+    expect((rows[1]?.by as { rule: string }).rule).toContain('往表格里新加东西不用每次问')
     expect(autoHandled(ctx, Date.now() + 60_000)).toEqual([])
   })
 })

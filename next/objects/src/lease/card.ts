@@ -10,6 +10,9 @@ import type { LeaseState } from './family.ts'
 
 const isDecider = (openId: string | undefined, state: LeaseState): boolean => openId !== undefined && openId === state.decider
 
+/** 卡上说「文档」不说 `doc`：这张卡会原样投进云之家。 */
+const CLASS_LABEL: Readonly<Record<string, string>> = { doc: '文档', sheet: '表格', calendar: '日程', im: '群消息', file: '文件', drive: '网盘' }
+
 const when = (at: number): string => new Date(at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour12: false })
 
 export const leaseCard: CardDefinition<LeaseState> = {
@@ -55,10 +58,10 @@ export const leaseCard: CardDefinition<LeaseState> = {
   renderText: state => ({
     body: [
       `【规矩 · 等你签】${state.reason}`,
-      `范围：${state.scope.toolClass} 一类的写入${state.scope.placeKey === undefined ? '（不限群）' : '（只在这一个群）'}`,
+      `范围：往${CLASS_LABEL[state.scope.toolClass] ?? state.scope.toolClass}里新加东西${state.scope.placeKey === undefined ? '（不限群）' : '（只在这一个群）'}`,
       `期间：${state.periodText}（${when(state.period.from)} – ${when(state.period.to)}）`,
       state.status === 'proposed'
-        ? '签了之后，这段时间里这类写入不再每次问你；随时可收回，到期自动失效。删除、覆盖、建群照旧每次都问。'
+        ? '签了之后，这段时间里这类新加不再每次问你；随时可收回，到期自动失效。改已有的、删除、建群照旧每次都问。'
         : state.status === 'active' ? '生效中。回复「收回」即撤销。' : `状态：${state.status}`,
       `[card#lease:${state.leaseId}]`,
     ].join('\n'),

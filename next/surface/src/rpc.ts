@@ -25,7 +25,7 @@ import {
   reissueEdge,
   releaseNotice,
   transferredToName, type CommitmentState,
-  proposeLease, toolClassOf, SIGNATURE_AGENT, isPastDue, resolveDue,
+  proposeLease, toolClassOf, overwrites, SIGNATURE_AGENT, isPastDue, resolveDue,
 } from '@yzj-next/objects'
 import {
   placeKeyFor, type PresenceView, type TopicDescriptor, type TopicMessage,
@@ -403,13 +403,6 @@ export interface RuleRow {
   readonly saved: number
 }
 
-/**
- * 今天云小助按你的规矩自己办了的 (界面重设计 律九 · §5.8 清零态).
- *
- * 读的是组织侧的账：`action/released` 里授权来源是**规矩**（人签的租约）或**群里那句话**
- * （发消息的人叫它做的）、而且真的办成了（`action/settled` 为 ok）的那几次写。**不复用审计
- * 报告**——审计不进界面；这里只回答「哪几件没问你就办了、凭的是什么」。
- */
 /** 近处候选的第一种出处。排序认的就是它，所以只写一处。 */
 const IN_GOAL = '这个目标里已经有活在跟'
 
@@ -429,13 +422,28 @@ const AUTO_VERB: Readonly<Record<string, string>> = {
 }
 const AUTO_CLASS: Readonly<Record<string, string>> = { doc: '文档', sheet: '表格', calendar: '日程', im: '群消息', file: '文件' }
 
-export function autoHandled(ctx: Context, since: number): readonly AutoHandledRow[] {
+/** 每一次写落下的结果：会话 + 调用 → `ok` / 别的。只认真办成了的。 */
+function settledOutcomes(ctx: Context, since = 0): ReadonlyMap<string, string> {
   const settled = new Map<string, string>()
   for (const event of ctx.yzjGraph.rawEvents(['action/settled'])) {
     if (event.time < since) continue
     const data = asRecord(event.data)
     settled.set(`${asString(data?.sessionId) ?? ''}:${asString(data?.callId) ?? ''}`, asString(data?.outcome) ?? '')
   }
+  return settled
+}
+
+/**
+ * 今天云小助按你的规矩自己办了的 (界面重设计 律九 · §5.8 清零态).
+ *
+ * 读的是组织侧的账：`action/released` 里授权来源是**规矩**（人签的租约）或**群里别人那句
+ * 话**（发消息的人叫它做的）、而且真的办成了（`action/settled` 为 ok）的那几次写。你自己在
+ * 群里叫它做的不算——那是你问过了。**不复用审计报告**——审计不进界面；这里只回答「哪几件
+ * 没问你就办了、凭的是什么」。
+ */
+export function autoHandled(ctx: Context, since: number): readonly AutoHandledRow[] {
+  const settled = settledOutcomes(ctx, since)
+  const me = asString((ctx.get('yzjCards')?.desktopActor() as { openId?: string } | undefined)?.openId)
   const produced = [...ctx.yzjGraph.rawEvents(['lineage/produced'])].filter(event => event.time >= since)
   const originOf = originsOf(ctx)
   const peers = ctx.get('yzjTopics')?.peers() ?? []
@@ -449,7 +457,7 @@ export function autoHandled(ctx: Context, since: number): readonly AutoHandledRo
       ? undefined
       : ctx.get('yzjTopics')?.tree().find(entry => entry.place.placeKey === placeKey)?.place.groupName
     leases.set(object.id, {
-      rule: `${placeName === undefined ? '' : `在「${placeName}」`}往${AUTO_CLASS[cls] ?? cls}里写不用每次问`,
+      rule: `${placeName === undefined ? '' : `在「${placeName}」`}往${AUTO_CLASS[cls] ?? cls}里新加东西不用每次问`,
       active: asString(state?.status) === 'active' && (asNumber(asRecord(state?.period)?.to) ?? 0) > Date.now(),
     })
   }
@@ -460,6 +468,7 @@ export function autoHandled(ctx: Context, since: number): readonly AutoHandledRo
     const authority = asRecord(data?.authority)
     const kind = asString(authority?.kind)
     if (kind !== 'lease' && kind !== 'message') continue
+    if (kind === 'message' && me !== undefined && asString(authority?.senderOpenId) === me) continue
     if (settled.get(`${asString(data?.sessionId) ?? ''}:${asString(data?.callId) ?? ''}`) !== 'ok') continue
     const toolName = asString(data?.toolName) ?? ''
     const topicKey = asString(data?.topicKey)
@@ -493,10 +502,17 @@ export function rulesFor(ctx: Context, placeKey: string): RuleRow[] {
   // 租约族没装的部署里没有「规矩」这回事：这一行空着，而不是去查一个不存在的族。
   if (ctx.get('yzjLeases') === undefined) return []
   const me = asString((ctx.get('yzjCards')?.desktopActor() as { openId?: string } | undefined)?.openId)
+  /*
+    「替你省了几次」只数凭这条规矩放行、**而且真办成了**的写——没办成的那一次，你也没被
+    省掉什么；把它数进去，这个数就在替规矩说好话。
+  */
+  const settled = settledOutcomes(ctx)
   const saved = new Map<string, number>()
   for (const event of ctx.yzjGraph.rawEvents(['action/released'])) {
-    const authority = asRecord(asRecord(event.data)?.authority)
+    const data = asRecord(event.data)
+    const authority = asRecord(data?.authority)
     if (asString(authority?.kind) !== 'lease') continue
+    if (settled.get(`${asString(data?.sessionId) ?? ''}:${asString(data?.callId) ?? ''}`) !== 'ok') continue
     const id = asString(authority?.leaseId)
     if (id !== undefined) saved.set(id, (saved.get(id) ?? 0) + 1)
   }
@@ -3168,6 +3184,8 @@ function approvalStreaks(ctx: Context, viewer: GraphViewer): Map<string, number>
   for (const object of ctx.yzjGraph.query(viewer, { kind: 'approval' })) {
     const state = asRecord(object.state)
     if (asString(state?.level) !== 'standard') continue
+    // 改已有的不进表：规矩不免它（见 `overwrites`），攒够了也签不出一条管得着它的规矩。
+    if (overwrites(asString(state?.toolName) ?? '')) continue
     const toolClass = toolClassOf(asString(state?.toolName) ?? '')
     const placeKey = asString(state?.placeKey)
     if (toolClass === undefined || placeKey === undefined) continue
@@ -3833,7 +3851,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             const placeName = stringField(payload, 'placeName') ?? '这个群'
             const leaseId = await proposeLease(scoped, {
               decider, toolClass, placeKey, days: 30, family: 'write-confirm',
-              reason: `在「${placeName}」，${SIGNATURE_AGENT}往${TOOL_CLASS_LABEL[toolClass] ?? toolClass}里写不用每次问你（你已连续确认 ${String(streak)} 次，没拒过）`,
+              reason: `在「${placeName}」，${SIGNATURE_AGENT}往${TOOL_CLASS_LABEL[toolClass] ?? toolClass}里新加东西不用每次问你（你已连续确认 ${String(streak)} 次，没拒过）`,
               ...(sessionId === undefined ? {} : { sessionAnchor: sessionId }),
             })
             return { ok: true, value: { leaseId } }
@@ -3862,7 +3880,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             const toolClass = [...classes.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? 'doc'
             const leaseId = await proposeLease(scoped, {
               decider, toolClass, days: typeof days === 'number' ? days : 7, family,
-              reason: `${head.label}：近 90 天同意 ${String(head.agree)} 次、被推翻 ${String(head.reversed)} 次——这一期往${AUTO_CLASS[toolClass] ?? toolClass}里写不用每次问你`,
+              reason: `${head.label}：近 90 天同意 ${String(head.agree)} 次、被推翻 ${String(head.reversed)} 次——这一期往${AUTO_CLASS[toolClass] ?? toolClass}里新加东西不用每次问你`,
             })
             return { ok: true, value: { leaseId, note: `规矩递到「要你」里了（往${AUTO_CLASS[toolClass] ?? toolClass}里写，${String(typeof days === 'number' ? days : 7)} 天）——你签了才生效。` } }
           }

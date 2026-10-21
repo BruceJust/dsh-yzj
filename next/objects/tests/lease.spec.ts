@@ -82,6 +82,9 @@ describe('covers()：类、场所、人三个都对上才放行', () => {
     expect(covers.covers({ toolName: 'yzj_doc_create', args: {}, placeKey: 'yzj-group-g2', openId: 'op-1' })).toBe(false)
     expect(covers.covers({ toolName: 'yzj_sheet_write', args: {}, placeKey: 'yzj-group-g1', openId: 'op-1' })).toBe(false)
     expect(covers.covers({ toolName: 'yzj_doc_create', args: {}, placeKey: 'yzj-group-g1', openId: 'op-2' })).toBe(false)
+    // 规矩卡上写着「覆盖照旧每次都问」：同一类里改已有内容的写，规矩不放行。
+    expect(covers.covers({ toolName: 'yzj_doc_block_insert', args: {}, placeKey: 'yzj-group-g1', openId: 'op-1' })).toBe(true)
+    expect(covers.covers({ toolName: 'yzj_doc_block_update', args: {}, placeKey: 'yzj-group-g1', openId: 'op-1' })).toBe(false)
   })
 
   /*

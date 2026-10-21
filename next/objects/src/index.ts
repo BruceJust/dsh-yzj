@@ -84,7 +84,7 @@ export {
 } from './minutes/ingest.ts'
 export { applyCommitmentNotify } from './goal/notify.ts'
 export { leaseCard } from './lease/card.ts'
-export { leaseFamily, leaseIdFor, toolClassOf, type LeaseState, type LeaseStatus } from './lease/family.ts'
+export { leaseFamily, leaseIdFor, overwrites, toolClassOf, type LeaseState, type LeaseStatus } from './lease/family.ts'
 export { activeLeases, leasesService, proposeLease, sweepExpired } from './lease/index.ts'
 export { applyGoalWriteback, lineFor, writebackIdFor } from './goal/writeback.ts'
 export { failureOf } from './bridge-error.ts'

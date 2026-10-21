@@ -9,7 +9,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { asRecord, asString } from '@yzj-next/graph'
 import type { YzjLeases } from '../leases.ts'
 import { leaseCard } from './card.ts'
-import { leaseFamily, leaseIdFor, toolClassOf, type LeaseState } from './family.ts'
+import { leaseFamily, leaseIdFor, overwrites, toolClassOf, type LeaseState } from './family.ts'
 
 export const name = 'yzj-next-obj-lease'
 export const inject = ['yzjGraph', 'yzjCards']
@@ -26,7 +26,8 @@ export function activeLeases(ctx: Context, now = Date.now()): readonly LeaseStat
 export function leasesService(ctx: Context): YzjLeases {
   const coveringLease: YzjLeases['coveringLease'] = (query) => {
     const toolClass = toolClassOf(query.toolName)
-    if (toolClass === undefined) return undefined
+    // 覆盖写永远问：规矩只免「新建、追加」这一类（见 `overwrites`）。
+    if (toolClass === undefined || overwrites(query.toolName)) return undefined
     const hit = activeLeases(ctx)
       .filter(lease => (
         lease.scope.toolClass === toolClass
