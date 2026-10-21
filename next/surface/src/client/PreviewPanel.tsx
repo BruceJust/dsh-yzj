@@ -273,7 +273,7 @@ export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
                 只说结论不给门,人唯一能做的就是刷新整页。
               */
               <div className={css.note}>
-                这次没取到。可能是通道刚断了一下，也可能它已经被撤回、或者当前账号看不到它。
+                这次没取到——可能刚断了一下，也可能它已被撤回、或者你看不到它。
                 <div className={css.retryRow}>
                   <button type="button" className={css.act} onClick={read.retry}>再试一次</button>
                 </div>

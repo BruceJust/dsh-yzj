@@ -573,7 +573,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
         <>
           {conversations.length === 0 && (
             <div className={css.calm}>
-              还没读到云之家的会话。通道每一轮会把见到的会话记下来，几轮之后这里就有了。
+              还没读到云之家的会话，过一会儿就有了。
             </div>
           )}
           {served.map(placeRow)}

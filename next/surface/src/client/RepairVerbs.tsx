@@ -187,7 +187,7 @@ export function RepairVerbs(props: {
   if (repair.kind === 'handoff') {
     return (
       <div className={css.repair}>
-        <span className={css.repairWhy}>换个人做，或换个地方说。下一步选人和地方——你说出去才算数，原来那边会收到一句交接。</span>
+        <span className={css.repairWhy}>换个人做，或换个地方说。原来那边会收到一句交接。</span>
         <button type="button" className={css.repairGo} disabled={busy || handoff === undefined} onClick={() => { handoff?.(row) }}>
           选人和地方
         </button>

@@ -851,7 +851,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
       {view.kind === 'assistant' && (
         <div className={css.feedNote}>
           <b>这是一个助手/系统号的推送。</b>
-          它是订阅，不是对话——那一头没有人会读到回复，所以这里不给输入框。
+          这是订阅号，回复没有人会读到。
         </div>
       )}
 
@@ -861,7 +861,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           真门，才是一次拒绝而不是一条死路。
         */
         <div className={css.notOnDuty}>
-          <span><b>{AGENT}没接这个群</b>，这句没有发出去——在同事面前留一个永远不会有人应的 @，比在这里说清楚糟得多。</span>
+          <span><b>{AGENT}没在这个群接活</b>，这句没有发出去——发出去也没人应。</span>
           <span className={css.notOnDutyActions}>
             <button type="button" className={css.notOnDutyBtn} onClick={() => { setContractOpen(true) }}>
               {AGENT}在这里的规则

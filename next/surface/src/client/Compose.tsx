@@ -194,7 +194,7 @@ export function ForwardPicker(props: ForwardPickerProps): ReactNode {
             <div className={css.calm}>
               没有匹配的会话。
               <br />
-              这里能找到的是通道见过的会话——名录攒到哪儿，就能找到哪儿。
+              只找得到{AGENT}见过的群和私聊。
             </div>
           )}
           {shown.map((row) => {
