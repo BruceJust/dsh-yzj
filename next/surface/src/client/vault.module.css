@@ -30,7 +30,7 @@
 
 /* 顶上那一句：一份人看不见的合同不是合同。 */
 .contract {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   padding: 10px 12px; border-radius: var(--yzj-r-md);
   border: 1px solid var(--yzj-pri-line);
   font-size: var(--yzj-fs-sm); color: var(--yzj-pri-ink);

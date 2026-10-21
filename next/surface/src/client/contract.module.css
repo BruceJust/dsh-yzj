@@ -30,10 +30,10 @@
 .title { font-size:var(--yzj-fs-lg); font-weight: 750; color: var(--yzj-ink); }
 .sub { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); margin-top: 2px; }
 .close {
-  margin-left: auto; border: 0; background: none;
-  font: inherit; font-size:var(--yzj-fs-lg); color: var(--yzj-ink-3); padding: 4px 8px; cursor: pointer;
+  margin-left: auto; flex: none; width: 28px; height: 28px; display: grid; place-items: center;
+  border: 0; border-radius: var(--yzj-r-sm); background: none; color: var(--yzj-ink-3); cursor: pointer;
 }
-.close:hover { color: var(--yzj-ink); }
+.close:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
 
 .section { padding: 12px 18px 4px; }
 .sectionHead {
@@ -41,8 +41,9 @@
   font-size:var(--yzj-fs-sm); font-weight: 750; color: var(--yzj-ink); padding-bottom: 7px;
 }
 .tag { font-size:var(--yzj-fs-xs); font-weight: 700; padding: 2px 8px; border-radius:var(--yzj-r-pill); }
-.tagHard { background: var(--yzj-late-bg); color: var(--yzj-late-ink); border: 1px solid var(--yzj-late-line); }
-.tagSoft { background: var(--yzj-ok-bg); color: var(--yzj-ok-ink); border: 1px solid var(--yzj-ok-line); }
+/* 标签是说明，不是信号：不上色（律三——红只给逾期，琥珀只给要你）。 */
+.tagHard, .tagSoft { background: var(--yzj-bg-sunk); color: var(--yzj-ink-3); border: 0; }
+.avatarPri { background: var(--yzj-pri-bg); color: var(--yzj-pri-ink); }
 
 .row {
   display: flex; align-items: baseline; gap: 8px;
@@ -59,9 +60,9 @@
 .calm { padding: 10px 18px 14px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
 
 .gate {
-  margin: 8px 18px 18px; padding: 11px 13px;
-  border: 1px dashed var(--yzj-pub-line); border-radius:var(--yzj-r-md); background: var(--yzj-bg-sunk);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.8;
+  margin: 8px 18px 18px; padding: 10px 12px;
+  border-radius:var(--yzj-r-md); background: var(--yzj-bg-sunk);
+  font-size:var(--yzj-fs-sm); color: var(--yzj-ink-2); line-height: 1.6;
 }
 .gate b { color: var(--yzj-ink); }
 /* 接单开关：按之前先说清后果 */

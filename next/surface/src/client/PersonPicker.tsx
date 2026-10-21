@@ -20,6 +20,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { PersonWire, SurfaceInject } from './rpc.ts'
+import { Icon } from './icons.tsx'
 import css from './person.module.css'
 
 export interface PersonPickerProps {
@@ -82,7 +83,7 @@ export function PersonPicker(props: PersonPickerProps): ReactNode {
       >
         {picked.name}
         {picked.department === undefined ? '' : ` · ${picked.department}`}
-        <span className={css.drop}>×</span>
+        <span className={css.drop}><Icon name="x" size={10} /></span>
       </button>
     )
   }

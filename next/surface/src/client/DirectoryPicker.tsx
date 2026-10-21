@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import tokens from './tokens.module.css'
 import css from './contract.module.css'
+import { Icon } from './icons.tsx'
 import picker from './picker.module.css'
 
 /** One directory level, as the host's browse capability returns it. */
@@ -95,12 +96,12 @@ export function YzjDirectoryPicker(props: DirectoryPickerProps): ReactNode {
         onClick={(event) => { event.stopPropagation() }}
       >
         <div className={css.head}>
-          <span className={css.avatar}>▢</span>
+          <span className={css.avatar}><Icon name="folder" size={16} /></span>
           <span>
             <div className={css.title}>选择本地工作目录</div>
             <div className={css.sub}>本地会话在这个目录里跑；云之家话题不受影响</div>
           </span>
-          <button type="button" className={css.close} onClick={close} aria-label="关闭">×</button>
+          <button type="button" className={css.close} onClick={close} aria-label="关闭"><Icon name="x" size={14} /></button>
         </div>
 
         {pickDirectory !== undefined && (

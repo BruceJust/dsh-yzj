@@ -60,6 +60,9 @@
 
 .act {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font: inherit;
   font-size:var(--yzj-fs-xs);
   font-weight: 650;

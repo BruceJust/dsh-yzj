@@ -16,6 +16,8 @@
   transition: border-color .15s;
 }
 .composer:focus-within { border-color: var(--yzj-ink-4); }
+/* 框是整个输入区，焦点由外框说；里面的字区不再描一圈。 */
+.input:focus-visible { outline: none; }
 .pub, .pub:focus-within { border-color: var(--yzj-pub-line); }
 .pri { background: var(--yzj-bg); }
 .ask { background: var(--yzj-bg); }

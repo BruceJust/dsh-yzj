@@ -19,6 +19,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { clockOf, type TrajectoryNode } from './stream.ts'
 import tokens from './tokens.module.css'
 import css from './contract.module.css'
+import { Icon } from './icons.tsx'
 import trace from './trace.module.css'
 
 export interface TracePanelProps {
@@ -161,7 +162,7 @@ export function YzjTracePanel(props: TracePanelProps): ReactNode {
         onClick={(event) => { event.stopPropagation() }}
       >
         <div className={css.head}>
-          <span className={css.avatar}>≡</span>
+          <span className={css.avatar}><Icon name="steps" size={16} /></span>
           <span>
             <div className={css.title}>完整过程</div>
             <div className={css.sub}>{title} · {rows.length} 个节点，按发生顺序</div>
@@ -173,7 +174,7 @@ export function YzjTracePanel(props: TracePanelProps): ReactNode {
           >
             {onlyTools ? '看全部' : '只看工具'}
           </button>
-          <button type="button" className={css.close} onClick={close} aria-label="关闭">×</button>
+          <button type="button" className={css.close} onClick={close} aria-label="关闭"><Icon name="x" size={14} /></button>
         </div>
 
         <div className={trace.body}>

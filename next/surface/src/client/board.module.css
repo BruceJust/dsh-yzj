@@ -14,9 +14,10 @@
 .sheetHead { display: flex; align-items: center; margin-bottom: 8px; }
 .sheetTitle { font-size:var(--yzj-fs-md); font-weight: 700; color: var(--yzj-ink); }
 .sheetClose {
-  margin-left: auto; border: 0; background: none; cursor: pointer;
-  font-size:var(--yzj-fs-xl); line-height: 1; color: var(--yzj-ink-3);
+  margin-left: auto; flex: none; width: 28px; height: 28px; display: grid; place-items: center;
+  border: 0; border-radius: var(--yzj-r-sm); background: none; color: var(--yzj-ink-3); cursor: pointer;
 }
+.sheetClose:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; flex: 1; }
 .fieldRow { display: flex; gap: 10px; }
 .fieldLabel { font-size:var(--yzj-fs-xs); font-weight: 650; color: var(--yzj-ink-3); }

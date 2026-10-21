@@ -162,10 +162,18 @@
   box-sizing: border-box;
 }
 
+/* 焦点圈跟着元素自己的圆角走；不在聚焦时改它的形状。 */
 .tokens :focus-visible {
   outline: 2px solid var(--yzj-pub);
   outline-offset: 2px;
-  border-radius: var(--yzj-r-sm);
+}
+/*
+  打字的框：光标已经说明了焦点在哪，外面再套一圈 2px 就成了双圈。描在框自己的边上，
+  看起来就是边变蓝了。
+*/
+.tokens :is(input:not([type="checkbox"], [type="radio"]), textarea, select):focus-visible {
+  outline: 1px solid var(--yzj-pub);
+  outline-offset: -1px;
 }
 
 @media (prefers-reduced-motion: reduce) {
