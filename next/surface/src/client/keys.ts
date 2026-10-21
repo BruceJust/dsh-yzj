@@ -35,6 +35,17 @@ function covered(): boolean {
   return typeof document !== 'undefined' && document.querySelector('[role="dialog"], [role="menu"]') !== null
 }
 
+/**
+ * 这一下键该不该当命令：没在打字、没按修饰键、上面没盖着一层（对话框、菜单、⌘K、`?`）。
+ *
+ * 各屏自己的键（数字、V、J/K、N、Z、`/`）都先过这一道。此前它们各自只查「在不在打字」：
+ * `?` 那张表开着时按 1，答掉的是底下那张卡；规则面板开着时按 N，人被带去了别的群。
+ */
+export function commandKey(event: KeyboardEvent): boolean {
+  if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return false
+  return !typing(event.target) && !covered() && palette === 'closed'
+}
+
 /* ——— 回到原处：每一屏登记自己的返回 ——— */
 
 let back: (() => void) | undefined
@@ -42,9 +53,29 @@ let back: (() => void) | undefined
 /** 这一屏在台上时，Esc 的最后一步走它的返回。 */
 export function useBackKey(fn: (() => void) | undefined): void {
   useEffect(() => {
+    // 没有返回可登记的那一屏不碰别人登记的：此前它把 `back` 清成 undefined，同时挂着的
+    // 另一屏（中栏的群视图）按 Esc 就回不去了。
+    if (fn === undefined) return undefined
     back = fn
     return () => { if (back === fn) back = undefined }
   }, [fn])
+}
+
+/**
+ * 盖在上面的那一层自己的 Esc：关掉自己。全站那条 Esc 链在有一层盖着时不动手，所以
+ * 每一层都得自己接住——没接的那一层（话题树、完整过程）按 Esc 就什么都不发生。
+ */
+export function useLayerEscape(close: () => void, active = true): void {
+  useEffect(() => {
+    if (!active) return undefined
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented) return
+      event.preventDefault()
+      close()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('keydown', onKey) }
+  }, [close, active])
 }
 
 /** Esc 链：关预览 › 取消选中 › 回到原处。做了一件就停。 */

@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode,
 import type { BoardRowWire, SurfaceInject } from './rpc.ts'
 import { currentSpotlight, landOn, sendErrand, setSpotlight, subscribeSpotlight, type Spotlight } from './store.ts'
 import { revealAside } from './preview.ts'
+import { commandKey } from './keys.ts'
 import { CommitmentStoryPanel } from './Story.tsx'
 import { stage, stagedNow, subscribeStaged, undo, type Staged } from './answers.ts'
 import { nudgeDraft, onMe, signalOf } from './ledger.ts'
@@ -222,15 +223,14 @@ export function StoryDock(props: {
 export function useRowKeys(body: RefObject<HTMLElement | null>, rows: readonly BoardRowWire[], selected: string | undefined): void {
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      const target = event.target as HTMLElement | null
-      if (target !== null && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/u.test(target.tagName))) return
-      if (event.metaKey || event.ctrlKey || event.altKey) return
-      if (event.key !== 'j' && event.key !== 'k') return
+      if (!commandKey(event)) return
+      const down = event.key === 'j' || event.key === 'J'
+      if (!down && event.key !== 'k' && event.key !== 'K') return
       const nodes = [...(body.current?.querySelectorAll<HTMLElement>('[data-row]') ?? [])]
       if (nodes.length === 0) return
       event.preventDefault()
       const at = nodes.findIndex(node => node.dataset.row === selected)
-      const next = nodes[Math.min(nodes.length - 1, Math.max(0, at < 0 ? 0 : at + (event.key === 'j' ? 1 : -1)))]
+      const next = nodes[Math.min(nodes.length - 1, Math.max(0, at < 0 ? 0 : at + (down ? 1 : -1)))]
       const row = rows.find(one => one.id === next?.dataset.row)
       if (row === undefined || next === undefined) return
       setSpotlight({ kind: 'commitment', id: row.id, title: row.what })

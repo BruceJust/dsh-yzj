@@ -35,7 +35,7 @@ import {
   FRAME_SCROLL, backLabel, backTarget, currentFrame, currentLanding, landOn, needsNow, popFrame, pushFrame,
   restoreOf, setFrame, setSpotlight, subscribeFrame, subscribeLanding, subscribeNeeds, takeErrand,
 } from './store.ts'
-import { useBackKey } from './keys.ts'
+import { commandKey, useBackKey, useLayerEscape } from './keys.ts'
 import { keepLastMessages, usePoll } from './poll.ts'
 import { UnreadLine } from './Unread.tsx'
 import { AgentFace, Icon } from './icons.tsx'
@@ -140,6 +140,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     open: boolean
     places: { placeKey: string; groupName: string; topics: { sessionId: string; label: string }[] }[]
   }>({ open: false, places: [] })
+  const closeTree = useCallback((): void => { setTree(value => ({ ...value, open: false })) }, [])
+  useLayerEscape(closeTree, tree.open)
   const [model, setModel] = useState<{ provider?: string; model?: string }>({})
   const [rulesOpen, setRulesOpen] = useState(false)
   const [traceOpen, setTraceOpen] = useState(false)
@@ -569,9 +571,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       return rect.bottom > box.top + 8 && rect.top < box.bottom - 8
     }
     const onKey = (event: KeyboardEvent): void => {
-      if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return
+      if (!commandKey(event)) return
       const target = event.target as HTMLElement | null
-      if (target !== null && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/u.test(target.tagName))) return
       // 焦点在按钮上时，回车是按那颗按钮。
       if (target?.tagName === 'BUTTON' && event.key === 'Enter') return
       const stream = streamRef.current
@@ -863,8 +864,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       </header>
 
       {tree.open && (
-        <div className={css.treePop} onClick={() => { setTree(value => ({ ...value, open: false })) }}>
-          <div className={css.treeBox} onClick={(event) => { event.stopPropagation() }}>
+        <div className={css.treePop} onClick={closeTree}>
+          <div className={css.treeBox} role="dialog" aria-label="所有话题" onClick={(event) => { event.stopPropagation() }}>
             {tree.places.length === 0 && <div className={css.calm}>还没有云之家话题。</div>}
             {tree.places.map(place => (
               <div key={place.placeKey}>
@@ -876,7 +877,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
                     className={css.treeTopic}
                     onClick={() => {
                       openSession(item.sessionId)
-                      setTree(value => ({ ...value, open: false }))
+                      closeTree()
                     }}
                   >
                     {item.label}

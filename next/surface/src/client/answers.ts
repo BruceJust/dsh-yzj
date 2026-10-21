@@ -13,6 +13,7 @@
  */
 
 import { setAnswering } from './store.ts'
+import { commandKey } from './keys.ts'
 
 export const UNDO_MS = 5_000
 
@@ -137,9 +138,7 @@ function install(): void {
   window.addEventListener('pagehide', flushAnswers)
   window.addEventListener('keydown', (event) => {
     if (event.key !== 'z' && event.key !== 'Z') return
-    if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return
-    const target = event.target as HTMLElement | null
-    if (target !== null && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/u.test(target.tagName))) return
+    if (!commandKey(event)) return
     if (undoLatest() !== undefined) event.preventDefault()
   })
 }

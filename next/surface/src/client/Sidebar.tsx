@@ -35,7 +35,7 @@ import { avatarOf } from './stream.ts'
 import {
   answeringNow, currentFrame, landOn, publishNeeds, setFrame, setNeedJumper, subscribeAnswering, subscribeFrame,
 } from './store.ts'
-import { openPalette, startOfToday } from './keys.ts'
+import { commandKey, openPalette, startOfToday } from './keys.ts'
 import { usePoll } from './poll.ts'
 import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
 import { Icon } from './icons.tsx'
@@ -276,9 +276,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== 'n' && event.key !== 'N') return
-      if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return
-      const target = event.target as HTMLElement | null
-      if (target !== null && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/u.test(target.tagName))) return
+      if (!commandKey(event)) return
       if (needs.length === 0) return
       const here = lastJump.current
       const at = here === undefined || here.sessionId !== currentSessionId

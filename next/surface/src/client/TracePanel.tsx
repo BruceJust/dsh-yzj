@@ -20,6 +20,7 @@ import { clockOf, type TrajectoryNode } from './stream.ts'
 import tokens from './tokens.module.css'
 import css from './contract.module.css'
 import { Icon } from './icons.tsx'
+import { useLayerEscape } from './keys.ts'
 import trace from './trace.module.css'
 
 export interface TracePanelProps {
@@ -152,6 +153,7 @@ export function YzjTracePanel(props: TracePanelProps): ReactNode {
   const shown = onlyTools
     ? rows.filter(row => row.kind === 'tool-call' || row.kind === 'tool-result')
     : rows
+  useLayerEscape(close)
 
   return (
     <div className={`${tokens.tokens} ${css.mask}`} onClick={close}>
