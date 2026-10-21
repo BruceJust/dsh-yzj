@@ -908,6 +908,14 @@ export interface SurfaceInject {
     /** 桌面量到的停留（毫秒）——本人行为事实，只随裁决广播进私账。 */
     dwellMs?: number,
   ): Promise<{ receipt: string; outcome: string } | undefined>
+  /**
+   * 一张卡上的几笔，一次请求按顺序落；遇到第一笔没生效就停。返回落了的每一笔。
+   * 撤回窗里关页面时只来得及发一个请求，所以一窗多笔走这一条。
+   */
+  cardActSteps(
+    kind: string, id: string,
+    steps: readonly { readonly actionId: string; readonly input?: string; readonly dwellMs?: number }[],
+  ): Promise<{ receipt: string; outcome: string }[]>
 
   /* ——— 私账层 · 自知（决策 #64）· 只在 `inbox.pledger.enabled` 时用得上 ——— */
 
@@ -1214,6 +1222,12 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
         'card-act', { kind, id, actionId, ...(input === undefined ? {} : { input }), ...(dwellMs === undefined ? {} : { dwellMs }) },
       )
       return value ?? { receipt: error ?? '这张卡没有回应。', outcome: 'failed' }
+    },
+    async cardActSteps(kind, id, steps) {
+      const { value, error } = await write<{ receipt: string; outcome: string }[]>(
+        'card-act-steps', { kind, id, steps: steps.map(step => ({ ...step })) },
+      )
+      return value ?? [{ receipt: error ?? '这张卡没有回应。', outcome: 'failed' }]
     },
     async setServed(placeKey, on, scope) {
       const { value, error } = await write<ServeOutcomeWire>(

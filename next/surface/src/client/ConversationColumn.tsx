@@ -524,11 +524,10 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     setJustAnswered(`${answer.kind}:${answer.id}`)
     setCurrentCard(undefined)
     stage(answer, async (entry) => {
-      for (const step of entry.steps) {
-        const result = await inject.cardAct(entry.kind, entry.id, step.actionId, step.input, step.dwellMs)
-        if (result === undefined) { setToast('这张卡没有回应，可能已经被别人答过了。'); break }
-        if (result.outcome !== 'applied') { setToast(result.receipt.replace(/^⚠️?\s*/u, '')); break }
-      }
+      // 几笔一次请求：撤回窗里关页面时，只来得及发出一个。
+      const results = await inject.cardActSteps(entry.kind, entry.id, entry.steps)
+      const missed = results.find(result => result.outcome !== 'applied')
+      if (missed !== undefined) setToast(missed.receipt.replace(/^⚠️?\s*/u, ''))
       await refresh()
     })
   }, [inject, refresh])

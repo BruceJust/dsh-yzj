@@ -3674,6 +3674,33 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               return failure(error instanceof Error ? error.message : String(error))
             }
           }
+          /*
+            一窗多笔（逐条定的卡「定下这 N 处」）：一次请求、这里按顺序落，遇到第一笔没生效就停。
+            页面在撤回窗里关掉时只来得及发出一个请求——一笔一请求的话，只有第一笔走得出去。
+          */
+          case 'card-act-steps': {
+            const kind = stringField(payload, 'kind')
+            const id = stringField(payload, 'id')
+            const steps = (payload as { steps?: unknown }).steps
+            if (kind === undefined || id === undefined || !Array.isArray(steps) || steps.length === 0) {
+              return failure('card-act-steps requires kind, id and steps')
+            }
+            const results: { receipt: string; outcome: string }[] = []
+            for (const raw of steps) {
+              const step = asRecord(raw)
+              const actionId = asString(step?.actionId)
+              if (actionId === undefined) return failure('每一笔都要有 actionId')
+              const input = asString(step?.input)
+              const dwellMs = step?.dwellMs
+              const result = await scoped.yzjCards.act(
+                { kind, id }, actionId, scoped.yzjCards.desktopActor(), 'desktop', input,
+                typeof dwellMs === 'number' && Number.isFinite(dwellMs) ? { dwellMs } : undefined,
+              )
+              results.push({ receipt: result.receipt, outcome: result.outcome })
+              if (result.outcome !== 'applied') break
+            }
+            return { ok: true, value: results }
+          }
           case 'card-act': {
             const kind = stringField(payload, 'kind')
             const id = stringField(payload, 'id')
