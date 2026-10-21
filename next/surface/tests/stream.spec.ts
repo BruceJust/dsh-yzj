@@ -138,6 +138,25 @@ describe('a turn in flight says so', () => {
     expect(open?.kind === 'work' && open.steps[0]?.since).toBe(9_000)
   })
 
+  /*
+    一次模型重试只在它是最后一个节点、这一轮还开着时才是「在跑」。此前它永远是 running：
+    一个早就做完的工作块一直转着圈，说云小助还在做。
+  */
+  it('settles a model retry once anything follows it, or once the turn has closed', () => {
+    const retry: TrajectoryNode = { kind: 'model-retry', seq: 2, time: 1_100, reason: '429 Too Many Requests' }
+    const followed = buildStream([toolRan(1, 'a', 1_000), retry, toolRan(3, 'b', 1_300)], [], [], [], true, { running: true })
+    const block = followed.find(row => row.kind === 'work')
+    expect(block?.kind === 'work' && block.steps.map(step => step.state)).toEqual(['done', 'done', 'done'])
+    expect(block?.kind === 'work' && block.state).toBe('done')
+
+    const closed = buildStream([toolRan(1, 'a', 1_000), retry], [], [], [], true, {})
+    expect(closed.find(row => row.kind === 'work')).toMatchObject({ state: 'done' })
+
+    const live = buildStream([toolRan(1, 'a', 1_000), retry], [], [], [], true, { running: true })
+    const now = live.find(row => row.kind === 'work')
+    expect(now?.kind === 'work' && now.steps.at(-1)).toMatchObject({ state: 'running', detail: '模型那边没答上来，在重试' })
+  })
+
   it('does not draw a failed call with the same ✓ as a successful one', () => {
     const rows = buildStream(
       [

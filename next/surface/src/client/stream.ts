@@ -275,7 +275,8 @@ function stepOf(node: TrajectoryNode): WorkStep | undefined {
     }
   }
   if (node.kind === 'model-retry') {
-    return { tool: 'model-retry', detail: asText(node.reason), state: 'running', memory: false }
+    // 「在重试」只对最后一个节点成立——后面有了下文，这一次重试就是做完了（见下面的循环）。
+    return { tool: 'model-retry', detail: '模型那边没答上来，在重试', state: 'running', memory: false }
   }
   if (node.kind === 'compaction') {
     return { tool: 'compaction', detail: '上下文已压缩', state: 'done', memory: true }
@@ -442,7 +443,12 @@ export function buildStream(
     if (!spoken) {
       const step = stepOf(node)
       if (step !== undefined) {
-        fold(step, time)
+        /*
+          一次模型重试只在它是最后一个节点、这一轮还开着时才是「在跑」。后面已经有了下文，
+          它就是重试过了——否则一个早已做完的工作块会永远转着圈，说它还在做。
+        */
+        const settled = step.tool === 'model-retry' && (index < nodes.length - 1 || live.running !== true)
+        fold(settled ? { ...step, state: 'done', detail: '模型那边没答上来，重试了一次' } : step, time)
         continue
       }
       flush()

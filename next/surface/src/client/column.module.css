@@ -64,6 +64,8 @@
   animation: spin 1s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* 卡住了：转圈变琥珀（律三·异常才上色）。 */
+.spinStall { border-color: var(--yzj-need-line); border-top-color: var(--yzj-need); }
 .moreWrap { position: relative; flex: none; }
 .more {
   width: 30px; height: 30px; display: grid; place-items: center;

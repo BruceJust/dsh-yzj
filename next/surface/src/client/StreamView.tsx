@@ -25,8 +25,12 @@ import type { Answer } from './answers.ts'
 import type { NeedWire, StreamCard, SurfaceInject } from './rpc.ts'
 import css from './stream.module.css'
 
-/** 一步多久算「可能卡住了」。一次工具调用、一次等模型回话，正常都在这之内。 */
-export const STALL_MS = 3 * 60_000
+/**
+ * 多久没进展算「可能卡住了」。一次工具调用、一次等模型回话（带长推理的也算上），正常都
+ * 在这之内。左栏「运行中」和这一列读的是**同一个数**——一处说卡住了、另一处还说在跑，
+ * 人就不知道该信哪个。
+ */
+export const STALL_MS = 5 * 60_000
 
 export interface StreamContext {
   /** 墙钟。有事在跑时每秒走一次。 */

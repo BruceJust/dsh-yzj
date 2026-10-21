@@ -17,7 +17,7 @@ import {
   useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode,
 } from 'react'
 import { buildStream, type LiveWork, type TrajectoryNode } from './stream.ts'
-import { StreamRows } from './StreamView.tsx'
+import { STALL_MS, StreamRows } from './StreamView.tsx'
 import { YzjDecisionPointer } from './DecisionPointer.tsx'
 import { YzjBoard } from './Board.tsx'
 import { YzjGoalPage } from './GoalPage.tsx'
@@ -110,6 +110,15 @@ function backLabel(frame: Frame): string {
     case 'judg': return '我定过的'
     default: return '返回'
   }
+}
+
+/** 快照里最晚的那个时刻：最后一个定稿节点、或还没回来的调用发出去的那一刻。 */
+function latestTime(nodes: readonly TrajectoryNode[], calls: LiveWork['calls']): number | undefined {
+  let latest: number | undefined
+  for (const time of [nodes[nodes.length - 1]?.time, ...(calls ?? []).map(call => call.time)]) {
+    if (typeof time === 'number' && Number.isFinite(time) && time > 0 && (latest === undefined || time > latest)) latest = time
+  }
+  return latest
 }
 
 /** 一句引用，短到能放进提示条。 */
@@ -339,9 +348,22 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     输出多了几个字。都没动，就是在空转——这正是「空转 20 分钟毫不知情」要的那个数。
   */
   const progressKey = `${String(nodes.length)}:${String(runningCalls?.length ?? 0)}:${String(JSON.stringify(partial ?? null).length)}`
+  /*
+    第一次看到这个会话时，从**最后一样留下了时刻的进展**算起，而不是从打开这一屏算起：
+    一件已经空转了二十分钟的活，不该因为人刚点进来就重新计时、再装五分钟没事。之后
+    每一次快照动了，就是此刻。
+  */
+  const lastNodeAt = latestTime(nodes, runningCalls)
   const lastProgress = useRef(Date.now())
-  useEffect(() => { lastProgress.current = Date.now() }, [progressKey, running])
+  const progressFor = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    const first = progressFor.current !== sessionId
+    progressFor.current = sessionId
+    lastProgress.current = first && lastNodeAt !== undefined && partial == null ? lastNodeAt : Date.now()
+  }, [progressKey, running, sessionId, lastNodeAt, partial])
   const quietFor = running ? Math.max(0, tick - lastProgress.current) : undefined
+  /** 顶上那颗转圈和流里那一块说同一句话：同一个数、同一道门。 */
+  const stalled = quietFor !== undefined && quietFor >= STALL_MS
 
   // 只在读者本来就在末尾时跟到底：把人从正在读的地方拽走，是实时视图失去信任的方式。
   useEffect(() => {
@@ -794,8 +816,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           disabled={topic === undefined}
           onClick={() => { setRulesOpen(true) }}
         >
-          {running ? <span className={css.spin} /> : <span className={css.onDot} />}
-          {running ? `${AGENT}在做` : `${AGENT}在岗`}
+          {running ? <span className={`${css.spin} ${stalled ? css.spinStall : ''}`} /> : <span className={css.onDot} />}
+          {running ? stalled ? `${AGENT}可能卡住了` : `${AGENT}在做` : `${AGENT}在岗`}
         </button>
         <div className={css.moreWrap} ref={menuRef}>
           <button

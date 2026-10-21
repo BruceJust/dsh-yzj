@@ -41,6 +41,7 @@ import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
 import { Icon } from './icons.tsx'
 import { AGENT, span, waitLine } from './words.ts'
 import { Skeleton, UnreadLine } from './Unread.tsx'
+import { STALL_MS } from './StreamView.tsx'
 import tokens from './tokens.module.css'
 import css from './sidebar.module.css'
 
@@ -128,8 +129,6 @@ const EMPTY: InboxView = {
 /** 「要你」最多摊开几条。再多是审批疲劳的信号，不是排版问题——卡上会提议一条规矩。 */
 const NEED_ROWS = 5
 
-/** 多久没动静算「可能卡住了」。剧本里那次空转是二十分钟才被发现。 */
-const STALL_MS = 6 * 60_000
 
 /** 两个卡地址是不是同一张卡。 */
 export const sameRef = (left: CardRefWire | undefined, right: CardRefWire | undefined): boolean => (
