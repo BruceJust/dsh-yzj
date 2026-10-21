@@ -301,6 +301,7 @@ export const taskCard: CardDefinition<TaskState> = {
         mode: 'open-question',
         label: state.what,
         badge: '待继续',
+        verb: '继续',
       }
     }
     return undefined

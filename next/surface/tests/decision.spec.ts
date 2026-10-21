@@ -27,7 +27,7 @@ import {
 } from '@yzj-next/objects'
 import type { TopicDescriptor } from '@yzj-next/channel'
 import { cardsFor, inboxView, placeView } from '../src/rpc.ts'
-import { barOf, chipsOf } from '../src/client/DecisionBar.tsx'
+import { chipsOf, pointerOf, type Where } from '../src/client/DecisionPointer.tsx'
 import { buildStream } from '../src/client/stream.ts'
 import type { StreamCard } from '../src/client/rpc.ts'
 
@@ -228,11 +228,12 @@ describe('六交互模式：模式有限，场景实例开放', () => {
     await breakdown()
     await signGoal()
     const byId = new Map(cardsFor(ctx, TOPIC).map(card => [card.id, card.demand]))
-    // 字面只说是哪一件事；「签发」还是「裁决」由徽标说，而徽标是从模式推出来的。
+    // 字面只说是哪一件事；「签」还是「定」由动词说，而动词和徽标都是从模式推出来的。
     expect(byId.get('pr-g')?.label).toBe('Q3 对账清零')
     expect(byId.get('pr-1')?.label).toContain('2 条未裁')
-    expect(chipsOf(cardsFor(ctx, TOPIC) as unknown as StreamCard[]).map(chip => chip.badge).sort())
-      .toEqual(['待签发', '待裁决'])
+    expect([byId.get('pr-g')?.badge, byId.get('pr-1')?.badge]).toEqual(['待签发', '待裁决'])
+    expect(chipsOf(cardsFor(ctx, TOPIC) as unknown as StreamCard[]).map(chip => chip.verb).sort())
+      .toEqual(['定', '签'])
   })
 
   it('冲突确认归在单答确认，但徽标仍旧自己说话', async () => {
@@ -465,7 +466,7 @@ describe('家族即接口：增员零改动收编', () => {
     const chips = bar()
     expect(chips).toHaveLength(1)
     expect(chips[0]?.label).toBe('【催办】宏迈那笔还没回')
-    expect(chips[0]?.badge).toBe('待答')
+    expect(chips[0]?.verb).toBe('答')
   })
 })
 
@@ -491,59 +492,45 @@ describe('会话决断条', () => {
       .toEqual(['ap-there'])
   })
 
-  it('等得久的排前面——折进 +N 的必须是最新的那几件', async () => {
+  it('等得久的排前面——指针先指等得最久的那件', async () => {
     await approval('ap-1')
     await approval('ap-2')
     await approval('ap-3')
-    await approval('ap-4')
-    const shape = barOf(cardsFor(ctx, TOPIC) as unknown as StreamCard[], 900)
-    expect(shape.chips.map(chip => chip.id)).toEqual(['ap-1', 'ap-2', 'ap-3', 'ap-4'])
-    // 一行封顶：并排的是等得最久的那几件，最新的那件被折进 +N。
-    expect(shape.shown.map(chip => chip.id)).toEqual(['ap-1', 'ap-2', 'ap-3'])
-    expect(shape.folded).toBe(1)
+    const chips = bar()
+    expect(chips.map(chip => chip.id)).toEqual(['ap-1', 'ap-2', 'ap-3'])
+    const away = new Map<string, Where>(chips.map(chip => [`${chip.kind}:${chip.id}`, 'above']))
+    expect(pointerOf(chips, away)?.chip.id).toBe('ap-1')
+    expect(pointerOf(chips, away)?.others).toBe(2)
   })
 
-  it('放得下就不折——条不为了像个条而先折一个', async () => {
+  /**
+   * 「只指路」的意思是看得见目标就不必再指 (复审 R12)。
+   *
+   * 决断条此前常驻：卡就在眼前时，那一条只是把屏上已经看得见的东西再说一遍。
+   */
+  it('卡在视野里时指针不出现；滚走了才浮出来，并说清往哪边', async () => {
     await approval('ap-1')
     await approval('ap-2')
-    const shape = barOf(cardsFor(ctx, TOPIC) as unknown as StreamCard[], 900)
-    expect(shape.folded).toBe(0)
-    expect(shape.tired).toBe(false)
+    const chips = bar()
+    const inView = new Map<string, Where>(chips.map(chip => [`${chip.kind}:${chip.id}`, 'in']))
+    expect(pointerOf(chips, inView)).toBeUndefined()
+    // 没量到的当作在视野里：宁可晚一拍出现，也不在挂载那一瞬闪一下。
+    expect(pointerOf(chips, new Map())).toBeUndefined()
+    const below = new Map(inView).set('approval:ap-2', 'below')
+    expect(pointerOf(chips, below)).toEqual({ chip: chips[1], direction: 'below', others: 0 })
   })
 
-  /**
-   * 「放得下的前几个」是字面意思，不是「固定三个」。
-   *
-   * 实测过固定三个的样子：右栏一开，中栏被压窄，三枚 chip 挤成「待验收 农佳捷…」
-   * 「待验收 抱歉，」「待验收 代」——第三枚只剩一个字，占着位置什么也没说，而它挤掉的
-   * 恰恰是能让前两枚说清楚的空间。窄的时候少画几个、多折进 +N，是条**更**像指针。
-   */
-  it('窄下来就少并排几个，多的折进 +N——而不是三枚都挤成两个字', async () => {
-    for (const index of [1, 2, 3]) await approval(`ap-${String(index)}`)
-    const cardRows = cardsFor(ctx, TOPIC) as unknown as StreamCard[]
-    expect(barOf(cardRows, 900).shown).toHaveLength(3)
-    expect(barOf(cardRows, 700).shown).toHaveLength(2)
-    expect(barOf(cardRows, 480).shown).toHaveLength(1)
-    // 折起来的数目跟着走：条上说的「还有几件」永远是真的。
-    expect(barOf(cardRows, 480).folded).toBe(2)
+  it('动词由家族自己说——中断的确认指针上写「重试」，不是「确认」', async () => {
+    await approval('ap-1')
+    await graph.append({ type: 'approval/interrupted', data: { approvalId: 'ap-1' }, actor: { kind: 'system' } })
+    expect(bar().map(chip => chip.verb)).toEqual(['重试'])
   })
 
-  /**
-   * 条长即治理信号。
-   *
-   * 一段会话长期挂着五件以上待答，说的不是条太短，是**审批疲劳**。所以这里锁的是
-   * 那个阈值真的会被越过，而租约入口就长在越过它的时候——疲劳发生在哪，发现入口
-   * 就该在哪。
-   */
-  it('五件起，条尾该长出租约入口', async () => {
-    for (const index of [1, 2, 3, 4]) await approval(`ap-${String(index)}`)
-    expect(barOf(cardsFor(ctx, TOPIC) as unknown as StreamCard[], 900).tired).toBe(false)
-    await approval('ap-5')
-    const shape = barOf(cardsFor(ctx, TOPIC) as unknown as StreamCard[], 900)
-    expect(shape.tired).toBe(true)
-    // 条还是一行：疲劳的答案是预授权，不是把清单铺开。
-    expect(shape.shown).toHaveLength(3)
-    expect(shape.folded).toBe(2)
+  it('撤回窗里的回答不再算「等你」', async () => {
+    await approval('ap-1')
+    await approval('ap-2')
+    const chips = chipsOf(cardsFor(ctx, TOPIC) as unknown as StreamCard[], [{ kind: 'approval', id: 'ap-1' }])
+    expect(chips.map(chip => chip.id)).toEqual(['ap-2'])
   })
 })
 

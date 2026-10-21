@@ -68,6 +68,7 @@ export const conflictCard: CardDefinition<ConflictState> = {
         mode: 'single-confirm',
         label: state.note,
         badge: '冲突待裁',
+        verb: '定',
       }
       : undefined
   ),

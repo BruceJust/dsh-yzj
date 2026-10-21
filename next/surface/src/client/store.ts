@@ -359,3 +359,31 @@ export function subscribeJudgSelection(listener: () => void): () => void {
   judgSelectionListeners.add(listener)
   return () => { judgSelectionListeners.delete(listener) }
 }
+
+/* ——— 撤回窗里的回答 —— 「要你」先少一件，账还没落（界面重设计 律七） ——— */
+
+/**
+ * 正在撤回窗里的那些卡。
+ *
+ * 每个回答先进 5 秒的「待生效」：卡立刻收成一行，「要你」立刻少一件——可它还没真的落账，
+ * 也还没投到云之家。左栏、浮动指针读的就是这一份：它们和中栏是三个互不相识的组件，
+ * 「这件已经答了」要在同一拍里对它们三个同时成立。
+ *
+ * 只存地址，不存内容：落没落账、怎么撤，归撤回窗自己（`answers.ts`）。
+ */
+let answering: readonly { readonly kind: string; readonly id: string }[] = []
+const answeringListeners = new Set<() => void>()
+
+export function answeringNow(): readonly { readonly kind: string; readonly id: string }[] {
+  return answering
+}
+
+export function setAnswering(next: readonly { readonly kind: string; readonly id: string }[]): void {
+  answering = next
+  for (const listener of answeringListeners) listener()
+}
+
+export function subscribeAnswering(listener: () => void): () => void {
+  answeringListeners.add(listener)
+  return () => { answeringListeners.delete(listener) }
+}

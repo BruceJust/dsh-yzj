@@ -1,69 +1,36 @@
 /*
-  会话决断条 (§7.1)。
+  决断指针 (律二 / R12)。
 
-  它是一条**细线**，不是一块面板：这一屏的主角是对话，条只负责在对话上面说一句
-  「有几件事等你，在这儿」。任何让它长高、长厚、长出第二行的改动，都是在把它变成
-  一份会话私有待办——而那正是「指针投影非复制落座」拦下的东西。
+  它不占位：一个高度为零的吸顶坞，胶囊浮在流的上沿。卡在视野里时它根本不存在；
+  卡滚走了它才浮出来，答完或卡回到视野里，它自己消失。
 */
 
-.bar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 20px;
-  min-height: 30px;
-  font-size:var(--yzj-fs-xs);
-  color: var(--yzj-need-ink);
-  background: var(--yzj-need-bg);
-  border-bottom: 1px solid var(--yzj-need-line);
+.dock {
+  position: sticky; top: 0; z-index: 6;
+  height: 0; display: flex; justify-content: center; align-items: flex-start;
+  pointer-events: none;
 }
 
-.count { flex: none; font-weight: 700; letter-spacing: .02em; }
-
-/*
-  一行封顶：`overflow: hidden` 是那条规矩的兜底。
-  chip 是弹性的、可以被压窄，但**永远不换行**——放不下的走 +N，不是往下堆。
-*/
-.chips {
-  display: flex; align-items: center; gap: 6px;
-  flex: 1 1 auto; min-width: 0; overflow: hidden;
+.pill {
+  pointer-events: auto;
+  margin-top: 10px; max-width: min(560px, 86%);
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px 6px 10px;
+  border: 1px solid var(--yzj-need-line); border-radius: var(--yzj-r-pill);
+  background: var(--yzj-bg-raised); box-shadow: var(--yzj-shadow-2);
+  font: inherit; font-size: var(--yzj-fs-sm); color: var(--yzj-ink);
+  cursor: pointer;
+  animation: rise .18s ease;
 }
+.pill:hover { border-color: var(--yzj-need); }
 
-/*
-  没有一枚 chip 可以吃掉整条。
-
-  `flex-shrink` 按内容比例收——一条 400 字的交付摘要压缩之后**仍然**是最宽的那个，
-  于是并排的另外两件事被挤成两个字。实测就是这样：一枚 chip 占了整行，条从「有三件
-  事等你」退化成「有一件事等你，还有俩」。上限按份数给，谁也不许越界。
-*/
-.chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  flex: 0 1 auto; min-width: 0; max-width: 34%;
-  font: inherit; font-size:var(--yzj-fs-xs);
-  padding: 2px 9px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-need-line);
-  background: var(--yzj-bg);
-  color: var(--yzj-need-ink);
+.dot {
+  width: 8px; height: 8px; flex: none; border-radius: 50%;
+  background: var(--yzj-need); box-shadow: 0 0 0 3px var(--yzj-need-bg);
 }
-.chip:hover { background: var(--yzj-need-bg); color: var(--yzj-need-ink); border-color: var(--yzj-need-line); }
+.verb { flex: none; font-weight: 600; color: var(--yzj-need-ink); }
+.label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--yzj-ink-2); }
+.others { flex: none; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.up { transform: rotate(180deg); }
 
-.chipBadge { flex: none; font-weight: 700; }
-
-/* 名字被压窄时省略，而不是把条撑成两行。 */
-.chipLabel {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--yzj-ink-2);
-}
-.chip:hover .chipLabel { color: var(--yzj-need-ink); }
-
-.more { flex: none; font-weight: 700; }
-
-/*
-  条尾的租约入口。
-  刻意不做成按钮的样子：它是一句**观察**（你在这儿确认得太频繁了），点进去才是动作。
-*/
-.lease {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs);
-  padding: 2px 8px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px dashed var(--yzj-need-line);
-  background: transparent; color: var(--yzj-need-ink);
-}
-.lease:hover { background: var(--yzj-bg); border-style: solid; }
+@keyframes rise { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }

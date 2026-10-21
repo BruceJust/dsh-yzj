@@ -66,6 +66,8 @@ export interface AnswerableDemandWire {
   mode: AnswerableMode
   label: string
   badge?: string
+  /** 人要做的动作（确认 / 验收 / 定 / 签 / 答 / 继续 / 重试），家族自己说。 */
+  verb?: string
 }
 
 export interface StreamCard {
@@ -372,7 +374,31 @@ export interface InboxConversationWire {
   selfChat: boolean
 }
 
+/** 「要你」的一条：一个此刻被你卡住的人或事（界面重设计 律二）。 */
+export interface NeedWire {
+  ref: CardRefWire
+  sessionId: string
+  verb: string
+  label: string
+  where: string
+  placeName?: string
+  since: number
+  waiting: string
+  due?: { text: string; ts?: number }
+}
+
+/** 一件正在跑的活。卡没卡住由客户端拿会话的最后动静去比。 */
+export interface RunningWire {
+  sessionId: string
+  title: string
+  placeName: string
+  since: number
+}
+
 export interface InboxView {
+  /** 「要你」逐条，按被你卡住的代价排好。旧宿主不发时当作没有。 */
+  needs?: NeedWire[]
+  running?: RunningWire[]
   counts: { confirm: number; review: number; running: number }
   firstOf: Partial<Record<TopicTone, InboxLanding>>
   places: InboxPlaceWire[]

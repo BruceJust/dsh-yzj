@@ -20,7 +20,7 @@ import {
   type GraphActor, type GraphObject, type GraphViewer, type JsonValue,
 } from '@yzj-next/graph'
 import {
-  CARD_TEXT_MAX_CHARS, MODE_BADGE,
+  CARD_TEXT_MAX_CHARS, MODE_BADGE, MODE_VERB,
   type AnswerableDemand,
   type CardActResult, type CardAction, type CardDefinition, type CardProjection,
   type CardRef, type CardTextProjection, type CardVia, type YzjCardChannel,
@@ -339,7 +339,11 @@ export class YzjCards extends Service {
       了三份映射表：加第七种的那天，三处得同时想起来改，而漏掉的那一处不会报错，只会
       把新模式画成一个别的词。所以出服务的门之前它就已经是一个定值。
     */
-    return { ...declared, badge: declared.badge ?? MODE_BADGE[declared.mode] }
+    return {
+      ...declared,
+      badge: declared.badge ?? MODE_BADGE[declared.mode],
+      verb: declared.verb ?? MODE_VERB[declared.mode],
+    }
   }
 
   /**

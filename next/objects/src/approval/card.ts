@@ -112,7 +112,7 @@ export const approvalCard: CardDefinition<ApprovalState> = {
     state.status === 'pending'
       ? { layer: 'blocking', mode: 'single-confirm', label: state.reason }
       : state.status === 'interrupted'
-        ? { layer: 'blocking', mode: 'single-confirm', label: state.reason, badge: '待重试' }
+        ? { layer: 'blocking', mode: 'single-confirm', label: state.reason, badge: '待重试', verb: '重试' }
         : undefined
   ),
 

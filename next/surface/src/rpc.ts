@@ -24,7 +24,7 @@ import {
   reissueEdge,
   releaseNotice,
   transferredToName, type CommitmentState,
-  proposeLease, toolClassOf,
+  proposeLease, toolClassOf, SIGNATURE_AGENT,
 } from '@yzj-next/objects'
 import {
   placeKeyFor, type PresenceView, type TopicDescriptor, type TopicMessage,
@@ -737,7 +737,51 @@ export interface InboxConversation {
   readonly selfChat: boolean
 }
 
+/**
+ * 「要你」的一条 —— **一个被你卡住的人或事** (界面重设计 律二).
+ *
+ * 计数只回答「有几件」，而人要知道的是「是什么、谁在等、等了多久」。所以收件箱把阻塞层
+ * 逐条摊开：动词在前（确认 / 验收 / 定 / 签 / 答），事情在后，第二行写谁在等。
+ *
+ * **只收阻塞层**——默认生效可纠的、信号层的都不进。这一条是「这不是帮我干活，是给我
+ * 找事」（9/1 评审会）的解药：一条「要你」，就是一个此刻被你卡住的人。
+ */
+export interface InboxNeed {
+  readonly ref: CardRef
+  /** 点下去落在哪个会话——落点是对象（`ref`），会话只是它所在的地方。 */
+  readonly sessionId: string
+  /** 人要做的动作，家族自己说（`demand.verb`）。 */
+  readonly verb: string
+  readonly label: string
+  /** 话题名，或「本地会话」。 */
+  readonly where: string
+  readonly placeName?: string
+  /** 它开口问你的那一刻——「等了多久」从这里算。 */
+  readonly since: number
+  /** 谁被你卡着：人执行的交付是那个人，其余是 agent。 */
+  readonly waiting: string
+  /** 挂着期限时的原话与解析——排序用解析，屏上只写原话。 */
+  readonly due?: { readonly text: string; readonly ts?: number }
+}
+
+/** 一件正在跑的活 —— 左栏「运行中」那一段的一行。 */
+export interface InboxRunning {
+  readonly sessionId: string
+  readonly title: string
+  readonly placeName: string
+  /** 这件活从什么时候开始跑。卡没卡住由客户端拿会话的最后动静去比。 */
+  readonly since: number
+}
+
 export interface InboxView {
+  /**
+   * 「要你」逐条，按被你卡住的代价排好：期限近的先，等得久的先 (律二)。
+   *
+   * 是收件箱注意力段从计数换成指针——仍然只指路，不复制落座：点下去落在卡上答。
+   */
+  readonly needs: readonly InboxNeed[]
+  /** 运行中的活。只说「在跑」，健康与否看它最后一次动静。 */
+  readonly running: readonly InboxRunning[]
   /** Counters for the three chips. Jumps, not a second list. */
   readonly counts: { readonly confirm: number; readonly review: number; readonly running: number }
   /** The first topic of each tone, and the card in it, so a chip can go somewhere. */
@@ -2282,6 +2326,68 @@ export function inboxView(ctx: Context): InboxView {
     note(asString(data?.topicKey), 'waiting', `等待中：${asString(data?.what) ?? ''}`)
   }
 
+  /*
+    「要你」逐条 (律二)：阻塞层的每一件，带上谁在等、从几点开始等、期限。
+
+    和上面按话题取「最响的那一件」是两种投影，读的是同一个查询——同一个话题里两件事都
+    在等你，徽标只说得了一件，这一段两件都列。
+  */
+  const topicByKey = new Map(tree.flatMap(entry => entry.topics.map(topic => [topic.topicKey, topic] as const)))
+  const needs: InboxNeed[] = []
+  for (const pending of ctx.yzjCards.demands(viewer)) {
+    if (pending.demand.layer !== 'blocking') continue
+    const topic = pending.topicKey === undefined ? undefined : topicByKey.get(pending.topicKey)
+    const sessionId = topic?.sessionId ?? pending.sessionAnchor
+    // 落不了脚的不列：一条点下去没有去处的「要你」，是 UI 自己开的幽灵信号。
+    if (sessionId === undefined) continue
+    const object = ctx.yzjGraph.object(viewer, pending.ref.kind, pending.ref.id)
+    const data = asRecord(object?.state)
+    const executor = asRecord(data?.executor)
+    const human = asString(executor?.kind) === 'human'
+    const due = asString(data?.due)
+    needs.push({
+      ref: pending.ref,
+      sessionId,
+      verb: pending.demand.verb ?? '答',
+      label: pending.demand.label,
+      where: topic === undefined ? '本地会话' : (topic.label || topic.groupName),
+      ...(topic === undefined ? {} : { placeName: topic.groupName }),
+      since: pending.at,
+      waiting: human ? (asString(executor?.name) ?? '对方') : SIGNATURE_AGENT,
+      ...(due === undefined || due === '' ? {} : { due: dueOf(due) }),
+    })
+  }
+  {
+    // 代价排序：一天半内到期的排最前（越近越前），其余等得越久越前。
+    const now = Date.now()
+    const SOON = 36 * 60 * 60_000
+    const soon = (need: InboxNeed): number | undefined => (
+      need.due?.ts !== undefined && need.due.ts - now < SOON ? need.due.ts : undefined
+    )
+    needs.sort((left, right) => {
+      const a = soon(left)
+      const b = soon(right)
+      if (a !== undefined || b !== undefined) {
+        if (a === undefined) return 1
+        if (b === undefined) return -1
+        if (a !== b) return a - b
+      }
+      return left.since - right.since
+    })
+  }
+  const running: InboxRunning[] = []
+  for (const object of ctx.yzjGraph.query(viewer, { kind: 'task', status: ['open', 'rework'] })) {
+    const data = asRecord(object.state)
+    const topic = topicByKey.get(asString(data?.topicKey) ?? '')
+    if (topic === undefined) continue
+    running.push({
+      sessionId: topic.sessionId,
+      title: topic.label || asString(data?.what) || '（无标题）',
+      placeName: topic.groupName,
+      since: object.createdAt,
+    })
+  }
+
   const counts = { confirm: 0, review: 0, running: 0 }
   const firstOf: Partial<Record<TopicTone, InboxLanding>> = {}
   const land = (row: InboxItem): InboxLanding => ({
@@ -2427,6 +2533,8 @@ export function inboxView(ctx: Context): InboxView {
   }).length
 
   return {
+    needs,
+    running,
     counts,
     firstOf,
     places,

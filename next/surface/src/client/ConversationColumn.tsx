@@ -30,7 +30,7 @@ import {
 } from './stream.ts'
 import { Avatar } from './Avatar.tsx'
 import { CardRow } from './CardRow.tsx'
-import { YzjDecisionBar } from './DecisionBar.tsx'
+import { YzjDecisionPointer } from './DecisionPointer.tsx'
 import { YzjBoard } from './Board.tsx'
 import { YzjGoalPage } from './GoalPage.tsx'
 import { YzjPlaceView } from './PlaceView.tsx'
@@ -910,21 +910,6 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         <div className={css.stale}>云之家消息读取失败，下面只有本地轨迹：{window_.staleReason}</div>
       )}
 
-      {/*
-        决断条 (v4.14/15)。
-
-        在滚动容器**外面**：它是常显的一条线，随对话滚走的话，「有事等你」这件事
-        就又变成了要靠翻找才知道的东西——而它存在的全部理由正是寻路归零。
-
-        `cards` 直接传下去，不在这里过滤：条与流内卡是同一个数组的两次渲染，同源
-        因此是结构性的，不是两处代码碰巧同意。
-      */}
-      <YzjDecisionBar
-        cards={window_.cards}
-        jumpTo={jumpToCard}
-        {...(topic === undefined ? {} : { onLease: () => { setContractOpen(true) } })}
-      />
-
       <div
         className={css.stream}
         ref={streamRef}
@@ -933,6 +918,11 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           atBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 60
         }}
       >
+        {/*
+          决断指针 (律二)：等你的卡滚出视野时才浮出来指路；卡在视野里就不出现。
+          吸顶、零高度，所以它在滚动容器**里面**——跟着这一框量「看不看得见」。
+        */}
+        <YzjDecisionPointer cards={window_.cards} stream={streamRef} jumpTo={jumpToCard} />
         {rows.length === 0 && (
           <div className={css.calm}>这个话题还没有内容。</div>
         )}

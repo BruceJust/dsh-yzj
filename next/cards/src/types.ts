@@ -119,6 +119,24 @@ export interface AnswerableDemand {
    * 的是家族自己，视图照读不误。
    */
   readonly badge?: string
+  /**
+   * 人要做的那个动作，一个字或两个字 —— 「要你」逐条上的动词（界面重设计 律二）。
+   *
+   * 默认由 {@link MODE_VERB} 从 `mode` 推出。和 `badge` 同一个理由才声明它：模式相同而
+   * 人要做的事不同——中断的任务要「继续」不是「答」，中断的确认要「重试」不是「确认」，
+   * 冲突要「定」不是「确认」。
+   */
+  readonly verb?: string
+}
+
+/** 六种模式各自的动词。「要你」逐条读它：动词在前，事情在后。 */
+export const MODE_VERB: Readonly<Record<AnswerableMode, string>> = {
+  'single-confirm': '确认',
+  'per-item-verdict': '定',
+  'two-verb-acceptance': '验收',
+  issuance: '签',
+  'multi-exit-assessment': '验收',
+  'open-question': '答',
 }
 
 /** 六种模式各自的徽标字面。新家族声明模式即得徽标，无需改任何视图。 */

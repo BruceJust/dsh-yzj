@@ -1,74 +1,43 @@
 /**
- * The left column — the unified inbox (§7.2), replacing the host's workspace
- * browser.
+ * 左栏 —— **去哪？** (界面重设计 §4.2，替换宿主的工作区浏览器).
  *
- * The host's sidebar answers "which folder is this session in". That is the
- * right question for a coding tool and the wrong one here: the operator's unit
- * of work is a PLACE and the topics living in it, and their scarce resource is
- * attention.
+ * 宿主的左栏回答「这个会话在哪个文件夹里」，那是编程工具的问题。这里的人每天打开它，
+ * 要的是另一件事：**今天有哪几件事非我不可**。所以这一栏从上到下是五段，按注意力排：
  *
- * **One list.** An earlier version had a triage list AND a place tree, so an
- * active topic appeared twice and a settled one appeared once, somewhere else,
- * looking identical. The design's shape is a single tree grouped by place, with
- * three counters above it that JUMP rather than filter — a chip that filters
- * makes the list a second list again.
+ * 1. **要你** —— 阻塞层逐条：动词在前、事情在后，第二行写**谁在等、等了多久**，按
+ *    被你卡住的代价排好（律二）。此前是三枚计数 chip：它们只回答「有几件」，点下去
+ *    跳到第一件，于是「今天要我拍板什么」要点三次才知道。一条「要你」就是一个被你卡住
+ *    的人，所以默认生效可纠的、信号层的都不进——那正是「这不是帮我干活，是给我找事」
+ *    的解药。
+ * 2. **运行中** —— 只说「在跑」，健康与否看最后一次动静：六分钟没进展就变琥珀色。
+ *    它不进「要你」（不是要你拍板），但它可能卡住了，人得看得见（剧本 1「空转二十分
+ *    钟毫不知情」）。
+ * 3. **承诺** —— 账本的入口，一个数：逾期压过该评估，该评估压过在跟。
+ * 4. **云之家** —— 只列**接入了的**地方，和它们底下**有事的**话题（注意力租约）；没
+ *    接入的群收成一行。工作台不复刻 IM 客户端：没接入的群里没有图，也就没有这里帮得
+ *    上的事；要找它们，展开那一行或用 ⌘K。
+ * 5. **本地** —— 工作文件夹与它们的会话（重命名 / 分叉 / 归档 三个动词照旧在）。
  *
- * **节点是行，标签是字 (D13⑤).** Three different things live in this column and
- * each wears its own clothes:
+ * **静为常态，色为例外**（律三）：一行最多一个信号——琥珀实心点是「要你」，转圈是「在
+ * 跑」，琥珀转圈是「可能卡住了」。「没有」不画。未读数只给接入了的地方。
  *
- * - a **place** is a first-class ROW — avatar, name, 「主楼 · N 话题」, aggregate
- *   badge — because it is a resident of the graph with a view of its own that
- *   you can walk into;
- * - a **topic** is an indented SUB-ROW with a subordination line, so that the
- *   attention lease pruning children while the parent stays is legible as the
- *   parent/child relationship it is;
- * - a pure grouping (私聊) is a grey LABEL with a rule, because it is
- *   typography, not a node.
+ * `N` 是这一栏的键盘入口（律八）：跨群跳到下一件要你的，落在卡上。
  *
- * **本地 = 工作夹场所.** A working folder is a place that happens to have no IM
- * channel — its contract, tools and memory follow the folder, which is dsh's
- * own semantics. So it gets a place row too, with its sessions as sub-rows, and
- * the orphan 「本地」 label is gone. The column's grammar is now uniform:
- * place row (group / folder) + sub-row (topic / local session) + grouping label.
- *
- * **折叠 is the user's sovereignty over attention; the lease is the system's
- * agent.** They are orthogonal: the lease prunes SETTLED children, collapse
- * hides a whole group that is active but not today's concern. A collapsed
- * group keeps its aggregate badge — attention must not be lost by tidying —
- * and still shows the row of the session you are currently in.
- *
- * **The disclosure column sits at the row's left edge**, vertically aligned
- * down the whole tree (Finder / VS Code / Notion). It was briefly at the tail:
- * wrong, because a right-hand `›` reads as "enter" in iOS grammar, and it
- * crowded the badge's signal zone. One grammar throughout: the disclosure
- * column always collapses, the row body always does the row's own job — a
- * place with a view opens its view, a pure container collapses.
- *
- * The previous version dressed places as labels. Grey text plus a rule is the
- * whole industry's section-divider grammar, so muscle memory read it as "not
- * clickable" — and the topic rows under it looked more first-class than the
- * place above them, drawing the hierarchy upside down. Slack, Discord and Teams
- * all answer this the same way: a channel is a row, a section is a word.
- *
- * **注意力租约** is what keeps it readable: inside a real place a topic holds a
- * row only while it is doing something. When it settles the row is released —
- * the topic is not deleted, it moves to the place's own view, where the archive
- * lives and is still walkable. Size stays O(active work), not O(history). Direct
- * chats keep their rows, because they have no group view to be archived into.
- *
- * It replaces the browsing REGION, not the column: the host keeps its own
- * chrome, its New Session control and the settings seat at the foot. Replacing
- * a whole column would have silently taken away seats that were never ours.
+ * 它替换的是浏览**区域**，不是整栏：宿主的 logo、新会话、设置座位都还在原处。
  */
 
-import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
-  CardRefWire, InboxConversationWire, InboxItemWire, InboxView, SurfaceInject, TopicTone,
+  CardRefWire, InboxConversationWire, InboxItemWire, InboxView, NeedWire, SurfaceInject, TopicTone,
 } from './rpc.ts'
 import { avatarOf } from './stream.ts'
-import { currentFrame, landOn, setFrame, subscribeFrame } from './store.ts'
+import {
+  answeringNow, currentFrame, landOn, setFrame, subscribeAnswering, subscribeFrame,
+} from './store.ts'
 import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
+import { Icon } from './icons.tsx'
+import { span, waitLine } from './words.ts'
 import tokens from './tokens.module.css'
 import css from './sidebar.module.css'
 
@@ -76,7 +45,7 @@ import css from './sidebar.module.css'
 interface HostSession {
   readonly displayTitle?: string
   readonly blank?: boolean
-  /** Last activity, for the row's relative clock. */
+  /** Last activity: the row's relative clock, and the 「运行中」 health check. */
   readonly updatedAt?: number
 }
 
@@ -91,30 +60,6 @@ export interface SessionActions {
   rename(sessionId: string, title: string): Promise<void>
   fork?(sessionId: string): Promise<void>
   archive?(sessionId: string): Promise<void>
-}
-
-/**
- * Folds that start closed.
- *
- * Assistant and system feeds are the only ones: 63 of them on this account,
- * none of them somebody asking for you. Everything else starts open, because
- * a conversation list that hides conversations is not a conversation list.
- */
-const DEFAULT_SHUT = new Set(['assistants'])
-
-/** dsh's own relative-time buckets, so a row here reads like a row there. */
-function timeLabel(updatedAt: number | undefined, now: number): string {
-  if (updatedAt === undefined || !Number.isFinite(updatedAt) || updatedAt <= 0) return ''
-  const diff = Math.max(0, now - updatedAt)
-  const MIN = 60_000
-  const HOUR = 3_600_000
-  const DAY = 86_400_000
-  if (diff < MIN) return '刚刚'
-  if (diff < HOUR) return `${String(Math.floor(diff / MIN))}分钟`
-  if (diff < DAY) return `${String(Math.floor(diff / HOUR))}小时`
-  if (diff < 30 * DAY) return `${String(Math.floor(diff / DAY))}天`
-  if (diff < 365 * DAY) return `${String(Math.floor(diff / (30 * DAY)))}个月`
-  return `${String(Math.floor(diff / (365 * DAY)))}年`
 }
 
 /**
@@ -155,9 +100,7 @@ export interface SidebarProps {
    *
    * Replacing `sidebar.workspaces` took the host's workspace list — which was
    * also the ONLY entry to open a directory. A local session has to run
-   * somewhere, so without this there is no way to start one at all: the ＋
-   * button lands on a New Session view whose workspace picker went with the
-   * column. Taking a seat is not the same as deciding nobody needed it.
+   * somewhere, so without this there is no way to start one at all.
    */
   workspaces: {
     readonly items: readonly LocalWorkspace[]
@@ -179,19 +122,54 @@ const EMPTY: InboxView = {
   commitments: { open: 0, overdue: 0, toAssess: 0 },
 }
 
-/**
- * Badge colour per tone. The order of loudness is the order of the design.
- *
- * 冲突此前自成一档（红）；v4.15 的分类学把**冲突确认归进「单答确认」**——人要做的
- * 动作确实就是那一个。颜色因此和确认同档，而「冲突待裁」四个字由家族自己写在徽标上
- * （`demand.badge`），一屏上仍然分得开。少一种颜色，少一份要维护的名册。
- */
-const TONE_CLASS: Record<TopicTone, string> = {
-  confirm: 'badgeConfirm',
-  review: 'badgeReview',
-  running: 'badgeRunning',
-  waiting: 'badgeWaiting',
-  idle: 'badgeIdle',
+/** 「要你」最多摊开几条。再多是审批疲劳的信号，不是排版问题——卡上会提议一条规矩。 */
+const NEED_ROWS = 5
+
+/** 多久没动静算「可能卡住了」。剧本里那次空转是二十分钟才被发现。 */
+const STALL_MS = 6 * 60_000
+
+/** 两个卡地址是不是同一张卡。 */
+export const sameRef = (left: CardRefWire | undefined, right: CardRefWire | undefined): boolean => (
+  left !== undefined && right !== undefined && left.kind === right.kind && left.id === right.id
+)
+
+/** 一行话题此刻的那一个信号（律三：一行一个）。 */
+function signalOf(tone: TopicTone, live: boolean): 'need' | 'run' | undefined {
+  if (tone === 'confirm' || tone === 'review') return 'need'
+  if (tone === 'running' || live) return 'run'
+  return undefined
+}
+
+/** 私聊行、自聊行的那张脸。 */
+function Face(props: { name: string; photo?: string; hidePhoto?: boolean }): ReactNode {
+  const { name, photo, hidePhoto = false } = props
+  const avatar = avatarOf(name)
+  return (
+    <span className={css.face} style={{ background: avatar.color }}>
+      {photo === undefined || hidePhoto
+        ? avatar.text
+        : (
+          <img
+            className={css.photo}
+            src={photo}
+            alt=""
+            onError={(event) => { event.currentTarget.style.display = 'none' }}
+          />
+        )}
+    </span>
+  )
+}
+
+/** 一行右侧的那一个信号。 */
+function Signal(props: { kind: 'need' | 'run' | 'stall' | undefined }): ReactNode {
+  if (props.kind === undefined) return null
+  if (props.kind === 'need') return <span className={css.needDot} aria-label="要你" />
+  return (
+    <span
+      className={`${css.spin} ${props.kind === 'stall' ? css.spinStall : ''}`}
+      aria-label={props.kind === 'stall' ? '可能卡住了' : '在跑'}
+    />
+  )
 }
 
 export function YzjSidebar(props: SidebarProps): ReactNode {
@@ -209,23 +187,21 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
   const [archiving, setArchiving] = useState<string | undefined>(undefined)
   const [rowError, setRowError] = useState('')
   const [now, setNow] = useState(() => Date.now())
-  /** 本地名称过滤 — the substitute for a group-search API that does not exist. */
+  /** 没接入的那一堆里按名字找 —— 平台没有群搜索 API，只能在见过的里面找。 */
   const [filter, setFilter] = useState('')
+  const [moreNeeds, setMoreNeeds] = useState(false)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const frame = useSyncExternalStore(subscribeFrame, currentFrame)
+  /** 正在撤回窗里的回答：卡还没真的落账，可它已经不该再「要你」了（律七）。 */
+  const answering = useSyncExternalStore(subscribeAnswering, answeringNow)
   const hostIds = useSessions(state => state.ids) ?? []
   const hostById = useSessions(state => state.byId) ?? {}
   /**
-   * The session on stage.
-   *
-   * Read from the same snapshot as the list rather than taken as a prop: this
-   * slot is root-scoped so the registration never had a `sessionId` to give,
-   * and passing nothing meant the active row never highlighted — and, once
-   * collapsing arrived, that a collapsed group could hide the very row you
-   * were standing in.
+   * The session on stage, read from the same snapshot as the list: this slot
+   * is root-scoped, so the registration never had a `sessionId` to give.
    */
   const currentSessionId = useSessions(state => state.current)
   const [inbox, setInbox] = useState<InboxView>(EMPTY)
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
   const refresh = useCallback(async (): Promise<void> => {
     setInbox(await inject.inbox() ?? EMPTY)
@@ -241,8 +217,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     }
   }, [refresh])
 
-  // Relative times only need to be roughly right; a minute is the smallest
-  // bucket the labels have, so that is how often they can change.
+  // 「等了多久」「多久没进展」只需要分钟级的准；半分钟走一次就够。
   useEffect(() => {
     const timer = setInterval(() => { setNow(Date.now()) }, 30_000)
     return () => { clearInterval(timer) }
@@ -251,7 +226,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
   /**
    * 带着卡来的，落在卡上；不带的，落在话题末尾。
    *
-   * 每一次跳转都**重写**落点，包括不带卡的那种：上一次点「待验收」还没落地就改去了
+   * 每一次跳转都**重写**落点，包括不带卡的那种：上一次点「验收」还没落地就改去了
    * 别处，那份落点不能留到下次碰巧打开那个话题时才兑现。
    */
   const go = useCallback((sessionId: string, cardRef?: CardRefWire): void => {
@@ -259,6 +234,43 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     setFrame({ kind: 'session' })
     open(sessionId)
   }, [open])
+
+  const stealth = inbox.stealth === true
+  const needs = (inbox.needs ?? []).filter(need => !answering.some(ref => sameRef(ref, need.ref)))
+
+  /*
+    `N` —— 下一件要你的 (律八).
+
+    跨群跳，不用回左栏找。「下一件」是按代价排好的第一件；如果人正站在它上面（刚跳过
+    来、还没答），就是第二件——连按 N 是在一件件往下走，不是原地踏步。
+  */
+  const lastJump = useRef<NeedWire | undefined>(undefined)
+  /** 刚跳去的那一件——人站在它所在的会话里时，这一行亮着（落点本身是一次性的）。 */
+  const [jumped, setJumped] = useState<CardRefWire | undefined>(undefined)
+  const jumpTo = useCallback((need: NeedWire): void => {
+    lastJump.current = need
+    setJumped(need.ref)
+    go(need.sessionId, need.ref)
+  }, [go])
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'n' && event.key !== 'N') return
+      if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return
+      const target = event.target as HTMLElement | null
+      if (target !== null && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/u.test(target.tagName))) return
+      if (needs.length === 0) return
+      const here = lastJump.current
+      const at = here === undefined || here.sessionId !== currentSessionId
+        ? -1
+        : needs.findIndex(need => sameRef(need.ref, here.ref))
+      const next = at < 0 ? needs[0] : needs[(at + 1) % needs.length]
+      if (next === undefined) return
+      event.preventDefault()
+      jumpTo(next)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('keydown', onKey) }
+  }, [needs, currentSessionId, jumpTo])
 
   /** Register a picked directory and land in a session there. */
   const adopt = useCallback(async (path: string): Promise<void> => {
@@ -269,19 +281,9 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
   }, [startSession, workspaces])
 
   /**
-   * 打开本地文件夹 — dsh's own route.
-   *
-   * In the harness this is a hole (`sidebar.workspaces.directoryFlow`) that a
-   * picker package fills; on this deployment the occupant is renderless and
-   * does exactly one thing: call the host's `pickDirectory`, which opens the
-   * operating system's own folder chooser. We cannot mount that occupant —
-   * the hole is declared by the browser entry we shadow, and declaring is
-   * claiming — but we can take the same single step, and a dialog of our own
-   * in front of it was a step dsh does not make anybody take.
-   *
-   * The self-built browser survives only as the no-chooser fallback: a host
-   * composed with `browse` instead of `native` has no OS dialog to open, and
-   * a feature that dies there is worse than one that degrades.
+   * 打开本地文件夹 — dsh's own route: the host's `pickDirectory` opens the
+   * operating system's own folder chooser. The self-built browser survives
+   * only as the no-chooser fallback.
    */
   const openDirectory = useCallback((): void => {
     setPickError('')
@@ -298,294 +300,314 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
       .finally(() => { setPicking(false) })
   }, [adopt, workspaces])
 
-  /**
-   * 演示隐身档 (D10) — declared before the fold helpers that consult it.
-   *
-   * Zeroing badges and hiding previews left every conversation NAME on the
-   * projector, which is exactly what this mode exists to take off the screen.
-   */
-  const stealth = inbox.stealth === true
-
-  const toggle = (key: string): void => {
-    setCollapsed(value => ({ ...value, [key]: !(value[key] ?? DEFAULT_SHUT.has(key)) }))
+  /** 隐身档先于一切折叠状态 (D10)：云之家那一段整段先收起来，人可以有意展开。 */
+  const shut = (key: string, fallback = false): boolean => (
+    collapsed[key] ?? (key === 'sec:yzj' && stealth ? true : fallback)
+  )
+  const toggle = (key: string, fallback = false): void => {
+    setCollapsed(value => ({ ...value, [key]: !(value[key] ?? (key === 'sec:yzj' && stealth ? true : fallback)) }))
   }
 
-  /**
-   * 隐身档先于一切折叠状态 (D10).
-   *
-   * Zeroing badges and hiding previews left every conversation NAME on the
-   * projector, which is the one thing 隐身 exists to take off the screen. The
-   * base folds whole; the operator can still open it deliberately, because a
-   * demo档 that cannot be un-hidden is a mode people avoid turning on.
-   */
-  const shut = (key: string): boolean => (
-    collapsed[key] ?? (key === 'sec:yzj' && stealth ? true : DEFAULT_SHUT.has(key))
-  )
-  const shutBy = (key: string, fallback: boolean): boolean => collapsed[key] ?? fallback
-
-  /**
-   * The disclosure mark, drawn rather than typed.
-   *
-   * `⌄` is a character: its baseline sits wrong, its weight follows whatever
-   * font resolved, and it changes shape between platforms. A 1.5px stroked
-   * path is the same mark everywhere and at every size.
-   */
-  const CHEV = (
-    <svg viewBox="0 0 10 10" width="9" height="9" aria-hidden="true">
-      <path
-        d="M2 3.5 5 6.5 8 3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+  /** 段头：小号字；可折叠的段整行就是开关。 */
+  const head = (key: string | undefined, title: string, tail?: ReactNode): ReactNode => (
+    key === undefined
+      ? <div className={css.head}><span className={css.headTitle}>{title}</span>{tail}</div>
+      : (
+        <button
+          type="button"
+          className={`${css.head} ${css.headButton}`}
+          aria-expanded={!shut(key)}
+          onClick={() => { toggle(key) }}
+        >
+          <span className={css.headTitle}>{title}</span>
+          <Icon name="chevD" size={12} className={`${css.headChev} ${shut(key) ? css.headChevShut : ''}`} />
+          {tail}
+        </button>
+      )
   )
 
-  /**
-   * The disclosure column, in its two forms.
-   *
-   * A row whose OWN job is collapsing (section head, grouping label, working
-   * folder) carries the mark as decoration — the row is the control. A row
-   * with a job of its own (a place you can walk into) carries a real button,
-   * because there the column and the body do two different things.
-   */
-  const chevMark = (key: string, small = false, closedByDefault = false): ReactNode => (
-    <span
-      className={`${css.chev} ${small ? css.chevSmall : ''} ${shutBy(key, closedByDefault) ? css.chevClosed : ''}`}
-    >
-      {CHEV}
-    </span>
-  )
-  const chevButton = (key: string): ReactNode => (
-    <button
-      type="button"
-      className={`${css.chev} ${shut(key) ? css.chevClosed : ''}`}
-      aria-label={shut(key) ? '展开' : '折叠'}
-      onClick={(event) => {
-        event.stopPropagation()
-        toggle(key)
-      }}
-    >
-      {CHEV}
-    </button>
-  )
+  /* ——— 1 · 要你 ——— */
 
-  /**
-   * 顶层大分栏 — the channel axis, projected once at the outermost level.
-   *
-   * 云之家 is the places that have an IM channel; 本地 is the places that do
-   * not. That is a bigger distinction than any grouping inside either one, so
-   * it gets a louder typographic register than a grey in-group label — the
-   * same move Finder makes with FAVORITES / LOCATIONS.
-   */
-  const section = (key: string, title: string, hint: string, holds = false): ReactNode => (
-    <button
-      type="button"
-      className={`${css.sec} ${holds ? css.secHolds : ''}`}
-      title={holds ? '你正站在这一界里' : '折叠/展开整个分栏'}
-      onClick={() => { toggle(key) }}
-    >
-      {chevMark(key, true)}
-      {title}
-      <span className={css.secHint}>{hint}</span>
-    </button>
-  )
-
-  const badge = (tone: TopicTone, label: string): ReactNode => (
-    label === '' ? null : (
-      <span className={`${css.badge} ${css[TONE_CLASS[tone]] ?? ''}`}>
-        {tone === 'running' && <span className={css.pulse} />}
-        {label}
-      </span>
-    )
-  )
-
-  /**
-   * The item row — the same component for every topic, wherever it sits.
-   *
-   * `sub` indents it under a place row and draws the subordination line: what
-   * the attention lease prunes is exactly these children, so the parent/child
-   * relationship has to be visible for the pruning to read as pruning.
-   */
-  const item = (row: InboxItemWire, sub = false): ReactNode => {
-    const avatar = avatarOf(row.title || row.placeName)
+  const needRow = (need: NeedWire): ReactNode => {
+    const active = frame.kind === 'session' && need.sessionId === currentSessionId && sameRef(jumped, need.ref)
+    const overdue = need.due?.ts !== undefined && need.due.ts < now
     return (
       <button
         type="button"
-        key={row.sessionId}
-        className={`${css.item} ${sub ? css.itemSub : ''} ${row.sessionId === currentSessionId ? css.itemActive : ''}`}
-        onClick={() => { go(row.sessionId, row.cardRef) }}
-        title={row.preview}
+        key={`${need.ref.kind}:${need.ref.id}`}
+        className={`${css.need} ${active ? css.rowActive : ''}`}
+        title={stealth ? undefined : `${need.label}\n${need.placeName === undefined ? need.where : `${need.placeName} · ${need.where}`}`}
+        onClick={() => { jumpTo(need) }}
       >
-        <span className={css.icon} style={{ background: avatar.color }}>{avatar.text}</span>
-        <span className={css.itemText}>
-          <span className={css.itemTitle}>{row.title}</span>
-          <span className={css.itemPreview}>{row.preview}</span>
+        <span className={css.needDot} />
+        <span className={css.needText}>
+          <span className={css.needLine}>
+            <b className={css.needVerb}>{need.verb}</b>
+            {!stealth && <span className={css.needLabel}>{need.label}</span>}
+          </span>
+          {!stealth && (
+            <span className={css.needMeta}>
+              {waitLine(need.waiting, need.since, now)}
+              {need.due !== undefined && (
+                <span className={overdue ? css.late : undefined}>
+                  {' · '}
+                  {overdue ? '原定' : '原话'}「{need.due.text}」
+                </span>
+              )}
+            </span>
+          )}
         </span>
-        {badge(row.tone, row.badge)}
-        {/* 一个话题可以同时欠你一个答复、又正在跑。徽标说前者，脉冲说后者。 */}
-        {row.live === true && row.tone !== 'running' && <span className={css.livePulse} />}
       </button>
     )
   }
 
-  /**
-   * One conversation of the base — 「谁在找我」.
-   *
-   * Its SHAPE is a function of one fact: does the agent answer here. On duty
-   * and with work in it, the row is a 场所行 with its topics under it; the
-   * rest are plain conversation rows. That is the whole 升降级 rule (v4.8),
-   * derived rather than configured — a column that disagreed with the gate
-   * would promise an agent that never answers.
-   */
-  const conversationRow = (row: InboxConversationWire): ReactNode => {
+  const needSection = (
+    <section className={css.section} aria-label="要你">
+      {head(undefined, '要你', (
+        <span className={css.headTail}>
+          {needs.length > 0 && <kbd className={css.kbd} title="按 N 跳到下一件">N</kbd>}
+          <span className={needs.length > 0 ? css.needCount : css.zeroCount}>{needs.length}</span>
+        </span>
+      ))}
+      {needs.length === 0
+        ? (
+          <div className={css.clear}>
+            <Icon name="check" size={14} className={css.clearMark} />
+            <span>都处理完了</span>
+          </div>
+        )
+        : (
+          <>
+            {(moreNeeds ? needs : needs.slice(0, NEED_ROWS)).map(needRow)}
+            {needs.length > NEED_ROWS && (
+              <button type="button" className={css.more} onClick={() => { setMoreNeeds(value => !value) }}>
+                {moreNeeds ? '收起' : `还有 ${String(needs.length - NEED_ROWS)} 条`}
+                <Icon name={moreNeeds ? 'chevD' : 'chevR'} size={12} />
+              </button>
+            )}
+          </>
+        )}
+    </section>
+  )
+
+  /* ——— 2 · 运行中 ——— */
+
+  const running = inbox.running ?? []
+  const runningSection = running.length === 0 ? null : (
+    <section className={css.section} aria-label="运行中">
+      {head(undefined, '运行中', <span className={css.headTail}><span className={css.zeroCount}>{running.length}</span></span>)}
+      {running.map((run) => {
+        const last = Math.max(run.since, hostById[run.sessionId]?.updatedAt ?? 0)
+        const stalled = now - last > STALL_MS
+        return (
+          <button
+            type="button"
+            key={`${run.sessionId}:${String(run.since)}`}
+            className={`${css.row} ${css.tall} ${run.sessionId === currentSessionId ? css.rowActive : ''}`}
+            onClick={() => { go(run.sessionId) }}
+          >
+            <span className={css.lead}><Signal kind={stalled ? 'stall' : 'run'} /></span>
+            <span className={css.text}>
+              <span className={css.title}>{stealth ? '一件活' : run.title}</span>
+              <span className={`${css.meta} ${stalled ? css.metaNeed : ''}`}>
+                {stalled
+                  ? `${span(now - last)}没进展`
+                  : `${stealth ? '' : `${run.placeName} · `}在跑 ${span(now - run.since)}`}
+              </span>
+            </span>
+          </button>
+        )
+      })}
+    </section>
+  )
+
+  /* ——— 3 · 承诺 ——— */
+
+  const commitments = inbox.commitments
+  const boardOn = frame.kind === 'board' || frame.kind === 'goal' || frame.kind === 'judg'
+  const ledgerRow = (
+    <button
+      type="button"
+      className={`${css.row} ${css.ledger} ${boardOn ? css.rowActive : ''}`}
+      onClick={() => { setFrame({ kind: frame.kind === 'board' ? 'session' : 'board' }) }}
+    >
+      <span className={css.lead}><Icon name="list" /></span>
+      <span className={css.title}>承诺</span>
+      {commitments.overdue > 0
+        ? <span className={css.tailLate}>{commitments.overdue} 逾期</span>
+        : (commitments.toAssess ?? 0) > 0
+          ? <span className={css.tailNeed}>{commitments.toAssess} 该评估</span>
+          : commitments.open > 0 ? <span className={css.tail}>{commitments.open}</span> : null}
+    </button>
+  )
+
+  /* ——— 4 · 云之家 ——— */
+
+  const topicRow = (row: InboxItemWire): ReactNode => (
+    <button
+      type="button"
+      key={row.sessionId}
+      className={`${css.row} ${css.sub} ${row.sessionId === currentSessionId && frame.kind === 'session' ? css.rowActive : ''}`}
+      title={stealth ? undefined : row.preview}
+      onClick={() => { go(row.sessionId, row.cardRef) }}
+    >
+      <span className={css.subLine} />
+      <span className={css.title}>{stealth ? '一个话题' : row.title}</span>
+      <Signal kind={signalOf(row.tone, row.live === true)} />
+    </button>
+  )
+
+  const listed = inbox.conversations ?? []
+  /*
+    Places with live work but no roster row yet: the roster is built BY the
+    poll, so on a cold start a place holding a PENDING APPROVAL can be missing
+    from it. The task segment must never depend on the message segment.
+  */
+  const known = new Set(listed.map(row => row.placeKey))
+  const conversations: InboxConversationWire[] = [
+    ...listed,
+    ...inbox.places.filter(place => place.placeKey !== 'local' && !known.has(place.placeKey)).map(place => ({
+      placeKey: place.placeKey,
+      name: place.groupName,
+      kind: place.conversationKind,
+      lastMsgTime: Date.now(),
+      preview: '',
+      unread: 0,
+      onDuty: true,
+      selfChat: false,
+    })),
+  ]
+  const byRecent = (left: InboxConversationWire, right: InboxConversationWire): number => (
+    right.lastMsgTime - left.lastMsgTime
+  )
+  const served = conversations.filter(row => row.onDuty && row.kind !== 'assistant').sort(byRecent)
+  const unserved = conversations.filter(row => !row.onDuty || row.kind === 'assistant').sort(byRecent)
+
+  const lead = (row: InboxConversationWire): ReactNode => (
+    row.kind === 'group'
+      ? <span className={css.glyph}><Icon name="hash" size={14} /></span>
+      : <Face name={row.name} {...(row.avatarUrl === undefined ? {} : { photo: row.avatarUrl })} hidePhoto={stealth} />
+  )
+
+  const placeRow = (row: InboxConversationWire): ReactNode => {
     const place = inbox.places.find(entry => entry.placeKey === row.placeKey)
     const active = frame.kind === 'place' && frame.placeKey === row.placeKey
-    const closed = shut(row.placeKey)
-    const openPlace = (): void => {
-      setFrame({ kind: 'place', placeKey: row.placeKey, groupName: row.name })
-    }
-    const avatar = avatarOf(row.name)
-    const face = (
-      <span className={css.icon} style={{ background: avatar.color }}>
-        {row.avatarUrl === undefined || stealth
-          ? avatar.text
-          : (
-            <img
-              className={css.photo}
-              src={row.avatarUrl}
-              alt=""
-              onError={(event) => { event.currentTarget.style.display = 'none' }}
-            />
-          )}
-      </span>
-    )
-    /*
-      自聊行未读豁免 —— **收窄为限组织侧可应答流量** (私账层 接缝②).
-
-      这条豁免原本的理由是「自聊里的可应答流量已经在上面那三枚 chip 里数过了」。
-      私账消息（立约邀约、校准回执）**不在任何 chip 里**——它们不进收件箱、不进
-      决断条、不进任何可应答聚合（三不入），所以那句理由对它们不成立：豁免掉，
-      它们就一个提示都没有了。
-
-      于是私账开着的时候，自聊行照常显示消息层未读，**读即清**——它数的是「有几条
-      新消息」，永远不是「有几件事没答」。未答的邀约与回执不老化、不可催、不成欠账，
-      它们静躺在私语流里等你有空。
-    */
-    // 自聊行未读豁免（其可应答流量已在注意力 chips 里）；私账不产生任何消息（决策 #64）。
+    const topics = place?.topics ?? []
+    // 自聊行的未读不算「有人找你」：它的可应答流量已在「要你」里，私账消息读即清。
     const unread = stealth || row.selfChat ? 0 : row.unread
-    /*
-      自聊行的标签**照实说**：私账层在，它是「审批与私语通道」；私账层不在（未启用，
-      或隐身档下当作不在），它就只是审批通道——隐身档要的是私账层**整层**不上屏，
-      一个写着「私语」的入口标签也是上屏的一部分。
-    */
-    const note = row.selfChat ? '审批通道' : stealth ? '' : row.preview
-
-    if (place !== undefined && row.onDuty) {
-      const holds = closed && place.topics.some(entry => entry.sessionId === currentSessionId)
-      return (
-        <div className={css.place} key={row.placeKey}>
-          <div
-            className={`${css.row} ${css.placeRow} ${active ? css.itemActive : ''} ${holds ? css.holds : ''}`}
-            title={holds ? '你正站在这个组里的一个话题上' : undefined}
-          >
-            {chevButton(row.placeKey)}
-            <button
-              type="button"
-              className={css.rowBody}
-              title="打开群视图（主楼 + 内联话题卡）"
-              onClick={openPlace}
-            >
-              {face}
-              <span className={css.itemText}>
-                <span className={`${css.itemTitle} ${css.placeTitle}`}>{row.name}</span>
-                <span className={css.itemPreview}>
-                  {/* 自聊是审批与私语通道，即使它接单、即使它长出了话题。 */}
-                  {row.selfChat
-                    ? `审批通道 · ${String(place.topics.length + place.archived)} 个话题`
-                    : `主楼 · ${String(place.topics.length + place.archived)} 个话题`}
-                </span>
-              </span>
-              {badge(place.tone, place.badge)}
-              {unread > 0 && <span className={css.unread}>{unread > 99 ? '99+' : unread}</span>}
-            </button>
-          </div>
-          {!closed && place.topics.map(entry => item(entry, true))}
-          {!closed && place.archived > 0 && (
-            <button type="button" className={css.archived} onClick={openPlace}>
-              {place.archived} 个已办完 · 在群视图里
-            </button>
-          )}
-        </div>
-      )
-    }
-
+    const signal = place === undefined ? undefined : signalOf(place.tone, topics.some(topic => topic.live === true))
     return (
-      <button
-        type="button"
-        key={row.placeKey}
-        className={`${css.item} ${active ? css.itemActive : ''}`}
-        title={row.onDuty ? row.name : `${row.name}\n（agent 未在此接单）`}
-        onClick={openPlace}
-      >
-        {face}
-        <span className={css.itemText}>
-          <span className={css.itemTitle}>
-            <span>{row.name}</span>
-            {/*
-              「不在服务范围」必须看得见，不能只活在 hover 里。
-
-              试运行期只有名单内的会话被轮询，名单外的群 agent **根本读不到**
-              ——在那里 @ 它，得到的是彻底的沉默，而唯一的解释藏在一个悬停
-              提示后面。查不出原因的沉默，和坏掉长得一模一样（这正是本设计
-              一路在避免的那种失败）。所以这个状态上屏。
-            */}
-            {!row.onDuty && row.kind !== 'assistant' && (
-              <span className={css.offDuty} title="试运行期不在服务范围：这个会话不会被轮询，在这里 @next 不会有任何反应">
-                未接入
-              </span>
-            )}
-          </span>
-          <span className={css.itemPreview}>{note}</span>
-        </span>
-        <span className={css.rightCol}>
-          <span className={css.rowTime}>{stealth ? '' : timeLabel(row.lastMsgTime, now)}</span>
-          {unread > 0 && <span className={css.unread}>{unread > 99 ? '99+' : unread}</span>}
-        </span>
-      </button>
+      <div key={row.placeKey} className={css.place}>
+        <button
+          type="button"
+          className={`${css.row} ${active ? css.rowActive : ''}`}
+          title={stealth ? undefined : row.name}
+          onClick={() => { setFrame({ kind: 'place', placeKey: row.placeKey, groupName: row.name }) }}
+        >
+          <span className={css.lead}>{lead(row)}</span>
+          {/* 自聊是审批与私语通道：它的名字就是你自己，说它是什么比说它叫什么有用。 */}
+          <span className={css.title}>{stealth ? '一个会话' : row.selfChat ? '我 · 审批通道' : row.name}</span>
+          {signal !== undefined
+            ? <Signal kind={signal} />
+            : unread > 0 && <span className={css.unread}>{unread > 99 ? '99+' : unread}</span>}
+        </button>
+        {topics.map(topicRow)}
+      </div>
     )
   }
+
+  /** 没接入的一行：只剩名字——它们是 IM 的事，不是这里的事。 */
+  const plainRow = (row: InboxConversationWire): ReactNode => (
+    <button
+      type="button"
+      key={row.placeKey}
+      className={`${css.row} ${frame.kind === 'place' && frame.placeKey === row.placeKey ? css.rowActive : ''}`}
+      title={row.kind === 'assistant' ? row.name : `${row.name}\n云小助没在这里接单：在这里说话它听不见`}
+      onClick={() => { setFrame({ kind: 'place', placeKey: row.placeKey, groupName: row.name }) }}
+    >
+      <span className={css.lead}>{lead(row)}</span>
+      <span className={css.titleDim}>{stealth ? '一个会话' : row.name}</span>
+    </button>
+  )
+
+  const match = filter.trim().toLowerCase()
+  const unservedShown = match === '' ? unserved : unserved.filter(row => row.name.toLowerCase().includes(match))
+  const unservedGroups = unserved.filter(row => row.kind === 'group').length
+  const unservedOthers = unserved.length - unservedGroups
+  const unservedLabel = [
+    unservedGroups > 0 ? `${String(unservedGroups)} 个群` : '',
+    unservedOthers > 0 ? `${String(unservedOthers)} 个会话` : '',
+  ].filter(part => part !== '').join('和')
+
+  const yzjSection = (
+    <section className={css.section} aria-label="云之家">
+      {head('sec:yzj', '云之家')}
+      {!shut('sec:yzj') && (
+        <>
+          {conversations.length === 0 && (
+            <div className={css.calm}>
+              还没读到云之家的会话。通道每一轮会把见到的会话记下来，几轮之后这里就有了。
+            </div>
+          )}
+          {served.map(placeRow)}
+          {unserved.length > 0 && (
+            <button
+              type="button"
+              className={css.row}
+              aria-expanded={!shut('unserved', true)}
+              onClick={() => { toggle('unserved', true) }}
+            >
+              <span className={css.lead}><span className={css.glyph}><Icon name="hash" size={14} /></span></span>
+              <span className={css.titleDim}>{unservedLabel}未接入</span>
+              <Icon name={shut('unserved', true) ? 'chevR' : 'chevD'} size={12} className={css.foldChev} />
+            </button>
+          )}
+          {!shut('unserved', true) && (
+            <div className={css.unserved}>
+              {unserved.length > 12 && (
+                <input
+                  className={css.filter}
+                  value={filter}
+                  placeholder="按名字找…"
+                  spellCheck={false}
+                  onChange={(event) => { setFilter(event.target.value) }}
+                />
+              )}
+              {unservedShown.map(plainRow)}
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  )
+
+  /* ——— 5 · 本地 ——— */
+
+  const topicIds = new Set(inbox.topicSessionIds)
+  const archived = new Set(workspaces.archivedSessionIds ?? [])
+  const locals = hostIds
+    .filter(id => !topicIds.has(id) && !archived.has(id))
+    .map(id => ({ id, ...(hostById[id] ?? {}) }))
+    .filter(entry => entry.blank !== true)
+  const accounted = new Set(workspaces.items.flatMap(workspace => workspace.sessionIds))
+  const orphans = locals.filter(entry => !accounted.has(entry.id))
 
   /**
    * One local session row: what it is called, when it last moved, and the
-   * three things you can do to it.
-   *
-   * Only LOCAL sessions get the menu. A topic row is a projection of a graph
-   * object: its title comes from the topic's label rather than the session's,
-   * so renaming would change nothing visible; a fork of it is bound to no
-   * place, so it could not send; and archiving fights the attention lease.
+   * three things you can do to it. Only LOCAL sessions get the menu: a topic
+   * row is a projection of a graph object, not a session you own.
    */
-  const sessionRow = (
-    entry: { id: string; displayTitle?: string; updatedAt?: number },
-    note: string,
-  ): ReactNode => {
-    const active = entry.id === currentSessionId
+  const sessionRow = (entry: { id: string; displayTitle?: string; updatedAt?: number }): ReactNode => {
+    const active = entry.id === currentSessionId && frame.kind === 'session'
     const title = entry.displayTitle ?? '未命名会话'
     const items = [
       { id: 'rename', label: '重命名' },
       ...(sessionActions.fork === undefined ? [] : [{ id: 'fork', label: '分叉对话' }]),
-      ...(sessionActions.archive === undefined
-        ? []
-        : [{ id: 'archive', label: '归档对话', danger: true }]),
+      ...(sessionActions.archive === undefined ? [] : [{ id: 'archive', label: '归档对话', danger: true }]),
     ]
     return (
-      <div
-        className={`${css.row} ${css.itemSub} ${active ? css.itemActive : ''}`}
-        key={entry.id}
-      >
-        <span className={`${css.icon} ${css.subIcon}`} style={{ background: 'var(--yzj-av-7)' }}>▢</span>
+      <div className={`${css.row} ${css.sub} ${active ? css.rowActive : ''}`} key={entry.id}>
+        <span className={css.subLine} />
         {renaming === entry.id
           ? (
             <input
@@ -608,25 +630,17 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
             />
           )
           : (
-            <button
-              type="button"
-              className={css.rowBody}
-              title={title}
-              onClick={() => { go(entry.id) }}
-            >
-              <span className={css.itemText}>
-                <span className={css.itemTitle}>{title}</span>
-                <span className={css.itemPreview}>{note}</span>
-              </span>
+            <button type="button" className={css.rowBody} title={title} onClick={() => { go(entry.id) }}>
+              <span className={css.title}>{title}</span>
             </button>
           )}
-        <span className={css.rowTime}>{timeLabel(entry.updatedAt, now)}</span>
+        <span className={css.time}>{entry.updatedAt === undefined ? '' : relative(entry.updatedAt, now)}</span>
         <Menu
           open={menuFor === entry.id}
           anchor={(
             <button
               type="button"
-              className={css.more}
+              className={css.rowMore}
               aria-label="会话操作"
               aria-expanded={menuFor === entry.id}
               onClick={(event) => {
@@ -634,7 +648,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
                 setMenuFor(value => (value === entry.id ? undefined : entry.id))
               }}
             >
-              ⋯
+              <Icon name="more" size={14} />
             </button>
           )}
           items={items}
@@ -670,141 +684,103 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     archiving !== id ? null : (
       <div className={css.confirm} key={`${id}:ask`}>
         归档后这里就找不到它了（日志还在盘上）。
-        <button
-          type="button"
-          className={css.confirmYes}
-          onClick={() => {
-            setArchiving(undefined)
-            void sessionActions.archive?.(id).catch((cause: unknown) => {
-              setRowError(cause instanceof Error ? cause.message : String(cause))
-            })
-          }}
-        >
-          归档
-        </button>
-        <button
-          type="button"
-          className={css.confirmNo}
-          onClick={() => { setArchiving(undefined) }}
-        >
-          取消
-        </button>
+        <span className={css.confirmActs}>
+          <button
+            type="button"
+            className={css.confirmYes}
+            onClick={() => {
+              setArchiving(undefined)
+              void sessionActions.archive?.(id).catch((cause: unknown) => {
+                setRowError(cause instanceof Error ? cause.message : String(cause))
+              })
+            }}
+          >
+            归档
+          </button>
+          <button type="button" className={css.confirmNo} onClick={() => { setArchiving(undefined) }}>取消</button>
+        </span>
       </div>
     )
   )
 
-  /** A counter that goes somewhere. A chip that filters makes a second list. */
-  const chip = (tone: TopicTone, mark: string, label: string, count: number): ReactNode => (
-    <button
-      type="button"
-      className={`${css.chip} ${css[TONE_CLASS[tone]] ?? ''} ${count === 0 ? css.chipZero : ''}`}
-      disabled={count === 0}
-      title={count === 0 ? `没有${label}的话题` : `跳到第一个${label}的话题`}
-      onClick={() => {
-        const target = inbox.firstOf[tone]
-        if (target !== undefined) go(target.sessionId, target.cardRef)
-      }}
-    >
-      {mark} <span className={css.chipCount}>{count}</span> {label}
-    </button>
+  const localSection = (
+    <section className={css.section} aria-label="本地">
+      {head('sec:local', '本地')}
+      {!shut('sec:local') && (
+        <>
+          {workspaces.items.map((workspace) => {
+            const own = locals.filter(entry => workspace.sessionIds.includes(entry.id))
+            const closed = shut(workspace.id)
+            return (
+              <div className={css.place} key={workspace.id}>
+                <div className={css.row} title={workspace.path}>
+                  <button
+                    type="button"
+                    className={css.rowBody}
+                    aria-expanded={!closed}
+                    onClick={() => { toggle(workspace.id) }}
+                  >
+                    <span className={css.lead}><span className={css.glyph}><Icon name="folder" size={14} /></span></span>
+                    <span className={css.title}>{workspace.title}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={css.rowMore}
+                    title="在这个文件夹里开一个会话"
+                    aria-label="在这个文件夹里开一个会话"
+                    onClick={() => {
+                      setFrame({ kind: 'session' })
+                      startSession(workspace.id)
+                    }}
+                  >
+                    <Icon name="plus" size={14} />
+                  </button>
+                </div>
+                {!closed && own.flatMap(entry => [sessionRow(entry), archiveAsk(entry.id)])}
+              </div>
+            )
+          })}
+          {orphans.length > 0 && (
+            <div className={css.place}>
+              <button type="button" className={css.row} onClick={() => { toggle('orphans') }}>
+                <span className={css.lead}><span className={css.glyph}><Icon name="folder" size={14} /></span></span>
+                <span className={css.titleDim}>目录已不在</span>
+              </button>
+              {!shut('orphans') && orphans.flatMap(entry => [sessionRow(entry), archiveAsk(entry.id)])}
+            </div>
+          )}
+          {rowError !== '' && <div className={css.rowError}>{rowError}</div>}
+          <button
+            type="button"
+            className={css.row}
+            disabled={workspaces.create === undefined || picking}
+            onClick={openDirectory}
+          >
+            <span className={css.lead}><Icon name="plus" size={14} /></span>
+            <span className={css.titleDim}>{picking ? '系统的文件夹对话框开着…' : '打开本地文件夹'}</span>
+          </button>
+          {picking && (
+            <div className={css.calm}>文件夹对话框开在跑 dsh 的那台机器上，不在这个浏览器里。</div>
+          )}
+          {pickError !== '' && (
+            <div className={css.rowError}>
+              {pickError}
+              <button type="button" className={css.inlineBtn} onClick={openDirectory}>重新选择</button>
+              {workspaces.pickDirectory !== undefined && (
+                <button type="button" className={css.inlineBtn} onClick={() => { setPickError(''); setOpening(true) }}>
+                  手填路径
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </section>
   )
 
-  // Everything the graph does not know about: sessions started at this desk.
-  const topicIds = new Set(inbox.topicSessionIds)
-  // An archived session is hidden from every grouping surface the host has.
-  const archived = new Set(workspaces.archivedSessionIds ?? [])
-  const locals = hostIds
-    .filter(id => !topicIds.has(id) && !archived.has(id))
-    .map(id => ({ id, ...(hostById[id] ?? {}) }))
-    .filter(entry => entry.blank !== true)
-
-  const listed = inbox.conversations ?? []
   /*
-    Places with live work but no roster row yet.
-
-    The roster is built BY the poll, so on a cold start — or for a place
-    ranked outside the page window, or behind a page the server refused —
-    `inbox.conversations` can miss a place that holds a PENDING APPROVAL. The
-    task segment must never depend on the message segment: the chips above
-    would count it and jump to it while the column claimed it did not exist.
-  */
-  const known = new Set(listed.map(row => row.placeKey))
-  const conversations: InboxConversationWire[] = [
-    ...listed,
-    ...inbox.places.filter(place => !known.has(place.placeKey)).map(place => ({
-      placeKey: place.placeKey,
-      name: place.groupName,
-      kind: place.conversationKind,
-      lastMsgTime: Date.now(),
-      preview: '',
-      unread: 0,
-      onDuty: true,
-      selfChat: false,
-    })),
-  ]
-  const match = filter.trim().toLowerCase()
-  const visible = match === ''
-    ? conversations
-    : conversations.filter(row => row.name.toLowerCase().includes(match))
-  /** On duty first (they carry work), then most recent — 在岗场所行之下补轻量会话行. */
-  const ofKind = (kind: InboxConversationWire['kind']): InboxConversationWire[] => (
-    visible.filter(row => row.kind === kind)
-      .sort((left, right) => (
-        Number(right.onDuty) - Number(left.onDuty) || right.lastMsgTime - left.lastMsgTime
-      ))
-  )
-  const assistants = ofKind('assistant')
-  // Robots and the operator's own approval channel are not somebody asking
-  // for them, so neither lands in the one number that says somebody is.
-  const unreadTotal = stealth ? 0 : conversations
-    .filter(row => row.kind !== 'assistant' && !row.selfChat)
-    .reduce((sum, row) => sum + row.unread, 0)
-
-  const kindBlock = (kind: 'group' | 'direct', label: string): ReactNode => {
-    const rows = ofKind(kind)
-    if (rows.length === 0) return null
-    return (
-      <div className={css.place}>
-        {/* A pure grouping: typography, not a node — so the whole label IS
-            the collapse control (纯容器即折叠). */}
-        <button
-          type="button"
-          className={css.groupLabel}
-          title="折叠/展开"
-          onClick={() => { toggle(`kind:${kind}`) }}
-        >
-          {chevMark(`kind:${kind}`, true)}{label}
-          <span className={css.labelCount}>{rows.length}</span>
-          <span className={css.gline} />
-        </button>
-        {!shut(`kind:${kind}`) && rows.map(conversationRow)}
-      </div>
-    )
-  }
-
-  // A session no directory accounts for still has to be reachable: losing the
-  // folder must not lose the conversation.
-  const accounted = new Set(workspaces.items.flatMap(workspace => workspace.sessionIds))
-  const orphans = locals.filter(entry => !accounted.has(entry.id))
-
-  // 冷启动的出生故事: the roster is built BY the poll, so an instance that has
-  // only just started genuinely has nothing here yet — and a column that says
-  // nothing about why looks broken rather than young.
-  const nothing = conversations.length === 0
-
-  /*
-    **窄到画不下一行的时候，收成一条轨，而不是把字挤成一列。**
-
-    宿主在窄宽度下会把左区收到 ~35px（根节点带上它自己的 collapsed 类），而这一列此前
-    照旧渲染整份收件箱：于是「承诺板 · 跨执行者」被挤成一列一个字、「收件箱」截成
-    「收件」、会话列表被撑到 3908px 高——每一行的每个字各占一行。那不是收起，是压扁。
-
-    判据用**自己的宽度**，不去认宿主那个哈希类名：类名是别人的实现细节，改一次名这条
-    路就断了，而且断得无声。ResizeObserver 读自己的盒子，是这个仓库里已有的做法
-    （决断条同款）。
-
-    轨上留什么：**只留不需要一行字就能读的东西**——三个计数、一个板入口。会话列表在
-    35px 里是读不了的，画出来只是噪音；人要看它，把窗口拉宽就是。
+    **窄到画不下一行的时候，收成一条轨。** 宿主在窄宽度下会把左区收到约 35px；判据用
+    自己的宽度（不认宿主的哈希类名）。轨上只留不需要字就能读的：要你的数、承诺入口。
   */
   const [narrow, setNarrow] = useState(false)
   const measure = useCallback((node: HTMLElement | null) => {
@@ -812,291 +788,63 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     const watch = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const width = entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width
-        // 96px：一行「◫ 承诺板」加计数的最小可读宽度，再窄就必然折行。
-        setNarrow(width > 0 && width < 96)
+        setNarrow(width > 0 && width < 120)
       }
     })
     watch.observe(node)
   }, [])
 
   if (narrow) {
+    const first = needs[0]
     return (
-      <nav
-        ref={measure}
-        className={`${tokens.tokens} ${css.sidebar} ${css.rail}`}
-        aria-label="收件箱"
-      >
+      <nav ref={measure} className={`${tokens.tokens} ${css.sidebar} ${css.rail}`} aria-label="工作台">
         <button
           type="button"
-          className={css.railNew}
-          title="新建会话"
-          aria-label="新建会话"
-          onClick={() => { startSession() }}
+          className={css.railBtn}
+          disabled={first === undefined}
+          title={first === undefined ? '没有要你的事' : `要你 ${String(needs.length)} —— 去第一件`}
+          aria-label={`要你 ${String(needs.length)}`}
+          onClick={() => { if (first !== undefined) go(first.sessionId, first.ref) }}
         >
-          ＋
+          {needs.length > 0 ? <span className={css.needCount}>{needs.length}</span> : <Icon name="check" />}
         </button>
-        {([
-          ['confirm', '✋', '待确认', inbox.counts.confirm],
-          ['review', '✓', '待验收', inbox.counts.review],
-          ['running', '●', '运行中', inbox.counts.running],
-        ] as const).map(([tone, mark, label, count]) => (
-          <button
-            key={tone}
-            type="button"
-            className={`${css.railChip} ${count === 0 ? css.chipZero : ''}`}
-            disabled={count === 0}
-            title={count === 0 ? `没有${label}的话题` : `${label} ${String(count)} —— 跳到第一个`}
-            aria-label={`${label} ${String(count)}`}
-            onClick={() => {
-              const target = inbox.firstOf[tone]
-              if (target !== undefined) go(target.sessionId, target.cardRef)
-            }}
-          >
-            <span>{mark}</span>
-            <span className={css.railCount}>{count}</span>
-          </button>
-        ))}
         <button
           type="button"
-          className={`${css.railBoard} ${frame.kind === 'board' ? css.boardOn : ''}`}
-          title="承诺板 · 跨执行者"
-          aria-label="承诺板"
+          className={`${css.railBtn} ${boardOn ? css.rowActive : ''}`}
+          title="承诺"
+          aria-label="承诺"
           onClick={() => { setFrame({ kind: frame.kind === 'board' ? 'session' : 'board' }) }}
         >
-          ◫
+          <Icon name="list" />
         </button>
       </nav>
     )
   }
 
   return (
-    <nav ref={measure} className={`${tokens.tokens} ${css.sidebar}`} aria-label="收件箱">
+    <nav ref={measure} className={`${tokens.tokens} ${css.sidebar}`} aria-label="工作台">
       {opening && (
         <YzjDirectoryPicker
-          {...(workspaces.listDirectory === undefined
-            ? {}
-            : { listDirectory: workspaces.listDirectory })}
-          {...(workspaces.pickDirectory === undefined
-            ? {}
-            : { pickDirectory: workspaces.pickDirectory })}
+          {...(workspaces.listDirectory === undefined ? {} : { listDirectory: workspaces.listDirectory })}
+          {...(workspaces.pickDirectory === undefined ? {} : { pickDirectory: workspaces.pickDirectory })}
           choose={adopt}
           close={() => { setOpening(false) }}
         />
       )}
-      <div className={css.head}>
-        <h2 className={css.title}>收件箱</h2>
-        {/* 「见过的」, not 「全部的」: the roster holds what the poll has seen,
-            which grows as conversations become active. Claiming completeness
-            would make an absent conversation look like a bug rather than like
-            a conversation nobody has touched. */}
-        <span className={css.sub}>需要我的在上，见过的会话在下</span>
-        <button
-          type="button"
-          className={css.new}
-          title="新建会话"
-          onClick={() => { startSession() }}
-        >
-          ＋
-        </button>
-      </div>
-
-      <div className={css.chips}>
-        {chip('confirm', '✋', '待确认', inbox.counts.confirm)}
-        {chip('review', '✓', '待验收', inbox.counts.review)}
-        {chip('running', '●', '运行中', inbox.counts.running)}
-      </div>
-
-      <button
-        type="button"
-        className={`${css.board} ${frame.kind === 'board' ? css.boardOn : ''}`}
-        title="部门的全部承诺，人和 agent 一屏"
-        onClick={() => { setFrame({ kind: frame.kind === 'board' ? 'session' : 'board' }) }}
-      >
-        <span>◫ 承诺板 · 跨执行者</span>
-        {/*
-          「该评估了」优先于「在跟」，因为它是一个**时刻**而不是一个存量：
-          子承诺全部终态的那一刻是写差距简报的时候，错过它，目标就要靠人
-          记得去看——那正是零维护要消掉的东西。逾期仍然压过它，逾期是更响的事。
-        */}
-        {inbox.commitments.overdue === 0 && (inbox.commitments.toAssess ?? 0) > 0
-          ? (
-            <span className={css.boardAssess} title="这些目标下面的活都到终态了，可以写差距简报、准备验收">
-              {String(inbox.commitments.toAssess)} 该评估
-            </span>
-          )
-          : (
-            <span className={inbox.commitments.overdue > 0 ? css.boardOverdue : css.boardCount}>
-              {inbox.commitments.overdue > 0
-                ? `${String(inbox.commitments.overdue)} 逾期`
-                : `${String(inbox.commitments.open)} 在跟`}
-            </span>
-          )}
-      </button>
-
-
-      <div className={css.tree}>
-        {/*
-          规则递归: the position mark climbs with the fold. Collapsing a group
-          hides the row you are on, so the place row carries the hairline;
-          collapsing the whole section hides the place row too, so the section
-          head carries it. 位置不丢 has to hold at every level, or it holds at
-          none.
-        */}
-        {section('sec:yzj', '云之家', unreadTotal > 0 ? `${String(unreadTotal)} 条未读` : '群 · 私聊',
-          shut('sec:yzj') && currentSessionId !== undefined
-          && inbox.topicSessionIds.includes(currentSessionId))}
-
-        {/*
-          本地名称过滤 —— the only search this platform has.
-
-          Yunzhijia exposes no group-search API at any level, so finding a
-          conversation by name has to happen over what we have already seen.
-          That is exactly what the roster is for, and it is why the roster is
-          persisted rather than re-fetched.
-        */}
-        {!shut('sec:yzj') && conversations.length > 12 && (
-          <input
-            className={css.filter}
-            value={filter}
-            placeholder="按名字找会话…"
-            spellCheck={false}
-            onChange={(event) => { setFilter(event.target.value) }}
-          />
-        )}
-
-        {!shut('sec:yzj') && nothing && (
-          <div className={css.calm}>
-            还没有读到任何云之家会话。
-            <br />
-            通道每轮拉取会话列表时会把见到的记下来，<b>攒着的这份就是名录</b>——
-            所以刚启动时这里是空的，几轮之后会长出来。
-            <br />
-            在测试群 <code>{inbox.aliases?.[0] ?? '@agent'}</code> 说句话，那个群还会升级成场所行。
-          </div>
-        )}
-
-        {!shut('sec:yzj') && kindBlock('group', '群')}
-        {!shut('sec:yzj') && kindBlock('direct', '私聊')}
-        {/*
-          助手号与系统号 (groupType 3/8): 63 of them on this account. They are
-          feeds, not conversations — triage refuses those types outright — so
-          they get their own fold, start closed, and stay out of the unread
-          total. Otherwise the one number meant to say "somebody wants you"
-          would be dominated by robots.
-        */}
-        {!shut('sec:yzj') && assistants.length > 0 && (
-          <div className={css.place}>
-            <button
-              type="button"
-              className={css.groupLabel}
-              title="折叠/展开"
-              onClick={() => { toggle('assistants') }}
-            >
-              {chevMark('assistants', true, true)}助手与通知
-              <span className={css.labelCount}>{assistants.length}</span>
-              <span className={css.gline} />
-            </button>
-            {!shutBy('assistants', true) && assistants.map(conversationRow)}
-          </div>
-        )}
-
-        {section('sec:local', '本地', '工作文件夹',
-          shut('sec:local') && locals.some(entry => entry.id === currentSessionId))}
-
-        {/*
-          本地 = 工作夹场所. A working folder is a place with no IM channel — its
-          contract, tools and memory follow the folder, which is dsh's own
-          structure (workspace > sessions) projected straight through. It has no
-          主楼 to walk into, so the row's own job IS collapsing.
-        */}
-        {!shut('sec:local') && workspaces.items.map((workspace) => {
-          const own = locals.filter(entry => workspace.sessionIds.includes(entry.id))
-          const closed = shut(workspace.id)
-          const holds = closed && own.some(entry => entry.id === currentSessionId)
-          return (
-            <div className={css.place} key={workspace.id}>
-              <button
-                type="button"
-                className={`${css.row} ${css.placeRow} ${css.folderRow} ${holds ? css.holds : ''}`}
-                title={`工作文件夹（本地场所，无主楼）· 点击折叠/展开\n${workspace.path}`}
-                onClick={() => { toggle(workspace.id) }}
-              >
-                {chevMark(workspace.id)}
-                <span className={css.icon} style={{ background: 'var(--yzj-av-7)' }}>⌂</span>
-                <span className={css.itemText}>
-                  <span className={`${css.itemTitle} ${css.placeTitle}`}>{workspace.title}</span>
-                  <span className={css.itemPreview}>{workspace.path} · {own.length} 个会话</span>
-                </span>
-              </button>
-              {!closed
-                && own.flatMap(entry => [sessionRow(entry, '本地会话'), archiveAsk(entry.id)])}
-              {!closed && (
-                <button
-                  type="button"
-                  className={css.archived}
-                  onClick={() => {
-                    setFrame({ kind: 'session' })
-                    startSession(workspace.id)
-                  }}
-                >
-                  ＋ 在这个文件夹里开一个会话
-                </button>
-              )}
-            </div>
-          )
-        })}
-
-        {!shut('sec:local') && orphans.length > 0 && (
-          <div className={css.place}>
-            <button
-              type="button"
-              className={css.groupLabel}
-              title="折叠/展开"
-              onClick={() => { toggle('orphans') }}
-            >
-              {chevMark('orphans', true)}无文件夹<span className={css.gline} />
-            </button>
-            {!shut('orphans')
-              && orphans.flatMap(entry => [sessionRow(entry, '目录已不在'), archiveAsk(entry.id)])}
-          </div>
-        )}
-
-        {!shut('sec:local') && rowError !== '' && <div className={css.rowError}>{rowError}</div>}
-
-        {!shut('sec:local') && (
-          <>
-            <button
-              type="button"
-              className={css.addDir}
-              disabled={workspaces.create === undefined || picking}
-              title="打开一个本地工作目录 —— 本地会话要在某个文件夹里跑"
-              onClick={openDirectory}
-            >
-              {picking ? '⌛ 系统对话框已弹出…' : '＋ 打开本地文件夹'}
-            </button>
-            {picking && (
-              <div className={css.pickNote}>
-                文件夹对话框开在跑 dsh 的那台机器上，不在这个浏览器里。
-              </div>
-            )}
-            {pickError !== '' && (
-              <div className={css.pickError}>
-                {pickError}
-                <button type="button" className={css.pickRetry} onClick={openDirectory}>重新选择</button>
-                {workspaces.pickDirectory !== undefined && (
-                  <button
-                    type="button"
-                    className={css.pickRetry}
-                    onClick={() => { setPickError(''); setOpening(true) }}
-                  >
-                    手填路径
-                  </button>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {needSection}
+      {runningSection}
+      <div className={css.section}>{ledgerRow}</div>
+      {yzjSection}
+      {localSection}
     </nav>
   )
+}
+
+/** 行尾的相对时间：分钟、小时、天。 */
+function relative(at: number, now: number): string {
+  const diff = Math.max(0, now - at)
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3_600_000) return `${String(Math.floor(diff / 60_000))} 分钟`
+  if (diff < 86_400_000) return `${String(Math.floor(diff / 3_600_000))} 小时`
+  return `${String(Math.floor(diff / 86_400_000))} 天`
 }
