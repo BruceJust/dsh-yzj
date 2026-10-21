@@ -165,7 +165,10 @@ describe('屏上的公共说法', () => {
   it('一轮没答完：模型的错不说成云之家的错，每句都带下一步', () => {
     expect(turnErrorLine('llm-pi-ai: request timed out after 10000ms')).toBe(`${AGENT}这一轮没连上模型，没答完——再说一句会重试。`)
     expect(turnErrorLine('llm-pi-ai: 429 Too Many Requests')).toContain('模型那边正忙')
-    expect(turnErrorLine('401 Unauthorized: invalid api key')).toContain('设置')
+    expect(turnErrorLine('401 Unauthorized: invalid api key')).toContain('钥匙不对')
+    // 3090 实测的原话：钥匙从没填过，不是填错了。
+    expect(turnErrorLine('llm-pi-ai: no credential for provider route "grok"; its profile resolves GROK_API_KEY, which is not set'))
+      .toBe(`还没填模型的钥匙，${AGENT}这一轮没答完——到设置里填一下。`)
     expect(turnErrorLine('Error: maximum context length exceeded')).toContain('新话题')
     expect(turnErrorLine('AbortError: aborted')).toBe('这一轮停下了。')
     const odd = turnErrorLine('llm-pi-ai: Error: something odd happened in the provider adapter layer today')

@@ -131,7 +131,7 @@ function renderRow(row: StreamRow, context: StreamContext, runningWork: boolean)
       return <div className={css.divider}><span>{row.label}</span></div>
 
     case 'sysline':
-      return <div className={css.sysline}>{row.text}</div>
+      return <div className={css.sysline} title={row.detail}>{row.text}</div>
 
     case 'message': {
       const body = withoutImageMarks(row.text, (row.images ?? []).length > 0)

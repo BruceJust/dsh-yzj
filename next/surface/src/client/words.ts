@@ -92,6 +92,9 @@ export function turnErrorLine(raw: string): string {
   if (/\b429\b|rate.?limit|too many requests|overload|\b529\b|繁忙/iu.test(text)) {
     return `模型那边正忙，${AGENT}这一轮没答完——过一会儿再说一句，它会接着做。`
   }
+  if (/no credential|is not set|missing.{0,20}key|未配置/iu.test(text)) {
+    return `还没填模型的钥匙，${AGENT}这一轮没答完——到设置里填一下。`
+  }
   if (/\b401\b|\b403\b|api.?key|unauthori[sz]ed|forbidden|invalid.{0,12}key/iu.test(text)) {
     return `模型的钥匙不对，${AGENT}这一轮没答完——要到设置里重新填一下。`
   }

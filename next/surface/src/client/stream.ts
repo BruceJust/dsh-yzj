@@ -197,7 +197,8 @@ export type StreamRow =
     readonly text: string
   }
   /** A slash command and other machinery a reader should see but not read. */
-  | { readonly kind: 'sysline'; readonly key: string; readonly time: number; readonly text: string }
+  /** `detail`：原话，只进悬停提示——屏上说人话，开发者要的原文不丢。 */
+  | { readonly kind: 'sysline'; readonly key: string; readonly time: number; readonly text: string; readonly detail?: string }
   | { readonly kind: 'card'; readonly key: string; readonly time: number; readonly card: StreamCard }
   | {
     readonly kind: 'artifact'
@@ -457,7 +458,7 @@ export function buildStream(
         items.push({
           time,
           seat: seat++,
-          row: { kind: 'sysline', key, time, text: turnErrorLine(asText(node.message)) },
+          row: { kind: 'sysline', key, time, text: turnErrorLine(asText(node.message)), detail: asText(node.message) },
         })
         continue
       }
