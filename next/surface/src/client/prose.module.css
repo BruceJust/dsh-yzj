@@ -26,8 +26,8 @@
   border-left: 2px solid var(--yzj-line); color: var(--yzj-ink-2);
 }
 .list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 2px; }
-.link { color: var(--yzj-pub-ink); text-decoration: none; overflow-wrap: anywhere; }
-.link:hover { text-decoration: underline; }
+.link { color: var(--yzj-link); text-decoration: underline; text-decoration-color: var(--yzj-link-line); text-underline-offset: 2px; overflow-wrap: anywhere; }
+.link:hover { text-decoration-color: currentColor; }
 .hr { width: 100%; margin: 4px 0; border: 0; border-top: 1px solid var(--yzj-line-2); }
 .tableWrap { max-width: 100%; overflow-x: auto; }
 .table { border-collapse: collapse; font-size: var(--yzj-fs-sm); line-height: 1.55; }

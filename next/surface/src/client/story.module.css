@@ -44,8 +44,8 @@
 .grade_note { background: var(--yzj-line); }
 .stepText { font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink); overflow-wrap: anywhere; }
 .stepWhen { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); white-space: nowrap; }
-.link { color: var(--yzj-pub-ink); text-decoration: none; }
-.link:hover { text-decoration: underline; }
+.link { color: var(--yzj-link); text-decoration: underline; text-decoration-color: var(--yzj-link-line); text-underline-offset: 2px; overflow-wrap: anywhere; }
+.link:hover { text-decoration-color: currentColor; }
 
 .where { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .place {

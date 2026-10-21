@@ -5,7 +5,7 @@
   padding: 10px 18px 8px; border-bottom: 1px solid var(--yzj-line);
 }
 .crumb {
-  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-pub);
+  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2);
   padding: 2px 6px; border: 0; border-radius:var(--yzj-r-sm); background: none; cursor: pointer;
 }
 .crumb:hover { background: var(--yzj-pub-tint); }

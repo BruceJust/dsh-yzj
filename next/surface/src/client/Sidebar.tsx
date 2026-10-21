@@ -370,7 +370,8 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
             <span className={css.needMeta}>
               {waitLine(need.waiting, need.since, now)}
               {need.due !== undefined && (
-                <span className={overdue ? css.late : undefined}>
+                // 一行一个颜色（律五）：点已经是琥珀，过了期只把字换成「原定」，不再上红。
+                <span className={overdue ? css.past : undefined}>
                   {' · '}
                   {overdue ? '原定' : '原话'}「{need.due.text}」
                 </span>

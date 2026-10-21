@@ -35,6 +35,9 @@
   --yzj-ink-3: #697180;
   /* Decoration only (chevrons, hollow rings). Never carries words. */
   --yzj-ink-4: #A3A9B4;
+  /* 链接不借听众的蓝（律三）：墨色加一条淡下划线，悬停时线变实。 */
+  --yzj-link: var(--yzj-ink);
+  --yzj-link-line: var(--yzj-ink-4);
   --yzj-line: var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
   --yzj-line-2: var(--dsw-alias-border-l1, rgb(0 0 0 / 4%));
   /* Someone else's page (an html file someone sent): white in both modes, as its author drew it. */

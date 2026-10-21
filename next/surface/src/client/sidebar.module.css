@@ -65,7 +65,7 @@
   font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.55;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.late { color: var(--yzj-late-ink); }
+.past { color: var(--yzj-ink-2); font-weight: 500; }
 
 .needDot {
   width: 8px; height: 8px; flex: none; border-radius: 50%;

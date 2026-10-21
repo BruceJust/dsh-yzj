@@ -79,9 +79,10 @@
 .ruleGo {
   display: inline-flex; align-items: center; gap: 2px;
   border: 0; padding: 0; background: none; cursor: pointer;
-  font: inherit; color: var(--yzj-pub-ink); font-weight: 500;
+  font: inherit; color: var(--yzj-ink); font-weight: 500;
+  text-decoration: underline; text-decoration-color: var(--yzj-link-line); text-underline-offset: 2px;
 }
-.ruleGo:hover { text-decoration: underline; }
+.ruleGo:hover { text-decoration-color: currentColor; }
 
 .warn {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;

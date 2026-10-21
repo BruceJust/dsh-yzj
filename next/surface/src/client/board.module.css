@@ -66,7 +66,7 @@
   font: inherit; font-size:var(--yzj-fs-xs); padding: 4px 10px; border-radius:var(--yzj-r-md); cursor: pointer;
   border: 1px dashed var(--yzj-line); background: transparent; color: var(--yzj-ink-2);
 }
-.bodyMake:hover { border-color: var(--yzj-pub); color: var(--yzj-pub); }
+.bodyMake:hover { border-color: var(--yzj-ink-3); color: var(--yzj-ink); }
 .bodyBox {
   display: flex; flex-direction: column; gap: 5px; margin-top: 6px;
   padding: 8px; border-radius:var(--yzj-r-md); border: 1px solid var(--yzj-line); background: var(--yzj-bg-sunk);

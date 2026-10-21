@@ -57,7 +57,8 @@
 }
 .agent:hover:not(:disabled) { background: var(--yzj-hover); color: var(--yzj-ink); }
 .agent:disabled { cursor: default; }
-.onDot { width: 7px; height: 7px; border-radius: 50%; background: var(--yzj-ok); }
+/* 在岗是常态：不上色（律三）。绿只给「刚做完」。 */
+.onDot { width: 7px; height: 7px; border-radius: 50%; background: var(--yzj-ink-4); }
 .spin {
   width: 12px; height: 12px; border-radius: 50%;
   border: 2px solid var(--yzj-line); border-top-color: var(--yzj-ink-2);

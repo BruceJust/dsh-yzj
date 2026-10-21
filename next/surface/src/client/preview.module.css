@@ -77,9 +77,8 @@
 }
 
 .act:hover {
-  border-color: var(--yzj-pub-line);
-  background: var(--yzj-pub-tint);
-  color: var(--yzj-pub-ink);
+  background: var(--yzj-hover);
+  color: var(--yzj-ink);
 }
 
 /*

@@ -25,9 +25,9 @@
 */
 .radius {
   margin: 0 12px 8px; padding: 5px 9px;
-  border-left: 2px solid var(--yzj-pub-line); border-radius:0 var(--yzj-r-sm) var(--yzj-r-sm) 0;
-  background: var(--yzj-pub-tint);
-  font-size:var(--yzj-fs-xs); line-height: 1.55; color: var(--yzj-pub-ink);
+  border-left: 2px solid var(--yzj-line); border-radius:0 var(--yzj-r-sm) var(--yzj-r-sm) 0;
+  background: var(--yzj-bg-sunk);
+  font-size:var(--yzj-fs-xs); line-height: 1.55; color: var(--yzj-ink-2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 

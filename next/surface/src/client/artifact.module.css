@@ -41,8 +41,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--yzj-pub-tint);
-  color: var(--yzj-pub-ink);
+  background: var(--yzj-bg-sunk);
+  color: var(--yzj-ink-2);
   font-size:var(--yzj-fs-xs);
   font-weight: 600;
   letter-spacing: .02em;
@@ -95,7 +95,7 @@
 }
 
 .arrow { flex: none; color: var(--yzj-ink-3); font-size:var(--yzj-fs-sm); }
-.card:hover .arrow { color: var(--yzj-pub); }
+.card:hover .arrow { color: var(--yzj-ink); }
 
 /* 出处：来自「竞品对比」›——点了回到它长出来的那句话。 */
 .from {
