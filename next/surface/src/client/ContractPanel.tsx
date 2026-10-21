@@ -34,10 +34,12 @@ export interface ContractPanelProps {
   placeKey: string
   inject: SurfaceInject
   close(): void
+  /** 它在这里用的模型。是规则的一部分（谁在替你做事），不配占会话头上的位置。 */
+  model?: string | undefined
 }
 
 export function YzjContractPanel(props: ContractPanelProps): ReactNode {
-  const { placeKey, inject, close } = props
+  const { placeKey, inject, close, model } = props
   const [view, setView] = useState<ContractViewWire | undefined>(undefined)
   /** 接单开关按下之前的那一问。 */
   const [asking, setAsking] = useState(false)
@@ -368,6 +370,7 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                       </ul>
                     )}
                   <div className={css.dim}>这个群的规则第 {String(view.version)} 版{view.version === 0 ? '（用的是公司默认，这个群没单独改过）' : ''}。</div>
+                  {model !== undefined && <div className={css.dim}>{AGENT}用的模型：{model} · 在左下角「设置」里改。</div>}
                 </div>
               )}
             </div>

@@ -33,7 +33,7 @@ import {
 } from './answers.ts'
 import {
   FRAME_SCROLL, backLabel, backTarget, currentFrame, currentLanding, landOn, needsNow, popFrame, pushFrame,
-  restoreOf, setCommissioner, setFrame, setSpotlight, subscribeFrame, subscribeLanding, subscribeNeeds, takeErrand,
+  restoreOf, sendErrand, setCommissioner, setFrame, setSpotlight, subscribeFrame, subscribeLanding, subscribeNeeds, takeErrand,
 } from './store.ts'
 import { commandKey, useBackKey, useLayerEscape } from './keys.ts'
 import { keepLastMessages, usePoll } from './poll.ts'
@@ -868,7 +868,23 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
                   <Icon name="x" size={16} />不再挂在「{window_.goalContext.goalName ?? '这个目标'}」下
                 </button>
               )}
-              {model.model !== undefined && (
+              {topic !== undefined && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={css.menuItem}
+                  title={`去「${topic.groupName}」，${AGENT}已经叫上——说一句新的事，就长出一个新话题`}
+                  onClick={() => {
+                    setMenuOpen(false)
+                    sendErrand({ subject: 'draft', goalRef: '', goalName: '', voice: 'place', seed: '', call: true })
+                    pushFrame({ kind: 'place', placeKey: topic.placeKey, groupName: topic.groupName })
+                  }}
+                >
+                  <Icon name="plus" size={16} />另起一个话题
+                </button>
+              )}
+              {/* 云之家话题的模型收在「规则」里；本地会话没有规则，就留在这里。 */}
+              {topic === undefined && model.model !== undefined && (
                 <div className={css.menuNote}>用的模型：{model.model} · 在左下角「设置」里改</div>
               )}
             </div>
@@ -1021,6 +1037,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       {rulesOpen && topic !== undefined && (
         <YzjContractPanel
           placeKey={topic.placeKey}
+          model={model.model}
           inject={inject}
           close={() => { setRulesOpen(false) }}
         />
