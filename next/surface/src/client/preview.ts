@@ -93,9 +93,16 @@ const listeners = new Set<() => void>()
  * 传一个跟消息无关的回调干净。
  */
 let opener: (() => void) | undefined
+let closer: (() => void) | undefined
 
-export function setPreviewOpener(open: () => void): void {
+export function setPreviewOpener(open: () => void, close?: () => void): void {
   opener = open
+  closer = close
+}
+
+/** 右栏收起：没有焦点时它不该占着地方（律六「没有焦点 → 收起」）。 */
+export function closeAside(): void {
+  closer?.()
 }
 
 function notify(): void {

@@ -308,6 +308,11 @@ export function setFrame(next: Frame): void {
     机械时刻**，写在这儿就不会有人忘记。
   */
   if (leavingJudg) setJudgSelection(undefined)
+  // 换了一屏，上一屏选中的那一条、那场会也一起退场——右栏不留上一屏的东西。
+  if (spotlight !== undefined) {
+    spotlight = undefined
+    for (const listener of spotlightListeners) listener()
+  }
   /*
     切场景即收预览 (v4.11「切会话即收」).
 
@@ -358,6 +363,35 @@ export type Spotlight =
 
 let spotlight: Spotlight | undefined
 const spotlightListeners = new Set<() => void>()
+
+/**
+ * 右栏此刻摆什么 —— **只有这一个答案** (界面重设计 律六).
+ *
+ * | 中栏的焦点           | 右栏         |
+ * |----------------------|--------------|
+ * | 话题 / 群 / 私聊      | 产出 · 记忆 · 资料 |
+ * | 承诺行（或会前那一眼）| 来龙去脉       |
+ * | 并排看               | 预览         |
+ * | 没有焦点（账的几屏）  | 收起         |
+ *
+ * 预览排在最前：它是刚刚按下的那一下。三份小仓（帧、预览、选中）各管各的，右栏不各读
+ * 各的——各读各的，就会有一次切视图之后右栏还摆着上一屏的东西。
+ */
+export type Focus =
+  | { readonly kind: 'preview' }
+  | { readonly kind: 'commitment'; readonly id: string; readonly title: string; readonly intent?: 'reject' }
+  | { readonly kind: 'event'; readonly eventId: string; readonly title: string }
+  | { readonly kind: 'judg' }
+  | { readonly kind: 'things' }
+  | { readonly kind: 'none' }
+
+export function focusOf(view: Frame, previewing: boolean, picked: Spotlight | undefined): Focus {
+  if (view.kind === 'judg') return { kind: 'judg' }
+  if (previewing) return { kind: 'preview' }
+  if (picked !== undefined) return picked
+  if (view.kind === 'session' || view.kind === 'place') return { kind: 'things' }
+  return { kind: 'none' }
+}
 
 export function currentSpotlight(): Spotlight | undefined {
   return spotlight

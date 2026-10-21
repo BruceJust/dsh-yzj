@@ -178,10 +178,12 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   const [justAnswered, setJustAnswered] = useState<string | undefined>(undefined)
   const back = backTarget()
 
-  useEffect(() => { openDetails() }, [openDetails])
-  // 进「我定过的」时请求宿主打开右栏——证据面就是那一屏的用意。
+  /*
+    右栏跟着焦点走（律六）：回到会话、群、「我定过的」时打开它——那几屏的右栏有东西摆；
+    承诺、目标两屏没选中什么时它自己收起，选中一行再打开。
+  */
   useEffect(() => {
-    if (frame.kind === 'judg') openDetails()
+    if (frame.kind === 'session' || frame.kind === 'place' || frame.kind === 'judg') openDetails()
   }, [frame.kind, openDetails])
   // 回复、当前卡、刚答过的——都属于选它们的那段对话。
   useEffect(() => {

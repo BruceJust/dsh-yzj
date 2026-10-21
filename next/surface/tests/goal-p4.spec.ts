@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BoardRowWire, GoalPageWire } from '../src/client/rpc.ts'
 import { goalFacts, goalHintOf } from '../src/client/GoalPage.tsx'
+import { currentSpotlight, focusOf, setFrame, setSpotlight } from '../src/client/store.ts'
 
 function row(input: Partial<BoardRowWire>): BoardRowWire {
   return {
@@ -107,5 +108,34 @@ describe('一行事实', () => {
     const late = row({ id: 'g', due: { text: '上周五' } as never, overdue: true })
     expect(goalFacts(page({ goal: { row: late } }))[0]).toEqual({ text: '截止 上周五', late: true })
     expect(goalFacts(page({ retired: true, goal: { row: late } }))[0]).toEqual({ text: '截止 上周五' })
+  })
+})
+
+describe('右栏只问一处：focusOf (律六)', () => {
+  const pick = { kind: 'commitment' as const, id: 'c-1', title: '一件事' }
+
+  it('话题、群：产出 · 记忆 · 资料', () => {
+    expect(focusOf({ kind: 'session' }, false, undefined)).toEqual({ kind: 'things' })
+    expect(focusOf({ kind: 'place', placeKey: 'p', groupName: 'g' }, false, undefined)).toEqual({ kind: 'things' })
+  })
+
+  it('承诺、目标两屏没选中什么：收起，不摆上一屏留下的东西', () => {
+    expect(focusOf({ kind: 'board' }, false, undefined)).toEqual({ kind: 'none' })
+    expect(focusOf({ kind: 'goal', goalRef: 'g', goalName: 'G' }, false, undefined)).toEqual({ kind: 'none' })
+  })
+
+  it('选中一行：来龙去脉；并排看排在它前面——那是刚按下的那一下', () => {
+    expect(focusOf({ kind: 'board' }, false, pick)).toEqual(pick)
+    expect(focusOf({ kind: 'board' }, true, pick)).toEqual({ kind: 'preview' })
+  })
+
+  it('我定过的：私账那一棵树，别的一概不认', () => {
+    expect(focusOf({ kind: 'judg' }, true, pick)).toEqual({ kind: 'judg' })
+  })
+
+  it('换一屏，上一屏选中的那一条一起退场', () => {
+    setSpotlight(pick)
+    setFrame({ kind: 'board' })
+    expect(currentSpotlight()).toBeUndefined()
   })
 })

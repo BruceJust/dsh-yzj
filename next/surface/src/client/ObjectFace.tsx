@@ -25,14 +25,15 @@ import { ArtifactPreview } from './PreviewPanel.tsx'
 import { ResourceTab } from './ResourceTab.tsx'
 import { YzjEventHub } from './EventHub.tsx'
 import { CommitmentStoryPanel } from './Story.tsx'
-import { currentSpotlight, setSpotlight, subscribeSpotlight } from './store.ts'
-import { useAsidePreviewHost, usePreview } from './preview.ts'
+import { currentFrame, currentSpotlight, focusOf, setSpotlight, subscribeFrame, subscribeSpotlight } from './store.ts'
+import { closeAside, useAsidePreviewHost, usePreview } from './preview.ts'
+import { AGENT } from './words.ts'
 import tokens from './tokens.module.css'
 import css from './objects.module.css'
 
 type Tab = 'current' | 'memory' | 'resources'
 
-const AXIS_LABEL: Record<string, string> = { place: '场所', entity: '实体', org: '组织' }
+const AXIS_LABEL: Record<string, string> = { place: '这个群', entity: '人和事', org: '全公司' }
 
 export interface ObjectFaceProps {
   sessionId?: string
@@ -55,6 +56,9 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
   const preview = usePreview()
   /** 中栏点了一场会：这一栏被它接管，和工件预览同一条纪律、同一种形状。 */
   const spotlight = useSyncExternalStore(subscribeSpotlight, currentSpotlight)
+  const frame = useSyncExternalStore(subscribeFrame, currentFrame)
+  /** 这一栏此刻摆什么，只问这一处（律六）。 */
+  const focus = focusOf(frame, preview.target !== undefined, spotlight)
   /*
     这一栏把自己的实际宽度报出去,「并排有没有地方落」由此回答。
 
@@ -69,6 +73,7 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
   }, [inject, sessionId])
 
   useEffect(() => {
+    if (focus.kind !== 'things') return undefined
     let alive = true
     void refresh()
     const timer = setInterval(() => { if (alive) void refresh() }, 6_000)
@@ -76,7 +81,12 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
       alive = false
       clearInterval(timer)
     }
-  }, [refresh])
+  }, [refresh, focus.kind])
+
+  // 账的几屏上什么都没选：这一栏收起，不摆上一屏留下的东西。
+  useEffect(() => {
+    if (focus.kind === 'none') closeAside()
+  }, [focus.kind])
 
   /*
     并排 = 默认预览态 (v4.11):打开一份工件,这一栏被它**接管**。
@@ -95,14 +105,16 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
     两者都是「这一栏被一个物接管」，撞在一起时该赢的是更近的那次手势。工件预览
     自带 Esc 与关闭，收起来就露出下面的枢纽——不是二选一，是叠着。
   */
-  if (preview.target === undefined && spotlight?.kind === 'commitment') {
+  if (focus.kind === 'none') return <div className={`${tokens.tokens} ${css.panel}`} ref={setHost} />
+
+  if (focus.kind === 'commitment') {
     return (
       <div className={`${tokens.tokens} ${css.panel}`} ref={setHost}>
         <CommitmentStoryPanel
-          key={spotlight.id}
-          id={spotlight.id}
-          title={spotlight.title}
-          {...(spotlight.intent === undefined ? {} : { intent: spotlight.intent })}
+          key={focus.id}
+          id={focus.id}
+          title={focus.title}
+          {...(focus.intent === undefined ? {} : { intent: focus.intent })}
           inject={inject}
           {...(openSession === undefined ? {} : { openSession })}
           close={() => { setSpotlight(undefined) }}
@@ -111,13 +123,13 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
     )
   }
 
-  if (preview.target === undefined && spotlight?.kind === 'event') {
+  if (focus.kind === 'event') {
     return (
       <div className={`${tokens.tokens} ${css.panel}`} ref={setHost}>
         <YzjEventHub
-          key={spotlight.eventId}
-          eventId={spotlight.eventId}
-          title={spotlight.title}
+          key={focus.eventId}
+          eventId={focus.eventId}
+          title={focus.title}
           inject={inject}
           openSession={(id) => {
             // 跳去看那件活 = 换语境，枢纽跟着退场（切会话即收，同一条纪律）。
@@ -136,10 +148,7 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
         {preview.stage === 'aside'
           ? <ArtifactPreview target={preview.target} stage="aside" inject={inject} />
           : (
-            <div className={css.calm}>
-              正在沉浸阅读《{preview.target.title}》——按 <b>Esc</b> 回到并排，
-              这一栏会把它接回来。
-            </div>
+            <div className={css.calm}>正在全屏看《{preview.target.title}》，按 <b>Esc</b> 回到这里。</div>
           )}
       </div>
     )
@@ -173,9 +182,9 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
   const RADIUS: Record<Tab, string> = {
     current: face.scope?.kind === 'place' ? '这个话题产出的' : '这个会话产出的',
     memory: face.scope?.kind === 'place'
-      ? `在「${where}」里成立的 ${String(hereMemories.length)} 条${anywhereMemories.length === 0 ? '' : ` · 另有 ${String(anywhereMemories.length)} 条到哪儿都成立`}`
-      : '不限场所的惯例（本机会话没有场所）',
-    resources: face.scope?.kind === 'place' ? `「${where}」里所有话题产出的` : '本机会话产出的（不属于任何群）',
+      ? `在「${where}」学到的 ${String(hereMemories.length)} 条${anywhereMemories.length === 0 ? '' : ` · 另有 ${String(anywhereMemories.length)} 条到哪儿都成立`}`
+      : '到哪儿都成立的做法',
+    resources: face.scope?.kind === 'place' ? `「${where}」里所有话题的产出` : '本机会话的产出',
   }
 
   /** 一条惯例的卡片。两节共用一张脸——分节分的是「在哪儿成立」，不是它长什么样。 */
@@ -196,19 +205,15 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
       </span>
       <div className={css.memText}>{item.summary}</div>
       <div className={css.memMeta}>
-        出处：{item.sourceAnchors.join('、') || '未记录'}
+        {item.sourceAnchors.length === 0 ? '没记出处' : `出处：${item.sourceAnchors.join('、')}`}
       </div>
     </div>
   )
 
   return (
     <div className={`${tokens.tokens} ${css.panel}`} ref={setHost}>
-      <div className={css.head}>
-        <span className={css.title}>对象面</span>
-        <span className={css.sub}>流沉淀为物 · 跟会话走</span>
-      </div>
       <div className={css.tabs}>
-        {([['current', '当前'], ['memory', '记忆'], ['resources', '资源']] as const).map(([id, label]) => (
+        {([['current', '产出'], ['memory', '记忆'], ['resources', '资料']] as const).map(([id, label]) => (
           <button
             type="button"
             key={id}
@@ -229,21 +234,9 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
           face.memory.length === 0
             ? (
               <div className={css.calm}>
-                {face.scope?.kind === 'place'
-                  ? <>在「{where}」还没有记下任何惯例。</>
-                  : <>还没有不限场所的惯例。</>}
-                <br />
-                agent 学到这里长期成立的做法时会用 <code>memory_note</code> 记一条，
-                下次不必再被告知；每条都带着它的出处，你随时可以让它忘掉。
-                <br />
-                <b>群里学到的惯例只在那个群里读得出来</b>——它是在那儿说的。
-                {(face.memoryElsewhere ?? 0) > 0 && (
-                  <>
-                    <br />
-                    <b>另有 {face.memoryElsewhere} 条记在别的场所</b>，
-                    在那个群的任意话题里打开这一栏就能看到。
-                  </>
-                )}
+                {face.scope?.kind === 'place' ? <>还没记下「{where}」的做法。</> : <>还没记下什么做法。</>}
+                {AGENT}学到这里长期成立的做法，会记在这儿，下次不用你再说；每条都能让它忘掉。
+                {(face.memoryElsewhere ?? 0) > 0 && <> 另有 {face.memoryElsewhere} 条是在别的群里学的，在那个群里看得到。</>}
               </div>
             )
             : [
@@ -254,9 +247,7 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
               ...(anywhereMemories.length === 0
                 ? []
                 : [
-                  <div className={css.memSection} key="sec-any">
-                    到哪儿都成立的（本人 / 全组织）——不属于这个群，切到别的会话同样会出现
-                  </div>,
+                  <div className={css.memSection} key="sec-any">到哪儿都成立的</div>,
                 ]),
               ...anywhereMemories.map(item => memoryCard(item)),
             ]
@@ -271,10 +262,10 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
           <ResourceTab
             rows={rows}
             empty={tab === 'current'
-              ? '这个会话还没有产出工件。写文档、建表格之后会出现在这里，并同时出现在中间那一列它被写出来的位置。'
+              ? `这里还没有产出。${AGENT}写的文档、建的表会出现在这儿。`
               : face.scope?.kind === 'place'
-                ? `「${where}」里还没有任何话题产出过工件。`
-                : '本机会话还没有产出工件。群里产出的在各自的群里。'}
+                ? `「${where}」里还没有产出。`
+                : '本机的会话还没有产出。群里的产出在各自的群里。'}
           />
         )}
       </div>

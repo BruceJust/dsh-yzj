@@ -59,7 +59,7 @@ export {
 export const inject = ['slots', 'connection', 'sessions', 'workspaces', 'layout']
 
 export function apply(ctx: ClientContext): void {
-  const layout = ctx.get('layout') as { openDetails?(): void } | undefined
+  const layout = ctx.get('layout') as { openDetails?(): void; closeDetails?(): void } | undefined
   const connection = ctx.get('connection') as ConnectionHandle | undefined
   const surfaceInject = createSurfaceInject(connection)
 
@@ -72,7 +72,7 @@ export function apply(ctx: ClientContext): void {
     的抽屉(300–520,中栏 ≥640 拖不破),更宽的需求走沉浸态——设计里那条
     「更宽的需求走沉浸态,分隔线不必覆盖全区间」正好落在这道边界上。
   */
-  setPreviewOpener(() => { layout?.openDetails?.() })
+  setPreviewOpener(() => { layout?.openDetails?.() }, () => { layout?.closeDetails?.() })
   const sessions = ctx.get('sessions') as {
     open?(id: string): void
     binding?(id: string): {
