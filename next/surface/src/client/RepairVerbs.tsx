@@ -10,7 +10,7 @@
 
 import { type ReactNode } from 'react'
 import type { SurfaceInject } from './rpc.ts'
-import css from './goal.module.css'
+import css from './repair.module.css'
 
 /**
  * 修理动词认得的那一条 —— **只要这几样，不要一整行**。

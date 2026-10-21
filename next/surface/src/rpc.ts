@@ -1317,6 +1317,9 @@ export interface GoalArtifactRow {
    * false. So it is shown, and marked.
    */
   readonly shared?: boolean
+  /** 出处：它是在哪个话题里产出的——产出带出处，点一下回到那里 (界面重设计 律六). */
+  readonly placeName?: string
+  readonly sessionId?: string
 }
 
 /**
@@ -1872,7 +1875,11 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
       for (const artifact of artifactsByTopic.get(topicOfRow.get(child.id) ?? '') ?? []) {
         if (seen.has(artifact.uri)) continue
         seen.add(artifact.uri)
-        artifacts.push(artifact)
+        artifacts.push({
+          ...artifact,
+          ...(child.placeName === undefined ? {} : { placeName: child.placeName }),
+          ...(child.sessionId === undefined ? {} : { sessionId: child.sessionId }),
+        })
       }
     }
     artifacts.sort((left, right) => right.time - left.time)

@@ -198,6 +198,16 @@ describe('产出归集：第二跳', () => {
     expect(entry?.artifacts.map(artifact => artifact.title).sort()).toEqual(['模板', '脚本'])
   })
 
+  it('says where each artifact came from — the topic it was produced in, one click back', async () => {
+    await goal()
+    await child({ id: 'c1', what: '统一模板', topicKey: 'tk-1', parentGoalRef: GOAL })
+    await produced('tk-1', 'https://s/1', '模板')
+
+    const [artifact] = boardFrame(ctx).goals[0]?.artifacts ?? []
+    expect(artifact?.sessionId).toBe('sess-1')
+    expect(artifact?.placeName).toBeDefined()
+  })
+
   it('does not leak another goal\'s output into this one', async () => {
     await goal(GOAL)
     await goal(OTHER)

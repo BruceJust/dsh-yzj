@@ -560,6 +560,9 @@ export interface GoalArtifactWire {
   time: number
   /** 产在一个同时服务多个目标的会话里——归给谁都不准确，所以标出来。 */
   shared?: boolean
+  /** 出处：在哪个话题里产出的。 */
+  placeName?: string
+  sessionId?: string
 }
 
 export interface BoardAssessmentWire {

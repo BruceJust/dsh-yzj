@@ -26,6 +26,7 @@ import { RepairVerbs, type Repair, type RepairTarget } from './RepairVerbs.tsx'
 import { eventPrepSeed } from './commission.ts'
 import { safeHref } from './preview.ts'
 import { landOn } from './store.ts'
+import { Icon } from './icons.tsx'
 import css from './objects.module.css'
 
 export interface EventHubProps {
@@ -49,7 +50,7 @@ function clockOf(event: BoardEventWire): string {
 
 const STATUS_LABEL: Record<string, string> = {
   // 移交不是死法：事还在，只是换了一条边（决策 #59）。和作废挤成同一句就再也分不出来。
-  open: '在跟', closed: '已完成', voided: '已作废', merged: '已合并', transferred: '已移交',
+  open: '在跟', closed: '完成了', voided: '作废了', merged: '合并了', transferred: '转手了',
 }
 
 /**
@@ -165,8 +166,8 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
 
   const head = (
     <div className={css.hubHead}>
-      <button type="button" className={css.hubBack} onClick={close}>‹ 返回</button>
       <span className={css.hubTitle}>{event?.title ?? title}</span>
+      <button type="button" className={css.hubBack} onClick={close} aria-label="关闭"><Icon name="x" size={14} /></button>
     </div>
   )
 
@@ -181,7 +182,7 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
           今天的会读的是「还没开完的」。开完了它就该从这一屏退场——但退场要说一声，
           不然人会以为是读失败了。
         */}
-        <div className={css.calm}>这场会不在「今天还没开完的」里了——可能已经开完，或者被取消。</div>
+        <div className={css.calm}>这场会已经开完了，或者取消了。</div>
       </div>
     )
   }
@@ -207,14 +208,9 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
         一场没挂东西的会不是「没准备」，是还没有人对它有期待。这两句话在界面上必须
         长得不一样——把合法的空渲染成缺失，就是在替人造一个不存在的待办。
       */}
-      <div className={css.hubSection}>关联任务 · {event.prepares.length}</div>
+      <div className={css.hubSection}>为这场会准备的 · {event.prepares.length}</div>
       {event.prepares.length === 0
-        ? (
-          <div className={css.calm}>
-            还没有任何活挂在这场会上——<b>这是合法状态</b>，不是「没准备好」。
-            下面的「为此会准备」会派出第一件。
-          </div>
-        )
+        ? <div className={css.calm}>还没有活挂在这场会上。</div>
         : event.prepares.map(prep => (
           <div className={css.hubPrep} key={prep.commitmentId}>
             <span className={css.hubPrepWhat}>{prep.what}</span>
@@ -226,7 +222,7 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
               过程就不在这套系统里，这不是一个可以点的东西。
             */}
             {prep.sessionId === undefined
-              ? <span className={css.hubPrepHint}>没有可跳进去的会话</span>
+              ? null
               : (
                 <button
                   type="button"
@@ -237,7 +233,7 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
                     openSession(prep.sessionId as string)
                   }}
                 >
-                  去看 ›
+                  去看
                 </button>
               )}
             {/* 无主权不渲染——和板、目标页共用同一个谓词、同一份判断。 */}
@@ -245,7 +241,6 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
               <button
                 type="button"
                 className={css.hubGo}
-                title="顺延期限 / 移交 / 合并 / 作废 / 收养或摘除——改的都是当初说出口的话"
                 onClick={() => {
                   setRepair(current => (current?.row.id === prep.commitmentId
                     ? undefined
@@ -253,15 +248,15 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
                   setField(prep.due ?? '')
                 }}
               >
-                修理
+                改…
               </button>
             )}
             {repair !== undefined && repair.row.id === prep.commitmentId && (
               <div className={css.hubRepair}>
                 <div className={css.hubTabs}>
                   {([
-                    ['postpone', '顺延期限'], ['handoff', '移交'], ['merge', '合并'],
-                    ['void', '作废…'], ['attach', prep.goalRef === undefined ? '收养' : '摘除'],
+                    ['postpone', '顺延'], ['handoff', '转给别人'], ['merge', '合并'],
+                    ['void', '作废…'], ['attach', prep.goalRef === undefined ? '挂到目标…' : '不挂了…'],
                   ] as const).map(([kind, label]) => (
                     <button
                       type="button"
@@ -306,19 +301,19 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
       */}
       <div className={css.hubSection}>材料 · {materials.length}</div>
       {event.prepares.length === 0
-        ? <div className={css.calm}>没有期待中的材料——就绪度这件事还没被激活。</div>
+        ? <div className={css.calm}>还没有要带的材料。</div>
         : materials.length === 0
           ? (
             <div className={css.calm}>
-              挂着的 {event.prepares.length} 件还没留下任何工件
-              {open.length > 0 ? `（${open.length} 件还在跟）` : ''}。
+              挂着的 {event.prepares.length} 件还没留下东西
+              {open.length > 0 ? `（${open.length} 件还在做）` : ''}。
             </div>
           )
           : materials.map(artifact => (
             <div className={css.hubMaterial} key={artifact.uri}>
               <span className={css.hubMaterialTitle}>{artifact.title}</span>
               {safeHref(artifact.uri) === undefined
-                ? <span className={css.hubPrepHint}>这个引用不是一个链接</span>
+                ? null
                 : (
                   <a
                     className={css.hubGo}
@@ -326,7 +321,7 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
                     target="_blank"
                     rel="noreferrer noopener"
                   >
-                    打开 ↗
+                    打开<Icon name="ext" size={12} />
                   </a>
                 )}
             </div>
@@ -338,20 +333,19 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
         图上齐全不等于开会的人知道：他们看的是日程条目。所以材料清单没写进去这件事
         要在这儿说，而不是只在板上说一句。
       */}
-      <div className={css.hubSection}>日程描述</div>
+      <div className={css.hubSection}>日程里写的</div>
       <div className={css.hubDesc}>
-        {event.description ?? '这场会的日程描述是空的。'}
+        {event.description ?? '日程里什么都没写。'}
       </div>
       {materials.length > 0 && event.postedMaterials === undefined && (
         <div className={css.hubWarn}>
-          材料还没写进日程描述——参会的人在日程里看不到它们。
+          材料还没写进日程——参会的人在日程里看不到它们。
         </div>
       )}
 
       <button
         type="button"
         className={css.hubCta}
-        title="选一个会话跳进去，用你自己的话把会前要准备的事派出去"
         onClick={() => {
           setPortal({
             subject: 'event',
@@ -361,12 +355,12 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
             seed: eventPrepSeed(event.title),
             // 会前补的那一刀也要派给谁——同一个动词，同样两维（板与 hub 同构）。
             pick: 'executor',
-            title: '为这场会准备：谁来做、在哪儿说？',
-            note: '会前要补的那一刀，说给谁听、在哪说，只有你知道。',
+            title: '谁来准备、在哪儿说？',
+            note: '话由你自己说，发出去才算数。',
           })
         }}
       >
-        为此会准备 ↗
+        为这场会准备…
       </button>
 
       {portal !== undefined && (

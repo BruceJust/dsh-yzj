@@ -13,8 +13,9 @@ import {
 } from './store.ts'
 import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { handoffPortal } from './RoomPicker.tsx'
+import { delegateSeed } from './commission.ts'
 import { stage, stagedNow, subscribeStaged, undo } from './answers.ts'
-import { nudgeDraft } from './Board.tsx'
+import { nudgeDraft } from './ledger.ts'
 import { safeHref } from './preview.ts'
 import { Icon } from './icons.tsx'
 import { AGENT, whenOf } from './words.ts'
@@ -286,7 +287,39 @@ export function CommitmentStoryPanel(props: {
           {story.mirror !== undefined
             ? <div className={css.dim}>这条记在{AGENT}（{story.mirror.operator}）那边——要动它，去群里对那位说。</div>
             : story.stewardedBy !== undefined
-              ? <div className={css.dim}>这条归{story.stewardedBy}管——要改，去跟{story.stewardedBy}说。</div>
+              ? (
+                <>
+                  <div className={css.dim}>这条归{story.stewardedBy}管——要改，去跟{story.stewardedBy}说。</div>
+                  {/*
+                    可转包不可脱责（决策 #59）：转手是他的事；把一部分拆下去交给别人办是你的事——
+                    拆出去的那条挂在这条底下，你仍然对他负责。
+                  */}
+                  {story.direction === 'mine' && (
+                    <div className={css.acts}>
+                      <button
+                        type="button"
+                        className={css.btn}
+                        onClick={() => {
+                          const asked = requestPortal({
+                            subject: 'goal',
+                            goalRef: story.goal?.ref ?? '',
+                            goalName: story.goal?.name ?? story.what,
+                            voice: 'place',
+                            pick: 'executor',
+                            seed: delegateSeed(story.what),
+                            subCommitmentOf: story.id,
+                            title: '拆一部分交给谁、在哪儿说？',
+                            note: `拆出去的那条挂在你这条底下——你仍然对${story.stewardedBy ?? '对方'}负责。`,
+                          })
+                          if (!asked) setNote('从承诺页或目标页里才能拆出去。')
+                        }}
+                      >
+                        拆一部分给别人…
+                      </button>
+                    </div>
+                  )}
+                </>
+              )
               : (
                 <div className={css.acts}>
                   {story.direction === 'owed-to-me' && story.remindable && story.sessionId !== undefined && (
