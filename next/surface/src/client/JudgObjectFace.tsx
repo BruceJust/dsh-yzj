@@ -105,7 +105,7 @@ export function YzjJudgObjectFace(props: JudgObjectFaceProps): ReactNode {
                   <div className={vault.preview}><b>现在</b>：{preview.title ?? ''}{(preview.lines ?? []).map(line => <span className={vault.evidenceMeta} key={line}>{line}</span>)}</div>
                 )}
                 {jump !== undefined && (
-                  <div className={vault.actions}><button type="button" className={vault.verb} onClick={jump}>回到那张卡 ›</button></div>
+                  <div className={vault.actions}><button type="button" className={vault.verb} onClick={jump}>回到那张卡</button></div>
                 )}
               </div>
             )

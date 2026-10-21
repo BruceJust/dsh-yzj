@@ -8,7 +8,7 @@
   margin-top: 8px; padding: 10px 12px;
   border-radius: var(--yzj-r-md); background: var(--yzj-bg-sunk);
 }
-.repairWhy { width: 100%; font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink-2); }
+.repairWhy { width: 100%; font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink-2); }
 .repairWhy b { color: var(--yzj-ink); }
 
 .repairInput {

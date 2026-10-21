@@ -28,7 +28,7 @@
   margin: 6px 6px 0; padding: 7px 10px;
   border-radius: var(--yzj-r-md);
   background: var(--yzj-bg-sunk); color: var(--yzj-ink-2);
-  font-size: var(--yzj-fs-sm); line-height: 1.5;
+  font-size: var(--yzj-fs-sm); line-height: 1.55;
 }
 .hintRisk { background: var(--yzj-need-bg); color: var(--yzj-need-ink); }
 .hintOk { color: var(--yzj-ink); }

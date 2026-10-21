@@ -34,7 +34,7 @@
 }
 .retired { color: var(--yzj-ink-2); }
 .title {
-  margin: 6px 0 0; font-size: var(--yzj-fs-2xl); font-weight: 600; line-height: 1.35;
+  margin: 6px 0 0; font-size: var(--yzj-fs-2xl); font-weight: 600; line-height: 1.4;
   color: var(--yzj-ink); overflow-wrap: anywhere;
 }
 .criteria {
@@ -43,7 +43,7 @@
   border-radius: var(--yzj-r-md); background: var(--yzj-bg-sunk);
 }
 .criteriaLabel { font-size: var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-ink-3); }
-.criteriaText { font-size: var(--yzj-fs-md); line-height: 1.65; color: var(--yzj-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.criteriaText { font-size: var(--yzj-fs-md); line-height: 1.55; color: var(--yzj-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .facts {
   margin-top: 12px; display: flex; align-items: center; flex-wrap: wrap; row-gap: 4px;
@@ -63,7 +63,7 @@
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   border-radius: var(--yzj-r-md); background: var(--yzj-need-bg);
 }
-.hintText { flex: 1; min-width: 240px; font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink); }
+.hintText { flex: 1; min-width: 240px; font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink); }
 .hintActs { flex: none; display: inline-flex; gap: 6px; }
 
 /* ——— 动词 ——— */
@@ -106,7 +106,7 @@
   font-size: var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink);
 }
 .count { font-size: var(--yzj-fs-xs); font-weight: 400; color: var(--yzj-ink-3); }
-.calm { padding: 8px 0; font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink-3); }
+.calm { padding: 8px 0; font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink-3); }
 .rows { display: flex; flex-direction: column; margin: 2px -10px 0; }
 
 /* 要你：只是指针，答在卡上。 */
@@ -136,10 +136,10 @@
   border: 0; background: none; font: inherit; color: var(--yzj-ink-3); cursor: pointer; text-align: left;
 }
 .tally { display: inline-flex; gap: 10px; margin-left: 4px; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-.reportSummary { font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink-2); }
+.reportSummary { font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink-2); }
 .lines { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .line { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: baseline; gap: 8px; }
-.verdict { font-size: var(--yzj-fs-sm); color: var(--yzj-ink-3); text-align: center; }
+.verdict { display: inline-flex; justify-content: center; align-self: center; color: var(--yzj-ink-3); }
 .verdictMissing { color: var(--yzj-ink); }
 .lineText { display: flex; flex-direction: column; gap: 2px; font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink); }
 .lineWhy { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }

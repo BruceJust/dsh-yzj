@@ -544,7 +544,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 )}
             </section>
 
-            {/* ——— 最近一次评估：结论只在人按下评估之后才有 ——— */}
+            {/* ——— 还差什么（最近一次评估）：结论只在人按下评估之后才有 ——— */}
             {goal.assessment !== undefined && (
               <section className={css.block}>
                 <button
@@ -554,11 +554,11 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                   onClick={() => { setOpened(value => ({ ...value, report: value.report !== true })) }}
                 >
                   <Icon name={opened.report === true ? 'chevD' : 'chevR'} size={12} />
-                  <span className={css.label}>最近一次评估</span>
+                  <span className={css.label}>还差什么</span>
                   <span className={css.count}>{daysAgo(Math.floor((now - goal.assessment.at) / DAY_MS))}</span>
                   <span className={css.tally}>
                     {tally.map(item => (
-                      <span key={item.key}>{item.key === 'met' ? '✓' : item.key === 'partial' ? '◐' : '✗'} {item.n}</span>
+                      <span key={item.key}>{item.key === 'met' ? '达成' : item.key === 'partial' ? '部分' : '缺'} {item.n}</span>
                     ))}
                   </span>
                 </button>
@@ -583,7 +583,11 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                     {verdicts.map(line => (
                       <li className={css.line} key={line.criterion}>
                         <span className={`${css.verdict} ${line.verdict === 'missing' ? css.verdictMissing : ''}`}>
-                          {line.verdict === 'met' ? '✓' : line.verdict === 'partial' ? '◐' : '✗'}
+                          <Icon
+                            name={line.verdict === 'met' ? 'check' : line.verdict === 'partial' ? 'half' : 'x'}
+                            size={14}
+                            title={line.verdict === 'met' ? '达成' : line.verdict === 'partial' ? '部分达成' : '缺'}
+                          />
                         </span>
                         <span className={css.lineText}>
                           {line.criterion}

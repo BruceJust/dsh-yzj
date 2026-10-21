@@ -56,13 +56,13 @@
 .needText { display: flex; flex-direction: column; min-width: 0; }
 .needLine {
   display: flex; gap: 6px; min-width: 0;
-  font-size: var(--yzj-fs-sm); line-height: 1.45;
+  font-size: var(--yzj-fs-sm); line-height: 1.4;
   white-space: nowrap; overflow: hidden;
 }
 .needVerb { flex: none; font-weight: 600; }
 .needLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .needMeta {
-  font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.5;
+  font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.55;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .late { color: var(--yzj-late-ink); }
@@ -186,7 +186,7 @@
 }
 .filter:focus { border-color: var(--yzj-pub); }
 
-.calm { padding: 6px 8px; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.6; }
+.calm { padding: 6px 8px; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.55; }
 
 /* ——— 本地会话的三个动词 ——— */
 .rowMore {
@@ -206,7 +206,7 @@
 .confirm {
   margin: 2px 0 4px 32px; padding: 8px 10px;
   border-radius: var(--yzj-r-md); background: var(--yzj-need-bg);
-  font-size: var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.6;
+  font-size: var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.55;
 }
 .confirmActs { display: flex; gap: 6px; margin-top: 6px; }
 .confirmYes, .confirmNo, .inlineBtn {
@@ -216,7 +216,7 @@
 .confirmYes { border: 0; background: var(--yzj-late-solid); color: var(--yzj-on-color); }
 .confirmNo, .inlineBtn { border: 1px solid var(--yzj-line); background: var(--yzj-bg); color: var(--yzj-ink-2); }
 .inlineBtn { margin-left: 6px; }
-.rowError { padding: 4px 8px; font-size: var(--yzj-fs-xs); color: var(--yzj-late-ink); line-height: 1.6; }
+.rowError { padding: 4px 8px; font-size: var(--yzj-fs-xs); color: var(--yzj-late-ink); line-height: 1.55; }
 
 /* ——— 窄轨 ——— */
 .rail { align-items: center; gap: 8px; padding: 10px 0; overflow: hidden; }

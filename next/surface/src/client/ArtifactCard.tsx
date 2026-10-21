@@ -14,6 +14,7 @@
 import type { ReactNode } from 'react'
 import { extensionOf, openPreview, sizeLabel, usePreview, type ArtifactRef } from './preview.ts'
 import { goToOrigin } from './store.ts'
+import { Icon } from './icons.tsx'
 import css from './artifact.module.css'
 
 /**
@@ -32,7 +33,7 @@ export function FromLink(props: { from: NonNullable<ArtifactRef['from']> }): Rea
   const { from } = props
   return (
     <button type="button" className={css.from} onClick={() => { goToOrigin(from) }} title="回到它长出来的那句话">
-      来自「{from.label}」<span className={css.fromGo}>›</span>
+      来自「{from.label}」<Icon name="chevR" size={12} className={css.fromGo} />
     </button>
   )
 }
@@ -92,7 +93,7 @@ export function ArtifactCard(props: ArtifactCardProps): ReactNode {
           onClick={() => { openPreview(target) }}
         >
           {face}
-          <span className={css.arrow}>{looking ? '◉' : '›'}</span>
+          <Icon name={looking ? 'cols' : 'chevR'} size={14} className={css.arrow} />
         </button>
         {artifact.from !== undefined && <FromLink from={artifact.from} />}
       </span>
@@ -116,7 +117,7 @@ export function ArtifactCard(props: ArtifactCardProps): ReactNode {
           title="在云之家打开——看到的是最新那一份"
         >
           {face}
-          <span className={css.arrow}>↗</span>
+          <Icon name="ext" size={14} className={css.arrow} />
         </a>
         {artifact.from !== undefined && <FromLink from={artifact.from} />}
       </span>

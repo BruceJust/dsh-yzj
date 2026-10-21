@@ -68,7 +68,7 @@
 .name { font-size: var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink); }
 .clock { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); font-variant-numeric: tabular-nums; }
 .text {
-  font-size: var(--yzj-fs-md); line-height: 1.65; color: var(--yzj-ink);
+  font-size: var(--yzj-fs-md); line-height: 1.55; color: var(--yzj-ink);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .verbs { margin-left: auto; display: inline-flex; gap: 2px; opacity: 0; transition: opacity .12s; }
@@ -139,7 +139,7 @@
   border-left: 2px solid var(--yzj-line);
   display: flex; flex-direction: column; gap: 3px;
 }
-.peekLine { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.peekLine { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.55; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ——— 更早的话题 ——— */
 .earlier { margin: 0 0 10px; border: 1px solid var(--yzj-line-2); border-radius: var(--yzj-r-md); }
@@ -160,7 +160,7 @@
 
 .calm {
   margin: 32px auto; max-width: 420px; text-align: center;
-  font-size: var(--yzj-fs-sm); color: var(--yzj-ink-3); line-height: 1.7;
+  font-size: var(--yzj-fs-sm); color: var(--yzj-ink-3); line-height: 1.55;
 }
 .day {
   display: flex; align-items: center; gap: 12px; margin: 14px 8px 8px;
@@ -172,7 +172,7 @@
 .notOnDuty {
   margin: 0 16px 8px; padding: 9px 12px;
   border-radius: var(--yzj-r-md); background: var(--yzj-need-bg);
-  font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-need-ink);
+  font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-need-ink);
 }
 .notOnDutyActions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .notOnDutyBtn {
@@ -187,13 +187,13 @@
 .feedNote {
   flex: none; margin: 0 16px 14px; padding: 10px 14px;
   border-radius: var(--yzj-r-md); background: var(--yzj-bg-sunk);
-  font-size: var(--yzj-fs-xs); line-height: 1.7; color: var(--yzj-ink-3);
+  font-size: var(--yzj-fs-xs); line-height: 1.55; color: var(--yzj-ink-3);
 }
 .feedNote b { color: var(--yzj-ink-2); }
 
 .toast {
   position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); z-index: 30;
   max-width: min(560px, 80%);
-  background: var(--yzj-solid); color: var(--yzj-on-solid); font-size: var(--yzj-fs-sm); line-height: 1.5;
+  background: var(--yzj-solid); color: var(--yzj-on-solid); font-size: var(--yzj-fs-sm); line-height: 1.55;
   padding: 9px 16px; border-radius: var(--yzj-r-md); box-shadow: var(--yzj-shadow-2);
 }

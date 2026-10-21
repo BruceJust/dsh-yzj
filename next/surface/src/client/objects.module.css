@@ -6,7 +6,7 @@
 }
 
 .head { display: flex; align-items: baseline; gap: 8px; padding: 12px 14px 8px; }
-.title { font-size:var(--yzj-fs-sm); font-weight: 700; color: var(--yzj-ink); }
+.title { font-size:var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink); }
 .sub { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
 
 .tabs { display: flex; gap: 4px; padding: 0 12px 10px; }
@@ -27,14 +27,14 @@
   margin: 0 12px 8px; padding: 5px 9px;
   border-left: 2px solid var(--yzj-pub-line); border-radius:0 var(--yzj-r-sm) var(--yzj-r-sm) 0;
   background: var(--yzj-pub-tint);
-  font-size:var(--yzj-fs-xs); line-height: 1.5; color: var(--yzj-pub-ink);
+  font-size:var(--yzj-fs-xs); line-height: 1.55; color: var(--yzj-pub-ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 .body { flex: 1; overflow-y: auto; padding: 2px 10px 16px; }
 
 .section {
-  font-size:var(--yzj-fs-xs); font-weight: 700; letter-spacing: .05em;
+  font-size:var(--yzj-fs-xs); font-weight: 600; letter-spacing: .05em;
   color: var(--yzj-ink-3); padding: 10px 6px 5px;
 }
 
@@ -59,7 +59,7 @@
 .itemArrow { flex: none; color: var(--yzj-ink-3); font-size:var(--yzj-fs-sm); opacity: 0; transition: opacity .12s; }
 .item:hover .itemArrow { opacity: 1; }
 
-.tag { font-size:var(--yzj-fs-xs); font-weight: 700; padding: 1.5px 6px; border-radius:var(--yzj-r-sm); flex: none; }
+.tag { font-size:var(--yzj-fs-xs); font-weight: 600; padding: 1.5px 6px; border-radius:var(--yzj-r-sm); flex: none; }
 .tagArtifact { background: var(--yzj-pub-tint); color: var(--yzj-pub); border: 1px solid var(--yzj-pub-line); }
 .tagForeign { background: var(--yzj-need-bg); color: var(--yzj-need-ink); border: 1px solid var(--yzj-need-line); }
 
@@ -72,13 +72,13 @@
   box-shadow: var(--yzj-shadow-1);
 }
 .memAxis {
-  font-size:var(--yzj-fs-xs); font-weight: 700; font-family: var(--yzj-mono);
+  font-size:var(--yzj-fs-xs); font-weight: 600; font-family: var(--yzj-mono);
   border-radius:var(--yzj-r-sm); padding: 1.5px 6px;
 }
 .memPlace { color: var(--yzj-pub-ink); background: var(--yzj-pub-tint); }
 .memEntity { color: var(--yzj-ink-2); background: var(--yzj-bg-sunk); }
 .memOrg { color: var(--yzj-ok-ink); background: var(--yzj-ok-bg); }
-.memText { font-size:var(--yzj-fs-xs); line-height: 1.6; margin-top: 6px; color: var(--yzj-ink); }
+.memText { font-size:var(--yzj-fs-xs); line-height: 1.55; margin-top: 6px; color: var(--yzj-ink); }
 .memMeta { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); margin-top: 6px; overflow-wrap: anywhere; }
 .memDel {
   position: absolute; top: 6px; right: 8px;
@@ -91,7 +91,7 @@
   margin: 4px 2px;
   border: 1px dashed var(--yzj-pub-line); border-radius:var(--yzj-r-md);
   padding: 16px 12px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
-  line-height: 1.75; text-align: center;
+  line-height: 1.55; text-align: center;
 }
 .calm code {
   padding: 1px 5px; border-radius:var(--yzj-r-sm); background: var(--yzj-pub-tint);
@@ -101,7 +101,7 @@
 /* 会前那一眼：一场会的放大态住在右栏——中栏是流，右栏是物，一场会是一个物。长相跟来龙去脉一致。 */
 .hub { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 20px; overflow: auto; }
 .hubHead { display: flex; align-items: flex-start; gap: 8px; }
-.hubTitle { flex: 1; min-width: 0; font-size: var(--yzj-fs-lg); font-weight: 600; line-height: 1.45; color: var(--yzj-ink); overflow-wrap: anywhere; }
+.hubTitle { flex: 1; min-width: 0; font-size: var(--yzj-fs-lg); font-weight: 600; line-height: 1.4; color: var(--yzj-ink); overflow-wrap: anywhere; }
 .hubBack {
   flex: none; width: 26px; height: 26px; display: grid; place-items: center;
   border: 0; border-radius: var(--yzj-r-sm); background: none; color: var(--yzj-ink-3); cursor: pointer;
@@ -137,12 +137,12 @@
 }
 .hubGo:hover { background: var(--yzj-press); color: var(--yzj-ink); }
 .hubDesc {
-  font-size: var(--yzj-fs-sm); line-height: 1.65; color: var(--yzj-ink-2);
+  font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink-2);
   padding: 8px 12px; border-radius: var(--yzj-r-md); background: var(--yzj-bg-sunk);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .hubWarn {
-  margin-top: 6px; font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink);
+  margin-top: 6px; font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink);
   padding: 8px 12px; border-radius: var(--yzj-r-md); background: var(--yzj-need-bg);
 }
 .hubCta {
@@ -153,7 +153,7 @@
 
 /* 记忆分节：这里成立的 / 到哪儿都成立的——标题不替内容说话 */
 .memSection {
-  margin: 10px 2px 4px; font-size:var(--yzj-fs-xs); line-height: 1.6;
+  margin: 10px 2px 4px; font-size:var(--yzj-fs-xs); line-height: 1.55;
   color: var(--yzj-ink-3); letter-spacing: .02em;
 }
 
@@ -163,5 +163,5 @@
 .hubTabOn, .hubTabOn:hover { background: var(--yzj-press); color: var(--yzj-ink); }
 .hubNote {
   margin: 6px 2px 0; padding: 6px 9px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-bg-sunk); font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-2);
+  background: var(--yzj-bg-sunk); font-size:var(--yzj-fs-xs); line-height: 1.55; color: var(--yzj-ink-2);
 }

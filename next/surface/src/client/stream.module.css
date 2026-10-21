@@ -32,10 +32,10 @@
   padding: 0 6px; border-radius: var(--yzj-r-pill); background: var(--yzj-press);
 }
 .text {
-  font-size: var(--yzj-fs-md); line-height: 1.65; color: var(--yzj-ink);
+  font-size: var(--yzj-fs-md); line-height: 1.55; color: var(--yzj-ink);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
-.thinking { font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink-3); font-style: italic; overflow-wrap: anywhere; }
+.thinking { font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink-3); font-style: italic; overflow-wrap: anywhere; }
 .live { display: inline-flex; align-items: center; gap: 6px; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
 
 /* 就近动词：悬停时出现在名字那一行的右头 */

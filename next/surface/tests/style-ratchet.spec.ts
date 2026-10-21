@@ -63,6 +63,40 @@ describe('样式棘轮', () => {
     expect(scale).toEqual([12, 13, 14, 16, 20, 24])
   })
 
+  it('字重只有三档：400 / 500 / 600', () => {
+    const offenders = sheets().flatMap(({ file, body }) => (
+      [...body.matchAll(/font-weight\s*:\s*([^;}]+)/gu)]
+        .map(match => (match[1] ?? '').trim())
+        .filter(value => !/^(400|500|600|inherit|normal)$/u.test(value))
+        .map(value => `${file}: font-weight: ${value}`)
+    ))
+    expect(offenders).toEqual([])
+  })
+
+  it('行高只有两档：正文 1.55、标题 1.4（外加图标用的 1 / 0）', () => {
+    const offenders = sheets().flatMap(({ file, body }) => (
+      [...body.matchAll(/line-height\s*:\s*([^;}]+)/gu)]
+        .map(match => (match[1] ?? '').trim())
+        .filter(value => !/^(0|1|1\.4|1\.55|inherit|normal)$/u.test(value))
+        .map(value => `${file}: line-height: ${value}`)
+    ))
+    expect(offenders).toEqual([])
+  })
+
+  /*
+    不做入场动画 (§6)：东西出现就是出现了。动画只给三件事——进度在转、回到出处那一闪、
+    骨架在读。新写一个 popin / slidein，这里就红。
+  */
+  it('动画只有转圈、闪一下、骨架、拦下时的一抖', () => {
+    const offenders = sheets().flatMap(({ file, body }) => (
+      [...body.matchAll(/@keyframes\s+([A-Za-z-]+)/gu)]
+        .map(match => match[1] ?? '')
+        .filter(name => !['spin', 'flash', 'breathe', 'shake'].includes(name))
+        .map(name => `${file}: @keyframes ${name}`)
+    ))
+    expect(offenders).toEqual([])
+  })
+
   it('圆角只有四档', () => {
     const offenders = sheets().flatMap(({ file, body }) => (
       [...body.matchAll(/border-radius\s*:\s*([^;}]+)/gu)]

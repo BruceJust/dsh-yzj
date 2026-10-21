@@ -20,7 +20,6 @@
   background: var(--yzj-bg-raised); box-shadow: var(--yzj-shadow-2);
   font: inherit; font-size: var(--yzj-fs-sm); color: var(--yzj-ink);
   cursor: pointer;
-  animation: rise .18s ease;
 }
 .pill:hover { border-color: var(--yzj-need); }
 
@@ -33,4 +32,3 @@
 .others { flex: none; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
 .up { transform: rotate(180deg); }
 
-@keyframes rise { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }

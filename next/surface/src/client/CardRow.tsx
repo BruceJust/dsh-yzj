@@ -968,7 +968,7 @@ function PledgerTail(props: CardRowProps): ReactNode {
       {card.pledgeHandle !== undefined && pledgeOn !== undefined && (
         <div className={css.mirror}>
           {lock}
-          <span className={css.twoReadLine}>{tiny('押一句 ›', '对这次裁决押一句可证伪的话——有结果时回到这张卡下面；只有你能看到', () => { pledgeOn(card.pledgeHandle ?? '') })}</span>
+          <span className={css.twoReadLine}>{tiny('押一句', '对这次裁决押一句可证伪的话——有结果时回到这张卡下面；只有你能看到', () => { pledgeOn(card.pledgeHandle ?? '') })}</span>
         </div>
       )}
       {strips.map((strip, index) => {
@@ -1017,7 +1017,7 @@ function PledgerTail(props: CardRowProps): ReactNode {
                       <span className={css.twoReadLine}>
                         <b>{row.attributionLabel}</b> · 已记 · 想改随时改
                         {(['q1', 'q2', 'q3', 'q4'] as const).filter(id => id !== row.attribution).map(id => tiny(ATTRIBUTION_LABEL[id], cellNote(id), () => { run(() => inject.attribute(row.calibrationId, id)) }))}
-                        {tiny('以后这类事… ›', '先看本族的 2×2，再决定改不改规矩', () => { openGear(row.family, row.calibrationId) })}
+                        {tiny('以后这类事…', '先看本族的 2×2，再决定改不改规矩', () => { openGear(row.family, row.calibrationId) })}
                       </span>
                     )
                     : (

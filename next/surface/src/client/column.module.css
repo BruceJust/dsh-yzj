@@ -128,11 +128,6 @@
 .toast {
   position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%);
   z-index: 70; max-width: min(560px, 80%);
-  background: var(--yzj-solid); color: var(--yzj-on-solid); font-size: var(--yzj-fs-sm); line-height: 1.5;
+  background: var(--yzj-solid); color: var(--yzj-on-solid); font-size: var(--yzj-fs-sm); line-height: 1.55;
   padding: 9px 16px; border-radius: var(--yzj-r-md); box-shadow: var(--yzj-shadow-2);
-  animation: toastin .2s ease;
-}
-@keyframes toastin {
-  from { opacity: 0; transform: translate(-50%, 6px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
 }

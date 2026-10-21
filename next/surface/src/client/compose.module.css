@@ -44,7 +44,7 @@
   box-shadow: var(--yzj-shadow-2); overflow: hidden;
 }
 .head { display: flex; align-items: center; padding: 12px 14px 8px; }
-.headTitle { font-size:var(--yzj-fs-sm); font-weight: 700; color: var(--yzj-ink); }
+.headTitle { font-size:var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink); }
 .close {
   margin-left: auto; flex: none; width: 28px; height: 28px; display: grid; place-items: center;
   border: 0; border-radius: var(--yzj-r-sm); background: none; color: var(--yzj-ink-3); cursor: pointer;
@@ -54,7 +54,7 @@
 .quote {
   margin: 0 14px 10px; padding: 7px 10px;
   border-left: 2px solid var(--yzj-line); border-radius:0 var(--yzj-r-md) var(--yzj-r-md) 0;
-  background: var(--yzj-bg-sunk); font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-2);
+  background: var(--yzj-bg-sunk); font-size:var(--yzj-fs-xs); line-height: 1.55; color: var(--yzj-ink-2);
   max-height: 76px; overflow: hidden;
 }
 

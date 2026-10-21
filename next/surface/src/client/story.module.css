@@ -12,7 +12,7 @@
   border: 0; border-radius: var(--yzj-r-sm); background: none; color: var(--yzj-ink-3); cursor: pointer;
 }
 .close:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
-.title { font-size: var(--yzj-fs-lg); font-weight: 600; line-height: 1.45; color: var(--yzj-ink); overflow-wrap: anywhere; }
+.title { font-size: var(--yzj-fs-lg); font-weight: 600; line-height: 1.4; color: var(--yzj-ink); overflow-wrap: anywhere; }
 
 .ask {
   margin-top: 8px; padding: 10px 12px;
@@ -30,10 +30,10 @@
 .quote {
   margin: 0; padding: 2px 0 2px 10px;
   border-left: 2px solid var(--yzj-line);
-  font-size: var(--yzj-fs-md); line-height: 1.6; color: var(--yzj-ink);
+  font-size: var(--yzj-fs-md); line-height: 1.55; color: var(--yzj-ink);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
-.meta, .dim { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.6; }
+.meta, .dim { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.55; }
 .fix { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }

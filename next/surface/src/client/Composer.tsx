@@ -243,7 +243,7 @@ function hintBody(hint: Hint): ReactNode {
     case 'note':
       return (
         <>
-          <Icon name={hint.warn === true ? 'eyeOff' : 'bolt'} size={14} className={css.hintMark} />
+          <Icon name={hint.warn === true ? 'eyeOff' : 'info'} size={14} className={css.hintMark} />
           <span className={css.hintText}>{hint.text}</span>
         </>
       )

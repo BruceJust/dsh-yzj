@@ -26,7 +26,7 @@
 /* ——— 头：● 要你确认 · 云小助停在这一步等你 · 5 分钟 ——— */
 .head {
   display: flex; align-items: center; gap: 8px; min-width: 0;
-  font-size: var(--yzj-fs-xs); line-height: 1.5;
+  font-size: var(--yzj-fs-xs); line-height: 1.55;
 }
 .dot {
   width: 8px; height: 8px; flex: none; border-radius: 50%;
@@ -36,8 +36,8 @@
 .wait { color: var(--yzj-ink-3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .quiet { color: var(--yzj-ink-3); }
 
-.title { font-size: var(--yzj-fs-md); font-weight: 600; color: var(--yzj-ink); line-height: 1.45; overflow-wrap: anywhere; }
-.why { font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2); line-height: 1.6; overflow-wrap: anywhere; }
+.title { font-size: var(--yzj-fs-md); font-weight: 600; color: var(--yzj-ink); line-height: 1.4; overflow-wrap: anywhere; }
+.why { font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2); line-height: 1.55; overflow-wrap: anywhere; }
 
 /* ——— 中间那一块 ——— */
 .body { display: flex; align-items: flex-start; gap: 10px; }
@@ -45,14 +45,14 @@
   flex: 1; min-width: 0;
   padding: 6px 10px; border-radius: var(--yzj-r-sm);
   background: var(--yzj-bg-sunk); color: var(--yzj-ink-2);
-  font-size: var(--yzj-fs-sm); line-height: 1.6;
+  font-size: var(--yzj-fs-sm); line-height: 1.55;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .fields {
   flex: 1; min-width: 0;
   display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px;
   padding: 8px 10px; border-radius: var(--yzj-r-sm); background: var(--yzj-bg-sunk);
-  font-size: var(--yzj-fs-xs); line-height: 1.6;
+  font-size: var(--yzj-fs-xs); line-height: 1.55;
 }
 .fieldPair { display: contents; }
 .fieldKey { color: var(--yzj-ink-3); overflow: hidden; text-overflow: ellipsis; }
@@ -154,7 +154,7 @@
 }
 .itemText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .itemWhat { font-size: var(--yzj-fs-sm); color: var(--yzj-ink); font-weight: 500; overflow-wrap: anywhere; }
-.itemWhy { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.5; overflow-wrap: anywhere; }
+.itemWhy { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.55; overflow-wrap: anywhere; }
 .pills { flex: none; display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 .pill {
   display: inline-flex; align-items: center; gap: 5px;
@@ -222,7 +222,7 @@
 .mirror {
   display: flex; gap: 8px; align-items: flex-start;
   padding: 6px 10px; border: 1px dashed var(--yzj-pri-line); border-radius: var(--yzj-r-md); background: var(--yzj-pri-bg);
-  font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.6;
+  font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.55;
 }
 .mirrorMark { flex: none; margin-top: 2px; }
 .mirrorBody { flex: 1; min-width: 0; }
@@ -230,11 +230,11 @@
 .mirrorNote { display: block; color: var(--yzj-pri-ink); margin-top: 2px; }
 .gearNote {
   padding: 6px 10px; border: 1px solid var(--yzj-pri-line); border-radius: var(--yzj-r-md); background: var(--yzj-pri-bg);
-  font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.6;
+  font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.55;
 }
 .twoRead {
   padding: 7px 10px; border: 1px solid var(--yzj-pri-line); border-radius: var(--yzj-r-md); background: var(--yzj-pri-bg);
-  font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.65;
+  font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.55;
 }
 .twoReadHead { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--yzj-ink); margin-bottom: 3px; }
 .twoReadBody { display: block; }

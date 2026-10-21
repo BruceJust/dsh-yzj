@@ -4,7 +4,7 @@
 
 .prose {
   display: flex; flex-direction: column; gap: 6px;
-  font-size: var(--yzj-fs-md); line-height: 1.65; color: var(--yzj-ink);
+  font-size: var(--yzj-fs-md); line-height: 1.55; color: var(--yzj-ink);
   overflow-wrap: anywhere;
 }
 .prose p { margin: 0; }

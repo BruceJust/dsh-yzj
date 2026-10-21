@@ -221,11 +221,11 @@
   display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
 }
 .emptyTitle { font-size: var(--yzj-fs-lg); font-weight: 600; }
-.emptyText { font-size: var(--yzj-fs-sm); line-height: 1.7; color: var(--yzj-ink-3); }
+.emptyText { font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink-3); }
 
 .toast {
   position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 30;
   max-width: min(560px, 80%);
-  background: var(--yzj-solid); color: var(--yzj-on-solid); font-size: var(--yzj-fs-sm); line-height: 1.5;
+  background: var(--yzj-solid); color: var(--yzj-on-solid); font-size: var(--yzj-fs-sm); line-height: 1.55;
   padding: 9px 16px; border-radius: var(--yzj-r-md); box-shadow: var(--yzj-shadow-2);
 }

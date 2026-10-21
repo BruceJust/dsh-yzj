@@ -47,7 +47,7 @@
   flex: 1;
   min-width: 0;
   font-size:var(--yzj-fs-sm);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--yzj-ink);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -65,8 +65,8 @@
   gap: 4px;
   font: inherit;
   font-size:var(--yzj-fs-xs);
-  font-weight: 650;
-  line-height: 1.5;
+  font-weight: 600;
+  line-height: 1.55;
   padding: 3px 9px;
   border-radius:var(--yzj-r-md);
   cursor: pointer;
@@ -156,7 +156,7 @@
   background: var(--yzj-bg-sunk);
   font-family: var(--yzj-mono);
   font-size:var(--yzj-fs-xs);
-  line-height: 1.65;
+  line-height: 1.55;
   color: var(--yzj-ink);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -167,7 +167,7 @@
 .table {
   border-collapse: collapse;
   font-size:var(--yzj-fs-xs);
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .table th,
@@ -182,14 +182,14 @@
 
 .table th {
   background: var(--yzj-bg-sunk);
-  font-weight: 650;
+  font-weight: 600;
   position: sticky;
   top: 0;
 }
 
 .note {
   font-size:var(--yzj-fs-xs);
-  line-height: 1.75;
+  line-height: 1.55;
   color: var(--yzj-ink-2);
   padding: 4px 2px;
 }

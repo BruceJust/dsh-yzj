@@ -5,7 +5,7 @@
   border: 1px solid var(--yzj-line); background: var(--yzj-bg); outline: none;
 }
 .input:focus { border-color: var(--yzj-pub); }
-.note { font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-3); }
+.note { font-size:var(--yzj-fs-xs); line-height: 1.55; color: var(--yzj-ink-3); }
 .hits {
   display: flex; flex-direction: column; gap: 2px; margin-top: 4px;
   max-height: 148px; overflow: auto;
@@ -26,4 +26,4 @@
 }
 .drop { color: var(--yzj-ink-3); }
 /* 读不了 ≠ 没有：这一格说的是故障，不是答案 */
-.broken { font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-late-ink); }
+.broken { font-size:var(--yzj-fs-xs); line-height: 1.55; color: var(--yzj-late-ink); }

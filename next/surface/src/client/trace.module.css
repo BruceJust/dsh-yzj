@@ -1,7 +1,7 @@
 .panel { width: 760px; display: flex; flex-direction: column; max-height: 84%; }
 
 .filter {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
+  flex: none; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 600;
   padding: 3px 10px; border-radius:var(--yzj-r-lg);
   border: 1px solid var(--yzj-line); background: var(--yzj-bg);
   color: var(--yzj-ink-2); cursor: pointer;
@@ -23,7 +23,7 @@
 
 .label {
   flex: none; min-width: 128px;
-  font-family: var(--yzj-mono); font-size:var(--yzj-fs-xs); font-weight: 700;
+  font-family: var(--yzj-mono); font-size:var(--yzj-fs-xs); font-weight: 600;
   padding: 2px 7px; border-radius:var(--yzj-r-sm);
 }
 .said { background: var(--yzj-pub-tint); color: var(--yzj-pub); }
@@ -41,7 +41,7 @@
 .detail {
   margin: 0 6px 10px 26px; padding: 10px 12px;
   border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md); background: var(--yzj-bg-sunk);
-  font-family: var(--yzj-mono); font-size:var(--yzj-fs-xs); line-height: 1.65;
+  font-family: var(--yzj-mono); font-size:var(--yzj-fs-xs); line-height: 1.55;
   color: var(--yzj-ink-2);
   white-space: pre-wrap; overflow-wrap: anywhere;
   max-height: 320px; overflow-y: auto;

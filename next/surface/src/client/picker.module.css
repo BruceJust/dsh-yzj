@@ -25,12 +25,12 @@
   display: flex; align-items: center; gap: 10px;
   padding: 12px 18px 10px; border-bottom: 1px solid var(--yzj-line);
 }
-.nativeNote { flex: 1; min-width: 0; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.6; }
+.nativeNote { flex: 1; min-width: 0; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.55; }
 
 .note {
   margin: 10px 18px; padding: 9px 11px; border-radius:var(--yzj-r-md);
   border: 1px dashed var(--yzj-pub-line); background: var(--yzj-bg-sunk);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.75;
+  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.55;
 }
 
 .path {
@@ -55,7 +55,7 @@
   padding: 10px 18px 14px; border-top: 1px solid var(--yzj-line);
 }
 .use {
-  flex: none; font: inherit; font-size:var(--yzj-fs-sm); font-weight: 650;
+  flex: none; font: inherit; font-size:var(--yzj-fs-sm); font-weight: 600;
   padding: 7px 14px; border: 0; border-radius:var(--yzj-r-md);
   background: var(--yzj-solid); color: var(--yzj-on-solid); cursor: pointer;
 }

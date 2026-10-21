@@ -48,7 +48,7 @@
   margin-top: 10px; padding: 8px 12px; border-radius: var(--yzj-r-md);
   background: var(--yzj-pri-line); font-size: var(--yzj-fs-sm); color: var(--yzj-ink);
 }
-.calm { padding: 8px 0; font-size: var(--yzj-fs-sm); line-height: 1.65; color: var(--yzj-ink-3); }
+.calm { padding: 8px 0; font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink-3); }
 .code { padding: 0 4px; border-radius: var(--yzj-r-sm); background: var(--yzj-pri-line); font: var(--yzj-fs-xs)/1.5 var(--yzj-mono); color: var(--yzj-ink-2); }
 
 /* ——— 一族一组 ——— */
@@ -61,7 +61,7 @@
   font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); cursor: pointer;
 }
 .groupAct:hover { background: var(--yzj-pri-line); color: var(--yzj-ink); }
-.groupLine { margin-top: 2px; font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-ink-2); }
+.groupLine { margin-top: 2px; font-size: var(--yzj-fs-sm); line-height: 1.55; color: var(--yzj-ink-2); }
 .sub { font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); }
 .rows { margin: 6px -10px 0; display: flex; flex-direction: column; }
 
@@ -114,7 +114,7 @@
 .gear {
   margin: 6px 0 8px; padding: 10px 12px;
   border: 1px solid var(--yzj-pri-line); border-radius: var(--yzj-r-md); background: var(--yzj-pri-bg);
-  font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2); line-height: 1.6;
+  font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2); line-height: 1.55;
 }
 .gearHead { color: var(--yzj-ink); }
 .gearAsk { margin-top: 8px; font-weight: 500; color: var(--yzj-ink); }
@@ -126,7 +126,7 @@
 .take {
   margin-top: 8px; padding: 10px 12px; max-height: 220px; overflow-y: auto;
   border-radius: var(--yzj-r-md); background: var(--yzj-pri-line);
-  font-size: var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-2); white-space: pre-wrap;
+  font-size: var(--yzj-fs-xs); line-height: 1.55; color: var(--yzj-ink-2); white-space: pre-wrap;
 }
 .destroyRow { display: flex; gap: 6px; align-items: center; margin-top: 14px; }
 .destroyRow .input { height: 30px; resize: none; }

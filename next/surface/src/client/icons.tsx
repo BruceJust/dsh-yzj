@@ -4,7 +4,7 @@
  * 此前屏上是 emoji 与字符混用：✋ ✓ ● ◫ ⌂ ▢ ⚡ ↗ ‹ ⌄。emoji 不受 token 管，暗色下颜色
  * 失控；字符的基线和粗细跟着当时解析到的字体走，换个平台就换个样子；而且一个符号
  * 身兼数职（⚡ 一度有六种意思）。一个记号只许有一个意思，所以它们收在这一处：16px、
- * 描边 1.6、圆头，颜色永远是 `currentColor`——由所在的那一行决定，不由图标决定。
+ * 描边 1.8、圆头，颜色永远是 `currentColor`——由所在的那一行决定，不由图标决定。
  */
 
 import type { ReactNode } from 'react'
@@ -45,6 +45,10 @@ const PATHS = {
   pause: <path d="M6 4v8M10 4v8" />,
   redo: <path d="M11 4l2.5 2.5L11 9M13.5 6.5H6a3.5 3.5 0 0 0 0 7h3" />,
   smile: <><circle cx="8" cy="8" r="5.5" /><path d="M5.8 9.6c.6.8 1.3 1.1 2.2 1.1s1.6-.3 2.2-1.1M6 6.4h.01M10 6.4h.01" /></>,
+  /** 一句说明（这句会怎样）。⚡ 只表示快问，说明不借它。 */
+  info: <><circle cx="8" cy="8" r="5.5" /><path d="M8 7.2v3.6" /><path d="M8 5.1v.01" /></>,
+  /** 部分达成：半个圆。和 check / x 并排用在评估的每一条上。 */
+  half: <><circle cx="8" cy="8" r="5.5" /><path d="M8 2.5v11" /><path d="M8 4.5h2.6M8 8h3.4M8 11.5h2.6" /></>,
   copy: <><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5" /></>,
 } as const
 
@@ -59,7 +63,7 @@ export function Icon(props: { name: IconName; size?: number; className?: string 
       height={size}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}

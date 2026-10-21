@@ -44,7 +44,7 @@
   background: var(--yzj-pub-tint);
   color: var(--yzj-pub-ink);
   font-size:var(--yzj-fs-xs);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: .02em;
 }
 
@@ -56,7 +56,7 @@
   font-size:var(--yzj-fs-sm);
   font-weight: 600;
   color: var(--yzj-ink);
-  line-height: 1.45;
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -84,13 +84,13 @@
 
 .mark {
   font-size:var(--yzj-fs-xs);
-  line-height: 1.5;
+  line-height: 1.55;
   padding: 1px 7px;
   border-radius:var(--yzj-r-md);
   background: var(--yzj-need-bg);
   border: 1px solid var(--yzj-need-line);
   color: var(--yzj-need-ink);
-  font-weight: 650;
+  font-weight: 600;
   cursor: help;
 }
 

@@ -258,7 +258,7 @@ export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
 
       {target.from !== undefined && (
         <button type="button" className={css.from} onClick={() => { goToOrigin(target.from as NonNullable<typeof target.from>) }}>
-          来自「{target.from.label}」<span className={css.fromGo}>›</span>
+          来自「{target.from.label}」<Icon name="chevR" size={12} className={css.fromGo} />
         </button>
       )}
       {saved !== '' && <div className={css.saved}>{saved}</div>}

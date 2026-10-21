@@ -115,13 +115,16 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* 字重只有三档：400 / 500 / 600。<b>、<strong> 浏览器默认 700，在这里收回到 600。 */
+.tokens :where(b, strong) { font-weight: 600; }
+
 /*
   Dark: the host flips its alias tokens on `body`; what follows is everything
   we own. Tints become low-alpha washes so they sit on whichever dark the host
   chose rather than on a dark of our own guessing.
 */
 :global(body[data-ds-dark-theme]) .tokens {
-  --yzj-bg-sunk: #0F0F11;
+  --yzj-bg-sunk: #131417;
   --yzj-ink-3: #8A909B;
   --yzj-ink-4: #5B606A;
   --yzj-pub-solid: #3D6FE0;
@@ -132,7 +135,7 @@
   --yzj-pub-ink: #8DB1FF;
   --yzj-pub-tint: rgb(110 155 255 / 12%);
   --yzj-pub-line: rgb(110 155 255 / 30%);
-  --yzj-pri-bg: #1F1C16;
+  --yzj-pri-bg: #211E17;
   --yzj-pri-rail: #5C4D2E;
   --yzj-pri-line: #3A3222;
   --yzj-pri-ink: #D8C08A;
