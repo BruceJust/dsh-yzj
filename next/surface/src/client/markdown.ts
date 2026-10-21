@@ -65,6 +65,15 @@ export function markdownToHtml(source: string): string {
       listKind = undefined
     }
   }
+  // A table ends at the first line that is not a row — a blank line, a fence,
+  // a heading. Left open, the browser hoists whatever follows into the table.
+  let inTable = false
+  const closeTable = (): void => {
+    if (inTable) {
+      out.push('</tbody></table>')
+      inTable = false
+    }
+  }
   const closeParagraph = (): void => {
     if (paragraph.length > 0) {
       out.push(`<p>${inline(paragraph.join(' '))}</p>`)
@@ -79,6 +88,7 @@ export function markdownToHtml(source: string): string {
         fence = []
         inFence = false
       } else {
+        closeTable()
         closeParagraph()
         closeList()
         inFence = true
@@ -90,12 +100,14 @@ export function markdownToHtml(source: string): string {
       continue
     }
     if (line.trim() === '') {
+      closeTable()
       closeParagraph()
       closeList()
       continue
     }
     const heading = /^(#{1,6})\s+(.*)$/u.exec(line)
     if (heading !== null) {
+      closeTable()
       closeParagraph()
       closeList()
       const level = (heading[1] ?? '#').length
@@ -103,6 +115,7 @@ export function markdownToHtml(source: string): string {
       continue
     }
     if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/u.test(line)) {
+      closeTable()
       closeParagraph()
       closeList()
       out.push('<hr>')
@@ -110,6 +123,7 @@ export function markdownToHtml(source: string): string {
     }
     const quote = /^\s*&gt;\s?(.*)$/u.exec(line)
     if (quote !== null) {
+      closeTable()
       closeParagraph()
       closeList()
       out.push(`<blockquote>${inline(quote[1] ?? '')}</blockquote>`)
@@ -125,15 +139,16 @@ export function markdownToHtml(source: string): string {
       out.push(`<table><thead><tr>${
         header.map(cell => `<th>${inline(cell)}</th>`).join('')
       }</tr></thead><tbody>`)
+      inTable = true
       listKind = undefined
       continue
     }
-    if (out.at(-1)?.endsWith('<tbody>') === true || out.at(-1)?.startsWith('<tr>') === true) {
+    if (inTable) {
       if (line.includes('|')) {
         out.push(`<tr>${cells(line).map(cell => `<td>${inline(cell)}</td>`).join('')}</tr>`)
         continue
       }
-      out.push('</tbody></table>')
+      closeTable()
     }
     const bullet = /^\s*[-*+]\s+(.*)$/u.exec(line)
     const numbered = /^\s*\d+[.)]\s+(.*)$/u.exec(line)
@@ -152,35 +167,45 @@ export function markdownToHtml(source: string): string {
     paragraph.push(line.trim())
   }
   if (inFence && fence.length > 0) out.push(`<pre><code>${fence.join('\n')}</code></pre>`)
+  closeTable()
   closeParagraph()
   closeList()
-  if (out.at(-1)?.startsWith('<tr>') === true) out.push('</tbody></table>')
   return out.join('\n')
 }
+
+/** The frame's own palette, one per host mode. It cannot read our tokens: no origin, no stylesheet. */
+const FRAME_INK = {
+  light: { scheme: 'light', ink: '#23262B', soft: '#5A6270', faint: '#6B7280', well: '#F7F8FA', chip: '#F2F4F7', rule: '#E3E6EB', quote: '#C9DBFA', link: '#1E4FBD' },
+  dark: { scheme: 'dark', ink: '#E6E8EB', soft: '#A9AFB8', faint: '#8A909B', well: '#1A1B1E', chip: '#24262A', rule: '#33363B', quote: '#3A5280', link: '#8DB1FF' },
+} as const
 
 /**
  * Wrap a fragment into a standalone document for the preview frame.
  *
  * Styles are inlined because the frame has no origin and therefore cannot load
  * a stylesheet from us — and an unstyled dump of markup reads worse than the
- * plain text it replaced.
+ * plain text it replaced. Markdown is ours to typeset, so it follows the host's
+ * light/dark; the frame stays transparent and the column behind it shows through.
  */
-export function previewDocument(body: string): string {
+export function previewDocument(body: string, dark = false): string {
+  const ink = dark ? FRAME_INK.dark : FRAME_INK.light
   return `<!doctype html><meta charset="utf-8"><style>
-  body { margin: 0; padding: 4px 2px; font: 13px/1.75 -apple-system, "PingFang SC", system-ui, sans-serif; color: #23262B; }
+  :root { color-scheme: ${ink.scheme}; }
+  body { margin: 0; padding: 4px 2px; font: 13px/1.75 -apple-system, "PingFang SC", system-ui, sans-serif; color: ${ink.ink}; background: transparent; }
   h1,h2,h3,h4,h5,h6 { margin: 1.1em 0 .5em; line-height: 1.35; }
   h1 { font-size: 1.5em; } h2 { font-size: 1.28em; } h3 { font-size: 1.12em; }
   p, li { margin: .45em 0; }
-  code { background: #F2F4F7; border-radius: 4px; padding: 1px 5px;
+  a { color: ${ink.link}; }
+  code { background: ${ink.chip}; border-radius: 4px; padding: 1px 5px;
          font-family: ui-monospace, Menlo, monospace; font-size: .92em; }
-  pre { background: #F7F8FA; border-radius: 8px; padding: 10px 12px; overflow: auto; }
+  pre { background: ${ink.well}; border-radius: 8px; padding: 10px 12px; overflow: auto; }
   pre code { background: none; padding: 0; }
-  blockquote { margin: .6em 0; padding: .2em .9em; border-left: 3px solid #C9DBFA; color: #5A6270; }
+  blockquote { margin: .6em 0; padding: .2em .9em; border-left: 3px solid ${ink.quote}; color: ${ink.soft}; }
   table { border-collapse: collapse; margin: .7em 0; font-size: .95em; }
-  th, td { border: 1px solid #E3E6EB; padding: 5px 9px; text-align: left; }
-  th { background: #F7F8FA; }
-  hr { border: 0; border-top: 1px solid #E3E6EB; margin: 1.1em 0; }
+  th, td { border: 1px solid ${ink.rule}; padding: 5px 9px; text-align: left; }
+  th { background: ${ink.well}; }
+  hr { border: 0; border-top: 1px solid ${ink.rule}; margin: 1.1em 0; }
   img { max-width: 100%; }
-  .u { color: #6B7280; word-break: break-all; }
+  .u { color: ${ink.faint}; word-break: break-all; }
 </style>${body}`
 }

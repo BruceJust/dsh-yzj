@@ -74,4 +74,26 @@ describe('装进框里的那份文档', () => {
     expect(doc).toContain('<style>')
     expect(doc).toContain('<p>x</p>')
   })
+
+  it('表格在空行、代码块、标题处收口——不然后面的东西会被浏览器拽进表里', () => {
+    const table = '| 名 | 值 |\n| --- | --- |\n| a | 1 |'
+    for (const after of ['\n\n```\nx\n```', '\n# 下一节', '\n> 引用', '\n---']) {
+      const out = markdownToHtml(table + after)
+      const closed = out.indexOf('</tbody></table>')
+      expect(closed).toBeGreaterThan(-1)
+      expect(out.indexOf('<tr><td>a</td><td>1</td></tr>')).toBeLessThan(closed)
+      expect(out.slice(closed)).toMatch(/<pre>|<h1>|<blockquote>|<hr>/u)
+    }
+    expect(markdownToHtml(table).endsWith('</tbody></table>')).toBe(true)
+  })
+
+  it('跟着宿主的明暗排版：暗色下是浅字、暗色方案，框底透明', () => {
+    const light = previewDocument('<p>x</p>')
+    const dark = previewDocument('<p>x</p>', true)
+    expect(light).toContain('color-scheme: light')
+    expect(dark).toContain('color-scheme: dark')
+    expect(dark).toContain('color: #E6E8EB')
+    expect(dark).not.toContain('#23262B')
+    expect(dark).toContain('background: transparent')
+  })
 })
