@@ -80,6 +80,23 @@ export function plainError(raw: string): PlainError {
 }
 
 /**
+ * 原话期限解析出的那一天，按人数日子的方式说：今天 / 明天 / 周五 / 11/3 周二，过了零点
+ * 之外的时刻带上几点。「原话「明天」→ 周四 18:00」——先原话，再结果（律五）。
+ */
+export function dueDayText(at: number, now: number): string {
+  const day = new Date(at)
+  const today = new Date(now)
+  const start = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const days = Math.round((start(day) - start(today)) / 86_400_000)
+  const weekday = `周${'日一二三四五六'[day.getDay()] ?? ''}`
+  const name = days === 0 ? '今天' : days === 1 ? '明天' : days === 2 ? '后天'
+    : days > 0 && days < 7 ? weekday
+      : `${String(day.getMonth() + 1)}/${String(day.getDate())} ${weekday}`
+  const endOfDay = day.getHours() === 23 && day.getMinutes() === 59
+  return endOfDay ? name : `${name} ${String(day.getHours()).padStart(2, '0')}:${String(day.getMinutes()).padStart(2, '0')}`
+}
+
+/**
  * 一次回答没生效，用人话说为什么 (§5.8)。
  *
  * 卡服务的回执是写给云之家那一头的（「本次应答已记录但未生效」「由 op-1a2b 选择「approve」

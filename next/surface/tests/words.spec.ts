@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { receiptLine } from '../src/client/words.ts'
+import { dueDayText, receiptLine } from '../src/client/words.ts'
 
 describe('receiptLine', () => {
   it('别处先答了：说别处先答了，不贴账号 id 和动作 id', () => {
@@ -24,5 +24,19 @@ describe('receiptLine', () => {
   it('通道那头的错照人话说；什么都没有就用调用方给的那句', () => {
     expect(receiptLine({ outcome: 'failed', receipt: '工作台这边没响应，再试一次。' }, '没收回来')).toBe('工作台这边没响应，再试一次。')
     expect(receiptLine(undefined, '没收回来，再试一次。')).toBe('没收回来，再试一次。')
+  })
+})
+
+describe('dueDayText', () => {
+  // 2026-10-21 周三 10:00
+  const NOW = new Date(2026, 9, 21, 10, 0).getTime()
+  const endOf = (m: number, d: number): number => new Date(2026, m - 1, d + 1).getTime() - 1
+
+  it('近的说今天、明天、后天、周几；远的写日子；说了几点就带上', () => {
+    expect(dueDayText(endOf(10, 21), NOW)).toBe('今天')
+    expect(dueDayText(new Date(2026, 9, 22, 18, 0).getTime(), NOW)).toBe('明天 18:00')
+    expect(dueDayText(endOf(10, 23), NOW)).toBe('后天')
+    expect(dueDayText(endOf(10, 24), NOW)).toBe('周六')
+    expect(dueDayText(endOf(10, 30), NOW)).toBe('10/30 周五')
   })
 })

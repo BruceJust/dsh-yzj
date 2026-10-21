@@ -80,6 +80,8 @@ export interface StreamCard {
   /** 出生序。条按它排——时间戳会撞，序号不会。 */
   seq: number
   resolved: boolean
+  /** 承诺卡：原话期限解析出的截止时刻（认不出就没有）。 */
+  dueAt?: number
   /** 它此刻在等什么。决断条读的就是它——和流内卡同一个数组，同源不靠纪律。 */
   demand?: AnswerableDemandWire
   /**

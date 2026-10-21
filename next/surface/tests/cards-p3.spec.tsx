@@ -129,6 +129,25 @@ describe('号：桌面按 1 = 云之家里回 1', () => {
   })
 })
 
+/*
+  登记回执 (§5.3)：此前是一整张承诺卡，「张锐负责」说了两遍，却没说「明天」解析成了哪天。
+*/
+describe('登记回执', () => {
+  it('一行：谁负责 · 什么事 · 原话 → 解析出的那天，旁边一个「改」', async () => {
+    const now = new Date(2026, 9, 21, 10, 0).getTime()
+    const card: StreamCard = {
+      kind: 'commitment', id: 'c-1', at: now, seq: 1, resolved: false, actions: [],
+      state: { what: '价格页数据', due: '明天下班前', status: 'open', executor: { kind: 'human', name: '张锐', openId: 'u-zr' } },
+      dueAt: new Date(2026, 9, 22, 18, 0).getTime(),
+    }
+    const host = document.createElement('div')
+    await act(async () => { createRoot(host).render(<CardRow card={card} now={now} answer={() => undefined} />) })
+    expect(host.textContent).toContain('记下了：张锐负责 · 价格页数据 · 原话「明天下班前」 → 明天 18:00')
+    expect(host.textContent?.match(/负责/gu)).toHaveLength(1)
+    expect([...host.querySelectorAll('button')].map(button => button.textContent)).toEqual(['改'])
+  })
+})
+
 describe('出处：在哪、由谁答的', () => {
   it('在云之家里答的，吸收行写「你在云之家里回了」', async () => {
     const id = await ask('approved')

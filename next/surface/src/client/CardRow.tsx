@@ -26,11 +26,11 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import type { AnchoredTextWire, FamilyHeadWire, NeedWire, StreamCard, StripWire, SurfaceInject } from './rpc.ts'
 import { GearBox } from './Judg.tsx'
 import { AgentFace, Icon } from './icons.tsx'
-import { AGENT, span, waitLine, whenOf, whereOf } from './words.ts'
+import { AGENT, dueDayText, span, waitLine, whenOf, whereOf } from './words.ts'
 import { registerCardKeys, stagedNow, subscribeStaged, undo, UNDO_MS, type Answer } from './answers.ts'
 import { artifactRefOf } from './artifacts.ts'
-import { openPreview, type PreviewTarget } from './preview.ts'
-import { jumpToNeed } from './store.ts'
+import { openPreview, revealAside, type PreviewTarget } from './preview.ts'
+import { jumpToNeed, setSpotlight } from './store.ts'
 import css from './card.module.css'
 
 type Action = StreamCard['actions'][number]
@@ -184,7 +184,11 @@ export function CardRow(props: CardRowProps): ReactNode {
         ? <Absorbed card={card} now={props.now} pending={{ said: pending.said, deadline: pending.deadline, landing: pending.landing }} />
         : card.resolved
           ? <Absorbed card={card} now={props.now} />
-          : card.kind === 'proposal' ? <Verdicts {...props} /> : <OpenCard {...props} />}
+          : card.kind === 'proposal'
+            ? <Verdicts {...props} />
+            : card.kind === 'commitment' && card.demand === undefined
+              ? <Registered card={card} now={props.now} />
+              : <OpenCard {...props} />}
       {/* 「下一件」只长在答过的卡下（窗里的也算：不必等 5 秒才往下走）；撤回之后卡又开着，它就不在了。 */}
       {(pending !== undefined || card.resolved) && props.next !== undefined && <NextLine need={props.next.need} now={props.now} />}
       <PledgerTail {...props} />
@@ -249,6 +253,50 @@ function Absorbed(props: {
         )}
       </span>
       {answered !== undefined && <span className={css.absorbedWhen}>{whenOf(answered.at, now)}</span>}
+    </div>
+  )
+}
+
+/**
+ * 登记回执 —— 一条承诺记下了，流里只留一行 (§5.3「✓ 记下了：张锐负责 · 价格页数据 ·
+ * 原话「明天」→ 周二 [改]」)。
+ *
+ * 此前这里是一整张承诺卡：头上「承诺 · 张锐负责」，身上又一句「张锐负责 · 原话…」，说了
+ * 两遍，却没说那句原话解析成了哪天——而「明天」到底是哪天，正是登记时最该核对的那一下。
+ * 先原话、再结果；认不出的只写原话。改（改期、换人、作废、挂目标）在右栏的来龙去脉里。
+ */
+function Registered(props: { card: StreamCard; now: number }): ReactNode {
+  const { card, now } = props
+  const state = record(card.state)
+  const executor = record(state.executor)
+  const who = text(executor.kind) === 'human' ? (text(executor.name) || '对方') : AGENT
+  const what = text(state.what)
+  const due = text(state.due)
+  const inferred = text(state.parentGoalRef) !== '' && text(state.attachedVia) === 'inferred'
+  return (
+    <div className={css.absorbed} data-testid="card-registered">
+      <Icon name="check" size={14} className={css.absorbedMark} />
+      <span className={css.absorbedText} title={what}>
+        记下了：{who}负责
+        {what === '' ? '' : <span className={css.absorbedTitle}> · {what}</span>}
+        {due !== '' && (
+          <span className={css.absorbedTitle}>
+            {' · '}原话「{due}」{card.dueAt === undefined ? '' : ` → ${dueDayText(card.dueAt, now)}`}
+          </span>
+        )}
+        {inferred && <span className={css.absorbedTitle}> · 挂的目标是猜的</span>}
+      </span>
+      <button
+        type="button"
+        className={css.undo}
+        title="改期限、换人、挂到别的目标或作废"
+        onClick={() => {
+          setSpotlight({ kind: 'commitment', id: card.id, title: what || '这一条' })
+          revealAside(() => undefined)
+        }}
+      >
+        改
+      </button>
     </div>
   )
 }

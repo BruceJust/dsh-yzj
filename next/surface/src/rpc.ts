@@ -49,6 +49,8 @@ export interface StreamCard {
   readonly id: string
   readonly state: unknown
   readonly resolved: boolean
+  /** 承诺卡：原话期限按说出口那一刻解析出的截止时刻。认不出就没有（宁空勿错）。 */
+  readonly dueAt?: number
   /**
    * When the card last asked its question (`cardMoment`), off the graph rather
    * than off its state; birth for a card that never asked anything.
@@ -3437,12 +3439,14 @@ export function cardsFor(
         : undefined
       // 号和云之家里「回 1 / 2」是同一张表——服务端编好，客户端只照着画。
       const numbered = ctx.yzjCards.numberedActions(kind, object.state).map(action => action.id)
+      const dueAt = kind === 'commitment' ? resolveDue(asString(state?.due), object.createdAt) : undefined
       out.push({
         kind,
         id: object.id,
         state: object.state,
         ...cardMoment(object),
         resolved,
+        ...(dueAt === undefined ? {} : { dueAt }),
         ...(demand === undefined ? {} : { demand }),
         ...(strips.length === 0 ? {} : { strips }),
         ...(pledgeHandle === undefined ? {} : { pledgeHandle }),
