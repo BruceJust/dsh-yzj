@@ -38,6 +38,7 @@ import composerCss from './composer.module.css'
 import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
 import type { PlaceViewWire, SurfaceInject, TopicMessageWire } from './rpc.ts'
 import { useBackKey } from './keys.ts'
+import { usePoll } from './poll.ts'
 import tokens from './tokens.module.css'
 import css from './place.module.css'
 
@@ -222,15 +223,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     })
   }, [inject, newDm])
 
-  useEffect(() => {
-    let alive = true
-    void refresh()
-    const timer = setInterval(() => { if (alive) void refresh() }, 6_000)
-    return () => {
-      alive = false
-      clearInterval(timer)
-    }
-  }, [refresh])
+  usePoll(refresh)
 
   /**
    * 传送门带过来的那件差事 —— **主楼也是落点** (v4.24 场所选项集).

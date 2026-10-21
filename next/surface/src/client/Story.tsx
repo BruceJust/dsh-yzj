@@ -17,6 +17,7 @@ import { delegateSeed } from './commission.ts'
 import { stage, stagedNow, subscribeStaged, undo } from './answers.ts'
 import { nudgeDraft } from './ledger.ts'
 import { safeHref } from './preview.ts'
+import { usePoll } from './poll.ts'
 import { Icon } from './icons.tsx'
 import { AGENT, whenOf } from './words.ts'
 import css from './story.module.css'
@@ -63,12 +64,8 @@ export function CommitmentStoryPanel(props: {
   const load = useCallback(async (): Promise<void> => {
     setStory(await inject.commitmentStory(id))
   }, [inject, id])
-  useEffect(() => {
-    void load()
-    const timer = setInterval(() => { void load() }, 6_000)
-    const off = subscribeLedger(() => { void load() })
-    return () => { clearInterval(timer); off() }
-  }, [load])
+  usePoll(load)
+  useEffect(() => subscribeLedger(() => { void load() }), [load])
   useEffect(() => { setRejecting(intent === 'reject') }, [intent, id])
   useEffect(() => {
     if (note === '') return undefined

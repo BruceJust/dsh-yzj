@@ -27,6 +27,7 @@ import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
 import { LedgerRow, StoryDock, useLedger, useRowKeys } from './LedgerRow.tsx'
 import { useBackKey } from './keys.ts'
+import { usePoll } from './poll.ts'
 import { UNUSUAL, rowSub, signalOf } from './ledger.ts'
 import { Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
@@ -126,13 +127,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
     setNow(Date.now())
   }, [inject, goalRef])
 
-  useEffect(() => {
-    let alive = true
-    void refresh()
-    const timer = setInterval(() => { if (alive) void refresh() }, 6_000)
-    const off = subscribeLedger(() => { void refresh() })
-    return () => { alive = false; clearInterval(timer); off() }
-  }, [refresh])
+  usePoll(refresh)
+  useEffect(() => subscribeLedger(() => { void refresh() }), [refresh])
   // 右栏里按了「转给别人」「拆一部分出去」：选择条由这一屏开。
   useEffect(() => onPortalRequest((next) => { setPortal(next as Portal) }), [])
   useEffect(() => {

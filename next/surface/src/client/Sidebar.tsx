@@ -36,6 +36,7 @@ import {
   answeringNow, currentFrame, landOn, publishNeeds, setFrame, setNeedJumper, subscribeAnswering, subscribeFrame,
 } from './store.ts'
 import { openPalette, startOfToday } from './keys.ts'
+import { usePoll } from './poll.ts'
 import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
 import { Icon } from './icons.tsx'
 import { AGENT, span, waitLine } from './words.ts'
@@ -211,15 +212,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     publishNeeds(next.needs ?? [])
   }, [inject])
 
-  useEffect(() => {
-    let alive = true
-    void refresh()
-    const timer = setInterval(() => { if (alive) void refresh() }, 5_000)
-    return () => {
-      alive = false
-      clearInterval(timer)
-    }
-  }, [refresh])
+  usePoll(refresh)
 
   // 「等了多久」「多久没进展」只需要分钟级的准；半分钟走一次就够。
   useEffect(() => {

@@ -26,6 +26,7 @@ import { RepairVerbs, type Repair, type RepairTarget } from './RepairVerbs.tsx'
 import { eventPrepSeed } from './commission.ts'
 import { safeHref } from './preview.ts'
 import { landOn } from './store.ts'
+import { usePoll } from './poll.ts'
 import { Icon } from './icons.tsx'
 import css from './objects.module.css'
 
@@ -144,25 +145,17 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
     setRead(found === undefined ? 'gone' : 'found')
   }, [inject, eventId])
 
-  useEffect(() => {
-    let alive = true
-    void refresh()
-    /*
-      就绪度要**随着交付自动翻绿**，所以这一屏是活的，不是一张快照——但节拍要配得上
-      它的代价。`events()` 那一头是**一次 CLI 子进程 + 一次网络往返**（`calendar
-      event list`，20 秒超时）；这一屏第一版照抄了别处的 6 秒轮询，于是打开着的每
-      六秒就烧一个子进程，慢一点的一次回来之前下一次已经出发了。
+  /*
+    就绪度要**随着交付自动翻绿**，所以这一屏是活的，不是一张快照——但节拍要配得上
+    它的代价。`events()` 那一头是**一次 CLI 子进程 + 一次网络往返**（`calendar
+    event list`，20 秒超时）；这一屏第一版照抄了别处的 6 秒轮询，于是打开着的每
+    六秒就烧一个子进程，慢一点的一次回来之前下一次已经出发了。
 
-      30 秒是按**这一屏在回答什么**定的：会前那一眼是分钟量级的事，一件活交付之后
-      半分钟内翻绿绰绰有余。真要更快，该做的是给它一个只读图、不碰 CLI 的端点——
-      日程那半截（标题、时间、地点）本来就一整天不会变，跟着一起重取纯属陪跑。
-    */
-    const timer = setInterval(() => { if (alive) void refresh() }, 30_000)
-    return () => {
-      alive = false
-      clearInterval(timer)
-    }
-  }, [refresh])
+    30 秒是按**这一屏在回答什么**定的：会前那一眼是分钟量级的事，一件活交付之后
+    半分钟内翻绿绰绰有余。真要更快，该做的是给它一个只读图、不碰 CLI 的端点——
+    日程那半截（标题、时间、地点）本来就一整天不会变，跟着一起重取纯属陪跑。
+  */
+  usePoll(refresh, { slow: true })
 
   const head = (
     <div className={css.hubHead}>

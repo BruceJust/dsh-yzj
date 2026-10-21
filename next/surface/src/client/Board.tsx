@@ -23,6 +23,7 @@ import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
 import { DeclareGoal } from './DeclareGoal.tsx'
 import { LedgerRow, StoryDock, useLedger, useRowKeys } from './LedgerRow.tsx'
 import { useBackKey } from './keys.ts'
+import { usePoll } from './poll.ts'
 import { TODAY_LABEL, TODAY_OF, UNUSUAL, rowSub, signalOf, todayOf, type TodayKey } from './ledger.ts'
 import { Avatar } from './Avatar.tsx'
 import { AgentFace, Icon } from './icons.tsx'
@@ -201,13 +202,8 @@ export function YzjBoard(props: BoardProps): ReactNode {
 
   // 会前那一眼读平台的日程：独立的一次读，读不到就是没有，不拖住整块板。
   useEffect(() => { void inject.events().then(setEvents) }, [inject])
-  useEffect(() => {
-    let alive = true
-    void refresh()
-    const timer = setInterval(() => { if (alive) void refresh() }, 6_000)
-    const off = subscribeLedger(() => { void refresh() })
-    return () => { alive = false; clearInterval(timer); off() }
-  }, [refresh])
+  usePoll(refresh)
+  useEffect(() => subscribeLedger(() => { void refresh() }), [refresh])
   // 右栏里按了「转给别人」：选择条由这一屏开。
   useEffect(() => onPortalRequest((next) => { setPortal(next as Portal) }), [])
   useEffect(() => {

@@ -27,6 +27,7 @@ import { YzjEventHub } from './EventHub.tsx'
 import { CommitmentStoryPanel } from './Story.tsx'
 import { currentFrame, currentSpotlight, focusOf, setSpotlight, subscribeFrame, subscribeSpotlight } from './store.ts'
 import { closeAside, useAsidePreviewHost, usePreview } from './preview.ts'
+import { usePoll } from './poll.ts'
 import { AGENT } from './words.ts'
 import tokens from './tokens.module.css'
 import css from './objects.module.css'
@@ -73,16 +74,7 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
     setFace(await inject.objects(sessionId) ?? EMPTY)
   }, [inject, sessionId])
 
-  useEffect(() => {
-    if (focus.kind !== 'things') return undefined
-    let alive = true
-    void refresh()
-    const timer = setInterval(() => { if (alive) void refresh() }, 6_000)
-    return () => {
-      alive = false
-      clearInterval(timer)
-    }
-  }, [refresh, focus.kind])
+  usePoll(refresh, { active: focus.kind === 'things' })
 
   // 账的几屏上什么都没选：这一栏收起，不摆上一屏留下的东西。
   useEffect(() => {

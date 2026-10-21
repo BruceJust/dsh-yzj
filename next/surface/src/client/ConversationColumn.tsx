@@ -36,6 +36,7 @@ import {
   subscribeFrame, subscribeLanding, subscribeNeeds, takeErrand, type Frame,
 } from './store.ts'
 import { useBackKey } from './keys.ts'
+import { usePoll } from './poll.ts'
 import { AgentFace, Icon } from './icons.tsx'
 import { AGENT, plainError } from './words.ts'
 import type { FusedWindowWire, StreamCard, SurfaceInject } from './rpc.ts'
@@ -292,16 +293,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     setWindow(next)
   }, [inject, sessionId])
 
-  useEffect(() => {
-    let alive = true
-    void refresh()
-    // 云之家没有推送（F1），消息那一半靠轮询。
-    const timer = setInterval(() => { if (alive) void refresh() }, 5_000)
-    return () => {
-      alive = false
-      clearInterval(timer)
-    }
-  }, [refresh])
+  // 云之家没有推送（F1），消息那一半靠轮询。
+  usePoll(refresh)
 
   // 撤回窗里的回答，别处先答了就以别处为准（先答先赢）。
   useEffect(() => {

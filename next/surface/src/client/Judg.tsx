@@ -15,6 +15,7 @@ import { YzjJudgContract } from './JudgContract.tsx'
 import { currentJudgSelection, setJudgSelection, subscribeJudgSelection } from './store.ts'
 import { Icon } from './icons.tsx'
 import { useBackKey } from './keys.ts'
+import { usePoll } from './poll.ts'
 import tokens from './tokens.module.css'
 import css from './vault.module.css'
 
@@ -134,11 +135,7 @@ export function YzjJudg(props: JudgProps): ReactNode {
   const seen = useRef(new Set<string>())
 
   const reload = useCallback(async (): Promise<void> => { setView(await inject.judg()) }, [inject])
-  useEffect(() => {
-    void reload()
-    const timer = setInterval(() => { void reload() }, 5_000)
-    return () => { clearInterval(timer) }
-  }, [reload])
+  usePoll(reload)
 
   // 首次在屏：归因率的分母。每回执至多一次，只由这条渲染路径写。
   useEffect(() => {
