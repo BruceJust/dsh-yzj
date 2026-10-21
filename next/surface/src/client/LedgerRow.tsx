@@ -22,7 +22,8 @@ import css from './ledger.module.css'
 /** 一行上能按的那几下。 */
 export interface RowActions {
   /** 选中：右栏摆它的来龙去脉。再点一次收起。 */
-  select(row: BoardRowWire, intent?: 'reject'): void
+  /** 点一下是开关（再点收起）；`open` 只开不关——⏎ 是「打开」，不是「再按一次收起」。 */
+  select(row: BoardRowWire, intent?: 'reject', open?: boolean): void
   /** 催一下：带着拟稿去那条承诺所在的会话，话由你自己发。 */
   nudge(row: BoardRowWire): void
   /** 验收（或「当它交了」）：进 5 秒撤回窗，和卡上的回答同一扇门。 */
@@ -62,9 +63,11 @@ export function useLedger(props: {
     if (currentSpotlight()?.kind === 'commitment') setSpotlight(undefined)
   }, [])
 
-  const select = useCallback((row: BoardRowWire, intent?: 'reject'): void => {
+  const select = useCallback((row: BoardRowWire, intent?: 'reject', open?: boolean): void => {
     const now = currentSpotlight()
     if (now?.kind === 'commitment' && now.id === row.id && intent === undefined) {
+      // J 已经选中了它：⏎ 是要看，不是要收起（实测：J 再 ⏎，右栏反而关了）。
+      if (open === true) { revealAside(() => { setDocked(true) }); return }
       setSpotlight(undefined)
       return
     }
@@ -163,7 +166,7 @@ export function LedgerRow(props: {
       data-row={row.id}
       className={`${css.row} ${selected ? css.rowOn : ''} ${row.status !== 'open' ? css.rowDone : ''}`}
       onClick={() => { actions.select(row) }}
-      onKeyDown={(event) => { if (event.key === 'Enter' && event.target === event.currentTarget) actions.select(row) }}
+      onKeyDown={(event) => { if (event.key === 'Enter' && event.target === event.currentTarget) actions.select(row, undefined, true) }}
     >
       {leading}
       {row.executorKind === 'agent'
