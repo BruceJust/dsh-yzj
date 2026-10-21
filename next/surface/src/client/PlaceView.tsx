@@ -125,7 +125,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     }
     node.scrollIntoView({ block: 'center', behavior: 'smooth' })
     setFlash(msgId)
-    setTimeout(() => { setFlash(undefined) }, 1_600)
+    setTimeout(() => { setFlash(undefined) }, 1_800)
   }, [])
 
   /** Put text where the caret is; a picker that appends is a picker you fight. */

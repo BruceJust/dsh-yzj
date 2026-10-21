@@ -18,7 +18,7 @@
  * there, there is nothing to steer, and giving it a session would have meant
  * inventing one.
  */
-import { closePreview } from './preview.ts'
+import { closePreview, leaveImmersive, previewSnapshot } from './preview.ts'
 import type { NeedWire } from './rpc.ts'
 
 export type Frame =
@@ -314,6 +314,8 @@ const landingListeners = new Set<() => void>()
  * 就用 `kind: 'at'`——落在那个时刻之前最近的一句人话上。
  */
 export function goToOrigin(from: { readonly sessionId: string; readonly messageId?: string; readonly at: number }): void {
+  // 全屏读着的那一份退回并排：人要看那句话，文档留在旁边（并排放不下就收起）。
+  if (previewSnapshot().stage === 'immersive') leaveImmersive()
   if (frame.kind !== 'session') setFrame({ kind: 'session' })
   setSpotlight(undefined)
   landOn(from.messageId === undefined

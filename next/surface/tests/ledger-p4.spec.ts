@@ -132,7 +132,8 @@ describe('来龙去脉', () => {
     expect(story?.steps.map(step => [step.grade, step.text])).toEqual([
       ['note', '登记的消息没发到对方那里——对方可能不知道'],
       ['said', '说交了：发了'],
-      ['artifact', '产出《对比表 v2》'],
+      // 说清做了什么：「新建《对比表 v2》」，不是笼统的「产出」。
+      ['artifact', '新建《对比表 v2》'],
     ])
   })
 

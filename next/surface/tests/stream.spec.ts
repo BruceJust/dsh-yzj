@@ -886,6 +886,35 @@ describe('the object face', () => {
     expect(face.scope).toEqual({ kind: 'place', placeName: '别的群' })
   })
 
+  /*
+    一份东西一张卡。实测：同一份文档新建时记的是网页链接、往里写内容时记的是
+    `yzj://doc/<id>`，右栏摆出两张卡，第二张的名字还是一串链接。
+  */
+  it('shows one card per document, under its latest name, and never a sent message', async () => {
+    mountTree()
+    const id = '6a997072b5e3d954653aeea7'
+    await graph.append({
+      type: 'lineage/produced',
+      data: { topicKey: TOPIC.topicKey, action: '新建文档', artifact: { uri: `https://www.yunzhijia.com/knowledge/lingee/#/store/doc/${id}`, placeKey: 'yzj-kb-1', title: '价格页', kind: 'doc' } },
+      actor: { kind: 'agent' },
+    })
+    await graph.append({
+      type: 'lineage/produced',
+      data: { topicKey: TOPIC.topicKey, action: '写入文档内容', artifact: { uri: `yzj://doc/${id}`, placeKey: `yzj-doc-${id}`, kind: 'doc' } },
+      actor: { kind: 'agent' },
+    })
+    await graph.append({
+      type: 'lineage/produced',
+      data: { topicKey: TOPIC.topicKey, action: '发送消息', artifact: { uri: 'yzj://message/g1/m-9', placeKey: 'yzj-group-g1', kind: 'message' } },
+      actor: { kind: 'agent' },
+    })
+    const face = objectFace(ctx, TOPIC)
+    expect(face.current).toHaveLength(1)
+    expect(face.current[0]).toMatchObject({
+      title: '价格页', action: '写入文档内容', uri: `https://www.yunzhijia.com/knowledge/lingee/#/store/doc/${id}`,
+    })
+  })
+
   it('gives a desk session the other desk sessions, not every group\'s output', async () => {
     mountTree()
     await produced(TOPIC.topicKey, 'yzj://doc/a', '群里的')

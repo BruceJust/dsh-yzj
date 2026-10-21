@@ -284,12 +284,64 @@ export function chipsFor(ctx: Context, topic: TopicDescriptor | undefined): Topi
   return out
 }
 
+/**
+ * 一份东西是哪一份。
+ *
+ * 同一份文档，新建时记下的是网页链接（`…/store/doc/<id>`），往里写内容时记的是
+ * `yzj://doc/<id>`——两条边说的是同一份。按 uri 认，右栏、目标页就把一份文档摆成两张卡。
+ * 认不出种类和 id 的，就按 uri 本身。
+ */
+export function artifactIdentity(uri: string): string {
+  const match = /(?:^yzj:\/\/|\/)(doc|sheet|event|file|kb)\/([A-Za-z0-9_-]{6,})(?:[/?#]|$)/u.exec(uri)
+  return match === null ? uri : `${match[1] ?? ''}:${match[2] ?? ''}`
+}
+
+/** 一份东西连名字都没留下时，按它是什么说——不把一串链接当名字摆上屏。 */
+const UNTITLED: Readonly<Record<string, string>> = {
+  doc: '一份文档', sheet: '一张表格', event: '一个日程', file: '一个文件', workspace: '一个知识库',
+}
+
+/**
+ * 每一份东西此刻该叫什么、点开去哪：名字取**最近一次**说出的（改过名就是新名），链接取
+ * 打得开的网页链接。所有读产出的地方都问这一张表，一份东西在各处叫同一个名字。
+ */
+function artifactNames(ctx: Context): ReadonlyMap<string, { readonly title?: string; readonly uri: string; readonly kind?: string }> {
+  const out = new Map<string, { title?: string; uri: string; kind?: string }>()
+  for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
+    const artifact = asRecord(asRecord(event.data)?.artifact)
+    const uri = asString(artifact?.uri)
+    if (uri === undefined) continue
+    const key = artifactIdentity(uri)
+    const known = out.get(key) ?? { uri }
+    const title = asString(artifact?.title)
+    const kind = asString(artifact?.kind)
+    out.set(key, {
+      uri: /^https?:/u.test(known.uri) ? known.uri : uri,
+      ...(title === undefined ? (known.title === undefined ? {} : { title: known.title }) : { title }),
+      ...(kind === undefined ? (known.kind === undefined ? {} : { kind: known.kind }) : { kind }),
+    })
+  }
+  return out
+}
+
+/** 一条产出边上屏用的名字与链接。 */
+function namedArtifact(
+  names: ReturnType<typeof artifactNames>, uri: string, kind: string | undefined,
+): { readonly uri: string; readonly title: string } {
+  const known = names.get(artifactIdentity(uri))
+  return {
+    uri: known?.uri ?? uri,
+    title: known?.title ?? UNTITLED[known?.kind ?? kind ?? ''] ?? '一份东西',
+  }
+}
+
 /** What this topic produced, oldest first — the stream sorts it into place. */
 export function artifactsFor(
   ctx: Context,
   topic: TopicDescriptor | undefined,
 ): readonly StreamArtifact[] {
   if (topic === undefined) return []
+  const names = artifactNames(ctx)
   const out: StreamArtifact[] = []
   for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
     const data = asRecord(event.data)
@@ -300,8 +352,7 @@ export function artifactsFor(
     const kind = asString(artifact?.kind)
     const toolName = asString(data?.toolName)
     out.push({
-      uri,
-      title: asString(artifact?.title) ?? uri,
+      ...namedArtifact(names, uri, kind),
       action: asString(data?.action) ?? '产出',
       time: event.time,
       // A document written into another place is the crossing the audit trail
@@ -1800,18 +1851,19 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
   */
   const artifactsByTopic = new Map<string, GoalArtifactRow[]>()
   const originOf = originsOf(ctx)
+  const names = artifactNames(ctx)
   for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
     const data = asRecord(event.data)
     const topicKey = asString(data?.topicKey)
     const artifact = asRecord(data?.artifact)
     const uri = asString(artifact?.uri)
-    if (topicKey === undefined || uri === undefined) continue
+    // 发出去的一句话不是「交了东西」：它不进产出，也不把一条承诺抬到「有东西」那一档。
+    if (topicKey === undefined || uri === undefined || asString(artifact?.kind) === 'message') continue
     const bucket = artifactsByTopic.get(topicKey) ?? []
     const from = originOf(topicKey, event.time, asString(data?.messageId))
     bucket.push({
       ...(from === undefined ? {} : { from }),
-      uri,
-      title: asString(artifact?.title) ?? uri,
+      ...namedArtifact(names, uri, asString(artifact?.kind)),
       action: asString(data?.action) ?? '产出',
       time: event.time,
       /*
@@ -2024,16 +2076,16 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
   }
 
   const goals: BoardGoal[] = [...byGoal.entries()].map(([goalRef, children]) => {
-    const seen = new Set<string>()
-    const artifacts: GoalArtifactRow[] = []
+    // 一份东西一张卡，摆它最近一次被动的那一刻（名字已经统一成最新的那个）。
+    const latest = new Map<string, GoalArtifactRow>()
     for (const child of children) {
       for (const artifact of artifactsByTopic.get(topicOfRow.get(child.id) ?? '') ?? []) {
-        if (seen.has(artifact.uri)) continue
-        seen.add(artifact.uri)
-        artifacts.push(artifact)
+        const key = artifactIdentity(artifact.uri)
+        const known = latest.get(key)
+        if (known === undefined || known.time < artifact.time) latest.set(key, artifact)
       }
     }
-    artifacts.sort((left, right) => right.time - left.time)
+    const artifacts = [...latest.values()].sort((left, right) => right.time - left.time)
     const row = declared.get(goalRef)
     const criteria = row === undefined
       ? undefined
@@ -2403,13 +2455,15 @@ export async function commitmentStory(ctx: Context, id: string, now: number = Da
   // 话题在它登记之后的产出：东西那一档的证据。
   const topicKey = asString(state?.topicKey) ?? asString(asRecord(state?.executor)?.topicKey)
   if (topicKey !== undefined) {
+    const names = artifactNames(ctx)
     for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
       const data = asRecord(event.data)
       if (asString(data?.topicKey) !== topicKey || event.time < object.createdAt) continue
       const artifact = asRecord(data?.artifact)
       const uri = asString(artifact?.uri)
-      if (uri === undefined) continue
-      steps.push({ at: event.time, text: `产出《${asString(artifact?.title) ?? uri}》`, grade: 'artifact', uri })
+      if (uri === undefined || asString(artifact?.kind) === 'message') continue
+      const named = namedArtifact(names, uri, asString(artifact?.kind))
+      steps.push({ at: event.time, text: `${asString(data?.action) ?? '产出'}《${named.title}》`, grade: 'artifact', uri: named.uri })
     }
   }
   steps.sort((left, right) => left.at - right.at)
@@ -2637,6 +2691,7 @@ export function objectPreviewOf(
  */
 export function recentArtifacts(ctx: Context, limit = 200): readonly ObjectRow[] {
   const originOf = originsOf(ctx)
+  const names = artifactNames(ctx)
   const seen = new Set<string>()
   const out: ObjectRow[] = []
   const events = [...ctx.yzjGraph.rawEvents(['lineage/produced'])].reverse()
@@ -2645,12 +2700,11 @@ export function recentArtifacts(ctx: Context, limit = 200): readonly ObjectRow[]
     const artifact = asRecord(data?.artifact)
     const uri = asString(artifact?.uri)
     // 发出去的消息不算产出：它在聊天记录里，不在资料里。
-    if (uri === undefined || seen.has(uri) || asString(artifact?.kind) === 'message') continue
-    seen.add(uri)
+    if (uri === undefined || seen.has(artifactIdentity(uri)) || asString(artifact?.kind) === 'message') continue
+    seen.add(artifactIdentity(uri))
     const from = originOf(asString(data?.topicKey) ?? '', event.time, asString(data?.messageId))
     out.push({
-      uri,
-      title: asString(artifact?.title) ?? uri,
+      ...namedArtifact(names, uri, asString(artifact?.kind)),
       action: asString(data?.action) ?? '产出',
       placeKey: asString(artifact?.placeKey) ?? '',
       time: event.time,
@@ -2684,15 +2738,20 @@ export function objectFace(
     for (const entry of branch.topics) placeOfTopic.set(entry.topicKey, entry.placeKey)
   }
 
-  const nearby: ObjectRow[] = []
-  const current: ObjectRow[] = []
+  /*
+    一份东西一张卡：同一份文档新建、写内容、改名是几条边，摆出来是一张，停在它最近一次
+    被动的那一刻。发出去的消息不是产出——它在聊天记录里。
+  */
+  const nearby = new Map<string, ObjectRow>()
+  const current = new Map<string, ObjectRow>()
   const originOf = originsOf(ctx)
+  const names = artifactNames(ctx)
   for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
     const data = asRecord(event.data)
     const artifact = asRecord(data?.artifact)
     const uri = asString(artifact?.uri)
     const placeKey = asString(artifact?.placeKey)
-    if (uri === undefined || placeKey === undefined) continue
+    if (uri === undefined || placeKey === undefined || asString(artifact?.kind) === 'message') continue
     const producedIn = asString(data?.topicKey) ?? ''
     const mine = ownKey !== undefined && producedIn === ownKey
     // A desk session's neighbours are the other desk sessions — they share no
@@ -2703,15 +2762,17 @@ export function objectFace(
     if (!mine && !neighbour) continue
     const from = originOf(producedIn, event.time, asString(data?.messageId))
     const row: ObjectRow = {
-      uri,
-      title: asString(artifact?.title) ?? uri,
+      ...namedArtifact(names, uri, asString(artifact?.kind)),
       action: asString(data?.action) ?? '产出',
       placeKey,
       time: event.time,
       ...(from === undefined ? {} : { from }),
     }
-    nearby.push(row)
-    if (mine) current.push(row)
+    // 按时间读下来，后来的覆盖先前的：Map 里留下的就是最近一次。删了再放，排序跟着走。
+    const key = artifactIdentity(uri)
+    nearby.delete(key)
+    nearby.set(key, row)
+    if (mine) { current.delete(key); current.set(key, row) }
   }
 
   // Objects rather than raw events: a memory that was forgotten must actually
@@ -2742,10 +2803,10 @@ export function objectFace(
   }
 
   return {
-    current,
+    current: [...current.values()],
     memory,
     memoryElsewhere: elsewhere,
-    resources: nearby.slice(-60).reverse(),
+    resources: [...nearby.values()].slice(-60).reverse(),
     scope: {
       kind: here === undefined ? 'local' : 'place',
       ...(placeName === undefined ? {} : { placeName }),

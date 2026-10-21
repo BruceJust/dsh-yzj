@@ -95,11 +95,15 @@ function originNodeIn(stream: HTMLElement | null, kind: 'message' | 'at', id: st
   return best
 }
 
-/** 指一下：闪 1.4 秒。用属性不用生成的类名——后者在找东西的那一刻可能是 undefined。 */
-function flash(node: Element): void {
+/**
+ * 指一下。用属性不用生成的类名——后者在找东西的那一刻可能是 undefined。
+ * 落到卡上闪 1.4 秒；回到一句话（出处、被回复的那条）闪 1.8 秒——人要先认出是哪一句（§6）。
+ */
+function flash(node: Element, ms = 1_400): void {
   node.setAttribute('data-flash', '1')
-  setTimeout(() => { node.removeAttribute('data-flash') }, 1_400)
+  setTimeout(() => { node.removeAttribute('data-flash') }, ms)
 }
+const MESSAGE_FLASH_MS = 1_800
 
 /** 快照里最晚的那个时刻：最后一个定稿节点、或还没回来的调用发出去的那一刻。 */
 function latestTime(nodes: readonly TrajectoryNode[], calls: LiveWork['calls']): number | undefined {
@@ -386,7 +390,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       landOn(undefined)
       atBottom.current = false
       node.scrollIntoView({ block: 'center', behavior: 'instant' })
-      flash(node)
+      flash(node, MESSAGE_FLASH_MS)
       return
     }
     const node = cardNodeIn(streamRef.current, landing.kind, landing.id)
@@ -958,7 +962,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
                 return
               }
               node.scrollIntoView({ block: 'center', behavior: 'smooth' })
-              flash(node)
+              flash(node, MESSAGE_FLASH_MS)
             },
             openPlace,
             publish: (text: string) => {

@@ -12,7 +12,7 @@
   padding: 6px 8px; border-radius: var(--yzj-r-md);
 }
 .msg:hover { background: var(--yzj-hover); }
-.msg[data-flash] { animation: flash 1.4s ease-out; }
+.msg[data-flash] { animation: flash 1.8s ease-out; }
 @keyframes flash {
   0%, 30% { background: var(--yzj-need-bg); }
   100% { background: transparent; }

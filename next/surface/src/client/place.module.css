@@ -95,7 +95,7 @@
   font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3);
 }
 .quoteTopic:hover { color: var(--yzj-ink); }
-.flash { animation: flash 1.6s ease; }
+.flash { animation: flash 1.8s ease; }
 @keyframes flash {
   0%, 60% { background: var(--yzj-need-bg); }
   100% { background: transparent; }
