@@ -144,6 +144,14 @@ describe('来龙去脉', () => {
     ])
   })
 
+  it('挂上说挂到哪个目标，摘下说「不再挂在目标下」——不把摘下说成挂上', async () => {
+    await owed('c-goal')
+    await graph.append({ type: 'commitment/updated', data: { commitmentId: 'c-goal', parentGoalRef: 'https://yzj.example.com/doc/q3' }, actor: OPERATOR })
+    await graph.append({ type: 'commitment/updated', data: { commitmentId: 'c-goal', parentGoalRef: '' }, actor: OPERATOR })
+    const story = await commitmentStory(ctx, 'c-goal')
+    expect(story?.steps.map(step => step.text)).toEqual(['挂到了一个目标下', '不再挂在目标下'])
+  })
+
   it('在承诺板上登记的，说「承诺板」', async () => {
     await owed('c-8', 'desktop:board')
     expect((await commitmentStory(ctx, 'c-8'))?.birth.where).toBe('承诺页')

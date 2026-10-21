@@ -2438,7 +2438,11 @@ const STORY_EVENTS = [
 ]
 
 /** 一笔事件说成一句人话；系统记账（通知没发出去之类）也说，但不算证据。 */
-function storyLine(type: string, data: Readonly<Record<string, JsonValue>> | undefined): { text: string; note?: boolean } | undefined {
+function storyLine(
+  type: string,
+  data: Readonly<Record<string, JsonValue>> | undefined,
+  goalName: (ref: string) => string | undefined = () => undefined,
+): { text: string; note?: boolean } | undefined {
   switch (type) {
     case 'commitment/updated': {
       const acceptance = asRecord(data?.acceptance)
@@ -2452,7 +2456,16 @@ function storyLine(type: string, data: Readonly<Record<string, JsonValue>> | und
       const due = asString(data?.due)
       if (due !== undefined) return { text: `期限改成「${due}」` }
       if (asString(data?.notified) === 'failed') return { text: '登记的消息没发到对方那里——对方可能不知道', note: true }
-      if (asString(data?.parentGoalRef) !== undefined) return { text: '挂到了一个目标下', note: true }
+      /*
+        摘下也是这一格：写的是空串（更正即追加）。此前空串也说成「挂到了一个目标下」，
+        于是时间线说挂上了，下面「挂在」却写着没挂目标。
+      */
+      if (data?.parentGoalRef === '') return { text: '不再挂在目标下', note: true }
+      const parent = asString(data?.parentGoalRef)
+      if (parent !== undefined) {
+        const name = goalName(parent)
+        return { text: name === undefined ? '挂到了一个目标下' : `挂到了「${name}」下`, note: true }
+      }
       return undefined
     }
     case 'commitment/delivered': return { text: `说交了：${asString(asRecord(data?.delivery)?.claim) ?? ''}` }
@@ -2502,9 +2515,14 @@ export async function commitmentStory(ctx: Context, id: string, now: number = Da
     : anchor.startsWith('session:') ? `和${SIGNATURE_AGENT}的会话` : row.placeName
 
   const steps: StoryStep[] = []
+  let docNames: ReturnType<typeof artifactNames> | undefined
+  const goalNameOf = (ref: string): string | undefined => (
+    asString(asRecord(ctx.yzjGraph.rawObject('commitment', goalCommitmentIdFor(ref))?.state)?.what)
+      ?? (docNames ??= artifactNames(ctx)).get(artifactIdentity(ref))?.title
+  )
   for (const event of events) {
     if (event.type === 'commitment/opened') continue
-    const line = storyLine(event.type, asRecord(event.data))
+    const line = storyLine(event.type, asRecord(event.data), goalNameOf)
     if (line === undefined) continue
     steps.push({ at: event.time, text: line.text, grade: line.note === true ? 'note' : atomOf(event) === 'seen' ? 'platform' : 'said' })
   }
