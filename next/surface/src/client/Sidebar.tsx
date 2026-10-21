@@ -676,8 +676,9 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
             />
           )
           : (
-            <button type="button" className={css.rowBody} title={title} onClick={() => { go(entry.id) }}>
-              <span className={css.title}>{title}</span>
+            <button type="button" className={css.rowBody} title={stealth ? undefined : title} onClick={() => { go(entry.id) }}>
+              {/* 演示时本地会话的名字也收起来：它和私聊一样，是你和云小助之间的话。 */}
+              <span className={css.title}>{stealth ? '一个会话' : title}</span>
             </button>
           )}
         <span className={css.time}>{entry.updatedAt === undefined ? '' : relative(entry.updatedAt, now)}</span>
