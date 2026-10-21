@@ -99,8 +99,8 @@ export function paletteItems(data: PaletteData): readonly PaletteItem[] {
     if (stealth && row.selfChat === true) continue
     const direct = row.kind !== 'group'
     add({
-      key: `place:${row.placeKey}`, group: '地方', icon: direct ? 'users' : 'hash',
-      label: row.selfChat ? '我 · 审批通道' : direct ? row.name : row.name,
+      key: `place:${row.placeKey}`, group: '地方', icon: direct ? 'user' : 'hash',
+      label: row.selfChat ? '我 · 审批通道' : row.name,
       sub: row.selfChat ? '和云小助的私聊' : direct ? '私聊' : row.onDuty ? '群' : `群 · ${AGENT}没在这里接单`,
       target: { kind: 'place', placeKey: row.placeKey, groupName: row.name },
     })
@@ -240,6 +240,7 @@ function Search(props: { inject: SurfaceInject }): ReactNode {
         <Icon name="search" size={16} className={css.inputIcon} />
         <input
           className={css.input}
+          data-bare
           value={query}
           autoFocus
           placeholder="跳到群、人、话题、承诺、目标、文件…"

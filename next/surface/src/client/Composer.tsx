@@ -116,6 +116,7 @@ export function Composer(props: ComposerProps): ReactNode {
       <textarea
         ref={boxRef}
         className={css.input}
+        data-bare
         value={draft}
         disabled={busy}
         rows={2}
