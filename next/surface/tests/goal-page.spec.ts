@@ -264,8 +264,9 @@ describe('决断层是过滤投影，不是复制列表', () => {
       actor: OPERATOR,
     })
     const decisions = goalPageFrame(ctx, GOAL)?.decisions ?? []
-    expect(decisions.some(item => item.preview.includes('差距简报'))).toBe(true)
-    expect(decisions.some(item => item.tone === 'review')).toBe(true)
+    expect(decisions.some(need => need.label.includes('差距简报'))).toBe(true)
+    // 指针写得出谁在等、从几点开始等。
+    expect(decisions.find(need => need.label.includes('差距简报'))).toMatchObject({ waiting: '云小助', since: expect.any(Number) })
   })
 
   it('答过的简报不再占着决断层——它已经不等人了', async () => {
@@ -285,7 +286,7 @@ describe('决断层是过滤投影，不是复制列表', () => {
       actor: OPERATOR,
     })
     const decisions = goalPageFrame(ctx, GOAL)?.decisions ?? []
-    expect(decisions.some(item => item.preview.includes('差距简报'))).toBe(false)
+    expect(decisions.some(need => need.label.includes('差距简报'))).toBe(false)
   })
 })
 

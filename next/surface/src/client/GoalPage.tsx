@@ -31,7 +31,7 @@ import { useBackKey } from './keys.ts'
 import { usePoll } from './poll.ts'
 import { UNUSUAL, foldNormalText, goalTitleOf, rowSub, signalOf } from './ledger.ts'
 import { Icon } from './icons.tsx'
-import { AGENT } from './words.ts'
+import { AGENT, waitLine } from './words.ts'
 import { UnreadLine } from './Unread.tsx'
 import tokens from './tokens.module.css'
 import rows from './ledger.module.css'
@@ -457,23 +457,24 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             {decisions.length > 0 && (
               <section className={css.block}>
                 <div className={css.label}>要你 <span className={css.count}>{decisions.length}</span></div>
-                {decisions.map(item => (
+                {decisions.map(need => (
                   <button
                     type="button"
                     className={css.pointer}
-                    key={`${item.sessionId}:${item.cardRef?.kind ?? ''}:${item.cardRef?.id ?? ''}`}
+                    key={`${need.ref.kind}:${need.ref.id}`}
                     onClick={() => {
-                      landOn(item.cardRef === undefined ? undefined : { sessionId: item.sessionId, ...item.cardRef })
-                      openSession(item.sessionId)
+                      landOn({ sessionId: need.sessionId, ...need.ref })
+                      openSession(need.sessionId)
                     }}
                   >
                     <span className={css.needDot} />
                     <span className={css.pointerText}>
                       <span className={css.pointerLine}>
-                        <b className={css.pointerVerb}>{item.demand?.verb ?? item.badge}</b>
-                        {item.demand?.label ?? item.title}
+                        <b className={css.pointerVerb}>{need.verb}</b>
+                        {need.label}
                       </span>
-                      <span className={css.pointerSub}>{item.placeName}</span>
+                      {/* 指针写谁在等：一件「要你」就是一个被你卡住的人（律二）。 */}
+                      <span className={css.pointerSub}>{[need.placeName ?? need.where, waitLine(need.waiting, need.since, now)].join(' · ')}</span>
                     </span>
                     <Icon name="chevR" size={14} className={css.pointerGo} />
                   </button>

@@ -2241,7 +2241,7 @@ export interface GoalPageView {
    * 不是复制一份列表:同一个可应答对象,在收件箱里答和在这里答是同一次应答
    * (先答先赢)。所以这里只做过滤——把收件箱里属于这个目标的那些挑出来。
    */
-  readonly decisions: readonly InboxItem[]
+  readonly decisions: readonly InboxNeed[]
   readonly pulse: GoalPulse
   /** 图内多少天没有新轨迹。`undefined` = 底下还什么都没有过。 */
   readonly staleDays?: number
@@ -2297,9 +2297,8 @@ export function goalPageFrame(ctx: Context, goalRef: string): GoalPageView | und
     白名单的问题不在它今天对不对,在于它是**第二处需要维护的名册**:家族增员时
     没人会想起来回这里补一个词,而漏掉的后果是一件等着人答的事在目标页上消失。
   */
-  const decisions = inboxView(ctx).places
-    .flatMap(place => place.topics)
-    .filter(item => sessions.has(item.sessionId) && item.demand !== undefined)
+  // 和左栏「要你」同一份逐条（带谁在等、等了多久）——不是按话题只取最响的那一件。
+  const decisions = inboxView(ctx).needs.filter(need => sessions.has(need.sessionId))
 
   /*
     我的切片 = 我执行的 ∪ 我委派的。

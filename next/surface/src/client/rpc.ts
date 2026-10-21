@@ -615,7 +615,7 @@ export type GoalPulseWire = 'running' | 'stalled' | 'idle'
 export interface GoalPageWire {
   goal: BoardGoalWire
   /** 决断层 = 收件箱同源可应答对象的过滤投影（先答先赢，不是复制列表）。 */
-  decisions: InboxItemWire[]
+  decisions: NeedWire[]
   pulse: GoalPulseWire
   staleDays?: number
   retired: boolean
