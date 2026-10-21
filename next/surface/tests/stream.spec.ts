@@ -21,7 +21,7 @@ import {
 } from '@yzj-next/objects'
 import type { TopicDescriptor, TopicMessage, YzjTopics } from '@yzj-next/channel'
 import { buildStream, clockOf, type TrajectoryNode, isPlaceholderOnly, withoutImageMarks } from '../src/client/stream.ts'
-import { backTarget, currentFrame, popFrame, pushFrame, setFrame } from '../src/client/store.ts'
+import { backLabel, backTarget, currentFrame, popFrame, pushFrame, restoreOf, setFrame } from '../src/client/store.ts'
 import { safeHref } from '../src/client/Board.tsx'
 import {
   artifactsFor, boardFrame, boardView, cardsFor, chipsFor, fusedWindow, inboxView, objectFace,
@@ -1542,5 +1542,65 @@ describe('名字缩写头像', () => {
 
   it('空名字给一个中性记号，不给空白', () => {
     expect(avatarOf('   ').text).toBe('·')
+  })
+})
+
+/*
+  钻进去 vs 横跳 (D13②)。
+
+  此前左栏、⌘K 的跳转从不清来路：在目标页点进一个话题、再从左栏去别的群，那一屏的
+  「返回」会把人带回三跳之前的目标页。返回按钮上的字也是各屏写死的（「承诺」「返回」），
+  从左栏直接进的目标页写着「承诺」，按下去却回了会话。
+*/
+describe('Back: drilling in vs jumping across', () => {
+  const reset = (): void => {
+    setFrame({ kind: 'session' })
+    while (backTarget() !== undefined) popFrame()
+  }
+
+  it('a lateral jump clears the way back', () => {
+    reset()
+    setFrame({ kind: 'board' })
+    pushFrame({ kind: 'goal', goalRef: 'g', goalName: 'Q4' }, 300)
+    pushFrame({ kind: 'session' }, 120)
+    setFrame({ kind: 'place', placeKey: 'p', groupName: '财务组' })
+    // 来路清空，只剩这一屏的上一级。
+    expect(backTarget()).toEqual({ kind: 'session' })
+    expect(backLabel(backTarget() ?? { kind: 'session' })).toBe('会话')
+  })
+
+  it('with no way back, Back goes to this screen\'s parent — and says so', () => {
+    reset()
+    setFrame({ kind: 'goal', goalRef: 'g', goalName: 'Q4' })
+    expect(backLabel(backTarget() ?? { kind: 'session' })).toBe('承诺')
+    popFrame()
+    expect(currentFrame()).toEqual({ kind: 'board' })
+    expect(backTarget()).toEqual({ kind: 'session' })
+  })
+
+  it('the label names where you came from', () => {
+    reset()
+    setFrame({ kind: 'place', placeKey: 'p', groupName: '财务组' })
+    pushFrame({ kind: 'goal', goalRef: 'g', goalName: 'Q4' }, 0)
+    expect(backLabel(backTarget() ?? { kind: 'session' })).toBe('财务组')
+  })
+
+  it('restores the pixel once, for the screen that was popped back to and no other', () => {
+    reset()
+    setFrame({ kind: 'board' })
+    pushFrame({ kind: 'goal', goalRef: 'g', goalName: 'Q4' }, 640)
+    popFrame()
+    const board = currentFrame()
+    expect(restoreOf(board)).toBe(640)
+    setFrame({ kind: 'session' })
+    setFrame(board)
+    // 横跳回来的不算「返回」：不再拿走当时的位置。
+    expect(restoreOf(currentFrame())).toBeUndefined()
+  })
+
+  it('does not record a session-to-session hop as a way back to itself', () => {
+    reset()
+    pushFrame({ kind: 'session' }, 10)
+    expect(backTarget()).toBeUndefined()
   })
 })

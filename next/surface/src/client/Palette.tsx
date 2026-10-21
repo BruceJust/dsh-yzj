@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { BoardViewWire, InboxView, NeedWire, ObjectRowWire, SurfaceInject } from './rpc.ts'
 import {
-  goToOrigin, jumpToNeed, openSessionNow, pushFrame, setFrame, setSpotlight,
+  goToOrigin, jumpToNeed, openSessionNow, setFrame, setSpotlight,
 } from './store.ts'
 import { openPreview, safeHref } from './preview.ts'
 import { artifactRefOf } from './artifacts.ts'
@@ -157,10 +157,10 @@ function go(target: PaletteTarget): void {
     case 'topic': setFrame({ kind: 'session' }); openSessionNow(target.sessionId); return
     case 'place': setFrame({ kind: 'place', placeKey: target.placeKey, groupName: target.groupName }); return
     case 'board': setFrame({ kind: 'board' }); return
-    case 'judg': pushFrame({ kind: 'judg' }, 0); return
+    case 'judg': setFrame({ kind: 'judg' }); return
     case 'help': openPalette('help'); return
     case 'auto': openPalette('auto'); return
-    case 'goal': pushFrame({ kind: 'goal', goalRef: target.goalRef, goalName: target.goalName }, 0); return
+    case 'goal': setFrame({ kind: 'goal', goalRef: target.goalRef, goalName: target.goalName }); return
     case 'commitment':
       setFrame({ kind: 'board' })
       setSpotlight({ kind: 'commitment', id: target.id, title: target.title })

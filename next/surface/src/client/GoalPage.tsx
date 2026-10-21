@@ -16,7 +16,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { BoardRowWire, GoalPageWire, SurfaceInject } from './rpc.ts'
-import { landOn, onPortalRequest, sendErrand, subscribeLedger } from './store.ts'
+import { FRAME_SCROLL, backLabel, backTarget, landOn, onPortalRequest, sendErrand, subscribeLedger } from './store.ts'
+import { useRestoreScroll } from './scroll.ts'
 import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
 import {
   assessAsk, breakdownAsk, delegateSeed, gapSeed, goalQuestionSeed, rebaseAsk,
@@ -48,8 +49,10 @@ export interface GoalPageProps {
   /** 你从哪个会话来的 —— 「问云小助这个目标」落在那儿：问要进会话日志，不是页面旁路。 */
   deskSessionId?: string
   openSession(sessionId: string): void
-  /** 回承诺页，回到离开时的那个位置。 */
+  /** 回来路（多半是承诺页），回到离开时的那个位置。 */
   back(): void
+  /** 从这一页钻出去又弹回来：离开时滚到了哪儿。 */
+  restoreScroll?: number
 }
 
 /** 「多久以前」的粗说法：只到天。 */
@@ -102,7 +105,7 @@ export function goalFacts(view: GoalPageWire): readonly { readonly text: string;
 }
 
 export function YzjGoalPage(props: GoalPageProps): ReactNode {
-  const { goalRef, goalName, inject, commission, deskSessionId, openSession, back } = props
+  const { goalRef, goalName, inject, commission, deskSessionId, openSession, back, restoreScroll } = props
   const [view, setView] = useState<GoalPageWire | undefined>(undefined)
   /** 宿主答「没有这个目标」时它的原话；没读到不算（读不到 ≠ 没有）。 */
   const [missing, setMissing] = useState<string | undefined>(undefined)
@@ -118,6 +121,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
   const [opened, setOpened] = useState<Readonly<Record<string, boolean>>>({})
   const [now, setNow] = useState(() => Date.now())
   const bodyRef = useRef<HTMLDivElement | null>(null)
+  useRestoreScroll(bodyRef, view === undefined ? undefined : restoreScroll)
 
   const fetchSeq = useRef(0)
   const refresh = useCallback(async (): Promise<void> => {
@@ -188,7 +192,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
 
   const head = (more?: ReactNode): ReactNode => (
     <div className={css.head}>
-      <button type="button" className={css.back} onClick={back}><Icon name="chevL" size={14} />承诺</button>
+      <button type="button" className={css.back} onClick={back}><Icon name="chevL" size={14} />{backLabel(backTarget() ?? { kind: 'board' })}</button>
       {more}
     </div>
   )
@@ -309,7 +313,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
       )}
       {unread && <UnreadLine had />}
       <div className={rows.split}>
-        <div className={css.body} ref={bodyRef}>
+        <div className={css.body} ref={bodyRef} {...{ [FRAME_SCROLL]: '' }}>
           <div className={css.column}>
             {/* ——— 眉行 · 标题 · 怎么算完成 · 一行事实 ——— */}
             <div className={css.eyebrow}>

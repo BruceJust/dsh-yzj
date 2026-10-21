@@ -28,7 +28,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { clockOf, dayLabel } from './stream.ts'
 import { Avatar } from './Avatar.tsx'
-import { landOn, pushFrame, setFrame, takeErrand } from './store.ts'
+import { FRAME_SCROLL, backLabel, backTarget, landOn, pushFrame, replaceFrame, takeErrand } from './store.ts'
 import { YzjContractPanel } from './ContractPanel.tsx'
 import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
 import { Composer, registrationLine, type Hint } from './Composer.tsx'
@@ -550,7 +550,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           setPendingRegister(undefined)
           setDraft('')
           setBusy(false)
-          setFrame({ kind: 'place', placeKey: born, groupName: newDm.name })
+          replaceFrame({ kind: 'place', placeKey: born, groupName: newDm.name })
           return
         }
         settle(result)
@@ -597,7 +597,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     <div className={`${tokens.tokens} ${css.place}`}>
       <header className={css.head}>
         <button type="button" className={css.back} onClick={back}>
-          <Icon name="chevL" size={14} />返回
+          <Icon name="chevL" size={14} />{backLabel(backTarget() ?? { kind: 'session' })}
         </button>
         <span className={css.headRule} />
         <span className={css.icon}><Icon name={newDm !== undefined || view.kind === 'direct' ? 'user' : 'hash'} size={16} /></span>
@@ -642,7 +642,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
         </div>
       )}
 
-      <div className={css.body} ref={bodyRef}>
+      <div className={css.body} ref={bodyRef} {...{ [FRAME_SCROLL]: '' }}>
         {/*
           私语通道的两位新住客 —— 立约邀约与校准回执 (私账层 §7).
 

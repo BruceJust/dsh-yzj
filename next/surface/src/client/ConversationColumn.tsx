@@ -32,8 +32,8 @@ import {
   dropAnsweredElsewhere, pressOnCard, stage, stagedNow, subscribeStaged, type Answer,
 } from './answers.ts'
 import {
-  backTarget, currentFrame, currentLanding, landOn, needsNow, popFrame, setFrame, setSpotlight,
-  subscribeFrame, subscribeLanding, subscribeNeeds, takeErrand, type Frame,
+  FRAME_SCROLL, backLabel, backTarget, currentFrame, currentLanding, landOn, needsNow, popFrame, pushFrame,
+  restoreOf, setFrame, setSpotlight, subscribeFrame, subscribeLanding, subscribeNeeds, takeErrand,
 } from './store.ts'
 import { useBackKey } from './keys.ts'
 import { keepLastMessages, usePoll } from './poll.ts'
@@ -99,17 +99,6 @@ function originNodeIn(stream: HTMLElement | null, kind: 'message' | 'at', id: st
 function flash(node: Element): void {
   node.setAttribute('data-flash', '1')
   setTimeout(() => { node.removeAttribute('data-flash') }, 1_400)
-}
-
-/** 「‹ 返回」上写着回到哪儿。 */
-function backLabel(frame: Frame): string {
-  switch (frame.kind) {
-    case 'place': return frame.groupName
-    case 'board': return '承诺'
-    case 'goal': return frame.goalName
-    case 'judg': return '我定过的'
-    default: return '返回'
-  }
 }
 
 /** 快照里最晚的那个时刻：最后一个定稿节点、或还没回来的调用发出去的那一刻。 */
@@ -185,13 +174,14 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   const [pendingRegister, setPendingRegister] = useState<
     { openId: string; name: string; parentCommitmentId?: string } | undefined
   >(undefined)
-  const [restoreScroll, setRestoreScroll] = useState<number | undefined>(undefined)
+  /** 刚弹回来的那一屏离开时滚到了哪儿；之后任何一次换屏它就失效（store 管）。 */
+  const restoreScroll = restoreOf(frame)
   /** 流里「当前」的那张卡：J/K 走到的、落点落到的、点过的。数字键答它。 */
   const [currentCard, setCurrentCard] = useState<string | undefined>(undefined)
   /** 刚在这里答过的那张：它下面接「下一件」。 */
   const [justAnswered, setJustAnswered] = useState<string | undefined>(undefined)
   const back = backTarget()
-  const goBack = useCallback((): void => { setRestoreScroll(popFrame()) }, [])
+  const goBack = useCallback((): void => { popFrame() }, [])
   // Esc 的最后一步：从群里点进来的话题，回到那个群、回到离开时的位置。
   useBackKey(frame.kind === 'session' && back !== undefined ? goBack : undefined)
 
@@ -503,7 +493,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     const error = await prompt(target, text, running && target === sessionId ? 'steer' : 'queue')
       .catch((cause: unknown) => (cause instanceof Error ? cause.message : '通道无响应'))
     if (error !== undefined) return plainError(error).text
-    setFrame({ kind: 'session' })
+    // 从承诺、目标那一屏交出去的：钻进那个会话，返回回得到原处。
+    pushFrame({ kind: 'session' })
     openSession(target)
     return undefined
   }, [sessionId, prompt, running, openSession])
@@ -668,10 +659,10 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         {...(sessionId === undefined ? {} : { fromSessionId: sessionId })}
         {...(restoreScroll === undefined ? {} : { restoreScroll })}
         openSession={(id) => {
-          setFrame({ kind: 'session' })
+          pushFrame({ kind: 'session' })
           openSession(id)
         }}
-        back={() => { setFrame({ kind: 'session' }) }}
+        back={() => { popFrame() }}
       />
     )
   }
@@ -690,10 +681,11 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         commission={commission}
         {...(sessionId === undefined ? {} : { deskSessionId: sessionId })}
         openSession={(id) => {
-          setFrame({ kind: 'session' })
+          pushFrame({ kind: 'session' })
           openSession(id)
         }}
-        back={() => { setRestoreScroll(popFrame()) }}
+        {...(restoreScroll === undefined ? {} : { restoreScroll })}
+        back={() => { popFrame() }}
       />
     )
   }
@@ -905,6 +897,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
 
       <div
         className={css.stream}
+        {...{ [FRAME_SCROLL]: '' }}
         ref={streamRef}
         onScroll={(event) => {
           const node = event.currentTarget

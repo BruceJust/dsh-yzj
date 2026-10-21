@@ -51,11 +51,11 @@ export function YzjRightColumn(props: RightColumnProps): ReactNode {
           ? {}
           : {
             openSession: (id: string) => {
-              pushFrame({ kind: 'session' }, 0)
+              pushFrame({ kind: 'session' })
               openSession(id)
             },
           })}
-        openGoal={(goalRef) => { pushFrame({ kind: 'goal', goalRef, goalName: goalRef }, 0) }}
+        openGoal={(goalRef) => { pushFrame({ kind: 'goal', goalRef, goalName: goalRef }) }}
       />
     )
   }

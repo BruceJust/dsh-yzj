@@ -12,7 +12,9 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { FamilyHeadWire, JudgViewWire, PledgeRowWire, ReceiptRowWire, SurfaceInject } from './rpc.ts'
 import { YzjJudgContract } from './JudgContract.tsx'
-import { currentJudgSelection, setJudgSelection, subscribeJudgSelection } from './store.ts'
+import {
+  FRAME_SCROLL, backLabel, backTarget, currentJudgSelection, setJudgSelection, subscribeJudgSelection,
+} from './store.ts'
 import { Icon } from './icons.tsx'
 import { useBackKey } from './keys.ts'
 import { usePoll } from './poll.ts'
@@ -278,11 +280,11 @@ export function YzjJudg(props: JudgProps): ReactNode {
   return (
     <div className={`${tokens.tokens} ${css.vault}`}>
       <div className={css.head}>
-        <button type="button" className={css.back} onClick={back}><Icon name="chevL" size={14} />承诺</button>
+        <button type="button" className={css.back} onClick={back}><Icon name="chevL" size={14} />{backLabel(backTarget() ?? { kind: 'board' })}</button>
         <span className={css.headRule} />
         <span className={css.title}><Icon name="lock" size={14} />我定过的</span>
       </div>
-      <div className={css.body}>
+      <div className={css.body} {...{ [FRAME_SCROLL]: '' }}>
         <div className={css.column}>
           <div className={css.contract}>
             <Icon name="lock" size={13} /><span>只有你看得到。不进公司的账，随时可以整本带走。</span>

@@ -16,7 +16,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { BoardEventWire, BoardGoalWire, BoardRowWire, BoardViewWire, SurfaceInject } from './rpc.ts'
 import {
-  currentBoardLens, onPortalRequest, pushFrame, setBoardLens, setSpotlight, subscribeLedger, type BoardLens,
+  FRAME_SCROLL, backLabel, backTarget, currentBoardLens, onPortalRequest, pushFrame, setBoardLens, setSpotlight,
+  subscribeLedger, type BoardLens,
 } from './store.ts'
 import { revealAside } from './preview.ts'
 import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
@@ -29,6 +30,7 @@ import { Avatar } from './Avatar.tsx'
 import { AgentFace, Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
 import { Skeleton, UnreadLine } from './Unread.tsx'
+import { useRestoreScroll } from './scroll.ts'
 import tokens from './tokens.module.css'
 import css from './ledger.module.css'
 
@@ -166,32 +168,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
   const bodyRef = useRef<HTMLDivElement | null>(null)
   const scrollTop = useCallback((): number => bodyRef.current?.scrollTop ?? 0, [])
 
-  /* 恢复滚动位置：等内容长够了再设，否则会被静静地钳到当时的最大值。 */
-  const restored = useRef(false)
-  useEffect(() => {
-    if (restoreScroll === undefined || restored.current) return undefined
-    const node = bodyRef.current
-    if (node === null) return undefined
-    let done = false
-    let tick: ReturnType<typeof setTimeout> | undefined
-    const attempt = (): void => {
-      if (done) return
-      if (node.scrollHeight - node.clientHeight >= restoreScroll) {
-        node.scrollTop = restoreScroll
-        restored.current = true
-        done = true
-        return
-      }
-      tick = setTimeout(attempt, 60)
-    }
-    attempt()
-    const giveUp = setTimeout(() => { done = true }, 2_000)
-    return () => {
-      done = true
-      if (tick !== undefined) clearTimeout(tick)
-      clearTimeout(giveUp)
-    }
-  }, [restoreScroll])
+  useRestoreScroll(bodyRef, restoreScroll)
 
   /** 同一个单调票号：过时的一次轮询不许重画。 */
   const fetchSeq = useRef(0)
@@ -422,7 +399,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
   return (
     <div className={`${tokens.tokens} ${css.board}`}>
       <div className={css.head}>
-        <button type="button" className={css.back} onClick={back}><Icon name="chevL" size={14} />会话</button>
+        <button type="button" className={css.back} onClick={back}><Icon name="chevL" size={14} />{backLabel(backTarget() ?? { kind: 'session' })}</button>
         <span className={css.headRule} />
         <span className={css.title}>承诺</span>
         <div className={css.lenses} role="tablist">
@@ -488,7 +465,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
       {view.mirrorNote !== undefined && <div className={css.note}>{view.mirrorNote}</div>}
 
       <div className={css.split}>
-      <div className={css.body} ref={bodyRef}>
+      <div className={css.body} ref={bodyRef} {...{ [FRAME_SCROLL]: '' }}>
         {!loaded
           ? !unread && <Skeleton />
           : totalOpen === 0 && view.goals.length === 0

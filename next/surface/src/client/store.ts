@@ -74,15 +74,61 @@ const listeners = new Set<() => void>()
  */
 const stack: { frame: Frame; scrollTop: number }[] = []
 
-/** Push the current frame before navigating away from it. */
-export function pushFrame(next: Frame, scrollTop: number): void {
-  stack.push({ frame, scrollTop })
-  setFrame(next)
+/**
+ * 每一屏的主滚动区挂这个属性。钻进下一屏时记下它滚到了哪儿——调用方不必各自去量，
+ * 量漏了的那一处（记成 0）回来就是在顶上。
+ */
+export const FRAME_SCROLL = 'data-frame-scroll'
+
+function scrollOfFrame(): number {
+  if (typeof document === 'undefined') return 0
+  const node = document.querySelector(`[${FRAME_SCROLL}]`)
+  return node instanceof HTMLElement ? node.scrollTop : 0
 }
 
-/** The frame 「‹ 返回」 would return to, if any. */
+/**
+ * 没有来路时「返回」回到哪儿 —— 这一屏的上一级：目标、我定过的回承诺；承诺、群回会话。
+ * 从左栏或 ⌘K 横跳进来的一屏也有一个说得出名字的「返回」，而不是一律「返回」到不知哪儿。
+ */
+function parentOf(of: Frame): Frame | undefined {
+  switch (of.kind) {
+    case 'goal':
+    case 'judg':
+      return { kind: 'board' }
+    case 'board':
+    case 'place':
+      return { kind: 'session' }
+    default:
+      return undefined
+  }
+}
+
+/** 「‹ 返回」上写着回到哪儿。 */
+export function backLabel(to: Frame): string {
+  switch (to.kind) {
+    case 'place': return to.groupName
+    case 'board': return '承诺'
+    case 'goal': return to.goalName
+    case 'judg': return '我定过的'
+    default: return '会话'
+  }
+}
+
+/** 弹回来的那一屏和它该回到的位置。只认那一个对象——之后任何一次换屏都让它失效。 */
+let restored: { readonly frame: Frame; readonly scrollTop: number } | undefined
+
+/**
+ * 钻进去：记下这一屏和它此刻的滚动位置，再换屏。会话到会话不记——会话是哪一个不在
+ * 这一格里，记下来的「返回 会话」只会回到原地。
+ */
+export function pushFrame(next: Frame, scrollTop: number = scrollOfFrame()): void {
+  if (!(frame.kind === 'session' && next.kind === 'session')) stack.push({ frame, scrollTop })
+  show(next)
+}
+
+/** The frame 「‹ 返回」 would return to: where you came from, else this screen's parent. */
 export function backTarget(): Frame | undefined {
-  return stack.at(-1)?.frame
+  return stack.at(-1)?.frame ?? parentOf(frame)
 }
 
 /**
@@ -92,11 +138,31 @@ export function backTarget(): Frame | undefined {
 export function popFrame(): number {
   const previous = stack.pop()
   if (previous === undefined) {
-    setFrame({ kind: 'session' })
+    show(parentOf(frame) ?? { kind: 'session' })
     return 0
   }
-  setFrame(previous.frame)
+  restored = previous
+  show(previous.frame)
   return previous.scrollTop
+}
+
+/** 这一屏是不是刚弹回来的；是就给出离开时的位置。 */
+export function restoreOf(of: Frame): number | undefined {
+  return restored?.frame === of ? restored.scrollTop : undefined
+}
+
+/**
+ * 横跳（左栏、⌘K）：去一个新地方，来路清空。不清的话，「返回」会把人带回三跳之前、
+ * 早就离开了的某一屏。
+ */
+export function setFrame(next: Frame): void {
+  stack.length = 0
+  show(next)
+}
+
+/** 原地换一张脸（还没出生的私聊有了 placeKey）：来路照旧。 */
+export function replaceFrame(next: Frame): void {
+  show(next)
 }
 
 /**
@@ -291,8 +357,9 @@ export function currentFrame(): Frame {
   return frame
 }
 
-export function setFrame(next: Frame): void {
+function show(next: Frame): void {
   const leavingJudg = frame.kind === 'judg' && next.kind !== 'judg'
+  if (restored !== undefined && restored.frame !== next) restored = undefined
   frame = next
   /*
     **残留面 = 第四泄漏口**（继聚合面 / 导出面 / 搜索面之后，v2.2 对象面账本律②）.

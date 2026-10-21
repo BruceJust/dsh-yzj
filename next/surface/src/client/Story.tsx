@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { CommitmentStoryWire, SurfaceInject } from './rpc.ts'
 import {
-  landOn, ledgerChanged, pushFrame, requestPortal, sendErrand, setFrame, setSpotlight, subscribeLedger,
+  landOn, ledgerChanged, pushFrame, requestPortal, sendErrand, setSpotlight, subscribeLedger,
 } from './store.ts'
 import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { handoffPortal } from './RoomPicker.tsx'
@@ -86,10 +86,10 @@ export function CommitmentStoryPanel(props: {
     return () => { clearTimeout(timer) }
   }, [note])
 
-  /** 去那条承诺的会话：中栏先换回会话，再打开它。 */
+  /** 去那条承诺的会话：钻进去（返回回得到这一屏、这个位置），再打开它。 */
   const goTo = (sessionId: string, at?: { kind: string; id: string }): void => {
     if (at !== undefined) landOn({ sessionId, kind: at.kind, id: at.id })
-    setFrame({ kind: 'session' })
+    pushFrame({ kind: 'session' })
     setSpotlight(undefined)
     openSession?.(sessionId)
   }
@@ -276,7 +276,7 @@ export function CommitmentStoryPanel(props: {
               <button
                 type="button"
                 className={css.place}
-                onClick={() => { pushFrame({ kind: 'goal', goalRef: story.goal?.ref ?? '', goalName: story.goal?.name ?? '' }, 0) }}
+                onClick={() => { pushFrame({ kind: 'goal', goalRef: story.goal?.ref ?? '', goalName: story.goal?.name ?? '' }) }}
               >
                 <Icon name="target" size={13} />{story.goal.name}<Icon name="chevR" size={12} />
               </button>
