@@ -85,6 +85,8 @@ export function apply(ctx: ClientContext): void {
       }
     } | undefined
     fork?(opts: { sessionId: string; atSeq?: number; increaseTitle?: boolean }): Promise<string>
+    /** 会话列表的快照。中栏头上的名字从这里读（`title` 是落了盘的那个，没有就是还没起名）。 */
+    list?: { getSnapshot?(): { byId?: Record<string, { title?: string }> } }
   } | undefined
   // 「回到那句话」「⌘K 去任何地方」借宿主打开会话的那只手——装配处交代一次。
   setSessionOpener((id) => { sessions?.open?.(id) })
@@ -233,6 +235,7 @@ export function apply(ctx: ClientContext): void {
         return result?.ok === false ? (result.error?.message ?? '没能停下') : undefined
       },
       openSession: (id: string) => { sessions?.open?.(id) },
+      titleOf: (id: string) => sessions?.list?.getSnapshot?.().byId?.[id]?.title?.trim() || undefined,
       // The object face is part of the workbench, not an occasional inspector,
       // so the column opens with the workbench. Called from the column's own
       // mount rather than at plugin apply: the panel actions are not wired

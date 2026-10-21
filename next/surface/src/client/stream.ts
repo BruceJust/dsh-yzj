@@ -281,17 +281,6 @@ function stepOf(node: TrajectoryNode): WorkStep | undefined {
   if (node.kind === 'compaction') {
     return { tool: 'compaction', detail: '上下文已压缩', state: 'done', memory: true }
   }
-  // A context injection that is not our own turn preamble is machinery too.
-  // Its BODY is a system reminder written for the model — pages of it — so the
-  // block names the producer and stops there; the text is in 完整轨迹.
-  if (node.kind === 'context') {
-    return {
-      tool: asText(asRecord(node.provenance)?.name) || 'context',
-      detail: '上下文注入',
-      state: 'done',
-      memory: true,
-    }
-  }
   return undefined
 }
 
@@ -439,6 +428,13 @@ export function buildStream(
     // only for OUR turns; anything else claiming to be context is machinery.
     const spoken = kind === 'user' || kind === 'steering'
       || (kind === 'context' && fromYunzhijia)
+
+    /*
+      不是我们这一轮开场白的上下文注入，是宿主替模型备的料（系统提醒、运行时快照）——
+      不是云小助**做**的事。此前它记成一步「上下文注入 · context」：一句不用任何工具的
+      问答，工作块上写着「做了 2 步」，展开是两行人看不懂的机器话。原文在「完整过程」里。
+    */
+    if (!spoken && kind === 'context') continue
 
     if (!spoken) {
       const step = stepOf(node)

@@ -68,6 +68,8 @@ export interface ConversationColumnProps {
   cancel?(sessionId: string): Promise<string | undefined>
   openSession(sessionId: string): void
   openDetails(): void
+  /** 本地会话叫什么（宿主起的名）。没起名之前没有。 */
+  titleOf?(sessionId: string): string | undefined
 }
 
 const EMPTY: FusedWindowWire = { messages: [], chips: [], cards: [], artifacts: [] }
@@ -123,7 +125,7 @@ function clip(text: string): string {
 const RETRY_STEP = '上一步好像卡住了，一直没有进展。请重试这一步；如果还是不行，停下来告诉我卡在哪。'
 
 export function YzjConversationColumn(props: ConversationColumnProps): ReactNode {
-  const { sessionId, useSession, inject, prompt, cancel, openSession, openDetails } = props
+  const { sessionId, useSession, inject, prompt, cancel, openSession, openDetails, titleOf } = props
   const frame = useSyncExternalStore(subscribeFrame, currentFrame)
   const landing = useSyncExternalStore(subscribeLanding, currentLanding)
   const needs = useSyncExternalStore(subscribeNeeds, needsNow)
@@ -810,7 +812,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
               </button>
             )}
           <span className={css.slash}>/</span>
-          <span className={css.title}>{topic?.label ?? '这个会话'}</span>
+          <span className={css.title}>{topic?.label ?? (sessionId === undefined ? undefined : titleOf?.(sessionId)) ?? '这个会话'}</span>
           {window_.goalContext !== undefined && (
             <span className={css.goal} title="在这里登记的承诺会挂在这个目标下">
               <Icon name="target" size={12} />{window_.goalContext.goalName ?? '一个目标'}

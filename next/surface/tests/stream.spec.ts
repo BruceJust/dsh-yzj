@@ -264,8 +264,8 @@ describe('a step says what the tool says it did', () => {
       }],
       [], [],
     )
-    expect(rows.find(row => row.kind === 'work')?.steps[0])
-      .toMatchObject({ tool: 'runtime-context', detail: '上下文注入' })
+    // 宿主替模型备的料不是云小助做的一步：不进工作块，也不上屏（原文在「完整过程」里）。
+    expect(rows.filter(row => row.kind !== 'divider')).toEqual([])
   })
 
   it('labels a call still in flight the same way', () => {
