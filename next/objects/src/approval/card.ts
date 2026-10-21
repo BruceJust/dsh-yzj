@@ -47,6 +47,14 @@ function statusLabel(status: ApprovalState['status']): string {
   }
 }
 
+/**
+ * 横条上的字面只说是哪一件：「云之家操作确认：」是守门那一层给云之家文本加的抬头，
+ * 徽标已经说了「确认」，横条上再说一遍就把一行十来个字吃掉三分之一。
+ */
+function chipLabel(reason: string): string {
+  return reason.replace(/^云之家操作确认[：:]\s*/u, '') || reason
+}
+
 const isDecider = (openId: string | undefined, state: ApprovalState): boolean => (
   openId !== undefined && openId === state.decider
 )
@@ -110,9 +118,9 @@ export const approvalCard: CardDefinition<ApprovalState> = {
    */
   demand: state => (
     state.status === 'pending'
-      ? { layer: 'blocking', mode: 'single-confirm', label: state.reason }
+      ? { layer: 'blocking', mode: 'single-confirm', label: chipLabel(state.reason) }
       : state.status === 'interrupted'
-        ? { layer: 'blocking', mode: 'single-confirm', label: state.reason, badge: '待重试', verb: '重试' }
+        ? { layer: 'blocking', mode: 'single-confirm', label: chipLabel(state.reason), badge: '待重试', verb: '重试' }
         : undefined
   ),
 

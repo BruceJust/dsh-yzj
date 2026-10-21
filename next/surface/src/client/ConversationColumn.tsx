@@ -936,7 +936,12 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       >
         {/* 决断指针 (律二)：等你的卡滚出视野时才浮出来指路。 */}
         <YzjDecisionPointer cards={window_.cards} stream={streamRef} jumpTo={jumpToCard} />
-        {rows.length === 0 && <div className={css.calm}>这个话题还没有内容。</div>}
+        {/* 空态给样本（§5.8）：本地会话不是「话题」，空着的时候说一句可以怎么开口。 */}
+        {rows.length === 0 && (
+          <div className={css.calm}>
+            {topic === undefined ? '说一件要办的事，比如「把这周的周报汇总成一页」。' : '这个话题还没有内容。'}
+          </div>
+        )}
         <StreamRows
           rows={rows}
           context={{

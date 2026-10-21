@@ -579,10 +579,11 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
   const unservedShown = match === '' ? unserved : unserved.filter(row => row.name.toLowerCase().includes(match))
   const unservedGroups = unserved.filter(row => row.kind === 'group').length
   const unservedOthers = unserved.length - unservedGroups
+  // 「55 个群和 80 个会话」：数字两边留空，「和」贴着前面的字。
   const unservedLabel = [
     unservedGroups > 0 ? `${String(unservedGroups)} 个群` : '',
     unservedOthers > 0 ? `${String(unservedOthers)} 个会话` : '',
-  ].filter(part => part !== '').join('和')
+  ].filter(part => part !== '').join('和 ')
 
   const yzjSection = (
     <section className={css.section} aria-label="云之家">
