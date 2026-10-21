@@ -1535,6 +1535,24 @@ export interface ArtifactOrigin {
   readonly at: number
 }
 
+/**
+ * 自聊（和自己的私聊）在屏上叫什么。左栏、⌘K 早就叫它「我 · 审批通道」；会话头、出处、
+ * 要你的第二行此前读的是通道给的「群名」——私聊的群名是对方的名字，自聊的对方是自己，
+ * 于是同一间屋子在屏上一处叫「我 · 审批通道」，一处叫「代少兵」，一处叫「和代少兵的私聊」。
+ */
+export const SELF_CHAT_NAME = '我 · 审批通道'
+
+/** 私聊 id 两半是同一个人 = 自聊（通道那一侧同一个判断：平台不在私聊 id 里放 openId）。 */
+function isSelfChat(groupId: string | undefined, kind: string | undefined): boolean {
+  const parts = (groupId ?? '').split('-')
+  return kind === 'direct' && parts.length === 2 && parts[0] !== '' && parts[0] === parts[1]
+}
+
+/** 一个话题所在的那间屋子在屏上叫什么。 */
+export function placeNameOfTopic(topic: { readonly groupId: string; readonly groupName: string; readonly conversationKind?: string }): string {
+  return isSelfChat(topic.groupId, topic.conversationKind) ? SELF_CHAT_NAME : topic.groupName
+}
+
 /** 话题 → 它叫什么、在哪个会话里。产出的出处从这里读。 */
 export function originsOf(ctx: Context): (topicKey: string, at: number, messageId?: string) => ArtifactOrigin | undefined {
   const topics = new Map<string, { label: string; sessionId: string }>()
@@ -1542,7 +1560,9 @@ export function originsOf(ctx: Context): (topicKey: string, at: number, messageI
     for (const entry of branch.topics) {
       const direct = entry.conversationKind === 'direct'
       topics.set(entry.topicKey, {
-        label: direct ? `和${branch.place.groupName}的私聊` : entry.label === '' ? branch.place.groupName : entry.label,
+        label: isSelfChat(entry.groupId, entry.conversationKind)
+          ? SELF_CHAT_NAME
+          : direct ? `和${branch.place.groupName}的私聊` : entry.label === '' ? branch.place.groupName : entry.label,
         sessionId: entry.sessionId,
       })
     }
@@ -2044,7 +2064,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
       ...(asString(state?.goalRef) === undefined
         ? {}
         : { isGoal: asString(state?.goalRef) as string }),
-      ...(topic === undefined ? {} : { sessionId: topic.sessionId, placeName: topic.groupName }),
+      ...(topic === undefined ? {} : { sessionId: topic.sessionId, placeName: placeNameOfTopic(topic) }),
     })
   }
   const sorted = [...rows].sort(bySignal(now))
@@ -2765,7 +2785,7 @@ export function objectFace(
   const ownKey = topic?.topicKey
     ?? (sessionId === undefined ? undefined : `session:${sessionId}`)
   const here = topic?.placeKey ?? place?.placeKey
-  const placeName = topic?.groupName ?? place?.placeName
+  const placeName = (topic === undefined ? undefined : placeNameOfTopic(topic)) ?? place?.placeName
 
   // topicKey → placeKey, so 资源 can be this place's pool rather than a dump of
   // everything the account ever made.
@@ -2993,8 +3013,8 @@ export function inboxView(ctx: Context): InboxView {
       sessionId,
       verb: pending.demand.verb ?? '答',
       label: pending.demand.label,
-      where: topic === undefined ? '本地会话' : (topic.label || topic.groupName),
-      ...(topic === undefined ? {} : { placeName: topic.groupName }),
+      where: topic === undefined ? '本地会话' : (topic.label || placeNameOfTopic(topic)),
+      ...(topic === undefined ? {} : { placeName: placeNameOfTopic(topic) }),
       since: pending.at,
       waiting: human ? (asString(executor?.name) ?? '对方') : SIGNATURE_AGENT,
       ...(due === undefined || due === '' ? {} : { due: dueOf(due, object?.createdAt ?? pending.at) }),
@@ -3026,7 +3046,7 @@ export function inboxView(ctx: Context): InboxView {
     running.push({
       sessionId: topic.sessionId,
       title: topic.label || asString(data?.what) || '（无标题）',
-      placeName: topic.groupName,
+      placeName: placeNameOfTopic(topic),
       since: object.createdAt,
     })
   }
@@ -3068,7 +3088,7 @@ export function inboxView(ctx: Context): InboxView {
         sessionId: topic.sessionId,
         placeKey: topic.placeKey,
         title: topic.label || '（无标题）',
-        placeName: topic.groupName,
+        placeName: placeNameOfTopic(topic),
         preview: clip(current?.preview ?? '已归档 · 在群视图里还找得到'),
         tone,
         // Two truths, not one: a topic can owe you an answer AND be working.
@@ -3335,7 +3355,7 @@ function ruleHintOf(
   if (streak < RULE_STREAK) return undefined
   return {
     toolClass, placeKey, streak,
-    ...(topic !== undefined && topic.placeKey === placeKey ? { placeName: topic.groupName } : {}),
+    ...(topic !== undefined && topic.placeKey === placeKey ? { placeName: placeNameOfTopic(topic) } : {}),
   }
 }
 
@@ -3372,12 +3392,14 @@ export function cardsFor(
   const placeNameOf = (placeKey: string | undefined): string | undefined => {
     if (placeKey === undefined) return undefined
     const entry = placeKey === topic?.placeKey
-      ? { name: topic.groupName, kind: topic.conversationKind }
+      ? { name: topic.groupName, kind: topic.conversationKind, self: isSelfChat(topic.groupId, topic.conversationKind) }
       : (() => {
         const found = ctx.get('yzjTopics')?.tree().find(candidate => candidate.place.placeKey === placeKey)
-        return found === undefined ? undefined : { name: found.place.groupName, kind: found.topics[0]?.conversationKind }
+        const first = found?.topics[0]
+        return found === undefined ? undefined : { name: found.place.groupName, kind: first?.conversationKind, self: isSelfChat(first?.groupId, first?.conversationKind) }
       })()
     if (entry === undefined) return undefined
+    if (entry.self) return SELF_CHAT_NAME
     return entry.kind === 'direct' ? `和${entry.name}的私聊` : entry.name
   }
   /*
@@ -3502,16 +3524,18 @@ export async function fusedWindow(
     return { messages: [], chips, cards, artifacts, aliases, ...(privateHint === undefined ? {} : { privateHint }) }
   }
   const context = goalContextOf(ctx, topic.topicKey)
+  // 会话头上那间屋子的名字和左栏同一个（自聊叫「我 · 审批通道」）。
+  const shown = { ...topic, groupName: placeNameOfTopic(topic) }
   try {
     return {
-      topic, chips, cards, artifacts, aliases,
+      topic: shown, chips, cards, artifacts, aliases,
       ...(context === undefined ? {} : { goalContext: context }),
       ...(privateHint === undefined ? {} : { privateHint }),
       messages: await topics.messagesFor(sessionId, windowSize),
     }
   } catch (error) {
     return {
-      topic,
+      topic: shown,
       chips,
       cards,
       aliases,

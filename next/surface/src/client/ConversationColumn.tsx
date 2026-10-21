@@ -808,7 +808,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
             ? <span className={css.crumbLocal}><Icon name="local" size={14} />本地</span>
             : (
               <button type="button" className={css.crumb} title="到群里看全部" onClick={openPlace}>
-                <Icon name={topic.conversationKind === 'direct' ? 'users' : 'hash'} size={14} />{topic.groupName}
+                <Icon name={topic.conversationKind === 'direct' ? 'user' : 'hash'} size={14} />{topic.groupName}
               </button>
             )}
           <span className={css.slash}>/</span>

@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { approvalVerbs, dueDayText, receiptLine } from '../src/client/words.ts'
+import { SELF_CHAT_NAME, placeNameOfTopic } from '../src/rpc.ts'
 
 describe('receiptLine', () => {
   it('别处先答了：说别处先答了，不贴账号 id 和动作 id', () => {
@@ -47,5 +48,13 @@ describe('approvalVerbs', () => {
     expect(approvalVerbs('yzj_im_message_send')).toMatchObject({ yes: '确认发出', no: '先不发' })
     expect(approvalVerbs('yzj_doc_delete')).toMatchObject({ yes: '确认删除', no: '先不删' })
     expect(approvalVerbs('/handoff')).toMatchObject({ yes: '确认移交', no: '先不移交' })
+  })
+})
+
+describe('自聊在屏上处处同名', () => {
+  it('和自己的私聊叫「我 · 审批通道」；别人的私聊、群照原名', () => {
+    expect(placeNameOfTopic({ groupId: 'u1-u1', groupName: '代少兵', conversationKind: 'direct' })).toBe(SELF_CHAT_NAME)
+    expect(placeNameOfTopic({ groupId: 'u1-u2', groupName: '李婷', conversationKind: 'direct' })).toBe('李婷')
+    expect(placeNameOfTopic({ groupId: 'g-1', groupName: '产品讨论群', conversationKind: 'group' })).toBe('产品讨论群')
   })
 })
