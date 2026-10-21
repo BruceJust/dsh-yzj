@@ -16,7 +16,7 @@ export const KEYMAP: readonly { readonly keys: string; readonly does: string }[]
   { keys: '1  2  3', does: '回答当前这张卡——和在云之家里回 1 / 2 一样' },
   { keys: 'Z', does: '撤回刚才的回答（5 秒内）' },
   { keys: 'V', does: '并排看当前这张卡交的东西' },
-  { keys: 'J  K', does: '下一个 / 上一个：卡、承诺行' },
+  { keys: 'J  K', does: '下一个 / 上一个：卡、卡里的一条、承诺行' },
   { keys: '⏎', does: '打开选中的那一行；逐条定的卡选满后一次定下' },
   { keys: '/', does: '到输入框' },
   { keys: '⌘.', does: '在输入框里换听众' },

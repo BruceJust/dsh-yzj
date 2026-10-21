@@ -727,7 +727,12 @@ function Verdicts(props: CardRowProps): ReactNode {
   })
   const [picks, setPicks] = useState<Record<number, string>>({})
   const [extra, setExtra] = useState('')
-  const cursor = open.find(index => picks[index] === undefined)
+  /**
+   * 光标在哪一条：J/K 挪过去的那一条，否则第一条还没选的。数字选完自动跳到下一条没选的；
+   * 选满了再按 J/K 能回去改。
+   */
+  const [at, setAt] = useState<number | undefined>(undefined)
+  const cursor = at !== undefined && open.includes(at) ? at : open.find(index => picks[index] === undefined)
   const typed = extra.trim()
   const looksLikeLink = /^(https?:\/\/)?[^\s/]+\.[^\s/]+/u.test(typed)
   const canSign = !isGoal || (typed === '' ? text(state.goalRef) !== '' : looksLikeLink)
@@ -756,14 +761,32 @@ function Verdicts(props: CardRowProps): ReactNode {
   }
   const pick = (index: number, id: string): void => {
     focus?.()
-    setPicks(value => ({ ...value, [index]: id }))
+    const next = { ...picks, [index]: id }
+    setPicks(next)
+    // 跳到它后面第一条没选的；后面没有了就回到前面没选的；都选了，光标收起，⏎ 定下。
+    setAt(open.find(one => one > index && next[one] === undefined) ?? open.find(one => next[one] === undefined))
+  }
+  /** J/K：在条之间走。走到头不吃这一下——交还给流，去下一张卡。 */
+  const step = (down: boolean): boolean => {
+    if (open.length === 0) return false
+    if (cursor === undefined) {
+      if (!full) return false
+      setAt(down ? open[0] : open.at(-1))
+      return true
+    }
+    const index = open.indexOf(cursor) + (down ? 1 : -1)
+    if (index < 0 || index >= open.length) return false
+    setAt(open[index])
+    return true
   }
 
-  const pickRef = useRef({ cursor, options, submit, pick })
-  pickRef.current = { cursor, options, submit, pick }
+  const pickRef = useRef({ cursor, options, submit, pick, step })
+  pickRef.current = { cursor, options, submit, pick, step }
   useEffect(() => registerCardKeys(`${card.kind}:${card.id}`, (key) => {
     const live = pickRef.current
     if (key === 'Enter') return live.submit()
+    if (key === 'j' || key === 'J') return live.step(true)
+    if (key === 'k' || key === 'K') return live.step(false)
     if (!/^[1-9]$/u.test(key) || live.cursor === undefined) return false
     const option = live.options[Number(key) - 1]
     if (option === undefined) return false
@@ -801,7 +824,12 @@ function Verdicts(props: CardRowProps): ReactNode {
             ? text(item.placeName) || card.placeNames?.[destination] || (destination === '' ? '' : '它记下的那个群')
             : ''
           return (
-            <div className={`${css.item} ${live && cursor === index ? css.itemCursor : ''}`} key={`${card.id}:${String(index)}`}>
+            <div
+              className={`${css.item} ${live && cursor === index ? css.itemCursor : ''}`}
+              key={`${card.id}:${String(index)}`}
+              // 点到哪一条，光标就在哪一条：数字键接着答它。
+              onPointerDown={() => { if (live) setAt(index) }}
+            >
               <span className={css.itemNo}>{index + 1}</span>
               <span className={css.itemText}>
                 <span className={css.itemWhat}>{text(item.what)}</span>

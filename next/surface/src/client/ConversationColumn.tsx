@@ -594,6 +594,11 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         return
       }
       if (key === 'j' || key === 'J' || key === 'k' || key === 'K') {
+        // 当前那张卡里有好几条（逐条定）：先在条之间走，走到头再去下一张卡。
+        if (currentCard !== undefined && pressOnCard(currentCard, key)) {
+          event.preventDefault()
+          return
+        }
         if (open.length === 0) return
         const down = key === 'j' || key === 'J'
         const at = open.findIndex(node => node.getAttribute('data-card') === currentCard)

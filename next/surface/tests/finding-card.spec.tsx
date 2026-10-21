@@ -9,7 +9,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it } from 'vitest'
 import { CardRow } from '../src/client/CardRow.tsx'
-import { resetAnswers, type Answer } from '../src/client/answers.ts'
+import { pressOnCard, resetAnswers, type Answer } from '../src/client/answers.ts'
 import type { StreamCard } from '../src/client/rpc.ts'
 
 async function rendered(node: React.ReactNode): Promise<{ text: () => string; host: HTMLElement }> {
@@ -80,5 +80,33 @@ describe('交付推断提议卡', () => {
     await act(async () => { pill(host, '不是交付')?.click() })
     await act(async () => { buttons(host).find(button => (button.textContent ?? '').startsWith('定下这 1 处'))?.click() })
     expect(answers[0]?.steps).toEqual([{ actionId: 'rejected', input: '1' }])
+  })
+})
+
+describe('逐条定的卡 · 键盘', () => {
+  it('数字答当前这一条并跳到下一条没答的；J/K 在条之间走，选过的能回去改；到头交还给中栏', async () => {
+    const answers: Answer[] = []
+    await rendered(
+      <CardRow card={card('finding', [{ what: 'A' }, { what: 'B' }, { what: 'C' }])} now={10} answer={(one) => { answers.push(one) }} />,
+    )
+    const press = async (key: string): Promise<boolean> => {
+      let taken = false
+      await act(async () => { taken = pressOnCard('proposal:prp-1', key) })
+      return taken
+    }
+    expect(await press('k')).toBe(false) // 光标在第一条：往上走交还给中栏，去上一张卡
+    expect(await press('1')).toBe(true) // A ← 1，光标跳到 B
+    expect(await press('j')).toBe(true) // 跳过 B，到 C
+    expect(await press('2')).toBe(true) // C ← 2，光标回到唯一没答的 B
+    expect(await press('k')).toBe(true) // 回到 A
+    expect(await press('2')).toBe(true) // A 改成 2，光标跳到 B
+    expect(await press('1')).toBe(true) // B ← 1
+    expect(await press('Enter')).toBe(true)
+    // 第 N 条记作 input N：A 改过一次落在 2（驳回），B 是 1（确认），C 是 2。
+    expect(answers[0]?.steps).toEqual([
+      { actionId: 'rejected', input: '1' },
+      { actionId: 'confirmed', input: '2' },
+      { actionId: 'rejected', input: '3' },
+    ])
   })
 })
