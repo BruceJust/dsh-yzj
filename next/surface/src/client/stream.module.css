@@ -113,7 +113,6 @@
 .stepFail .stepMark { color: var(--yzj-late-ink); }
 .stepRun { color: var(--yzj-ink); }
 .stepText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stepTool { font: var(--yzj-fs-xs)/1 var(--yzj-mono); color: var(--yzj-ink-4); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stepTime { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
 .trace {
   align-self: flex-start; margin-top: 4px;

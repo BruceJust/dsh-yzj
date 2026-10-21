@@ -20,7 +20,7 @@ import {
   conflictCard, memoriesFor, taskCard, taskFamily, waitingCard,
 } from '@yzj-next/objects'
 import type { TopicDescriptor, TopicMessage, YzjTopics } from '@yzj-next/channel'
-import { buildStream, clockOf, type TrajectoryNode, isPlaceholderOnly, withoutImageMarks } from '../src/client/stream.ts'
+import { buildStream, clockOf, stepDetail, type TrajectoryNode, isPlaceholderOnly, withoutImageMarks } from '../src/client/stream.ts'
 import { backLabel, backTarget, currentFrame, popFrame, pushFrame, restoreOf, setFrame } from '../src/client/store.ts'
 import { safeHref } from '../src/client/Board.tsx'
 import {
@@ -251,7 +251,14 @@ describe('a step says what the tool says it did', () => {
     )
     const step = rows.find(row => row.kind === 'work')?.steps[0]
     expect(step?.tool).toBe('mystery_tool')
-    expect(step?.detail).toBe('')
+    // 不猜参数，也不把工具名摆上行（律一）：说一句人话，名字在悬停和完整过程里。
+    expect(step?.detail).toBe('用了一个工具')
+  })
+
+  it('宿主的「Load skill yzj-cli」说成人话', () => {
+    expect(stepDetail('skill', 'Load skill yzj-cli')).toBe('看了一下怎么用云之家')
+    expect(stepDetail('skill', 'Load skill pdf')).toBe('看了一下怎么用「pdf」')
+    expect(stepDetail('yzj_doc_workspace_list', '知识库列表')).toBe('知识库列表')
   })
 
   it('does not paste a system reminder into the conversation', () => {

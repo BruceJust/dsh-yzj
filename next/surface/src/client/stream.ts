@@ -252,6 +252,21 @@ function labelOf(callView: unknown, resultView: unknown): string {
   return asText(call?.title).trim()
 }
 
+/** 技能叫什么，按人说。认不出的照原名加引号。 */
+const SKILL_NAMES: Readonly<Record<string, string>> = { 'yzj-cli': '云之家' }
+
+/**
+ * 一步在屏上叫什么（律一）：工具自己写的标题优先；宿主那几句英文标题和光秃秃的工具名
+ * 换成人话。工具名不上行——收进悬停和「看完整过程」(§5.7)。
+ */
+export function stepDetail(tool: string, label: string): string {
+  if (tool === 'skill') {
+    const name = /^load skill\s+(.+)$/iu.exec(label)?.[1]?.trim() ?? label.trim()
+    return name === '' ? '看了一下操作说明' : `看了一下怎么用${SKILL_NAMES[name] ?? `「${name}」`}`
+  }
+  return label === '' ? '用了一个工具' : label
+}
+
 /** One folded step, read off whichever node kind produced it. */
 function stepOf(node: TrajectoryNode): WorkStep | undefined {
   if (node.kind === 'tool-result') {
@@ -261,7 +276,7 @@ function stepOf(node: TrajectoryNode): WorkStep | undefined {
     const done = typeof node.time === 'number' ? node.time : undefined
     return {
       tool,
-      detail: labelOf(node.callView, node.resultView),
+      detail: stepDetail(tool, labelOf(node.callView, node.resultView)),
       // A tool that came back an error is not a finished step, and drawing it
       // with the same green ✓ as a successful one is how a failed run reads
       // as a successful one.

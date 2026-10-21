@@ -334,8 +334,7 @@ function Work(props: { row: Extract<StreamRow, { kind: 'work' }>; context: Strea
                   ? <span className={css.spinSmall} />
                   : step.state === 'failed' ? <Icon name="x" size={12} /> : <Icon name="check" size={12} />}
               </span>
-              <span className={css.stepText} title={step.detail}>{step.detail === '' ? step.tool : step.detail}</span>
-              <span className={css.stepTool}>{step.tool}</span>
+              <span className={css.stepText} title={`${step.detail}\n${step.tool}`}>{step.detail}</span>
               <span className={css.stepTime}>
                 {step.state === 'running'
                   ? took(step.since === undefined ? 0 : context.now - step.since)
