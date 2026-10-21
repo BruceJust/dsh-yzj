@@ -1247,7 +1247,9 @@ const LINK = /https?:\/\/\S+/u
  * 证据分哪一档 —— 平台记了 › 有东西 › 只有话。
  *
  * - **平台记了**：这条承诺上有平台自己观测到的一笔（`seen`）。
- * - **有东西**：它的话题在它登记之后有了产出，或者交付/回执里带着一个链接。
+ * - **有东西**：交付/回执里带着一个链接；或者它的话题在它登记之后有了产出——后一条
+ *   只在**云小助就是交的那双手**时算：活归云小助，或者归你自己（云小助替你写）。
+ *   别人欠你的活，云小助在同一个话题里写了一份东西，不等于他交了。
  * - **只有话**：有人说了进展或说交了，但没有任何可看的东西跟着。
  *
  * 一条登记完就没被碰过的，不分档：它的信号是「没动静」，不是「只有话」。
@@ -2007,7 +2009,8 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
           touched: touched !== undefined,
           platform: platformSeen.has(object.id),
           claim: [asString(asRecord(state?.delivery)?.claim), progress].filter((one): one is string => one !== undefined).join(' '),
-          artifactAfter: (artifactsByTopic.get(topicKey ?? '') ?? []).some(artifact => artifact.time >= object.createdAt),
+          artifactAfter: (kind === 'agent' || (me !== undefined && asString(executor?.openId) === me))
+            && (artifactsByTopic.get(topicKey ?? '') ?? []).some(artifact => artifact.time >= object.createdAt),
         })
         return evidence === undefined ? {} : { evidence }
       })(),

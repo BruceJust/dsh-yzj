@@ -68,7 +68,7 @@ export function signalOf(row: BoardRowWire, now: number = Date.now()): RowSignal
   if (row.awaitingAcceptance === true && onMe(row)) {
     return row.evidence === 'said'
       ? { key: 'said', text: '说交了 · 没见到东西', tone: 'need' }
-      : { key: 'wait', text: row.evidence === 'platform' ? '交了 · 平台记了' : '交了 · 等你验收', tone: 'need' }
+      : { key: 'wait', text: row.evidence === 'platform' ? '交了 · 平台记了' : row.evidence === 'artifact' ? '交了 · 有东西' : '交了 · 等你验收', tone: 'need' }
   }
   if (row.overdue) {
     const days = row.due?.ts === undefined ? 0 : Math.floor((now - row.due.ts) / DAY_MS)

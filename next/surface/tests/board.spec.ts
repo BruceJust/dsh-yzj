@@ -1199,6 +1199,12 @@ describe('一行一个信号；今天条的数字是门', () => {
     expect(signalOf(row({ signal: 'evidence', evidence: 'artifact' }), NOW).text).toBe('在做 · 有东西')
   })
 
+  it('等你验收的那一行说清证据在哪一档', () => {
+    expect(signalOf(row({ awaitingAcceptance: true, evidence: 'artifact' }), NOW).text).toBe('交了 · 有东西')
+    expect(signalOf(row({ awaitingAcceptance: true, evidence: 'platform' }), NOW).text).toBe('交了 · 平台记了')
+    expect(signalOf(row({ awaitingAcceptance: true, evidence: 'said' }), NOW).text).toBe('说交了 · 没见到东西')
+  })
+
   it('刚登记、还没人碰过的不算「没动静」——静够三天才算', () => {
     const fresh = row({ signal: 'silent', lastSignalAt: NOW - 3_600_000 })
     expect(signalOf(fresh, NOW).key).toBe('normal')

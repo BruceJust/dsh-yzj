@@ -47,12 +47,12 @@ beforeEach(async () => {
   } as never)
 })
 
-async function owed(id: string, anchor = `yzj:m-born`): Promise<void> {
+async function owed(id: string, anchor = `yzj:m-born`, executor: Record<string, string> = { kind: 'human', openId: 'u-zr', name: '张锐' }): Promise<void> {
   await graph.append({
     type: 'commitment/opened',
     data: {
       commitmentId: id, what: '竞品对比表', topicKey: TOPIC.topicKey,
-      executor: { kind: 'human', openId: 'u-zr', name: '张锐' },
+      executor,
       sourceAnchor: anchor, due: '明天', delegatedBy: 'op-1',
     },
     actor: OPERATOR,
@@ -87,15 +87,22 @@ describe('证据三档', () => {
     expect(rowOf('c-3')?.evidence).toBe('artifact')
   })
 
-  it('它的话题在登记之后有了产出：东西那一档', async () => {
-    await owed('c-4')
-    await delivered('c-4', '好了')
-    await graph.append({
+  it('它的话题在登记之后有了产出：只在云小助就是交的那双手时算东西', async () => {
+    const produced = (uri: string) => graph.append({
       type: 'lineage/produced',
-      data: { topicKey: TOPIC.topicKey, artifact: { uri: 'yzj://doc/1', title: '竞品对比表', kind: 'doc', placeKey: TOPIC.placeKey }, action: '新建' },
+      data: { topicKey: TOPIC.topicKey, artifact: { uri, title: '竞品对比表', kind: 'doc', placeKey: TOPIC.placeKey }, action: '新建' },
       actor: { kind: 'agent' },
     })
+    // 活归云小助：它在这个话题里写出来的，就是它交的。
+    await owed('c-4', 'yzj:m-born', { kind: 'agent', topicKey: TOPIC.topicKey })
+    await delivered('c-4', '好了')
+    await produced('yzj://doc/1')
     expect(rowOf('c-4')?.evidence).toBe('artifact')
+    // 张锐欠我的：云小助在同一个话题里写了一份，不等于张锐交了——他说的「好了」仍只是话。
+    await owed('c-4b')
+    await delivered('c-4b', '好了')
+    await produced('yzj://doc/1b')
+    expect(rowOf('c-4b')?.evidence).toBe('said')
   })
 
   it('平台自己记的压过一切；终态不分档', () => {
