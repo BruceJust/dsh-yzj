@@ -23,10 +23,6 @@
 }
 .pill:hover { border-color: var(--yzj-need); }
 
-.dot {
-  width: 8px; height: 8px; flex: none; border-radius: 50%;
-  background: var(--yzj-need); box-shadow: 0 0 0 3px var(--yzj-need-bg);
-}
 .verb { flex: none; font-weight: 600; color: var(--yzj-need-ink); }
 .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--yzj-ink-2); }
 .others { flex: none; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }

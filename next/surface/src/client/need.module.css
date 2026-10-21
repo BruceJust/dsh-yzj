@@ -1,0 +1,9 @@
+/*
+  「要你」的记号 —— 全站只有这一个长相（律二）。卡头、左栏、目标页指针、群里的话题卡、
+  决断指针、⌘K 里各画一个点，此前有 7px 不带晕的、8px 带晕的两种，人会以为是两件事。
+*/
+.mark {
+  display: inline-block;
+  width: 8px; height: 8px; flex: none; border-radius: 50%;
+  background: var(--yzj-need); box-shadow: 0 0 0 3px var(--yzj-need-bg);
+}

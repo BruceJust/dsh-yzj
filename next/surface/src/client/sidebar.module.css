@@ -52,7 +52,7 @@
   background: none; font: inherit; color: var(--yzj-ink); text-align: left; cursor: pointer;
 }
 .need:hover { background: var(--yzj-hover); }
-.need .needDot { margin-top: 6px; }
+.needAt { margin-top: 6px; }
 .needText { display: flex; flex-direction: column; min-width: 0; }
 .needLine {
   display: flex; gap: 6px; min-width: 0;
@@ -67,10 +67,6 @@
 }
 .past { color: var(--yzj-ink-2); font-weight: 500; }
 
-.needDot {
-  width: 8px; height: 8px; flex: none; border-radius: 50%;
-  background: var(--yzj-need); box-shadow: 0 0 0 3px var(--yzj-need-bg);
-}
 
 .clear {
   display: flex; align-items: center; gap: 8px;

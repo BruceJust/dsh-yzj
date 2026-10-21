@@ -19,6 +19,7 @@ import { AutoHandledSheet } from './AutoHandled.tsx'
 import { goalTitleOf } from './ledger.ts'
 import { AgentFace, Icon, type IconName } from './icons.tsx'
 import { AGENT } from './words.ts'
+import { NeedMark } from './NeedMark.tsx'
 import tokens from './tokens.module.css'
 import css from './palette.module.css'
 
@@ -194,7 +195,7 @@ function go(target: PaletteTarget, inject: SurfaceInject): void {
 
 function ItemIcon(props: { icon: PaletteItem['icon'] }): ReactNode {
   if (props.icon === 'agent') return <AgentFace size={18} />
-  if (props.icon === 'need') return <span className={css.needDot} />
+  if (props.icon === 'need') return <NeedMark />
   return <Icon name={props.icon} size={15} />
 }
 

@@ -117,7 +117,6 @@
   font: inherit; text-align: left; color: var(--yzj-ink); cursor: pointer;
 }
 .pointer:hover { background: var(--yzj-hover); }
-.needDot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--yzj-need); }
 .pointerText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .pointerLine {
   font-size: var(--yzj-fs-md);

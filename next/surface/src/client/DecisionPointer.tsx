@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode, typ
 import type { StreamCard } from './rpc.ts'
 import { answeringNow, subscribeAnswering } from './store.ts'
 import { Icon } from './icons.tsx'
+import { NeedMark } from './NeedMark.tsx'
 import css from './decision.module.css'
 
 /** 指针上的一件事需要知道的全部。 */
@@ -145,7 +146,7 @@ export function YzjDecisionPointer(props: DecisionPointerProps): ReactNode {
         title={`${shape.chip.label}——跳到它在这段对话里的位置`}
         onClick={() => { jumpTo(shape.chip.kind, shape.chip.id) }}
       >
-        <span className={css.dot} />
+        <NeedMark />
         <b className={css.verb}>要你{shape.chip.verb}</b>
         <span className={css.label}>{shape.chip.label}</span>
         {shape.others > 0 && <span className={css.others}>还有 {shape.others} 件</span>}

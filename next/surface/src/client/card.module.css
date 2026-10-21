@@ -28,10 +28,6 @@
   display: flex; align-items: center; gap: 8px; min-width: 0;
   font-size: var(--yzj-fs-xs); line-height: 1.55;
 }
-.dot {
-  width: 8px; height: 8px; flex: none; border-radius: 50%;
-  background: var(--yzj-need); box-shadow: 0 0 0 3px var(--yzj-need-bg);
-}
 .verb { flex: none; color: var(--yzj-need-ink); font-weight: 600; }
 .wait { color: var(--yzj-ink-3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .quiet { color: var(--yzj-ink-3); }

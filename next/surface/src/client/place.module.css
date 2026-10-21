@@ -123,7 +123,6 @@
 }
 .signalNeed b { flex: none; font-weight: 600; }
 .signalText { min-width: 0; color: var(--yzj-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.needDot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--yzj-need); box-shadow: 0 0 0 3px var(--yzj-need-bg); }
 .arrow { flex: none; color: var(--yzj-ink-4); }
 /* 「看最后几条」是第二眼的事：悬停到那张话题卡上才出现，不在每张卡下面各占一行。 */
 .peek {

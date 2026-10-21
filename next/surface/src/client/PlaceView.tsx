@@ -34,6 +34,7 @@ import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
 import { Composer, registrationLine, type Hint } from './Composer.tsx'
 import { Icon } from './icons.tsx'
 import { AGENT, plainError } from './words.ts'
+import { NeedMark } from './NeedMark.tsx'
 import composerCss from './composer.module.css'
 import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
 import type { PlaceViewWire, SurfaceInject, TopicMessageWire } from './rpc.ts'
@@ -969,7 +970,7 @@ function TopicSignal(props: { topic: PlaceViewWire['topics'][number] }): ReactNo
   if (topic.owes !== undefined) {
     return (
       <span className={css.signalNeed}>
-        <span className={css.needDot} />
+        <NeedMark />
         <b>要你{topic.verb ?? '答'}</b>
         <span className={css.signalText}>{topic.owes}</span>
       </span>

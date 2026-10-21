@@ -33,6 +33,7 @@ import { UNUSUAL, foldNormalText, goalTitleOf, rowSub, signalOf } from './ledger
 import { Icon } from './icons.tsx'
 import { AGENT, waitLine } from './words.ts'
 import { UnreadLine } from './Unread.tsx'
+import { NeedMark } from './NeedMark.tsx'
 import tokens from './tokens.module.css'
 import rows from './ledger.module.css'
 import css from './goal.module.css'
@@ -467,7 +468,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                       openSession(need.sessionId)
                     }}
                   >
-                    <span className={css.needDot} />
+                    <NeedMark />
                     <span className={css.pointerText}>
                       <span className={css.pointerLine}>
                         <b className={css.pointerVerb}>{need.verb}</b>
@@ -573,7 +574,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                       openSession(sessionId)
                     }}
                   >
-                    <span className={css.needDot} />
+                    <NeedMark />
                     <span className={css.pointerText}><span className={css.pointerLine}><b className={css.pointerVerb}>验收</b>这份评估</span></span>
                     <Icon name="chevR" size={14} className={css.pointerGo} />
                   </button>

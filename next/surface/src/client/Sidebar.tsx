@@ -42,6 +42,7 @@ import { Icon } from './icons.tsx'
 import { AGENT, plainError, span, waitLine } from './words.ts'
 import { Skeleton, UnreadLine } from './Unread.tsx'
 import { STALL_MS } from './StreamView.tsx'
+import { NeedMark } from './NeedMark.tsx'
 import tokens from './tokens.module.css'
 import css from './sidebar.module.css'
 
@@ -167,7 +168,7 @@ function Face(props: { name: string; photo?: string; hidePhoto?: boolean }): Rea
 /** 一行右侧的那一个信号。 */
 function Signal(props: { kind: 'need' | 'run' | 'stall' | undefined }): ReactNode {
   if (props.kind === undefined) return null
-  if (props.kind === 'need') return <span className={css.needDot} aria-label="要你" />
+  if (props.kind === 'need') return <NeedMark label="要你" />
   return (
     <span
       className={`${css.spin} ${props.kind === 'stall' ? css.spinStall : ''}`}
@@ -360,7 +361,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
         title={stealth ? undefined : `${need.label}\n${need.placeName === undefined ? need.where : `${need.placeName} · ${need.where}`}`}
         onClick={() => { jumpTo(need) }}
       >
-        <span className={css.needDot} />
+        <NeedMark className={css.needAt} />
         <span className={css.needText}>
           <span className={css.needLine}>
             <b className={css.needVerb}>{need.verb}</b>

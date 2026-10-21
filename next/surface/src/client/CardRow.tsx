@@ -31,6 +31,7 @@ import { registerCardKeys, stagedNow, subscribeStaged, undo, UNDO_MS, type Answe
 import { artifactRefOf } from './artifacts.ts'
 import { openPreview, revealAside, type PreviewTarget } from './preview.ts'
 import { jumpToNeed, setSpotlight } from './store.ts'
+import { NeedMark } from './NeedMark.tsx'
 import css from './card.module.css'
 
 type Action = StreamCard['actions'][number]
@@ -442,7 +443,7 @@ function OpenCard(props: CardRowProps): ReactNode {
         {blocking
           ? (
             <>
-              <span className={css.dot} />
+              <NeedMark />
               <b className={css.verb}>要你{demand?.verb ?? '答'}</b>
               {wait !== undefined && <span className={css.wait}>{wait}</span>}
             </>
@@ -814,7 +815,7 @@ function Verdicts(props: CardRowProps): ReactNode {
         {blocking
           ? (
             <>
-              <span className={css.dot} />
+              <NeedMark />
               <b className={css.verb}>要你{card.demand?.verb ?? '定'}</b>
               <span className={css.wait}>{waitLine(AGENT, card.at, now)}</span>
             </>
