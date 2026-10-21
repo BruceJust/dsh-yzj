@@ -20,7 +20,8 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { boardShape, jumpPlan, matchWorkspaces, nudgeDraft, sinceText } from '../src/client/Board.tsx'
+import { groupsOf, jumpTarget, matchWorkspaces, nudgeDraft, signalOf, sinceText, todayOf } from '../src/client/Board.tsx'
+import type { BoardRowWire, BoardViewWire } from '../src/client/rpc.ts'
 import { cascadeLine, voidGate } from '../src/client/RepairVerbs.tsx'
 import {
   assessmentCard, assessmentFamily, createCommitmentCard, commitmentFamily, eventFamily,
@@ -34,6 +35,15 @@ import {
 } from '../src/rpc.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
+
+/** 一行板，只写这条测试在乎的那几格。 */
+function row(input: Partial<BoardRowWire>): BoardRowWire {
+  return {
+    id: 'r', what: '一件事', executorKind: 'human', who: '张锐', overdue: false, status: 'open',
+    remindable: true, direction: 'owed-to-me', signal: 'evidence', lastSignalAt: 0, inferredGoal: false,
+    ...input,
+  } as BoardRowWire
+}
 const GOAL = 'https://yzj.example.com/doc/q3'
 const OTHER = 'https://yzj.example.com/doc/q4'
 
@@ -902,19 +912,27 @@ describe('会上要用的东西，按 URI 去重', () => {
  * 原生问题是债务人 × 账龄/信号，横切目标——催张锐的时候人想的是「张锐那边怎么样」，
  * 不是「目标第三条怎么样」。目标分组是「全部」视图的正确骨架，透镜一开它就成了噪音。
  */
-describe('方向透镜一开，目标分组退场', () => {
-  it('「全部」下档位说了算', () => {
-    expect(boardShape('all', 'goals')).toBe('grouped')
-    expect(boardShape('all', 'all')).toBe('flat')
+describe('四个透镜 = 四种组织轴', () => {
+  const view: BoardViewWire = {
+    rows: [],
+    goals: [{ goalRef: 'g1', row: undefined, children: [row({ id: 'a', goalRef: 'g1', direction: 'owed-to-me', who: '张锐' })], counts: { open: 1, overdue: 0, settled: 0 }, artifacts: [] } as never],
+    unattached: [
+      row({ id: 'b', direction: 'owed-to-me', who: '李婷' }),
+      row({ id: 'c', direction: 'mine', acceptor: '罗总' }),
+      row({ id: 'd', direction: 'mine' }),
+    ],
+  }
+  view.rows.push(...view.goals[0].children, ...view.unattached)
+
+  it('全部：按目标分组，后面是没挂目标和你答应别人的', () => {
+    expect(groupsOf(view, 'all').map(group => [group.title, group.rows.map(one => one.id)])).toEqual([
+      ['g1', ['a']], ['没挂目标', ['b']], ['你答应别人的', ['c', 'd']],
+    ])
   })
 
-  /*
-    **盖过档位**，不是忽略它：透镜此刻问的不是「这条服务于哪个目标」，所以那个骨架
-    回答的是一个没人在问的问题。两册同规则——「我欠的」是行动清单，同样不顶目标组头。
-  */
-  it.each(['owed-to-me', 'mine'] as const)('「%s」下即使档位是按目标，也平铺', (axis) => {
-    expect(boardShape(axis, 'goals')).toBe('flat')
-    expect(boardShape(axis, 'all')).toBe('flat')
+  it('欠我的按人；我欠的按对方，自己定的单独一组；目标组头整个退场', () => {
+    expect(groupsOf(view, 'owed-to-me').map(group => [group.title, group.rows.map(one => one.id)])).toEqual([['张锐', ['a']], ['李婷', ['b']]])
+    expect(groupsOf(view, 'mine').map(group => [group.title, group.rows.map(one => one.id)])).toEqual([['罗总', ['c']], ['自己定的', ['d']]])
   })
 })
 
@@ -1127,32 +1145,40 @@ describe('作废这道门', () => {
  * 另一条路是把计数改成跟着透镜变，但那样「逾期几条」就取决于我此刻从哪个角度看，而它
  * 明明是账本的事实。所以选的是：**让门真的开**，需要的话先把视野调回来。
  */
-describe('逾期计数这道门', () => {
-  const rows = [
-    { id: 'r1', overdue: false, direction: 'mine' },
-    { id: 'r2', overdue: true, direction: 'mine', goalRef: 'g1' },
-  ]
+describe('一行一个信号；今天条的数字是门', () => {
+  const NOW = Date.parse('2026-10-21T10:00:00Z')
 
-  it('那一行就在眼前时，什么都不用先做', () => {
-    expect(jumpPlan({ rows, axis: 'all', shut: [] })).toEqual({ rowId: 'r2', clearAxis: false })
+  it('顺序：等你验收 › 逾期 › 没接 › 没动静 › 快到期 › 在做 › 正常', () => {
+    expect(signalOf(row({ awaitingAcceptance: true, evidence: 'artifact', overdue: true }), NOW).key).toBe('wait')
+    expect(signalOf(row({ overdue: true, due: { text: '昨天', ts: NOW - 2 * 86_400_000 } }), NOW)).toMatchObject({ key: 'late', text: '逾期 2 天' })
+    expect(signalOf(row({ acceptance: { state: 'declined' } }), NOW).key).toBe('declined')
+    expect(signalOf(row({ signal: 'silent' }), NOW).text).toBe('登记后没动静')
+    expect(signalOf(row({ due: { text: '明天', ts: NOW + 3_600_000 } }), NOW).key).toBe('soon')
+    expect(signalOf(row({ signal: 'evidence', evidence: 'artifact' }), NOW).text).toBe('在做 · 有东西')
   })
 
-  it('透镜把它挡住了 —— 先摘透镜，行本来就在那儿', () => {
-    expect(jumpPlan({ rows, axis: 'owed-to-me', shut: [] }))
-      .toEqual({ rowId: 'r2', clearAxis: true })
+  it('只有一句话的「交了」单独亮出来', () => {
+    expect(signalOf(row({ awaitingAcceptance: true, evidence: 'said' }), NOW)).toMatchObject({ key: 'said', text: '说交了 · 没见到东西', tone: 'need' })
   })
 
-  it('它在一个折叠的组里 —— 先展开那个组', () => {
-    expect(jumpPlan({ rows, axis: 'all', shut: ['g1'] }))
-      .toEqual({ rowId: 'r2', clearAxis: false, expand: 'g1' })
+  it('等别人验收的不算等你', () => {
+    expect(signalOf(row({ awaitingAcceptance: true, evidence: 'artifact', acceptor: '罗总' }), NOW).key).toBe('doing')
   })
 
-  it('同一个透镜里的逾期行，不必摘透镜', () => {
-    expect(jumpPlan({ rows, axis: 'mine', shut: [] })).toEqual({ rowId: 'r2', clearAxis: false })
+  it('一行最多一个颜色：只有逾期和等你上色', () => {
+    const tones = [
+      row({ overdue: true }), row({ awaitingAcceptance: true }), row({ signal: 'stale' }), row({ signal: 'evidence' }),
+    ].map(one => signalOf(one, NOW).tone)
+    expect(tones).toEqual(['late', 'need', 'warn', 'quiet'])
   })
 
-  it('一条逾期都没有就没有门 —— 不给一个跳不到任何地方的动作', () => {
-    expect(jumpPlan({ rows: [rows[0]], axis: 'all', shut: [] })).toBeUndefined()
+  it('今天条按类计数；按下去落到那一行，透镜挡住就先回「全部」，组折着就先展开', () => {
+    const late = row({ id: 'late', overdue: true, direction: 'mine' })
+    const view: BoardViewWire = { rows: [row({ id: 'ok' }), late], goals: [], unattached: [row({ id: 'ok' }), late] }
+    expect(todayOf(view.rows, NOW)).toEqual({ late: 1, wait: 0, said: 0, quiet: 0 })
+    expect(jumpTarget(view, 'owed-to-me', 'late', NOW)).toEqual({ rowId: 'late', lens: 'all', groupKey: 'promised' })
+    expect(jumpTarget(view, 'mine', 'late', NOW)).toEqual({ rowId: 'late', lens: 'mine', groupKey: 'person:自己定的' })
+    expect(jumpTarget(view, 'all', 'said', NOW)).toBeUndefined()
   })
 })
 

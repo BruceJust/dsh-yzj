@@ -430,15 +430,17 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
    * 板与目标页上的「拆解」「评估」走这里，走的是和输入框**一模一样**的那条路（`prompt`）。
    * 这个缝不许抛：调用方拿返回值开关按钮，一次 reject 会让按钮永久灰着。
    */
-  const commission = useCallback(async (text: string): Promise<string | undefined> => {
-    if (sessionId === undefined) {
+  const commission = useCallback(async (text: string, into?: string): Promise<string | undefined> => {
+    // 给了会话就说在那里（那条承诺自己的话题）；否则说在当前会话。
+    const target = into ?? sessionId
+    if (target === undefined) {
       return '这里还没有会话可说话——从左边打开或新建一个，再回来按这颗按钮。'
     }
-    const error = await prompt(sessionId, text, running ? 'steer' : 'queue')
+    const error = await prompt(target, text, running && target === sessionId ? 'steer' : 'queue')
       .catch((cause: unknown) => (cause instanceof Error ? cause.message : '通道无响应'))
     if (error !== undefined) return plainError(error).text
     setFrame({ kind: 'session' })
-    openSession(sessionId)
+    openSession(target)
     return undefined
   }, [sessionId, prompt, running, openSession])
 

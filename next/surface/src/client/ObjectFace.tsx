@@ -24,6 +24,7 @@ import type { ObjectFaceWire, SurfaceInject } from './rpc.ts'
 import { ArtifactPreview } from './PreviewPanel.tsx'
 import { ResourceTab } from './ResourceTab.tsx'
 import { YzjEventHub } from './EventHub.tsx'
+import { CommitmentStoryPanel } from './Story.tsx'
 import { currentSpotlight, setSpotlight, subscribeSpotlight } from './store.ts'
 import { useAsidePreviewHost, usePreview } from './preview.ts'
 import tokens from './tokens.module.css'
@@ -94,7 +95,23 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
     两者都是「这一栏被一个物接管」，撞在一起时该赢的是更近的那次手势。工件预览
     自带 Esc 与关闭，收起来就露出下面的枢纽——不是二选一，是叠着。
   */
-  if (preview.target === undefined && spotlight !== undefined) {
+  if (preview.target === undefined && spotlight?.kind === 'commitment') {
+    return (
+      <div className={`${tokens.tokens} ${css.panel}`} ref={setHost}>
+        <CommitmentStoryPanel
+          key={spotlight.id}
+          id={spotlight.id}
+          title={spotlight.title}
+          {...(spotlight.intent === undefined ? {} : { intent: spotlight.intent })}
+          inject={inject}
+          {...(openSession === undefined ? {} : { openSession })}
+          close={() => { setSpotlight(undefined) }}
+        />
+      </div>
+    )
+  }
+
+  if (preview.target === undefined && spotlight?.kind === 'event') {
     return (
       <div className={`${tokens.tokens} ${css.panel}`} ref={setHost}>
         <YzjEventHub

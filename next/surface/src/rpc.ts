@@ -12,7 +12,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import {
-  asNumber, asRecord, asString,
+  asNumber, asRecord, asString, atomOf,
   type GraphObject, type GraphViewer, type JsonValue,
 } from '@yzj-next/graph'
 import { cardMoment, type AnswerableDemand, type AnswerableMode, type CardRef } from '@yzj-next/cards'
@@ -1048,6 +1048,30 @@ export function bySignal(now: number): (left: BoardRow, right: BoardRow) => numb
 
 const DAY_MS = 24 * 60 * 60_000
 
+const LINK = /https?:\/\/\S+/u
+
+/**
+ * 证据分哪一档 —— 平台记了 › 有东西 › 只有话。
+ *
+ * - **平台记了**：这条承诺上有平台自己观测到的一笔（`seen`）。
+ * - **有东西**：它的话题在它登记之后有了产出，或者交付/回执里带着一个链接。
+ * - **只有话**：有人说了进展或说交了，但没有任何可看的东西跟着。
+ *
+ * 一条登记完就没被碰过的，不分档：它的信号是「没动静」，不是「只有话」。
+ */
+export function evidenceOf(input: {
+  readonly open: boolean
+  readonly touched: boolean
+  readonly platform: boolean
+  readonly claim: string
+  readonly artifactAfter: boolean
+}): 'said' | 'artifact' | 'platform' | undefined {
+  if (!input.open || (!input.touched && input.claim === '')) return undefined
+  if (input.platform) return 'platform'
+  if (input.artifactAfter || LINK.test(input.claim)) return 'artifact'
+  return 'said'
+}
+
 function dueOf(due: string): { text: string; ts?: number } {
   const parsed = Date.parse(due)
   return Number.isFinite(parsed) ? { text: due, ts: parsed } : { text: due }
@@ -1140,6 +1164,13 @@ export interface BoardRow {
    * 每一次文本替换都要断言它真的换到了东西，一次静默的空替换比一次报错贵得多。）
    */
   readonly awaitingAcceptance?: boolean
+  /**
+   * 证据三档 (界面重设计 律五 · 回执面三门)：只有一句话 / 有东西 / 平台记了。
+   *
+   * 「说交了」和「交了」在板上必须长得不一样：前者是一句话，后者有东西可看。只在这条
+   * 有过动静时才有——一条登记完就没动过的，没有证据可分档，它的信号是「没动静」。
+   */
+  readonly evidence?: 'said' | 'artifact' | 'platform'
   readonly direction: 'mine' | 'owed-to-me' | 'observed'
   /**
    * 谁验收 —— **恒为人** (v4.21 责任锚两槽位)。
@@ -1560,6 +1591,8 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
   */
   const bookkeepingFields = new Set(['commitmentId', 'notified', 'audience', 'acceptance'])
   const substantiveAt = new Map<string, number>()
+  /** 平台自己记下的（`seen`）——证据三档的最高一档。 */
+  const platformSeen = new Set<string>()
   const AFTER_BIRTH = [
     'commitment/updated', 'commitment/delivered', 'commitment/rework',
     'commitment/closed', 'commitment/voided', 'commitment/merged', 'commitment/reopened',
@@ -1572,6 +1605,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     if (event.type === 'commitment/updated' && keys.every(key => bookkeepingFields.has(key))) continue
     const seen = substantiveAt.get(id)
     if (seen === undefined || event.time > seen) substantiveAt.set(id, event.time)
+    if (atomOf(event) === 'seen') platformSeen.add(id)
   }
   /*
     **老数据的委派者：从那一回合的活里认领** (v4.21 方向轴的补丁，只对旧行生效).
@@ -1601,6 +1635,39 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     身份未知时它是一个 fail-closed 的空壳）。
   */
   const me = asString((ctx.yzjCards.desktopActor() as { openId?: string }).openId)
+  /*
+    第二跳，一次扫完.
+
+    Every artifact-producing event is read ONCE and bucketed by the topic that
+    produced it; each goal then picks up the buckets its children sit in. Asking
+    per goal would re-scan the whole lineage log for every row on screen, on a
+    view that refreshes every six seconds.
+  */
+  const artifactsByTopic = new Map<string, GoalArtifactRow[]>()
+  for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
+    const data = asRecord(event.data)
+    const topicKey = asString(data?.topicKey)
+    const artifact = asRecord(data?.artifact)
+    const uri = asString(artifact?.uri)
+    if (topicKey === undefined || uri === undefined) continue
+    const bucket = artifactsByTopic.get(topicKey) ?? []
+    bucket.push({
+      uri,
+      title: asString(artifact?.title) ?? uri,
+      action: asString(data?.action) ?? '产出',
+      time: event.time,
+      /*
+        精确归属是常态，话题级是兜底 (v3.10 4h⑤)。
+
+        带着 `taskId` 的产出说得出自己是**哪一件活**留下的；不带的只能按话题归集,
+        而一个会话可以同时服务好几个目标——那时这条工件同时算进每一个，谁也说不清
+        哪一份是哪一份的。所以「共用」从此不再取决于「这个话题恰好挂了几个目标」
+        （那是一个碰巧为真的条件），而取决于**这条边自己有没有说清出处**。
+      */
+      ...(asString(data?.taskId) === undefined ? { shared: true } : {}),
+    })
+    artifactsByTopic.set(topicKey, bucket)
+  }
   /** commitment id → the topic it was registered in, for the artifact hop. */
   const topicOfRow = new Map<string, string>()
   for (const object of ctx.yzjGraph.query({ kind: 'operator', openId: '' }, { kind: 'commitment' })) {
@@ -1693,6 +1760,16 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
       ...(steward === undefined ? {} : { stewardedBy: steward }),
       ...(asRecord(state?.delivery) === undefined ? {} : { awaitingAcceptance: true }),
       ...(() => {
+        const evidence = evidenceOf({
+          open: status === 'open',
+          touched: touched !== undefined,
+          platform: platformSeen.has(object.id),
+          claim: [asString(asRecord(state?.delivery)?.claim), progress].filter((one): one is string => one !== undefined).join(' '),
+          artifactAfter: (artifactsByTopic.get(topicKey ?? '') ?? []).some(artifact => artifact.time >= object.createdAt),
+        })
+        return evidence === undefined ? {} : { evidence }
+      })(),
+      ...(() => {
         const acceptance = asRecord(state?.acceptance)
         const kind = asString(acceptance?.state)
         if (kind !== 'accepted' && kind !== 'declined') return {}
@@ -1771,39 +1848,6 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     if (!byGoal.has(goalRef) && row.status === 'open') byGoal.set(goalRef, [])
   }
 
-  /*
-    第二跳，一次扫完.
-
-    Every artifact-producing event is read ONCE and bucketed by the topic that
-    produced it; each goal then picks up the buckets its children sit in. Asking
-    per goal would re-scan the whole lineage log for every row on screen, on a
-    view that refreshes every six seconds.
-  */
-  const artifactsByTopic = new Map<string, GoalArtifactRow[]>()
-  for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
-    const data = asRecord(event.data)
-    const topicKey = asString(data?.topicKey)
-    const artifact = asRecord(data?.artifact)
-    const uri = asString(artifact?.uri)
-    if (topicKey === undefined || uri === undefined) continue
-    const bucket = artifactsByTopic.get(topicKey) ?? []
-    bucket.push({
-      uri,
-      title: asString(artifact?.title) ?? uri,
-      action: asString(data?.action) ?? '产出',
-      time: event.time,
-      /*
-        精确归属是常态，话题级是兜底 (v3.10 4h⑤)。
-
-        带着 `taskId` 的产出说得出自己是**哪一件活**留下的；不带的只能按话题归集,
-        而一个会话可以同时服务好几个目标——那时这条工件同时算进每一个，谁也说不清
-        哪一份是哪一份的。所以「共用」从此不再取决于「这个话题恰好挂了几个目标」
-        （那是一个碰巧为真的条件），而取决于**这条边自己有没有说清出处**。
-      */
-      ...(asString(data?.taskId) === undefined ? { shared: true } : {}),
-    })
-    artifactsByTopic.set(topicKey, bucket)
-  }
   const latestAssessments = assessmentsByGoal(ctx)
   /*
     真身之变,一次扫完。
@@ -2068,6 +2112,192 @@ function lastTruthWriteAt(ctx: Context, goalRef: string): number | undefined {
   return at
 }
 
+
+
+/** 来龙去脉里的一笔：什么时候、发生了什么、算哪一档证据。 */
+export interface StoryStep {
+  readonly at: number
+  readonly text: string
+  /** 话 = 只有一句话；东西 = 有文件或产出；平台 = 平台自己记的；记账 = 系统动作，不算证据。 */
+  readonly grade: 'said' | 'artifact' | 'platform' | 'note'
+  /** 产出的链接，点了能看。 */
+  readonly uri?: string
+}
+
+/**
+ * 一条承诺的来龙去脉 (界面重设计 §5.4 · 律六)——选中板上一行时右栏摆的东西。
+ *
+ * 出生故事（原话、谁说的、在哪说的）从行上降到这里：板上一行只亮一个信号，「这条是
+ * 怎么来的」是选中之后才需要回答的问题。
+ */
+export interface CommitmentStory {
+  readonly id: string
+  readonly what: string
+  readonly status: string
+  readonly who: string
+  readonly executorKind: 'agent' | 'human'
+  readonly direction: 'mine' | 'owed-to-me' | 'observed'
+  /** 欠谁的（登记它的人）；就是查看者本人时不发。 */
+  readonly acceptor?: string
+  readonly stewardedBy?: string
+  readonly due?: { readonly text: string; readonly ts?: number }
+  /** 过了期限几天；没过、或期限是含糊的原话时没有。 */
+  readonly overdueDays?: number
+  readonly birth: {
+    /** 原话。找不回来时没有——宁可说找不回来，也不拿 `what` 冒充原话。 */
+    readonly said?: string
+    readonly by?: string
+    readonly at: number
+    /** 在哪说的：群名、「和 X 的私聊」、「承诺板」、「和云小助的会话」。 */
+    readonly where?: string
+  }
+  readonly steps: readonly StoryStep[]
+  readonly goal?: { readonly ref: string; readonly name: string }
+  readonly sessionId?: string
+  readonly placeName?: string
+  readonly evidence?: 'said' | 'artifact' | 'platform'
+  readonly delivery?: { readonly claim: string; readonly at: number }
+  readonly remindable: boolean
+  readonly mirror?: { readonly operator: string }
+  readonly transferredTo?: string
+  /** 可以合并进去的：同一个目标下（或同为没挂目标）还在跟的。 */
+  readonly siblings: readonly { readonly id: string; readonly what: string; readonly status: string }[]
+  /** 可以挂进去的目标。 */
+  readonly goals: readonly { readonly ref: string; readonly label: string }[]
+}
+
+const STORY_EVENTS = [
+  'commitment/opened', 'commitment/updated', 'commitment/delivered', 'commitment/rework',
+  'commitment/closed', 'commitment/reopened', 'commitment/voided', 'commitment/merged', 'commitment/transferred',
+]
+
+/** 一笔事件说成一句人话；系统记账（通知没发出去之类）也说，但不算证据。 */
+function storyLine(type: string, data: Readonly<Record<string, JsonValue>> | undefined): { text: string; note?: boolean } | undefined {
+  switch (type) {
+    case 'commitment/updated': {
+      const acceptance = asRecord(data?.acceptance)
+      if (asString(acceptance?.state) === 'accepted') return { text: '对方接下了' }
+      if (asString(acceptance?.state) === 'declined') {
+        const note = asString(acceptance?.note)
+        return { text: note === undefined ? '对方没接' : `对方没接：「${note}」` }
+      }
+      const receipt = asString(data?.lastReceipt)
+      if (receipt !== undefined && receipt !== '') return { text: receipt }
+      const due = asString(data?.due)
+      if (due !== undefined) return { text: `期限改成「${due}」` }
+      if (asString(data?.notified) === 'failed') return { text: '登记的消息没发到对方那里——对方可能不知道', note: true }
+      if (asString(data?.parentGoalRef) !== undefined) return { text: '挂到了一个目标下', note: true }
+      return undefined
+    }
+    case 'commitment/delivered': return { text: `说交了：${asString(asRecord(data?.delivery)?.claim) ?? ''}` }
+    case 'commitment/rework': return { text: `打回：${asString(data?.reason) ?? ''}` }
+    case 'commitment/closed': {
+      const cause = asString(data?.cause)
+      return { text: cause === 'accepted' ? '验收了' : cause === 'receipt' ? '按回执结了' : '做完了' }
+    }
+    case 'commitment/reopened': return { text: '重新打开了', note: true }
+    case 'commitment/voided': return { text: `作废了${asString(data?.cause) === undefined ? '' : `：${asString(data?.cause) ?? ''}`}`, note: true }
+    case 'commitment/merged': return { text: '合并进了另一条', note: true }
+    case 'commitment/transferred': return { text: `转给了${executorName(asRecord(asRecord(data?.transferredTo)?.executor) as never) ?? '别人'}`, note: true }
+    default: return undefined
+  }
+}
+
+export async function commitmentStory(ctx: Context, id: string, now: number = Date.now()): Promise<CommitmentStory | undefined> {
+  const frame = boardFrame(ctx, now)
+  const row = frame.rows.find(one => one.id === id)
+  const object = ctx.yzjGraph.query({ kind: 'operator', openId: '' }, { kind: 'commitment' }).find(one => one.id === id)
+  if (row === undefined || object === undefined) return undefined
+  const state = asRecord(object.state)
+  const topics = ctx.get('yzjTopics')
+  const events = ctx.yzjGraph.rawEvents(STORY_EVENTS)
+    .filter(event => asString(asRecord(event.data)?.commitmentId) === id)
+  const opened = events.find(event => event.type === 'commitment/opened')
+
+  /*
+    原话：登记时记下的那条消息。只认 `yzj:` 锚——别的锚（桌面、私语会话）没有一条
+    群消息可找，那时说清「在哪登记的」就够了。
+  */
+  const anchor = asString(state?.sourceAnchor) ?? ''
+  let said: string | undefined
+  let by: string | undefined
+  let at = opened?.time ?? object.createdAt
+  if (anchor.startsWith('yzj:') && row.sessionId !== undefined) {
+    const msgId = anchor.slice(4)
+    const found = (await topics?.messagesFor(row.sessionId, 200).catch(() => []) ?? []).find(message => message.msgId === msgId)
+    if (found !== undefined) {
+      said = found.content
+      by = found.fromName
+      at = found.time
+    }
+  }
+  const where = anchor === 'desktop:board'
+    ? '承诺板'
+    : anchor.startsWith('session:') ? `和${SIGNATURE_AGENT}的会话` : row.placeName
+
+  const steps: StoryStep[] = []
+  for (const event of events) {
+    if (event.type === 'commitment/opened') continue
+    const line = storyLine(event.type, asRecord(event.data))
+    if (line === undefined) continue
+    steps.push({ at: event.time, text: line.text, grade: line.note === true ? 'note' : atomOf(event) === 'seen' ? 'platform' : 'said' })
+  }
+  // 话题在它登记之后的产出：东西那一档的证据。
+  const topicKey = asString(state?.topicKey) ?? asString(asRecord(state?.executor)?.topicKey)
+  if (topicKey !== undefined) {
+    for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
+      const data = asRecord(event.data)
+      if (asString(data?.topicKey) !== topicKey || event.time < object.createdAt) continue
+      const artifact = asRecord(data?.artifact)
+      const uri = asString(artifact?.uri)
+      if (uri === undefined) continue
+      steps.push({ at: event.time, text: `产出《${asString(artifact?.title) ?? uri}》`, grade: 'artifact', uri })
+    }
+  }
+  steps.sort((left, right) => left.at - right.at)
+
+  const goalRef = asString(state?.parentGoalRef)
+  const goalName = goalRef === undefined
+    ? undefined
+    : asString(asRecord(ctx.yzjGraph.rawObject('commitment', goalCommitmentIdFor(goalRef))?.state)?.what)
+  const delivery = asRecord(state?.delivery)
+  const claim = asString(delivery?.claim)
+  const deliveredAt = asNumber(delivery?.at)
+  const dueTs = row.due?.ts
+  return {
+    id,
+    what: row.what,
+    status: row.status,
+    who: row.who,
+    executorKind: row.executorKind,
+    direction: row.direction,
+    ...(row.acceptor === undefined ? {} : { acceptor: row.acceptor }),
+    ...(row.stewardedBy === undefined ? {} : { stewardedBy: row.stewardedBy }),
+    ...(row.due === undefined ? {} : { due: row.due }),
+    ...(row.overdue && dueTs !== undefined ? { overdueDays: Math.max(1, Math.floor((now - dueTs) / DAY_MS)) } : {}),
+    birth: {
+      at,
+      ...(said === undefined ? {} : { said }),
+      ...(by === undefined ? {} : { by }),
+      ...(where === undefined ? {} : { where }),
+    },
+    steps,
+    ...(goalRef === undefined ? {} : { goal: { ref: goalRef, name: goalName ?? goalRef } }),
+    ...(row.sessionId === undefined ? {} : { sessionId: row.sessionId }),
+    ...(row.placeName === undefined ? {} : { placeName: row.placeName }),
+    ...(row.evidence === undefined ? {} : { evidence: row.evidence }),
+    ...(claim === undefined || deliveredAt === undefined ? {} : { delivery: { claim, at: deliveredAt } }),
+    remindable: row.remindable,
+    ...(row.mirror === undefined ? {} : { mirror: { operator: row.mirror.operator } }),
+    ...(row.transferredTo === undefined ? {} : { transferredTo: row.transferredTo }),
+    siblings: frame.rows
+      .filter(one => one.id !== id && one.status === 'open' && one.isGoal === undefined && one.goalRef === row.goalRef)
+      .map(one => ({ id: one.id, what: one.what, status: one.status })),
+    goals: frame.goals
+      .filter(goal => goal.row === undefined || goal.row.status === 'open')
+      .map(goal => ({ ref: goal.goalRef, label: goal.row?.what ?? goal.goalRef })),
+  }
+}
 function assessmentsByGoal(ctx: Context): Map<string, BoardAssessment> {
   const out = new Map<string, BoardAssessment>()
   const sessionOfTopic = new Map<string, string>()
@@ -3874,6 +4104,12 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             }
           }
           /** 目标页 = 承诺板的第二缩放级别，读的是同一个查询 (§7.6)。 */
+          case 'commitment-story': {
+            const id = stringField(payload, 'id')
+            if (id === undefined) return failure('要说清是哪一条')
+            const story = await commitmentStory(scoped, id)
+            return story === undefined ? failure('这一条已经不在板上了') : { ok: true, value: story }
+          }
           case 'goal-page': {
             const goalRef = stringField(payload, 'goalRef')
             if (goalRef === undefined) return failure('目标页需要 goalRef')

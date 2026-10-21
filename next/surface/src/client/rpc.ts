@@ -436,6 +436,32 @@ export interface InboxView {
   pledger?: { enabled: boolean }
 }
 
+/** 来龙去脉 (§5.4)：服务端 `CommitmentStory` 的线上形状。 */
+export interface CommitmentStoryWire {
+  id: string
+  what: string
+  status: string
+  who: string
+  executorKind: 'agent' | 'human'
+  direction: 'mine' | 'owed-to-me' | 'observed'
+  acceptor?: string
+  stewardedBy?: string
+  due?: { text: string; ts?: number }
+  overdueDays?: number
+  birth: { said?: string; by?: string; at: number; where?: string }
+  steps: { at: number; text: string; grade: 'said' | 'artifact' | 'platform' | 'note'; uri?: string }[]
+  goal?: { ref: string; name: string }
+  sessionId?: string
+  placeName?: string
+  evidence?: 'said' | 'artifact' | 'platform'
+  delivery?: { claim: string; at: number }
+  remindable: boolean
+  mirror?: { operator: string }
+  transferredTo?: string
+  siblings: { id: string; what: string; status: string }[]
+  goals: { ref: string; label: string }[]
+}
+
 export interface BoardRowWire {
   id: string
   what: string
@@ -474,6 +500,8 @@ export interface BoardRowWire {
   signal: 'evidence' | 'silent' | 'stale'
   /** 交付已主张、等人验收——承诺仍然 open，所以这一格要单独说。 */
   awaitingAcceptance?: boolean
+  /** 证据三档：只有一句话 / 有东西 / 平台记了（律五）。没动过的行没有。 */
+  evidence?: 'said' | 'artifact' | 'platform'
   /** 受领三态：缺席 = 已登记（正常起点）／accepted 受领证据／declined 拒领。 */
   acceptance?: { state: 'accepted' | 'declined'; note?: string }
   /** 移交出去了，接手的是谁（决策 #59）。有它这一行才不是断头路。 */
@@ -665,6 +693,8 @@ export interface SurfaceInject {
   voidCommitment(id: string, reason?: string): Promise<{ error?: string }>
   /** 目标页：承诺板放大一级，读的是同一个查询。 */
   goalPage(goalRef: string): Promise<GoalPageWire | undefined>
+  /** 选中板上一行时右栏的来龙去脉：原话、之后每一笔（带证据档）、挂在哪。 */
+  commitmentStory(id: string): Promise<CommitmentStoryWire | undefined>
   /**
    * 顺延期限——改的是当初说出口的那个日子（公事）。
    *
@@ -1049,6 +1079,7 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       return error === undefined ? {} : { error }
     },
     goalPage: goalRef => call<GoalPageWire>('goal-page', { goalRef }),
+    commitmentStory: id => call<CommitmentStoryWire>('commitment-story', { id }),
     async postponeCommitment(id, due) {
       const { error } = await write<{ id: string }>('postpone-commitment', { id, due })
       return error === undefined ? {} : { error }

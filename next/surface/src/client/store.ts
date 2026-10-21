@@ -249,13 +249,16 @@ export function subscribeLanding(listener: () => void): () => void {
  * 「Back 恢复板位」要恢复的是**离开时看见的那一屏**,而那一屏是「哪一档 + 哪个
  * 像素」两件事合起来定义的。
  */
-let boardLens: 'all' | 'goals' = 'all'
+/** 承诺的三个组织轴（第四个「我定过的」是另一屏，不在这里记）。 */
+export type BoardLens = 'all' | 'owed-to-me' | 'mine'
 
-export function currentBoardLens(): 'all' | 'goals' {
+let boardLens: BoardLens = 'all'
+
+export function currentBoardLens(): BoardLens {
   return boardLens
 }
 
-export function setBoardLens(next: 'all' | 'goals'): void {
+export function setBoardLens(next: BoardLens): void {
   boardLens = next
 }
 
@@ -310,12 +313,23 @@ export function subscribeFrame(listener: () => void): () => void {
  * 只存**看的是谁**，不存内容：内容每次从 `events()` 重读，否则右栏会拿着一份越看越
  * 旧的快照，而就绪度恰恰是要随着交付自动翻绿的那个东西。
  */
-export interface Spotlight {
-  readonly kind: 'event'
-  readonly eventId: string
-  /** 读不回来时还能说出它是谁——「那场会没了」比一片空白像话。 */
-  readonly title: string
-}
+export type Spotlight =
+  | {
+    readonly kind: 'event'
+    readonly eventId: string
+    /** 读不回来时还能说出它是谁——「那场会没了」比一片空白像话。 */
+    readonly title: string
+  }
+  /**
+   * 板上选中的那一条承诺 (律六)：右栏摆它的来龙去脉和全套动词。`intent` 是从行上按下
+   * 的那个动词——「打回…」要原因，原因在右栏写。
+   */
+  | {
+    readonly kind: 'commitment'
+    readonly id: string
+    readonly title: string
+    readonly intent?: 'reject'
+  }
 
 let spotlight: Spotlight | undefined
 const spotlightListeners = new Set<() => void>()
@@ -429,3 +443,36 @@ export function setNeedJumper(jump: ((need: NeedWire) => void) | undefined): voi
 export function jumpToNeed(need: NeedWire): void {
   needJumper?.(need)
 }
+
+/* ——— 右栏向板要一扇传送门；右栏改了账，板重读 ——— */
+
+/**
+ * 来龙去脉在右栏，可「转给别人」要开的那张选择条是整屏的——它不该被塞进一栏里。
+ * 所以右栏只**请求**，由板（它正挂在中栏）来开。类型只在这里说「一个对象」，形状归
+ * `RoomPicker`。
+ */
+let portalListener: ((portal: unknown) => void) | undefined
+
+export function requestPortal(portal: unknown): boolean {
+  if (portalListener === undefined) return false
+  portalListener(portal)
+  return true
+}
+
+export function onPortalRequest(listener: (portal: unknown) => void): () => void {
+  portalListener = listener
+  return () => { if (portalListener === listener) portalListener = undefined }
+}
+
+const ledgerListeners = new Set<() => void>()
+
+/** 账改了（顺延、作废、挂接…）：板别等下一次轮询。 */
+export function ledgerChanged(): void {
+  for (const listener of ledgerListeners) listener()
+}
+
+export function subscribeLedger(listener: () => void): () => void {
+  ledgerListeners.add(listener)
+  return () => { ledgerListeners.delete(listener) }
+}
+

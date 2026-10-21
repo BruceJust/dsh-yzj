@@ -1,188 +1,8 @@
-.board {
-  display: flex; flex-direction: column; height: 100%; min-height: 0;
-  background: var(--yzj-bg);
-}
-
-.head {
-  display: flex; align-items: baseline; gap: 10px;
-  padding: 12px 20px 10px; border-bottom: 1px solid var(--yzj-line);
-}
-.title { font-size:var(--yzj-fs-lg); font-weight: 700; color: var(--yzj-ink); }
-.sub { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-/* 数字是门 —— 所以它是一颗按钮，不是一段文字（逐级兑付）。 */
-.overdueCount {
-  font: inherit; color: var(--yzj-late-ink); font-weight: 700; cursor: pointer;
-  border: 0; background: none; padding: 0;
-}
-.overdueCount:hover { text-decoration: underline; }
-
-.back {
-  margin-left: auto; padding: 4px 11px;
-  border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md);
-  background: var(--yzj-bg); font: inherit; font-size:var(--yzj-fs-xs);
-  color: var(--yzj-ink-2); cursor: pointer;
-  transition: box-shadow .15s;
-}
-.back:hover { box-shadow: var(--yzj-shadow-1); }
-
-.body { flex: 1; overflow-y: auto; padding: 12px 20px 24px; }
-
-/* 目标行：真身在云之家,这里只是外挂 —— 所以它是虚线的 */
-.goal {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 13px; margin-bottom: 6px;
-  border: 1px dashed var(--yzj-pub-line); border-radius:var(--yzj-r-md); background: var(--yzj-bg-sunk);
-}
-.goalTag {
-  font-size:var(--yzj-fs-xs); font-weight: 700; padding: 2px 8px; border-radius:var(--yzj-r-sm); flex: none;
-  background: var(--yzj-pub-tint); color: var(--yzj-pub-ink); border: 1px solid var(--yzj-pub-line);
-}
 /*
-  目标名是**一个可以点进去的标题**，不是一枚按钮。
+ * 选择条（传送门）与「新目标」表单共用的样式。承诺页本身的样式在 ledger.module.css。
+ */
 
-  这条规则原先只写了排版，没做原生按钮重置——而它是个 `<button>`，于是浏览器把
-  自己那套画了上去：`buttonface` 灰底、`2px outset` 立体边框、文字居中、连
-  `cursor: pointer` 都没有。配上 `flex: 1`，一个「v37目标-17733」被摊成一条
-  623px 宽的灰色色块，短标题浮在正中。这一屋子每一个可点的东西都显式写了
-  `font: inherit / cursor / border / background`，只有它漏了。
-
-  顺带把伸缩改掉：**点击区域要正好是标题本身**。`flex: 1` 会让这个按钮吃掉整行余量，
-  于是标题右边那一大片空白也是可点的——点一下空处就跳进目标页，是会吓人一跳的那种
-  意外。改成不生长、只收缩，余量交给后面那一组元数据用 `margin-left: auto` 顶到右边。
-  `max-width` 是给那种把 URL 当名字的目标留的：它该被省略号截断，而不是把动词挤出行外。
-*/
-.goalName {
-  flex: 0 1 auto; min-width: 0; max-width: 52%; text-align: left;
-  font: inherit; font-size:var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink);
-  padding: 2px 0; cursor: pointer;
-  border: none; background: none; appearance: none;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.goalName:hover { color: var(--yzj-pub-ink); text-decoration: underline; }
-/* 标题不再生长，余量就得有人接——紧随其后的那一格把右边这一组顶到行尾。 */
-.goalName + * { margin-left: auto; }
-.goalSig { flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); }
-.goalChildren { margin: 0 0 12px 18px; border-left: 2px solid var(--yzj-pub-line); padding-left: 10px; }
-
-.row {
-  /* 修理面板整幅换行落在行下面（flex-basis:100%），所以这一行要允许换行。 */
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 10px 13px; margin-bottom: 8px;
-  border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md);
-  background: var(--yzj-bg); box-shadow: var(--yzj-shadow-1);
-}
-.rowOverdue { border-left: 3px solid var(--yzj-late-ink); }
-.rowDone { opacity: .6; box-shadow: none; }
-
-.who { font-size:var(--yzj-fs-xs); font-weight: 700; padding: 2px 8px; border-radius:var(--yzj-r-sm); flex: none; }
-.whoAgent { background: var(--yzj-pub-tint); color: var(--yzj-pub); border: 1px solid var(--yzj-pub-line); }
-.whoHuman { background: var(--yzj-bg-sunk); color: var(--yzj-ink-2); border: 1px solid var(--yzj-line); }
-
-.what {
-  flex: 1; min-width: 0; font-size:var(--yzj-fs-sm); color: var(--yzj-ink);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.inferred {
-  flex: none; font-size:var(--yzj-fs-xs); padding: 1.5px 7px; border-radius:var(--yzj-r-pill);
-  background: var(--yzj-need-bg); color: var(--yzj-need-ink);
-  border: 1px dashed var(--yzj-need-line);
-}
-
-.due { flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-.dueOverdue { color: var(--yzj-late-ink); font-weight: 700; }
-
-.remind, .open {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 4px 11px; border-radius:var(--yzj-r-sm);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-  color: var(--yzj-ink-2); cursor: pointer;
-  transition: box-shadow .15s, color .15s;
-}
-.remind:hover, .open:hover { color: var(--yzj-ink); box-shadow: var(--yzj-shadow-1); }
-.remind:disabled { opacity: .45; cursor: default; }
-
-.calm {
-  margin: 20px auto; max-width: 520px;
-  border: 1px dashed var(--yzj-pub-line); border-radius:var(--yzj-r-md);
-  padding: 18px 20px; font-size:var(--yzj-fs-sm); color: var(--yzj-ink-2);
-  line-height: 1.85; background: var(--yzj-bg-sunk);
-}
-
-.toast {
-  position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%);
-  background: var(--yzj-solid); color: var(--yzj-on-solid); font-size:var(--yzj-fs-sm);
-  padding: 9px 18px; border-radius:var(--yzj-r-md); box-shadow: var(--yzj-shadow-2);
-}
-
-/* ---------- 两个缩放级别：全部 / 按目标 ---------- */
-.lens { display: inline-flex; background: var(--yzj-pub-tint); border-radius:var(--yzj-r-md); padding: 3px; gap: 2px; margin-left: 10px; }
-.lensBtn {
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 4px 11px; border: 0; border-radius:var(--yzj-r-sm); background: none;
-  color: var(--yzj-ink-2); cursor: pointer;
-}
-.lensOn { background: var(--yzj-bg); color: var(--yzj-ink); box-shadow:var(--yzj-shadow-1); }
-
-.goalsHead { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
-.goalsCount { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-.declare {
-  margin-left: auto; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 5px 12px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-pub-line); background: var(--yzj-pub-tint);
-  color: var(--yzj-pub); cursor: pointer;
-}
-.declare:hover { box-shadow: var(--yzj-shadow-1); }
-
-/* 目标行：虚线 = 真身在云之家，不在图上 */
-.goalBlock { margin-bottom: 14px; }
-.goalOwner { flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-.sigOverdue { color: var(--yzj-late-ink); }
-.manual {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 8px; border-radius:var(--yzj-r-pill);
-  background: var(--yzj-pub-tint); color: var(--yzj-ink-3); border: 1px solid var(--yzj-line);
-}
-.goalLink { flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-pub); text-decoration: none; }
-.goalLink:hover { text-decoration: underline; }
 .goalEmpty { padding: 8px 12px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-
-/* 挂接来路：继承不是推断,两件事不共用一个词 */
-.via {
-  flex: none; font-size:var(--yzj-fs-xs); padding: 1.5px 7px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-pub-tint); color: var(--yzj-pub-ink); border: 1px solid var(--yzj-pub-line);
-}
-.viaGuess { background: var(--yzj-need-bg); color: var(--yzj-need-ink); border-color: var(--yzj-need-line); }
-
-/* 无归属：未挂是合法状态,这一组只是把对齐债务拉到看得见 */
-.unattached {
-  margin-top: 18px; padding: 12px;
-  border: 1px dashed var(--yzj-pub-line); border-radius:var(--yzj-r-md); background: var(--yzj-bg-sunk);
-}
-.unattachedHead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-.unattachedTitle { font-size:var(--yzj-fs-sm); font-weight: 700; color: var(--yzj-ink); }
-.unattachedNote { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.6; }
-.pick { flex: none; margin-right: 2px; accent-color: var(--yzj-pub); }
-
-.batch {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin-top: 10px; padding: 8px 10px;
-  border-radius:var(--yzj-r-md); background: var(--yzj-pub-tint); border: 1px solid var(--yzj-pub-line);
-}
-.batchCount { font-size:var(--yzj-fs-xs); font-weight: 650; color: var(--yzj-pub-ink); }
-.batchNone { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-.batchBtn {
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 3px 10px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-pub-line); background: var(--yzj-bg);
-  color: var(--yzj-pub); cursor: pointer; max-width: 220px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.batchBtn:disabled { opacity: .5; cursor: default; }
-.batchClear {
-  margin-left: auto; font: inherit; font-size:var(--yzj-fs-xs);
-  border: 0; background: none; color: var(--yzj-ink-3); cursor: pointer;
-}
-
 /* ---------- 立目标：表单即确认卡 ---------- */
 .mask {
   position: fixed; inset: 0; z-index: 100;
@@ -231,119 +51,6 @@
 }
 .sheetGrind:hover { border-color: var(--yzj-pub-line); color: var(--yzj-pub-ink); }
 .sheetGrind:disabled { opacity: .45; cursor: default; }
-.unlink, .voidGoal {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs);
-  padding: 2px 9px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-  color: var(--yzj-ink-3); cursor: pointer;
-}
-.unlink:hover, .voidGoal:hover { color: var(--yzj-late-ink); border-color: var(--yzj-late-line); }
-.unlink:disabled, .voidGoal:disabled { opacity: .5; cursor: default; }
-/* 已亮出后果、等第二下的那颗作废（决策 #57 两段式） */
-.voidArmed { color: var(--yzj-late-ink); border-color: var(--yzj-late-ink); }
-/* 引用不是链接时就说它不是——把群里来的任意文本渲染成 href 是一条真实攻击面 */
-.goalUnsafe {
-  flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
-  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* ---------- v4.9/v4.10 目标执行动线 ---------- */
-
-/* 未通知：落库了但没呼吸——比逾期更响，因为对方根本不知道有这件事 */
-.unnotified {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 700;
-  padding: 2px 8px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-late-bg); color: var(--yzj-late-ink); border: 1px solid var(--yzj-late-line);
-}
-
-/* 过程摘要：一行，且只有一行——过程在一跳之外 */
-.progress {
-  flex: none; max-width: 190px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* 传送门 CTA：不是表单，是门 */
-.delegate, .assess {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 10px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-pub-line); background: var(--yzj-pub-tint); color: var(--yzj-pub-ink);
-}
-.assess { border-color: var(--yzj-line); background: var(--yzj-bg); color: var(--yzj-ink-2); }
-.delegate:hover { background: var(--yzj-pub-solid); color: var(--yzj-on-color); border-color: var(--yzj-pub-solid); }
-.assess:hover { border-color: var(--yzj-pub-line); color: var(--yzj-pub-ink); }
-
-/* 成功标准：签发时的原话，真身仍在云之家 */
-.criteria {
-  margin: 6px 0 2px; padding: 7px 10px;
-  border-left: 3px solid var(--yzj-pub-line); border-radius:0 var(--yzj-r-sm) var(--yzj-r-sm) 0;
-  background: var(--yzj-bg-sunk); font-size:var(--yzj-fs-xs); line-height: 1.7; color: var(--yzj-ink-2);
-}
-.criteriaLabel {
-  display: inline-block; margin-right: 8px;
-  font-size:var(--yzj-fs-xs); font-weight: 700; color: var(--yzj-pub-ink);
-}
-
-/* 抽屉：产出与简报默认折起,先答「到哪一步了」 */
-.drawer { margin-top: 6px; }
-.drawerHead {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650; color: var(--yzj-ink-2);
-  padding: 4px 6px; border: 0; border-radius:var(--yzj-r-sm);
-  background: none; cursor: pointer; text-align: left;
-}
-.drawerHead:hover { background: var(--yzj-bg-sunk); }
-.drawerNote { margin-left: auto; font-weight: 400; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-.drawerBody { padding: 4px 6px 6px 18px; }
-
-.artifact { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size:var(--yzj-fs-xs); }
-.artifactAction {
-  flex: none; font-size:var(--yzj-fs-xs); padding: 1px 7px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-pub-tint); color: var(--yzj-ink-3);
-}
-.artifactName { color: var(--yzj-ink-2); }
-.artifactLink { color: var(--yzj-pub); text-decoration: none; }
-.artifactLink:hover { text-decoration: underline; }
-
-/* 差距简报：逐条证据锚点 */
-.reportTag {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 1px 8px; border-radius:var(--yzj-r-md); background: var(--yzj-pub-tint); color: var(--yzj-ink-3);
-}
-.reportGap { background: var(--yzj-need-bg); color: var(--yzj-need-ink); }
-.reportSummary {
-  margin-bottom: 6px; font-size:var(--yzj-fs-xs); line-height: 1.7; color: var(--yzj-ink-2);
-}
-.reportLine {
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 4px 0; border-top: 1px dashed var(--yzj-line); font-size:var(--yzj-fs-xs);
-}
-.verdict { flex: none; font-size:var(--yzj-fs-xs); font-weight: 700; padding: 1px 8px; border-radius:var(--yzj-r-md); }
-.vMet { background: var(--yzj-ok-bg); color: var(--yzj-ok-ink); }
-.vPartial { background: var(--yzj-need-bg); color: var(--yzj-need-ink); }
-.vMissing { background: var(--yzj-late-bg); color: var(--yzj-late-ink); }
-.criterion { color: var(--yzj-ink); }
-.evidence {
-  flex: 1; min-width: 0; color: var(--yzj-ink-3); font-size:var(--yzj-fs-xs);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.gapDelegate {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 9px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-pub-line); background: var(--yzj-bg); color: var(--yzj-pub-ink);
-}
-.gapDelegate:hover { background: var(--yzj-pub-solid); color: var(--yzj-on-color); }
-.reportFoot {
-  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
-  margin-top: 8px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
-}
-/* 指路：报得出一份待答的简报，就得按得到它 —— 信号即门 · 逐级兑付 */
-.reportGo {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 9px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-pub-line); background: var(--yzj-bg); color: var(--yzj-pub-ink);
-}
-.reportGo:hover { background: var(--yzj-pub-solid); color: var(--yzj-on-color); }
-
 /* 传送门选场所：只问一件事——在哪儿说 */
 .rooms { max-height: 320px; overflow: auto; margin: 10px 0 4px; }
 .roomGroup { margin-bottom: 10px; }
@@ -378,7 +85,6 @@
 .roomTopic { width: auto; margin-left: 16px; font-size:var(--yzj-fs-xs); }
 /* 候选的出处：它凭什么在这里，人一眼看得见（v4.24 选项集第②层） */
 .roomWhy { margin-left: 8px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-
 /*
   新建专项群 —— 尾项，虚线，和现成的场所长得**不一样**。
 
@@ -393,7 +99,6 @@
   border: 1px dashed var(--yzj-line); background: transparent; cursor: pointer;
 }
 .roomNew:hover { border-color: var(--yzj-pub); color: var(--yzj-ink); }
-
 .newPlace {
   margin: 8px 0 4px; padding: 10px; border-radius:var(--yzj-r-md);
   border: 1px solid var(--yzj-line); background: var(--yzj-bg-sunk, var(--yzj-bg));
@@ -426,7 +131,6 @@
   padding: 5px 12px; border-radius:var(--yzj-r-md); cursor: pointer;
   border: 1px solid var(--yzj-line); background: transparent;
 }
-
 .area {
   font: inherit; font-size:var(--yzj-fs-sm); color: var(--yzj-ink); resize: vertical;
   padding: 7px 10px; border-radius:var(--yzj-r-md); line-height: 1.6;
@@ -440,152 +144,6 @@
   background: var(--yzj-late-bg); border: 1px solid var(--yzj-late-line);
   font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-late-ink);
 }
-/* 共用会话的产出:标出来,既不丢也不冒领 */
-.artifactShared {
-  flex: none; font-size:var(--yzj-fs-xs); padding: 1px 7px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-need-bg); color: var(--yzj-need-ink);
-}
-
-/*
-  今天的会 —— 事件枢纽在板上的那一段 (§5.6).
-
-  排在承诺前面，因为会有开始时间而承诺没有：**今天几点**是这一屏上唯一带截止感的
-  东西。刻意不做成日历——它回答的是「会前我该看什么」，不是「我这周有什么」，
-  而后者云之家里已经有一个够用的了。
-*/
-.events { margin: 0 0 14px; }
-.eventsHead { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 6px; }
-.eventsTitle { font-size:var(--yzj-fs-sm); font-weight: 700; color: var(--yzj-ink); }
-.eventsNote { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-
-.eventRow {
-  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-md);
-  background: var(--yzj-bg); padding: 9px 11px; margin-bottom: 6px;
-}
-.eventHead { display: flex; align-items: center; gap: 9px; }
-.eventAt {
-  flex: none; font-family: var(--yzj-mono); font-size:var(--yzj-fs-xs); font-weight: 700;
-  color: var(--yzj-ink);
-}
-/*
-  它是一颗按钮，所以要**把按钮的原生长相整个关掉** —— 同一个坑栽过一次：
-  一个没有 reset 的 `<button>` 会拿到 buttonface 灰底、2px outset 边框、居中文字与
-  default 光标，于是一个 100px 的标题被撑成一整条色块。
-*/
-.eventTitle {
-  flex: 1 1 auto; min-width: 0; font: inherit; font-size:var(--yzj-fs-sm); color: var(--yzj-ink);
-  text-align: left; padding: 0; border: 0; background: none; cursor: pointer;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.eventTitle:hover { color: var(--yzj-pub-ink); text-decoration: underline; }
-/* 三档三个颜色：会前那一眼要在半秒内答完「还差不差东西」。 */
-.eventReady { flex: none; font-size:var(--yzj-fs-xs); padding: 1px 8px; border-radius:var(--yzj-r-md); }
-.ready_ready { color: var(--yzj-ok-ink); background: var(--yzj-ok-bg); }
-.ready_partial { color: var(--yzj-need-ink); background: var(--yzj-need-bg); }
-.ready_none { color: var(--yzj-ink-3); background: var(--yzj-pub-tint); }
-
-.eventPrep {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 9px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-pub-line); background: var(--yzj-bg); color: var(--yzj-pub-ink);
-}
-.eventPrep:hover { background: var(--yzj-pub-solid); color: var(--yzj-on-color); border-color: var(--yzj-pub-solid); }
-
-.eventPreps { margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--yzj-line); }
-.eventPrep_ { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; font-size:var(--yzj-fs-xs); }
-.eventPrepWhat { color: var(--yzj-ink-2); }
-.eventPrepWho { flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-.eventArtifact { flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-pub-ink); text-decoration: none; }
-.eventArtifact:hover { text-decoration: underline; }
-
-/* 参会的人看不看得到，是一条要说出来的分界线，不是一句备注。 */
-.eventNote { margin-top: 6px; font-size:var(--yzj-fs-xs); color: var(--yzj-need-ink); }
-
-
-/*
-  三值信号 (v4.21 第一档④)：无信号 / 过时。
-
-  颜色预算：**只有状态与异常拿饱和色**，其余灰阶。这两枚是异常，所以它们有颜色；
-  而「有证据」那一档不出现——正常的行就该安静地待着，板上每多一个常亮的徽标，
-  异常就少一分被看见的机会。
-*/
-.sigSilent, .sigStale {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 700;
-  padding: 1.5px 7px; border-radius:var(--yzj-r-pill); white-space: nowrap;
-}
-.sigSilent { background: var(--yzj-bg-sunk); color: var(--yzj-ink-2); border: 1px solid var(--yzj-line); }
-.sigStale { background: var(--yzj-need-bg); color: var(--yzj-need-ink); border: 1px solid var(--yzj-need-line); }
-
-/* 责任锚第二槽：谁验收。灰阶——它是结构信息，不是异常。 */
-.acceptor {
-  flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
-  padding: 1.5px 7px; border-radius:var(--yzj-r-pill); white-space: nowrap;
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-}
-
-
-/*
-  组折叠的披露列 —— **和侧栏同位同行为**（同构复制）。
-
-  同一个手势在两个地方意思一样，人才不用为第二个地方重新学一遍。数值抄自
-  `sidebar.module.css` 的 `.chev`：那是这条语法的出处，这里是它的第二个落点。
-*/
-.chev {
-  flex: none; width: 18px; height: 22px;
-  display: grid; place-items: center;
-  border: 0; background: none; cursor: pointer; border-radius:var(--yzj-r-sm);
-  color: var(--yzj-ink-3);
-  transition: transform .16s cubic-bezier(.2, .7, .3, 1), background .12s, color .12s;
-}
-.chev svg { display: block; }
-.chev:hover { background: var(--yzj-pub-tint); color: var(--yzj-ink); }
-.chevClosed { transform: rotate(-90deg); }
-
-
-/*
-  修理动词就近 (v4.21 第一档③)：默认收起，灰阶。
-
-  行的常显有预算（四要素 + 三值信号），而颜色预算只留给状态与异常——修理是「要的
-  时候才亮出来」的东西，它不该和逾期抢同一眼。
-*/
-.repairOpen {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
-  padding: 2px 9px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-}
-.repairOpen:hover { border-color: var(--yzj-pub-line); color: var(--yzj-pub-ink); }
-.repairPanel { flex-basis: 100%; margin-top: 8px; }
-.repairPick { display: flex; gap: 6px; margin-bottom: 6px; }
-.repairTab {
-  font: inherit; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); cursor: pointer;
-  padding: 2px 10px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-}
-.repairTabOn { border-color: var(--yzj-pub); color: var(--yzj-pub-ink); background: var(--yzj-pub-tint); }
-
-/* 待验收：等你答的事，拿饱和色——颜色预算里它属于「状态」那一档。 */
-.awaiting {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 700;
-  padding: 1.5px 7px; border-radius:var(--yzj-r-pill); white-space: nowrap;
-  background: var(--yzj-pub-tint); color: var(--yzj-pub-ink); border: 1px solid var(--yzj-pub-line);
-}
-
-/* 披露二级：出生故事的可达通道，不靠 hover。灰阶——它是背景信息，不是异常。 */
-.detail {
-  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.6;
-  padding: 4px 0 6px;
-}
-
-/* 双动词就近：验收拿主色（它是你现在就能做完的那个动作），打回是危险色的轻量态。 */
-.acceptGo, .rejectGo {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 10px; border-radius:var(--yzj-r-md); cursor: pointer;
-}
-.acceptGo { border: 1px solid var(--yzj-pub-solid); background: var(--yzj-pub-solid); color: var(--yzj-on-color); }
-.acceptGo:hover { filter: brightness(1.06); }
-.rejectGo { border: 1px solid var(--yzj-line); background: var(--yzj-bg); color: var(--yzj-late-ink); }
-.rejectGo:hover { border-color: var(--yzj-late-ink); }
-
 /* 两维真选择第一维：谁来做（委派五步②）——选完即传送，这不是一张表单 */
 .execPick {
   display: block; width: 100%; text-align: left; font: inherit;
@@ -609,22 +167,6 @@
   padding: 1px 6px; border-radius:var(--yzj-r-md); background: var(--yzj-pub-tint);
 }
 .roomPlace:disabled, .room:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* 目标降为行内 chip（决策 #56）：透镜一开目标组退场，一跳指路留在行上 */
-.goalChip {
-  flex: none; max-width: 180px; font: inherit; font-size:var(--yzj-fs-xs);
-  padding: 1.5px 8px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px dashed var(--yzj-pub-line); background: var(--yzj-bg-sunk); color: var(--yzj-pub-ink);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.goalChip:hover { border-style: solid; color: var(--yzj-pub-ink); }
-/* 透镜说明：这一屏此刻按什么组织 —— 一行，不抢行的注意力 */
-.axisNote {
-  margin: 2px 0 10px; padding: 7px 12px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-pri-bg); color: var(--yzj-ink-2);
-  font-size:var(--yzj-fs-xs); line-height: 1.6;
-}
-
 /* 建真身：人选知识库，系统建文档——损耗归系统，判断留给人 */
 .bodyMake {
   align-self: flex-start; margin-top: 4px;
@@ -641,7 +183,6 @@
   font: inherit; font-size:var(--yzj-fs-xs); padding: 5px 12px; border-radius:var(--yzj-r-md); cursor: pointer;
   border: 1px solid var(--yzj-line); background: transparent; color: var(--yzj-ink-2);
 }
-
 /* 知识库：55 个装不进一个下拉框，打字过滤 + 一眼分得出同名的那两个 */
 .spaceHits {
   display: flex; flex-direction: column; gap: 2px;
@@ -662,14 +203,6 @@
   font: inherit; font-size:var(--yzj-fs-sm); color: var(--yzj-ink);
 }
 .spaceDrop { color: var(--yzj-ink-3); }
-
-/* 受领三态：拒领要人再决定一次（醒目），受领只是证据（安静） */
-.declined {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 650; padding: 1px 7px; border-radius:var(--yzj-r-sm);
-  background: var(--yzj-late-bg); color: var(--yzj-late-ink); border: 1px solid var(--yzj-late-line);
-}
-.accepted { flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-
 /* 场所分节：说清哪些是事实、哪些是我们答不了的（v4.24 场所选项集） */
 /*
   移交不吞裁决：亮出来，但不拦（v3.19r③）。
@@ -685,14 +218,6 @@
 }
 .handoffPending b { color: var(--yzj-need-ink); }
 .handoffPendingTail { color: var(--yzj-ink-3); }
-
 .roomSection {
   margin: 8px 2px 3px; font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-3);
-}
-
-/* 明标降级 (决策 #63)：多实例部署下板 = 本实例登记集。一条实话，不是徽标。 */
-.mirrorNote {
-  margin: 8px 16px 0; padding: 6px 10px;
-  border: 1px dashed var(--yzj-line, var(--yzj-pri-line)); border-radius:var(--yzj-r-md);
-  font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-ink-2, var(--yzj-ink-2));
 }
