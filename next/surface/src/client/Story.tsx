@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { CommitmentStoryWire, SurfaceInject } from './rpc.ts'
 import {
-  landOn, ledgerChanged, pushFrame, requestPortal, sendErrand, setSpotlight, subscribeLedger,
+  commissionNow, landOn, ledgerChanged, pushFrame, requestPortal, sendErrand, setSpotlight, subscribeLedger,
 } from './store.ts'
 import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
 import { handoffPortal } from './RoomPicker.tsx'
@@ -167,8 +167,9 @@ export function CommitmentStoryPanel(props: {
                     className={css.btn}
                     onClick={() => {
                       if (story.sessionId === undefined) { setNote('这条不在任何话题里，没有地方可找。'); return }
-                      sendErrand({ subject: 'nudge', goalRef: '', goalName: story.what, voice: 'private', seed: `「${story.what}」${who}说交了，但我没见到东西。帮我找找交的是什么、在哪——找不到也告诉我。` })
-                      goTo(story.sessionId)
+                      // 和承诺行上那一颗同一句话、同一条路：一按就交出去，人落到那个话题里看它找。
+                      const ask = `「${story.what}」${who}说交了，但我没见到东西。帮我在这个话题里找找交的是什么、在哪——找不到也告诉我。`
+                      void commissionNow(ask, story.sessionId).then((error) => { if (error !== undefined) setNote(error) })
                     }}
                   >
                     让{AGENT}找找

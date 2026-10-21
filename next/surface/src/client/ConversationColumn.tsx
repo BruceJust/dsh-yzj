@@ -33,7 +33,7 @@ import {
 } from './answers.ts'
 import {
   FRAME_SCROLL, backLabel, backTarget, currentFrame, currentLanding, landOn, needsNow, popFrame, pushFrame,
-  restoreOf, setFrame, setSpotlight, subscribeFrame, subscribeLanding, subscribeNeeds, takeErrand,
+  restoreOf, setCommissioner, setFrame, setSpotlight, subscribeFrame, subscribeLanding, subscribeNeeds, takeErrand,
 } from './store.ts'
 import { commandKey, useBackKey, useLayerEscape } from './keys.ts'
 import { keepLastMessages, usePoll } from './poll.ts'
@@ -500,6 +500,11 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     openSession(target)
     return undefined
   }, [sessionId, prompt, running, openSession])
+  // 右栏的来龙去脉也从这里交出去：同一件事一种手感。
+  useEffect(() => {
+    setCommissioner(commission)
+    return () => { setCommissioner(undefined) }
+  }, [commission])
 
   /** 放在光标处；只会追加的选择器是要跟它较劲的选择器。 */
   const insert = useCallback((text: string): void => {

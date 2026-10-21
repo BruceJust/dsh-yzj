@@ -258,6 +258,25 @@ export interface Errand {
 
 let errand: Errand | undefined
 
+/**
+ * 把一句话交给云小助 —— 中栏登记它（它拿着会话和发送通道），右栏的来龙去脉也走同一条路。
+ *
+ * 此前右栏那颗「让云小助找找」没有这条路可走，只好借催办的路：话落进输入框、头上顶着
+ * 「催一下」的提示，人还得再按一次发送；同一个动作在承诺行上是一按就交出去。同一件事
+ * 两种手感，人会以为是两件事。
+ */
+type Commission = (text: string, sessionId?: string) => Promise<string | undefined>
+let commissioner: Commission | undefined
+
+export function setCommissioner(next: Commission | undefined): void {
+  commissioner = next
+}
+
+/** 交出去；返回一句话 = 没交出去。 */
+export async function commissionNow(text: string, sessionId?: string): Promise<string | undefined> {
+  return commissioner === undefined ? '工作台还没准备好，稍等一下再按。' : commissioner(text, sessionId)
+}
+
 export function sendErrand(next: Errand): void {
   errand = next
 }
