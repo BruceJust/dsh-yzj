@@ -20,7 +20,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { groupsOf, jumpTarget, matchWorkspaces, nudgeDraft, signalOf, sinceText, todayOf } from '../src/client/Board.tsx'
+import { countedRows, groupsOf, jumpTarget, matchWorkspaces, nudgeDraft, signalOf, sinceText, todayOf } from '../src/client/Board.tsx'
 import type { BoardRowWire, BoardViewWire } from '../src/client/rpc.ts'
 import { cascadeLine, voidGate } from '../src/client/RepairVerbs.tsx'
 import {
@@ -1204,6 +1204,17 @@ describe('一行一个信号；今天条的数字是门', () => {
     expect(signalOf(fresh, NOW).key).toBe('normal')
     expect(todayOf([fresh], NOW).quiet).toBe(0)
     expect(signalOf(row({ signal: 'silent', lastSignalAt: NOW - 3 * 86_400_000 - 1 }), NOW)).toMatchObject({ key: 'quiet', text: '3 天没动静' })
+  })
+
+  /*
+    数和落点只认画出来的那几行：目标本身那一行是组头，不在任何组里——此前它也被数进
+    「N 逾期」，按下去落在空处。
+  */
+  it('今天条只数画得出来的行，所以每个数都落得到', () => {
+    const goal = row({ id: 'goal', isGoal: true, overdue: true, goalRef: undefined })
+    const view: BoardViewWire = { rows: [goal], goals: [], unattached: [goal] }
+    expect(todayOf(countedRows(view), NOW).late).toBe(0)
+    expect(jumpTarget(view, 'all', 'late', NOW)).toBeUndefined()
   })
 
   it('只有一句话的「交了」单独亮出来', () => {

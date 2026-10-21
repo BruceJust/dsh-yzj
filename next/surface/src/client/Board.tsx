@@ -118,6 +118,19 @@ export function groupsOf(view: BoardViewWire, lens: BoardLens): readonly Group[]
 }
 
 /**
+ * 今天条数的是哪些行：板上「全部」那一面**真画出来**的每一行，一行只数一次。数和落点只认
+ * 这一份——数了一条画不出来的（目标本身那一行是组头，不在任何组里），按下去就落在空处。
+ */
+export function countedRows(view: BoardViewWire): readonly BoardRowWire[] {
+  const seen = new Set<string>()
+  return groupsOf(view, 'all').flatMap(group => group.rows).filter((row) => {
+    if (seen.has(row.id)) return false
+    seen.add(row.id)
+    return true
+  })
+}
+
+/**
  * 今天条上一个数按下去，落到哪一行 —— **每个数字都是门**。
  *
  * 那一行可能不在此刻的透镜里，或者躺在一个折起来的组里。计数读的是整本账，所以门要真的
@@ -126,11 +139,14 @@ export function groupsOf(view: BoardViewWire, lens: BoardLens): readonly Group[]
 export function jumpTarget(
   view: BoardViewWire, lens: BoardLens, key: TodayKey, now: number = Date.now(),
 ): { readonly rowId: string; readonly lens: BoardLens; readonly groupKey?: string } | undefined {
-  const row = view.rows.find(one => TODAY_OF[signalOf(one, now).key] === key)
+  const row = countedRows(view).find(one => TODAY_OF[signalOf(one, now).key] === key)
   if (row === undefined) return undefined
   const landing: BoardLens = lens === 'all' || row.direction === lens ? lens : 'all'
-  const group = groupsOf(view, landing).find(one => one.rows.some(candidate => candidate.id === row.id))
-  return { rowId: row.id, lens: landing, ...(group === undefined ? {} : { groupKey: group.key }) }
+  const holds = (one: { readonly rows: readonly BoardRowWire[] }): boolean => one.rows.some(candidate => candidate.id === row.id)
+  // 透镜里画得出它就留在透镜里；画不出（比如它在目标底下）就回「全部」——那里一定画得出。
+  const inLens = groupsOf(view, landing).find(holds)
+  const group = inLens ?? groupsOf(view, 'all').find(holds)
+  return { rowId: row.id, lens: inLens === undefined ? 'all' : landing, ...(group === undefined ? {} : { groupKey: group.key }) }
 }
 
 const LENSES: readonly { id: BoardLens; label: string }[] = [
@@ -196,7 +212,7 @@ export function YzjBoard(props: BoardProps): ReactNode {
     return () => { clearTimeout(timer) }
   }, [toast])
   const groups = useMemo(() => groupsOf(view, lens), [view, lens])
-  const today = useMemo(() => todayOf(view.rows.filter(row => row.isGoal === undefined || row.goalRef !== undefined), now), [view.rows, now])
+  const today = useMemo(() => todayOf(countedRows(view), now), [view, now])
   const nextEvent = events.find(event => event.startAt === 0 || event.startAt + 60 * 60_000 > now)
 
   const { spotlight, selected, docked, staged, actions } = useLedger({ inject, commission, openSession, refresh, say: setToast })
