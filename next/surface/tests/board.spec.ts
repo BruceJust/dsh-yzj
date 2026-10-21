@@ -1414,3 +1414,18 @@ describe('今天条上那颗会', () => {
     expect(eventChipText({ ...base, startAt: NOW + 3_600_000, prepares: [prep('voided', 0)] }, NOW)).toBeUndefined()
   })
 })
+
+describe('组按最急的那一行排', () => {
+  it('有逾期的那一组排在空目标前面；空目标排在只是在做的组前面', () => {
+    const NOW = Date.parse('2026-10-21T10:00:00Z')
+    const empty = (ref: string) => ({ goalRef: ref, row: undefined, children: [], counts: { open: 0, overdue: 0, settled: 0 }, artifacts: [] }) as never
+    const late = row({ id: 'late', overdue: true, due: { text: '上周', ts: NOW - 5 * 86_400_000 }, direction: 'owed-to-me' })
+    const doing = row({ id: 'doing', goalRef: 'g-doing', signal: 'evidence', lastSignalAt: NOW, evidence: 'artifact' })
+    const view = {
+      rows: [late, doing],
+      goals: [empty('g-empty'), { goalRef: 'g-doing', row: undefined, children: [doing], counts: { open: 1, overdue: 0, settled: 0 }, artifacts: [] } as never],
+      unattached: [late],
+    } as BoardViewWire
+    expect(groupsOf(view, 'all', NOW).map(group => group.key)).toEqual(['unattached', 'goal:g-empty', 'goal:g-doing'])
+  })
+})

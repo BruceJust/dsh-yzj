@@ -25,7 +25,7 @@ import { DeclareGoal } from './DeclareGoal.tsx'
 import { LedgerRow, StoryDock, useLedger, useRowKeys } from './LedgerRow.tsx'
 import { useBackKey } from './keys.ts'
 import { usePoll } from './poll.ts'
-import { TODAY_LABEL, TODAY_OF, UNUSUAL, eventChipText, foldNormalText, goalTitleOf, rowSub, signalOf, todayOf, type TodayKey } from './ledger.ts'
+import { TODAY_LABEL, TODAY_OF, UNUSUAL, eventChipText, foldNormalText, goalTitleOf, rowSub, signalOf, todayOf, type SignalKey, type TodayKey } from './ledger.ts'
 import { Avatar } from './Avatar.tsx'
 import { AgentFace, Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
@@ -84,7 +84,32 @@ export function isLive(group: Group): boolean {
   return group.kind === 'goal' && group.rows.length === 0 && (group.goal?.row === undefined || group.goal.row.status === 'open')
 }
 
-export function groupsOf(view: BoardViewWire, lens: BoardLens): readonly Group[] {
+/** 一行信号的轻重，和律五的优先级同序。 */
+const URGENCY: readonly SignalKey[] = ['late', 'wait', 'said', 'declined', 'unheard', 'quiet', 'soon', 'doing', 'normal', 'done']
+
+/**
+ * 一组有多急：组里最急的那一行。一个还没挂活的目标排在「在做」之前——目标立了、底下没人
+ * 动，比底下正常在跑的那些更该看一眼；但排在任何真不对劲的行之后。
+ */
+function urgencyOf(group: Group, now: number): number {
+  const open = group.rows.filter(row => row.status === 'open')
+  if (open.length === 0) return group.kind === 'goal' && group.rows.length === 0 ? URGENCY.indexOf('doing') - 0.5 : URGENCY.length
+  return Math.min(...open.map(row => URGENCY.indexOf(signalOf(row, now).key)))
+}
+
+/** 组按最急的那一行排（同样急的保持原来的次序）：逾期的那一组不该压在六个空目标底下。 */
+function byUrgency(groups: readonly Group[], now: number): readonly Group[] {
+  return groups
+    .map((group, index) => ({ group, index, rank: urgencyOf(group, now) }))
+    .sort((left, right) => left.rank - right.rank || left.index - right.index)
+    .map(entry => entry.group)
+}
+
+export function groupsOf(view: BoardViewWire, lens: BoardLens, now: number = Date.now()): readonly Group[] {
+  return byUrgency(rawGroupsOf(view, lens), now)
+}
+
+function rawGroupsOf(view: BoardViewWire, lens: BoardLens): readonly Group[] {
   const work = view.rows.filter(row => row.isGoal === undefined || row.goalRef !== undefined)
   if (lens === 'all') {
     const goals: Group[] = view.goals.map(goal => ({
