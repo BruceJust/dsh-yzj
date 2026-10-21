@@ -26,7 +26,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import type { AnchoredTextWire, FamilyHeadWire, NeedWire, StreamCard, StripWire, SurfaceInject } from './rpc.ts'
 import { GearBox } from './Judg.tsx'
 import { AgentFace, Icon } from './icons.tsx'
-import { AGENT, dueDayText, span, waitLine, whenOf, whereOf } from './words.ts'
+import { AGENT, approvalVerbs, dueDayText, span, waitLine, whenOf, whereOf } from './words.ts'
 import { registerCardKeys, stagedNow, subscribeStaged, undo, UNDO_MS, type Answer } from './answers.ts'
 import { artifactRefOf } from './artifacts.ts'
 import { openPreview, revealAside, type PreviewTarget } from './preview.ts'
@@ -145,6 +145,16 @@ function filesOf(card: StreamCard): { readonly targets: PreviewTarget[]; readonl
     else if (ref.href !== undefined) links.push({ title: ref.title, href: ref.href })
   }
   return { targets, links }
+}
+
+/** 按钮上的字：说清按下去的是什么（「确认写入」「通过验收」），不只一个「确认」。 */
+function labelOf(card: StreamCard, action: Action): string {
+  if (card.kind === 'approval' && (action.id === 'approve' || action.id === 'reject')) {
+    const verbs = approvalVerbs(text(record(card.state).toolName))
+    return action.id === 'approve' ? verbs.yes : verbs.no
+  }
+  if ((card.kind === 'task' || card.kind === 'commitment') && action.id === 'accept') return '通过验收'
+  return action.label
 }
 
 /** 这一笔要不要先写一句原因。打回、作废要；写确认的「取消」不必（原因可选，快路优先）。 */
@@ -346,7 +356,7 @@ function OpenCard(props: CardRowProps): ReactNode {
   const files = filesOf(card)
   const title = titleOf(card)
 
-  const available = card.actions.filter(action => action.available)
+  const available = card.actions.filter(action => action.available).map(action => ({ ...action, label: labelOf(card, action) }))
   const numbered = available.filter(action => action.n !== undefined).sort((a, b) => (a.n ?? 0) - (b.n ?? 0))
   const secondary = available.filter(action => action.n === undefined && action.secondary === true)
 
@@ -579,7 +589,7 @@ function whyOf(card: StreamCard, state: Record<string, unknown>): string[] {
     return [
       text(state.level) === 'strong'
         ? '这类操作收不回，或者会改变谁看得到——每次都问你。'
-        : '写操作，照规矩写之前先问你一次。',
+        : `照规矩，${approvalVerbs(text(state.toolName)).act}之前先问你一次。`,
       ...(deadline === undefined || status !== 'pending' ? [] : [`${deadline} 前没答就自动取消。`]),
     ]
   }

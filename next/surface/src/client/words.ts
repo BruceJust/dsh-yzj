@@ -174,3 +174,15 @@ export function whereOf(via: string): string {
   if (via === 'yzj-text') return '在云之家里'
   return ''
 }
+
+/**
+ * 写确认卡上那两颗按钮说的动词：说清**放行的是什么**——「确认写入 / 先不写」，发消息
+ * 就是「确认发出 / 先不发」。服务端的「确认 / 取消」是云之家里回字用的关键词，屏上
+ * 光一个「确认」，人得回到标题上去读才知道自己按下去的是什么。
+ */
+export function approvalVerbs(toolName: string): { readonly yes: string; readonly no: string; readonly act: string } {
+  if (toolName === '/handoff') return { yes: '确认移交', no: '先不移交', act: '移交' }
+  if (/_send$|_reply$|_post$/u.test(toolName)) return { yes: '确认发出', no: '先不发', act: '发' }
+  if (/_delete$|_remove$/u.test(toolName)) return { yes: '确认删除', no: '先不删', act: '删' }
+  return { yes: '确认写入', no: '先不写', act: '写' }
+}

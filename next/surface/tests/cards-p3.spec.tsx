@@ -371,6 +371,10 @@ describe('卡上的键 (律八)', () => {
     const host = await mount(streamCard(id), (one) => { answers.push(one) })
     expect(host.textContent).toContain('要你确认')
     expect(host.textContent).toContain('云之家里回 1 / 2 也行')
+    // 按钮说清按下去的是什么：写表格是「确认写入 / 先不写」，不是光秃秃的「确认 / 取消」。
+    const labels = [...host.querySelectorAll('button')].map(button => button.textContent ?? '')
+    expect(labels).toContain('1确认写入')
+    expect(labels).toContain('2先不写')
     await act(async () => { pressOnCard(`approval:${id}`, '1') })
     expect(answers[0]).toMatchObject({ kind: 'approval', id, said: '你确认了', steps: [{ actionId: 'approve' }] })
   })

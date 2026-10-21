@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { dueDayText, receiptLine } from '../src/client/words.ts'
+import { approvalVerbs, dueDayText, receiptLine } from '../src/client/words.ts'
 
 describe('receiptLine', () => {
   it('别处先答了：说别处先答了，不贴账号 id 和动作 id', () => {
@@ -38,5 +38,14 @@ describe('dueDayText', () => {
     expect(dueDayText(endOf(10, 23), NOW)).toBe('后天')
     expect(dueDayText(endOf(10, 24), NOW)).toBe('周六')
     expect(dueDayText(endOf(10, 30), NOW)).toBe('10/30 周五')
+  })
+})
+
+describe('approvalVerbs', () => {
+  it('按钮上说放行的是什么：写、发、删、移交各说各的', () => {
+    expect(approvalVerbs('yzj_sheet_record_create')).toMatchObject({ yes: '确认写入', no: '先不写' })
+    expect(approvalVerbs('yzj_im_message_send')).toMatchObject({ yes: '确认发出', no: '先不发' })
+    expect(approvalVerbs('yzj_doc_delete')).toMatchObject({ yes: '确认删除', no: '先不删' })
+    expect(approvalVerbs('/handoff')).toMatchObject({ yes: '确认移交', no: '先不移交' })
   })
 })
