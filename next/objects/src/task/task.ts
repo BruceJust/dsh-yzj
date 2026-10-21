@@ -257,6 +257,7 @@ export const taskCard: CardDefinition<TaskState> = {
       // otherwise sit in the inbox forever with no verb that fits them.
       id: 'void',
       label: '作废',
+      secondary: true,
       keywords: ['作废', '取消这个任务', 'void'],
       needsInput: true,
       allowedActors: (actor, state) => mayJudge(actor.openId, state),

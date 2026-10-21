@@ -178,6 +178,24 @@ export class YzjCards extends Service {
     return this.definitions.get(type)
   }
 
+  /**
+   * 这一刻编了号的动词 —— 第 i 个就是「回 i+1」(界面重设计 律八).
+   *
+   * **一张表，两处读**：桌面卡上的 [1 …] [2 …] 和云之家里「回 1 / 2」都从这里取号，
+   * 所以「卡上的编号和 DM 里的编号是同一套」不是两处代码碰巧一致，而是同一个函数。
+   * 逐条裁决的卡不编号——那里的数字是条目号（「确认 2」），两套数字挤在一起就是事故。
+   */
+  numberedActions(type: string, state: JsonValue): readonly CardAction[] {
+    const definition = this.definitions.get(type)
+    if (definition === undefined) return []
+    if (definition.demand?.(state as never)?.mode === 'per-item-verdict') return []
+    return definition.actions.filter(action => (
+      action.secondary !== true
+        && action.keywords.length > 0
+        && (action.available === undefined || action.available(state as never))
+    ))
+  }
+
   /** Every registered card type, for prompt assembly and diagnostics. */
   types(): readonly string[] {
     return [...this.definitions.keys()]
@@ -209,6 +227,21 @@ export class YzjCards extends Service {
     if (definition === undefined) return undefined
     const trimmed = text.trim()
     if (trimmed === '') return undefined
+    /*
+      「回 1」= 第一个编了号的动词。数字后面跟的是原因（「2 价格没定」），和关键词同一个
+      规矩。号按**此刻**的状态编：卡变了，号跟着变——和桌面上那一排按钮永远是同一排。
+    */
+    const numeric = /^([1-9])(?:[\s,，.、:：]+(.*))?$/su.exec(trimmed)
+    if (numeric !== null) {
+      const object = this.ctx.yzjGraph.rawObject(cardRef.kind, cardRef.id)
+      const action = object === undefined
+        ? undefined
+        : this.numberedActions(cardRef.kind, object.state)[Number(numeric[1]) - 1]
+      if (action !== undefined) {
+        const rest = (numeric[2] ?? '').trim()
+        return { actionId: action.id, ...(rest === '' ? {} : { input: rest }) }
+      }
+    }
     const normalized = normalize(trimmed)
     for (const action of definition.actions) {
       for (const keyword of action.keywords) {
@@ -237,14 +270,17 @@ export class YzjCards extends Service {
       object.state as never,
       placeKey === undefined ? undefined : { placeKey },
     )
+    const numbered = this.numberedActions(cardRef.kind, object.state).map(action => action.label)
+    const extra = numbered.length === 0 ? {} : { numbered }
     if (rendered.body.length <= CARD_TEXT_MAX_CHARS) {
-      return { body: rendered.body, replyHints: rendered.replyHints, degraded: false }
+      return { body: rendered.body, replyHints: rendered.replyHints, degraded: false, ...extra }
     }
     const notice = '\n…（内容过长已截断，详见桌面工作台）'
     return {
       body: `${rendered.body.slice(0, CARD_TEXT_MAX_CHARS - notice.length)}${notice}`,
       replyHints: rendered.replyHints,
       degraded: true,
+      ...extra,
     }
   }
 

@@ -204,6 +204,31 @@ describe('every answerable object has a working IM exit', () => {
     })
   }
 
+  /**
+   * 桌面按 1 = 云之家里回 1 (界面重设计 律八).
+   *
+   * 卡尾那一行先报号；回一个数字就是那个动词。号和桌面卡上的 [1 …] [2 …] 是同一张表。
+   */
+  it('approval: 投出去的卡报号，回「1」就是确认', async () => {
+    const id = await open('approval')
+    const projection = await delivery.deliverToPlace({ kind: 'approval', id }, PLACE)
+    expect(outbound.at(-1)?.content).toContain('（回 1 确认 · 2 取消；')
+    const outcome = triage({
+      group: GROUP,
+      message: replyTo(projection?.msgAnchors[0] ?? '', '1'),
+      isOwnOutbound: false,
+      isSelfChat: false,
+      aliases: ['@next'],
+      acceptAccountMentions: false,
+      operatorOpenId: IDENTITY.openId,
+      cardForAnchor: candidate => cards.cardForAnchor(candidate),
+      resolveKeyword: (cardRef, text) => cards.resolveKeyword(cardRef, text),
+    })
+    expect(outcome.kind).toBe('card-action')
+    if (outcome.kind !== 'card-action') return
+    expect(outcome.actionId).toBe('approve')
+  })
+
   it('covers every registered card type — a new card cannot ship without an exit', () => {
     // The guard against silently adding a sixth answerable object whose only
     // answer path is the desktop.

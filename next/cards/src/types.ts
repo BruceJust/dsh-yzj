@@ -47,6 +47,14 @@ export interface CardAction<S = JsonValue> {
   /** Whether this action consumes the free text that came with the answer. */
   readonly needsInput?: boolean
   /**
+   * 不编号 (界面重设计 律八).
+   *
+   * 卡上的 1 / 2 / 3 和云之家里「回 1 / 2」是同一套号——所以号只给**这一刻该答的那几个**
+   * 动词。作废、收回、收起这类两段式或善后的动词不占号：按错一个数字就作废一件事，
+   * 不是一个键盘该有的代价。它们照旧能用关键词答，桌面上收在卡尾的次要位置。
+   */
+  readonly secondary?: boolean
+  /**
    * 这个动作是一次**人签发的裁决**，而这个字符串是它的**种类** —— 家族自己说。
    *
    * 声明它的家族会在这个动作落地时经动作总线发一条通用的
@@ -286,6 +294,8 @@ export interface YzjCardChannel {
 export interface CardTextProjection {
   readonly body: string
   readonly replyHints: readonly string[]
+  /** 编了号的动词（第 i 个 = 回 i+1）。和桌面卡上的号是同一张表。 */
+  readonly numbered?: readonly string[]
   /** True when the body was clipped and points at the desktop instead. */
   readonly degraded: boolean
 }

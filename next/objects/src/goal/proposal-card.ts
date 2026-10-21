@@ -290,6 +290,7 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
     {
       id: 'settle',
       label: '收起',
+      secondary: true,
       style: 'neutral',
       keywords: ['收起'],
       allowedActors: (actor, state) => isDecider(actor.openId, state),

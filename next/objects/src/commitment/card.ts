@@ -226,6 +226,7 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
     {
       id: 'void',
       label: '作废',
+      secondary: true,
       style: 'danger',
       keywords: ['作废', '不做了', '取消这条'],
       /*
