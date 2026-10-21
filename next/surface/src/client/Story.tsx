@@ -11,7 +11,7 @@ import type { CommitmentStoryWire, SurfaceInject } from './rpc.ts'
 import {
   commissionNow, landOn, ledgerChanged, pushFrame, requestPortal, sendErrand, setSpotlight, subscribeLedger,
 } from './store.ts'
-import { RepairVerbs, type Repair } from './RepairVerbs.tsx'
+import { RepairVerbs, repairLabel, type Repair } from './RepairVerbs.tsx'
 import { handoffPortal } from './RoomPicker.tsx'
 import { delegateSeed } from './commission.ts'
 import { stage, stagedNow, subscribeStaged, undo } from './answers.ts'
@@ -289,7 +289,7 @@ export function CommitmentStoryPanel(props: {
           )}
           {sovereign && (
             <button type="button" className={css.ghost} onClick={() => { setRepair({ kind: 'attach', row: target }); setField('') }}>
-              {story.goal === undefined ? '挂到目标…' : '不挂了…'}
+              {repairLabel('attach', target)}
             </button>
           )}
         </div>
@@ -351,10 +351,10 @@ export function CommitmentStoryPanel(props: {
                   {story.direction === 'mine' && story.sessionId !== undefined && (
                     <button type="button" className={css.btn} onClick={() => { goTo(story.sessionId as string, { kind: 'commitment', id: story.id }) }}>去做</button>
                   )}
-                  <button type="button" className={css.btn} onClick={() => { setRepair({ kind: 'postpone', row: target }); setField(story.due?.text ?? '') }}>顺延</button>
-                  <button type="button" className={css.btn} onClick={() => { setRepair({ kind: 'handoff', row: target }) }}>转给别人</button>
-                  <button type="button" className={css.btn} onClick={() => { setRepair({ kind: 'merge', row: target }); setField('') }}>合并</button>
-                  <button type="button" className={`${css.btn} ${css.btnQuiet}`} onClick={() => { setRepair({ kind: 'void', row: target }); setField('') }}>作废…</button>
+                  <button type="button" className={css.btn} onClick={() => { setRepair({ kind: 'postpone', row: target }); setField(story.due?.text ?? '') }}>{repairLabel('postpone', target)}</button>
+                  <button type="button" className={css.btn} onClick={() => { setRepair({ kind: 'handoff', row: target }) }}>{repairLabel('handoff', target)}</button>
+                  <button type="button" className={css.btn} onClick={() => { setRepair({ kind: 'merge', row: target }); setField('') }}>{repairLabel('merge', target)}</button>
+                  <button type="button" className={`${css.btn} ${css.btnQuiet}`} onClick={() => { setRepair({ kind: 'void', row: target }); setField('') }}>{repairLabel('void', target)}</button>
                 </div>
               )}
           {repair !== undefined && sovereign && (

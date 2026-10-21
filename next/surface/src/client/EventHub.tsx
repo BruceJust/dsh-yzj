@@ -22,7 +22,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { BoardEventWire, SurfaceInject } from './rpc.ts'
 import { RoomPicker, handoffPortal, landPortal, type Portal } from './RoomPicker.tsx'
-import { RepairVerbs, type Repair, type RepairTarget } from './RepairVerbs.tsx'
+import { REPAIR_KINDS, RepairVerbs, repairLabel, type Repair, type RepairTarget } from './RepairVerbs.tsx'
 import { eventPrepSeed } from './commission.ts'
 import { safeHref } from './preview.ts'
 import { landOn } from './store.ts'
@@ -123,15 +123,6 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
   const [field, setField] = useState('')
   const [busy, setBusy] = useState('')
   const [note, setNote] = useState('')
-  /** 已经亮出后果、正等第二下的那颗作废。门的两半同生同灭（8 秒后松手）。 */
-  const [armed, setArmed] = useState('')
-
-  useEffect(() => {
-    if (armed === '') return undefined
-    const timer = setTimeout(() => { setArmed('') }, 8_000)
-    return () => { clearTimeout(timer) }
-  }, [armed])
-
   useEffect(() => {
     if (note === '') return undefined
     const timer = setTimeout(() => { setNote('') }, 5_000)
@@ -247,10 +238,7 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
             {repair !== undefined && repair.row.id === prep.commitmentId && (
               <div className={css.hubRepair}>
                 <div className={css.hubTabs}>
-                  {([
-                    ['postpone', '顺延'], ['handoff', '转给别人'], ['merge', '合并'],
-                    ['void', '作废…'], ['attach', prep.goalRef === undefined ? '挂到目标…' : '不挂了…'],
-                  ] as const).map(([kind, label]) => (
+                  {REPAIR_KINDS.map(kind => (
                     <button
                       type="button"
                       key={kind}
@@ -260,7 +248,7 @@ export function YzjEventHub(props: EventHubProps): ReactNode {
                         setField(kind === 'postpone' ? prep.due ?? '' : '')
                       }}
                     >
-                      {label}
+                      {repairLabel(kind, targetOf(prep))}
                     </button>
                   ))}
                 </div>

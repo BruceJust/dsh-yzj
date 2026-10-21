@@ -41,6 +41,23 @@ export type Repair =
   | { kind: 'attach'; row: RepairTarget }
 
 /**
+ * 动词上的字。只在这里写一次：会前那一眼和来龙去脉摆出来的是同一排词。
+ * 挂到目标 / 不挂了是同一格的加减法，看这一条眼下挂没挂。
+ */
+export function repairLabel(kind: Repair['kind'], row: Pick<RepairTarget, 'goalRef'>): string {
+  switch (kind) {
+    case 'postpone': return '顺延'
+    case 'handoff': return '转给别人'
+    case 'merge': return '合并'
+    case 'void': return '作废…'
+    case 'attach': return row.goalRef === undefined ? '挂到目标…' : '不挂了…'
+  }
+}
+
+/** 一排修理动词的次序。 */
+export const REPAIR_KINDS: readonly Repair['kind'][] = ['postpone', 'handoff', 'merge', 'void', 'attach']
+
+/**
  * 作废那颗按钮此刻说什么 —— **两段式** (决策 #57).
  *
  * 作废是不可逆的人签发终态（级联等待对象 + 回写真身）。按摩擦三分法，这属于**主权
