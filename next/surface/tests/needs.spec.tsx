@@ -222,9 +222,12 @@ describe('左栏「要你」', () => {
     vi.useRealTimers()
   })
 
-  const mount = async (sessions: { ids: string[]; byId: Record<string, { displayTitle?: string; running?: boolean; updatedAt?: number }> } = { ids: [], byId: {} }): Promise<void> => {
+  const mount = async (
+    sessions: { ids: string[]; byId: Record<string, { displayTitle?: string; running?: boolean; updatedAt?: number }> } = { ids: [], byId: {} },
+    view: InboxView = VIEW,
+  ): Promise<void> => {
     const inject = new Proxy({}, {
-      get: (_target, name) => async () => Promise.resolve(name === 'inbox' ? VIEW : undefined),
+      get: (_target, name) => async () => Promise.resolve(name === 'inbox' ? view : undefined),
     }) as SurfaceInject
     await act(async () => {
       root.render(
@@ -289,6 +292,18 @@ describe('左栏「要你」', () => {
     expect(rows[0]).toContain('整理周报')
     expect(rows[0]).toContain('本地 · 在跑')
     expect(rows[0]).not.toMatch(/在跑 \d/u)
+  })
+
+  it('活开着、却没有一回合在跑：说「停着」，不转圈', async () => {
+    const since = Date.now() - 11 * 3_600_000
+    await mount(
+      { ids: ['session-a'], byId: { 'session-a': { displayTitle: '查知识库', running: false, updatedAt: since } } },
+      { ...VIEW, running: [{ sessionId: 'session-a', title: '帮我看下我有哪些知识库', placeName: 'dsh-2', since }] },
+    )
+    const section = host.querySelector('section[aria-label="运行中"]')
+    expect(section?.textContent).toContain('停着 · 11 小时没动')
+    expect(section?.querySelector('[aria-label="在跑"], [aria-label="可能卡住了"]')).toBeNull()
+    expect(section?.querySelector('[aria-label="停着"]')).not.toBeNull()
   })
 
   it('撤回窗里答过的那件，立刻不在「要你」里', async () => {

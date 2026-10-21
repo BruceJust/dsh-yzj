@@ -139,9 +139,14 @@ export const sameRef = (left: CardRefWire | undefined, right: CardRefWire | unde
 )
 
 /** 一行话题此刻的那一个信号（律三：一行一个）。 */
-function signalOf(tone: TopicTone, live: boolean): 'need' | 'run' | undefined {
+/**
+ * 话题行右边那一个信号。活还开着、却没有一回合在跑 = 停着，不转圈：转圈说的是「此刻在跑」，
+ * 一件十一个小时没人动的活转着圈，是这一栏能说的另一句假话（实测 dsh-2 那一条）。
+ */
+function signalOf(tone: TopicTone, live: boolean): 'need' | 'run' | 'still' | undefined {
   if (tone === 'confirm' || tone === 'review') return 'need'
-  if (tone === 'running' || live) return 'run'
+  if (live) return 'run'
+  if (tone === 'running') return 'still'
   return undefined
 }
 
@@ -166,9 +171,16 @@ function Face(props: { name: string; photo?: string; hidePhoto?: boolean }): Rea
 }
 
 /** 一行右侧的那一个信号。 */
-function Signal(props: { kind: 'need' | 'run' | 'stall' | undefined }): ReactNode {
+function Signal(props: { kind: 'need' | 'run' | 'stall' | 'still' | undefined; late?: boolean }): ReactNode {
   if (props.kind === undefined) return null
   if (props.kind === 'need') return <NeedMark label="要你" />
+  if (props.kind === 'still') {
+    return (
+      <span className={props.late === true ? css.stillLate : css.still} role="img" aria-label="停着">
+        <Icon name="pause" size={12} />
+      </span>
+    )
+  }
   return (
     <span
       className={`${css.spin} ${props.kind === 'stall' ? css.spinStall : ''}`}
@@ -443,6 +455,8 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
       {running.map((run) => {
         const last = Math.max(run.since, hostById[run.sessionId]?.updatedAt ?? 0)
         const stalled = now - last > STALL_MS
+        // 活开着不等于在跑：宿主说这个会话此刻没有一回合在跑，它就是停着。
+        const turning = 'local' in run || hostById[run.sessionId]?.running === true
         return (
           <button
             type="button"
@@ -450,11 +464,13 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
             className={`${css.row} ${css.tall} ${run.sessionId === currentSessionId ? css.rowActive : ''}`}
             onClick={() => { go(run.sessionId) }}
           >
-            <span className={css.lead}><Signal kind={stalled ? 'stall' : 'run'} /></span>
+            <span className={css.lead}><Signal kind={turning ? stalled ? 'stall' : 'run' : 'still'} late={stalled} /></span>
             <span className={css.text}>
               <span className={css.title}>{stealth ? '一件活' : run.title}</span>
               <span className={`${css.meta} ${stalled ? css.metaNeed : ''}`}>
-                {stalled
+                {!turning
+                  ? `停着 · ${span(now - last)}没动`
+                  : stalled
                   ? `${span(now - last)}没进展`
                   // 本地会话只知道最后一次动静，不知道从几点开始跑——不报一个假的时长。
                   : `${stealth ? '' : `${run.placeName} · `}在跑${'local' in run ? '' : ` ${span(now - run.since)}`}`}
@@ -498,7 +514,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     >
       <span className={css.subLine} />
       <span className={css.title}>{stealth ? '一个话题' : row.title}</span>
-      <Signal kind={signalOf(row.tone, row.live === true)} />
+      <Signal kind={signalOf(row.tone, row.live === true || hostById[row.sessionId]?.running === true)} />
     </button>
   )
 
@@ -540,7 +556,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     const topics = place?.topics ?? []
     // 自聊行的未读不算「有人找你」：它的可应答流量已在「要你」里，私账消息读即清。
     const unread = stealth || row.selfChat ? 0 : row.unread
-    const signal = place === undefined ? undefined : signalOf(place.tone, topics.some(topic => topic.live === true))
+    const signal = place === undefined ? undefined : signalOf(place.tone, topics.some(topic => topic.live === true || hostById[topic.sessionId]?.running === true))
     return (
       <div key={row.placeKey} className={css.place}>
         <button

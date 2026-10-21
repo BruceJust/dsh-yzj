@@ -223,3 +223,7 @@
 }
 .railBtn:hover:not(:disabled) { background: var(--yzj-hover); }
 .railBtn:disabled { opacity: .5; cursor: default; }
+
+/* 停着：活开着、没有一回合在跑。不转圈；停得久了才上琥珀（和「可能卡住了」同一个门槛）。 */
+.still { display: inline-flex; color: var(--yzj-ink-4); }
+.stillLate { display: inline-flex; color: var(--yzj-need); }
