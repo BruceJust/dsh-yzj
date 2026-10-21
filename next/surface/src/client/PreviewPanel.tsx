@@ -18,7 +18,7 @@
  * 真身唯一:这里画出来的一切都是投影,**下载与云之家打开永远在头上那一行**。
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { AttachmentBodyWire, SurfaceInject } from './rpc.ts'
 import {
   extensionOf, sizeLabel, setPreviewStage, closePreview, leaveImmersive, useAttachmentBody,
@@ -28,6 +28,21 @@ import { parseDelimited, separatorFor } from './delimited.ts'
 import { markdownToHtml, previewDocument } from './markdown.ts'
 import { goToOrigin } from './store.ts'
 import css from './preview.module.css'
+
+/** 宿主的明暗开关挂在 body 上；md 跟着它排版。 */
+function hostDark(): boolean {
+  return typeof document !== 'undefined' && document.body.hasAttribute('data-ds-dark-theme')
+}
+
+function subscribeHostTheme(listener: () => void): () => void {
+  const watch = new MutationObserver(listener)
+  watch.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+  return () => { watch.disconnect() }
+}
+
+function useHostDark(): boolean {
+  return useSyncExternalStore(subscribeHostTheme, hostDark, () => false)
+}
 
 /** 表格预览的记录窗口:一屏能读的量,读不完的那部分说出来。 */
 const TABLE_ROWS = 200
@@ -104,6 +119,7 @@ function Body(props: {
 }): ReactNode {
   const { target, body, ext } = props
   const pdfUrl = usePdfUrl(body.kind === 'pdf' ? body.base64 : undefined)
+  const dark = useHostDark()
 
   if (body.kind === 'image') {
     return <img className={css.image} src={`data:${body.mime};base64,${body.base64}`} alt={target.title} />
@@ -141,12 +157,16 @@ function Body(props: {
   const shape = textShape(ext)
   if (shape === 'table') return <TablePreview text={body.text} ext={ext} />
   if (shape === 'markdown' || shape === 'html') {
+    /*
+      md 是我们排的版，跟着明暗走；html 是别人的一页纸，按它作者的设想画在白纸上——
+      暗色下透明底会把它没写底色的黑字直接压在黑底上。
+    */
     return (
       <iframe
-        className={css.frame}
+        className={shape === 'markdown' ? css.frame : `${css.frame} ${css.sheet}`}
         sandbox=""
         title={target.title}
-        srcDoc={shape === 'markdown' ? previewDocument(markdownToHtml(body.text)) : body.text}
+        srcDoc={shape === 'markdown' ? previewDocument(markdownToHtml(body.text), dark) : body.text}
       />
     )
   }

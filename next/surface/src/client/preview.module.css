@@ -129,6 +129,14 @@
   border: 0;
   border-radius:var(--yzj-r-md);
   background: var(--yzj-bg);
+  /* 框和框里的文档说同一种明暗，浏览器才让框透明——不然会垫一块它自己的底。 */
+  color-scheme: light;
+}
+:global(body[data-ds-dark-theme]) .frame:not(.sheet) { color-scheme: dark; }
+/* 别人的 html：一张白纸，两种模式都是。 */
+.sheet {
+  background: var(--yzj-sheet);
+  box-shadow: 0 0 0 1px var(--yzj-line);
 }
 
 .image {
