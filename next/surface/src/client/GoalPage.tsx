@@ -79,7 +79,7 @@ export function goalHintOf(view: GoalPageWire, now: number = Date.now()): GoalHi
     return {
       kind: 'drifted',
       text: goal.truthChanged === undefined
-        ? '怎么算完成改过了，上次的评估是照旧版写的。'
+        ? '完成标准改过了，上次的评估是照旧版写的。'
         : `${goal.truthChanged.detail}（${daysAgo(Math.floor((now - goal.truthChanged.at) / DAY_MS))}发现）——上次的评估是照旧版写的。`,
     }
   }
@@ -309,7 +309,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
             <h1 className={css.title}>{name}</h1>
             {goal.criteria !== undefined && (
               <div className={css.criteria}>
-                <span className={css.criteriaLabel}>怎么算完成</span>
+                <span className={css.criteriaLabel}>完成标准</span>
                 <span className={css.criteriaText}>{goal.criteria}</span>
               </div>
             )}

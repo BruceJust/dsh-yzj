@@ -48,7 +48,7 @@ describe('每一句问的都是它那颗按钮的事', () => {
 
   it('评估要的是逐条对着成功标准的证据（真身证据，不是自报数）', () => {
     const said = assessAsk(NAME, REF)
-    expect(said).toContain('成功标准')
+    expect(said).toContain('完成标准')
     expect(said).toContain('证据')
   })
 
@@ -122,7 +122,7 @@ describe('磨目标：磨点在可验收，签发权在人', () => {
   it('把方向摆好——追问怎么算完成，磨完递提案', () => {
     const seed = goalCraftSeed('把对账周期压到 3 天')
     expect(seed).toContain('把对账周期压到 3 天')
-    expect(seed).toContain('怎么算完成')
+    expect(seed).toContain('怎么才算完成')
     // 「递提案给我签发」这半句不能省：agent 只有提议权，含糊的说法是在请它越权。
     expect(seed).toContain('提案')
     expect(seed).toContain('签发')

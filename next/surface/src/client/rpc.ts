@@ -1287,7 +1287,7 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       const { value, error } = await write<{ url: string; note?: string }>('create-goal-body', { ...input })
       if (error !== undefined) return { error }
       // 没拿到链接就说没拿到——一个空的成功比一次失败更难查。
-      if (value?.url === undefined) return { error: '云之家没有回传真身链接' }
+      if (value?.url === undefined) return { error: '云之家没有回传文档链接' }
       return value.note === undefined ? { url: value.url } : { url: value.url, note: value.note }
     },
     async people(keyword) {

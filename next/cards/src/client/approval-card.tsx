@@ -17,7 +17,7 @@ import css from './card.module.css'
 import tokens from './tokens.module.css'
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: '等待确认',
+  pending: '等你确认',
   approved: '已放行',
   rejected: '已拒绝',
   expired: '已超时自动拒绝',

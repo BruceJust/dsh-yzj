@@ -27,6 +27,7 @@ import {
 import { parseDelimited, separatorFor } from './delimited.ts'
 import { markdownToHtml, previewDocument } from './markdown.ts'
 import { goToOrigin } from './store.ts'
+import { Icon } from './icons.tsx'
 import css from './preview.module.css'
 
 /** 宿主的明暗开关挂在 body 上；md 跟着它排版。 */
@@ -232,7 +233,7 @@ export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
         {sizeLabel(target.size) !== '' && <span className={css.size}>{sizeLabel(target.size)}</span>}
         {/* 预览不等于拿到手:不管什么类型、多大,都要能真的下载下来。 */}
         {target.fileId !== undefined && (
-          <button type="button" className={css.act} onClick={download} title="下载到本机">⬇ 下载</button>
+          <button type="button" className={css.act} onClick={download} title="下载到本机">下载</button>
         )}
         {target.href !== undefined && (
           <a
@@ -240,9 +241,8 @@ export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
             href={target.href}
             target="_blank"
             rel="noreferrer noopener"
-            title="在云之家打开真身"
           >
-            云之家 ↗
+            在云之家打开<Icon name="ext" size={12} />
           </a>
         )}
         <button
@@ -253,7 +253,7 @@ export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
         >
           {stage === 'aside' ? '⤢' : '⤡'}
         </button>
-        <button type="button" className={css.act} aria-label="关闭预览" onClick={closePreview}>×</button>
+        <button type="button" className={css.act} aria-label="关闭预览" onClick={closePreview}><Icon name="x" size={14} /></button>
       </div>
 
       {target.from !== undefined && (

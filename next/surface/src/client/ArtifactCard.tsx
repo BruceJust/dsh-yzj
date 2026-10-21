@@ -113,7 +113,7 @@ export function ArtifactCard(props: ArtifactCardProps): ReactNode {
           href={artifact.href}
           target="_blank"
           rel="noreferrer noopener"
-          title="真身在云之家——打开看到的永远是当下那一份"
+          title="在云之家打开——看到的是最新那一份"
         >
           {face}
           <span className={css.arrow}>↗</span>

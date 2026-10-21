@@ -285,7 +285,7 @@ export function YzjJudg(props: JudgProps): ReactNode {
       <div className={css.body}>
         <div className={css.column}>
           <div className={css.contract}>
-            <span>🔒 只有你看得到。不进公司的账，随时可以整本带走。</span>
+            <Icon name="lock" size={13} /><span>只有你看得到。不进公司的账，随时可以整本带走。</span>
             <button type="button" className={css.contractMore} onClick={() => { setContractOpen(true) }}>
               判断力档案<Icon name="chevR" size={12} />
             </button>

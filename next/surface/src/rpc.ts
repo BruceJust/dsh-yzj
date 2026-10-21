@@ -239,11 +239,11 @@ function refuseUnlessSteward(
     的那一半——而人真正想问的下一句是「那我能做什么」。
   */
   const otherDoor = verb === '移交'
-    ? '你不能把它转手（那是脱责），但可以把它拆下去转包给别人办——你仍然对他负责，不需要谁批准。'
+    ? '你不能把它转手，但可以拆一部分交给别人办——仍然算你负责，不用谁批准。'
     : ''
   return failure(
-    `${verb}归**登记这条承诺的人**${executor === undefined ? '' : `（执行者是 ${executor}）`}——`
-    + `直接问他一句；或者让 agent 把话拟好，你亲自发过去。${otherDoor}`,
+    `${verb}要由登记这条承诺的人来做${executor === undefined ? '' : `（现在是 ${executor} 在做）`}——`
+    + `直接问他一句，或者让${SIGNATURE_AGENT}把话拟好、你亲自发过去。${otherDoor}`,
   )
 }
 
@@ -829,8 +829,8 @@ const TONE_RANK: Record<TopicTone, number> = {
 }
 
 const TONE_BADGE: Record<TopicTone, string> = {
-  confirm: '待确认', review: '待验收',
-  running: '运行中', waiting: '等待中', idle: '',
+  confirm: '确认', review: '验收',
+  running: '在跑', waiting: '在等', idle: '',
 }
 
 /**
@@ -1995,7 +1995,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     if (uri === undefined) continue
     const previous = truthChanges.get(uri)
     if (previous !== undefined && previous.at >= event.time) continue
-    truthChanges.set(uri, { at: event.time, detail: asString(data?.detail) ?? '真身被改动过' })
+    truthChanges.set(uri, { at: event.time, detail: asString(data?.detail) ?? '云之家里的目标正文改过了' })
   }
 
   const goals: BoardGoal[] = [...byGoal.entries()].map(([goalRef, children]) => {
@@ -2096,8 +2096,8 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
   const peers = topics?.peers() ?? []
   const mirrorNote = peers.length === 0
     ? undefined
-    : `${peers.map(peer => `云小助（${peer.name}）`).join('、')}登记的承诺，真身在它们各自的图上；`
-      + '这里标「镜像」的行是从群消息流物化的滞后镜像——只看，不改；要动它，去群里对那个实例说。'
+    : `标「镜像」的几行是${peers.map(peer => `云小助（${peer.name}）`).join('、')}记的，`
+      + '这里只看不改，也可能晚几分钟；要改，去群里对它说。'
   const desk = pledgerDesk(ctx)
   const judgMorning = desk?.morningCount()
   return {
@@ -2365,7 +2365,7 @@ export async function commitmentStory(ctx: Context, id: string, now: number = Da
     }
   }
   const where = anchor === 'desktop:board'
-    ? '承诺板'
+    ? '承诺页'
     : anchor.startsWith('session:') ? `和${SIGNATURE_AGENT}的会话` : row.placeName
 
   const steps: StoryStep[] = []
@@ -3847,9 +3847,9 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             const toolClass = [...classes.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? 'doc'
             const leaseId = await proposeLease(scoped, {
               decider, toolClass, days: typeof days === 'number' ? days : 7, family,
-              reason: `${head.label}：近 90 天同意 ${String(head.agree)} 次、被推翻 ${String(head.reversed)} 次——这一期 ${toolClass} 一类的写入不再问你`,
+              reason: `${head.label}：近 90 天同意 ${String(head.agree)} 次、被推翻 ${String(head.reversed)} 次——这一期往${AUTO_CLASS[toolClass] ?? toolClass}里写不用每次问你`,
             })
-            return { ok: true, value: { leaseId, note: `租约确认卡已开（${toolClass} 一类，${String(typeof days === 'number' ? days : 7)} 天）——在收件箱和你的自聊里签发；签发之后这一期不再问你。` } }
+            return { ok: true, value: { leaseId, note: `规矩递到「要你」里了（往${AUTO_CLASS[toolClass] ?? toolClass}里写，${String(typeof days === 'number' ? days : 7)} 天）——你签了才生效。` } }
           }
           case 'pledger-export': {
             const desk = pledgerDesk(scoped)
@@ -3920,7 +3920,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             const what = stringField(payload, 'what')
             const goalRef = stringField(payload, 'goalRef')
             if (what === undefined || goalRef === undefined) {
-              return failure('立目标需要目标名和真身链接')
+              return failure('新目标要有名字，和一篇云之家文档做正文')
             }
             /*
               **owner 是一个人，不是一个字符串** —— 一次 id 伪造的修复。
@@ -3953,7 +3953,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
                 「留空 = 我」这句话在这一刻没有指称：通道还没拿到身份，我是谁没有答案。
                 此前它落成 `'op-1'`——一个占位符被当成人写进了账本。宁可这一刻立不了。
               */
-              return failure('还不知道你是谁（云之家身份还没就绪），先等一会儿再立目标。')
+              return failure('云之家还没认出你的身份，等一会儿再定这个目标。')
             }
             const executor = ownerOpenId === undefined
               ? {
@@ -4002,8 +4002,8 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               const status = asString(asRecord(existing.state)?.status) ?? 'open'
               const named = asString(asRecord(existing.state)?.what) ?? goalRef
               return failure(status === 'open'
-                ? `这个真身已经立过目标了：「${named}」。改名字请在那条目标上改，不要重立。`
-                : `这个真身上的目标已${status === 'voided' ? '作废' : '结束'}（「${named}」），不能用同一个链接重开。`)
+                ? `这篇文档已经是目标「${named}」的正文了。要改名，到那个目标上改。`
+                : `这篇文档对应的目标「${named}」已经${status === 'voided' ? '作废' : '结束'}，不能用同一篇再开。`)
             }
             try {
               await scoped.yzjGraph.append({
@@ -4136,7 +4136,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             try {
               await scoped.yzjGraph.append({
                 type: 'commitment/voided',
-                data: { commitmentId: id, cause: stringField(payload, 'reason') ?? '操作者在承诺板作废' },
+                data: { commitmentId: id, cause: stringField(payload, 'reason') ?? '在承诺页作废' },
                 actor: scoped.yzjCards.desktopActor(),
               })
               return { ok: true, value: { id } }
@@ -4730,7 +4730,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             const workspace = stringField(payload, 'workspace')
             const title = stringField(payload, 'title')
             if (workspace === undefined || title === undefined) {
-              return failure('建真身需要知识库与标题')
+              return failure('建正文要先选知识库、写标题')
             }
             // 建文档 + 写正文的那一段住在 objects：看板这条路和提案那条路必须建出同一种
             // 东西，两边各写一份迟早在「正文要不要写进去」上分道扬镳。

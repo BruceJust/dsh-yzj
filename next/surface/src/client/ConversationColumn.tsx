@@ -252,7 +252,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   useEffect(() => {
     if (voice !== 'ask' || window_ === EMPTY || window_.topic !== undefined) return
     setVoice('private')
-    setToast(`这个会话不是云之家话题，快问用不了——已经切回「仅你和${AGENT}」。`)
+    setToast(`这里不是云之家的话题，快问用不了——已切回「仅你和${AGENT}」。`)
   }, [voice, window_])
 
   // 触发词到了，把受话摆进框里——看得见、删得掉；人改过了就不补。
@@ -719,7 +719,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
                 ? {
                   kind: 'context',
                   text: voice === 'place' && !calling
-                    ? `带着目标「${pendingGoal.goalName}」——句子里带上 ${alias ?? `@${AGENT}`}，这次委派才会记成可跟踪的承诺。`
+                    ? `带着目标「${pendingGoal.goalName}」——句子里带上 ${alias ?? `@${AGENT}`}，它才会接下、记成承诺。`
                     : `带着目标「${pendingGoal.goalName}」——这句发出去之后，这个话题就挂在它下面。`,
                   drop: () => { setPendingGoal(undefined) },
                 }

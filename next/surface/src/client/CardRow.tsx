@@ -763,7 +763,7 @@ function Verdicts(props: CardRowProps): ReactNode {
                     : [
                       text(item.executorName) || (isGoal ? '' : '还没定谁'),
                       text(item.due) === '' ? '' : `原话「${text(item.due)}」`,
-                      where === '' ? (isGoal ? '' : '没有能投递的群，定下后要你亲自去说') : `登记发到「${where}」`,
+                      where === '' ? (isGoal ? '' : '没有能发的群，定下后要你自己去说') : `登记发到「${where}」`,
                     ].filter(part => part !== '').join(' · ')}
                 </span>
               </span>

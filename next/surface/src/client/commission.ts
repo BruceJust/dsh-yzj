@@ -37,12 +37,12 @@ export function breakdownAsk(goalName: string, goalRef: string): string {
  * 对账，而那份副本恰恰是可能已经过时的那一份。
  */
 export function assessAsk(goalName: string, goalRef: string): string {
-  return `评估目标「${goalName}」（${goalRef}）的完成度，逐条对着成功标准给证据。`
+  return `评估目标「${goalName}」（${goalRef}）的完成度，逐条对着完成标准给证据。`
 }
 
 /** 以新基准重估：真身改过之后的那一次对账，判据是**现在这版**正文。 */
 export function rebaseAsk(goalName: string, goalRef: string): string {
-  return `真身正文改过了。以现在这版成功标准，重新评估目标「${goalName}」（${goalRef}）的完成度。`
+  return `目标正文改过了。按现在这版完成标准，重新评估目标「${goalName}」（${goalRef}）的完成度。`
 }
 
 /* ───────────────── 起头：按钮只摆主语，句子是人的 ───────────────── */
@@ -118,6 +118,6 @@ export function gapSeed(goalName: string, criterion: string): string {
 export function goalCraftSeed(what: string): string {
   const said = what.trim()
   return said === ''
-    ? '我想立一个目标，先和你磨一磨——追问我怎么算完成，磨到可验收了再递提案给我签发。我想做的是：'
-    : `我想立一个目标：${said}。先和你磨一磨——追问我怎么算完成，磨到可验收了再递提案给我签发。`
+    ? '我想立一个目标，先和你磨一磨——追问我怎么才算完成，磨到可验收了再递提案给我签发。我想做的是：'
+    : `我想立一个目标：${said}。先和你磨一磨——追问我怎么才算完成，磨到可验收了再递提案给我签发。`
 }

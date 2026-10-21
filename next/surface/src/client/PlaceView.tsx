@@ -568,7 +568,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                 kind: 'context',
                 text: addressed
                   ? `带着目标「${pendingGoal.goalName}」——新长出来的话题会挂在它下面。`
-                  : `带着目标「${pendingGoal.goalName}」——句子里带上 ${alias ?? `@${AGENT}`}，这次委派才会记成可跟踪的承诺。`,
+                  : `带着目标「${pendingGoal.goalName}」——句子里带上 ${alias ?? `@${AGENT}`}，它才会接下、记成承诺。`,
                 drop: () => { setPendingGoal(undefined) },
               }
               : addressed

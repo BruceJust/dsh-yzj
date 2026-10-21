@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { InboxConversationWire, PersonWire, SurfaceInject } from './rpc.ts'
 import { avatarOf } from './stream.ts'
 import { Icon } from './icons.tsx'
+import { AGENT } from './words.ts'
 import css from './compose.module.css'
 
 /** dsh's relative-time buckets, so a row here reads like a row in the sidebar. */
@@ -149,7 +150,7 @@ export function ForwardPicker(props: ForwardPickerProps): ReactNode {
     void inject.sendInPlace(row.placeKey, text).then((result) => {
       setBusy('')
       if (result.refused === 'not-on-duty') {
-        done(`没发出去：这条里带着触发词，而 agent 不在「${row.name}」接单。`)
+        done(`没发出去：这句里叫了${AGENT}，可它没在「${row.name}」接活。`)
         return
       }
       if (result.deferredTo !== undefined) {
@@ -177,7 +178,7 @@ export function ForwardPicker(props: ForwardPickerProps): ReactNode {
         <div className={css.head}>
           <span className={css.headTitle}>转发到</span>
           <span className={css.headSub}>按最近活动排</span>
-          <button type="button" className={css.close} onClick={close} aria-label="关闭">×</button>
+          <button type="button" className={css.close} onClick={close} aria-label="关闭"><Icon name="x" size={14} /></button>
         </div>
         <div className={css.quote}>{text}</div>
         <input

@@ -170,7 +170,7 @@ describe('取景框渲染：组头是原料，不是分数', () => {
     expect(text).not.toContain('成立')
     expect(text).toContain('没有分数、没有排名、没有别人的账')
     setFrame({ kind: 'judg' })
-    expect(await rendered(<YzjRightColumn inject={inject} />)).toContain('当时的样子')
+    expect(await rendered(<YzjRightColumn inject={inject} />)).toContain('你当时看到的原文')
   })
 })
 

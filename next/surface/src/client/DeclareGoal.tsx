@@ -14,6 +14,7 @@ import { sendErrand } from './store.ts'
 import { goalCraftSeed } from './commission.ts'
 import { PersonPicker } from './PersonPicker.tsx'
 import { AGENT } from './words.ts'
+import { Icon } from './icons.tsx'
 import css from './board.module.css'
 
 /**
@@ -109,7 +110,7 @@ function BodyMaker(props: {
           <button type="button" className={css.spacePicked} title="换一个知识库" onClick={() => { setPicked('') }}>
             {chosen.name}
             <span className={css.spaceMeta}>{label(chosen)}</span>
-            <span className={css.spaceDrop}>×</span>
+            <span className={css.spaceDrop}><Icon name="x" size={10} /></span>
           </button>
         )}
       {chosen?.personal === true && (
@@ -175,7 +176,7 @@ export function DeclareGoal(props: {
       <div className={css.sheet} role="dialog" aria-label="新目标" onClick={(event) => { event.stopPropagation() }}>
         <div className={css.sheetHead}>
           <span className={css.sheetTitle}>新目标</span>
-          <button type="button" className={css.sheetClose} onClick={close} aria-label="关闭">×</button>
+          <button type="button" className={css.sheetClose} onClick={close} aria-label="关闭"><Icon name="x" size={14} /></button>
         </div>
         <label className={css.field}>
           <span className={css.fieldLabel}>目标</span>
@@ -206,7 +207,7 @@ export function DeclareGoal(props: {
           )}
         </label>
         <label className={css.field}>
-          <span className={css.fieldLabel}>怎么算完成</span>
+          <span className={css.fieldLabel}>完成标准</span>
           <textarea
             className={css.area}
             value={criteria}
@@ -249,7 +250,7 @@ export function DeclareGoal(props: {
             type="button"
             className={css.sheetGrind}
             disabled={busy}
-            title={`还没想清楚「怎么算完成」？去和${AGENT}聊，聊好了它把提议递给你签`}
+            title={`还没想清楚完成标准？去和${AGENT}聊，聊好了它把提议递给你签`}
             onClick={() => {
               if (fromSessionId === undefined) {
                 setRefusal(`先从左边打开一个会话，再回来——和${AGENT}聊总要有个地方。`)
@@ -280,11 +281,11 @@ export function DeclareGoal(props: {
               }).then((result) => {
                 setBusy(false)
                 if (result.error !== undefined) { setRefusal(result.error); return }
-                done(`立了目标「${what.trim()}」。`)
+                done(`新目标「${what.trim()}」定下了。`)
               })
             }}
           >
-            {busy ? '正在立…' : '立目标'}
+            {busy ? '正在定…' : '定下'}
           </button>
         </div>
       </div>

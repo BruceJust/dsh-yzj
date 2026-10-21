@@ -138,6 +138,6 @@ describe('来龙去脉', () => {
 
   it('在承诺板上登记的，说「承诺板」', async () => {
     await owed('c-8', 'desktop:board')
-    expect((await commitmentStory(ctx, 'c-8'))?.birth.where).toBe('承诺板')
+    expect((await commitmentStory(ctx, 'c-8'))?.birth.where).toBe('承诺页')
   })
 })

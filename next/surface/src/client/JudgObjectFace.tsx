@@ -10,6 +10,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 import type { EvidenceFaceWire, ObjectFaceWire, ObjectPreviewWire, SurfaceInject } from './rpc.ts'
 import { ResourceTab } from './ResourceTab.tsx'
 import { currentJudgSelection, landOn, subscribeJudgSelection } from './store.ts'
+import { AGENT, whenOf } from './words.ts'
 import tokens from './tokens.module.css'
 import css from './objects.module.css'
 import vault from './vault.module.css'
@@ -66,25 +67,22 @@ export function YzjJudgObjectFace(props: JudgObjectFaceProps): ReactNode {
   }, [tab, resources, inject])
 
   const rows = evidence?.rows ?? []
+  const now = Date.now()
   return (
     <div className={`${tokens.tokens} ${css.panel}`}>
-      <div className={css.head}>
-        <span className={css.title}>当时的样子</span>
-        <span className={css.sub}>这些是当时拍下的原文，不是现在去查的。离开这一页就收起。</span>
-      </div>
       <div className={css.tabs}>
-        {([['current', '当前'], ['memory', '记忆'], ['resources', '资源']] as const).map(([id, label]) => (
+        {([['current', '当时'], ['memory', '记忆'], ['resources', '资料']] as const).map(([id, label]) => (
           <button type="button" key={id} className={`${css.tab} ${tab === id ? css.tabOn : ''}`} onClick={() => { setTab(id) }}>
             {label}{id === 'current' && rows.length > 0 && <span className={css.tabCount}>{rows.length}</span>}
           </button>
         ))}
       </div>
-      <div className={css.radius}>
-        {tab === 'current' ? evidence?.title ?? '左边任一行按「看 ›」' : tab === 'memory' ? '这一格永远为空' : '组织侧的物 · 跨账本恒定格'}
-      </div>
+      {tab === 'current' && rows.length > 0 && (
+        <div className={css.radius}>{evidence?.title ?? '你定的时候看到的'} · 当时拍下的原文，不是现在去查的</div>
+      )}
       <div className={css.body}>
         {tab === 'current' && (rows.length === 0
-          ? <div className={css.calm}>左边任一行按「看 ›」，它当时的照片就摆到这儿。</div>
+          ? <div className={css.calm}>选左边一行，你当时看到的原文就摆到这儿。</div>
           : rows.map((one, index) => {
             const key = one.anchor === undefined ? '' : `${one.anchor.kind}:${one.anchor.id}`
             const preview = previews[key]
@@ -97,23 +95,24 @@ export function YzjJudgObjectFace(props: JudgObjectFaceProps): ReactNode {
               : preview?.goalRef !== undefined && openGoal !== undefined ? () => { openGoal(preview.goalRef as string) } : undefined
             return (
               <div key={`${one.at}:${String(index)}`} className={`${vault.evidenceRow} ${one.premise === 'changed' ? vault.evidenceDead : ''}`}>
-                {one.premise === 'changed' ? '⚰ ' : ''}{one.text}
+                {one.text}
                 <span className={vault.evidenceMeta}>
-                  {new Date(one.at).toLocaleString('zh-CN', { hour12: false })}
+                  {whenOf(new Date(one.at).getTime(), now)}
                   {one.mark === undefined ? '' : ` · ${one.mark}`}
+                  {one.premise === 'changed' ? ' · 后来变了' : ''}
                 </span>
                 {preview?.alive === true && (
                   <div className={vault.preview}><b>现在</b>：{preview.title ?? ''}{(preview.lines ?? []).map(line => <span className={vault.evidenceMeta} key={line}>{line}</span>)}</div>
                 )}
                 {jump !== undefined && (
-                  <div className={vault.actions}><button type="button" className={vault.verb} onClick={jump}>回那张卡 ↗</button></div>
+                  <div className={vault.actions}><button type="button" className={vault.verb} onClick={jump}>回到那张卡 ›</button></div>
                 )}
               </div>
             )
           }))}
-        {tab === 'memory' && <div className={css.calm}>空，而且永远为空：你的判断记录永不入记忆库。记忆是 agent 的复利，这本账是你的——两本账不合流。</div>}
+        {tab === 'memory' && <div className={css.calm}>这里永远是空的：你的判断不进{AGENT}的记忆。</div>}
         {tab === 'resources' && (
-          <ResourceTab rows={resources?.resources ?? []} empty={resources === undefined ? '读取中…' : '本机会话还没有产出工件。'} />
+          <ResourceTab rows={resources?.resources ?? []} empty={resources === undefined ? '正在读…' : '还没有资料。'} />
         )}
       </div>
     </div>
