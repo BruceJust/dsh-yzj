@@ -3238,8 +3238,8 @@ let stealthMode = false
 /**
  * 私账桌面面 —— **所有取用都经这里**（隐身档下恒为 undefined）。
  *
- * 模块级标志而不是逐次传参：隐身是**进程级的显示层配置**（`applySurfaceRpc` 的入参，
- * 一次设定不再变），而把它做成参数，就等于在每一个调用点开一个「忘记传」的口子。
+ * 模块级标志而不是逐次传参：隐身是**进程级的显示层配置**（`applySurfaceRpc` 的入参给初值，
+ * ⌘K 里的「开始演示」在运行时切），而把它做成参数，就等于在每一个调用点开一个「忘记传」的口子。
  */
 function pledgerDesk(ctx: Context): Context['yzjPledgerDesk'] {
   return stealthMode ? undefined : ctx.get('yzjPledgerDesk')
@@ -4916,7 +4916,15 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             return { ok: true, value: await placeView(scoped, placeKey, windowSize) }
           }
           case 'inbox':
-            return { ok: true, value: { ...inboxView(scoped), stealth } }
+            return { ok: true, value: { ...inboxView(scoped), stealth: stealthMode } }
+          /*
+            演示隐身 (D10)：⌘K 里切。投屏前一下打开，私账、自聊、群名一起退场；仍是同一个
+            开关、同一条路（`pledgerDesk` 与自聊分派都读它），只是不必重启才能切。只对桌面
+            开着（loopback），和其余桌面端点一样。
+          */
+          case 'set-stealth':
+            stealthMode = (payload as { on?: unknown }).on === true
+            return { ok: true, value: { stealth: stealthMode } }
           case 'tree':
             return { ok: true, value: { places: scoped.get('yzjTopics')?.tree() ?? [] } }
           case 'events':

@@ -698,6 +698,8 @@ export type Read<T> =
 export interface SurfaceInject {
   /** `undefined` = 没读到（不是「没有会话」）。 */
   inbox(): Promise<InboxView | undefined>
+  /** 演示隐身：投屏前打开，私账、自聊、群名一起退场。 */
+  setStealth(on: boolean): Promise<{ error?: string }>
   /** `undefined` = 没读到（不是「没有承诺」）。 */
   board(): Promise<BoardViewWire | undefined>
   /** 立目标 = 登记动词的看板形态：落真身 + 登记一步完成。 */
@@ -1119,6 +1121,10 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
 
   return {
     inbox: () => call<InboxView>('inbox', {}),
+    async setStealth(on) {
+      const { error } = await write<{ stealth: boolean }>('set-stealth', { on })
+      return error === undefined ? {} : { error }
+    },
     board: () => call<BoardViewWire>('board', {}),
     async declareGoal(input) {
       const { error } = await write<{ commitmentId: string }>('declare-goal', { ...input })

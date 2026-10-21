@@ -55,11 +55,28 @@ describe('⌘K：到已有地方的捷径', () => {
     expect(matchPalette(items, '李婷')[0]?.sub).toBe('私聊')
   })
 
-  it('空着的时候不摊开整本：要你、去哪、几个地方；隐身档下只给去哪', () => {
+  it('空着的时候不摊开整本：要你、去哪、几个地方；隐身档下只给去哪和做', () => {
     const blank = matchPalette(items, '')
     expect(blank.some(item => item.group === '承诺' || item.group === '产出')).toBe(false)
     expect(blank[0]?.group).toBe('要你')
-    expect(matchPalette(items, '', true).every(item => item.group === '去哪')).toBe(true)
+    expect(matchPalette(items, '', true).every(item => item.group === '去哪' || item.group === '做')).toBe(true)
+  })
+
+  /*
+    演示隐身有落点 (D10 · R14)：⌘K 里就能开、能关。隐身档下自聊搜不到，「今天自己办了的」不给。
+  */
+  it('「开始演示」在 ⌘K 里；隐身档下变「结束演示」，自聊和「自己办了的」不出现', () => {
+    expect(items.find(item => item.key === 'do:stealth')?.label).toBe('开始演示')
+    const hidden = paletteItems({
+      inbox: {
+        stealth: true,
+        conversations: [{ placeKey: 'self', name: '我', kind: 'direct', selfChat: true, onDuty: true, unread: 0, lastMsgTime: 0, preview: '' }],
+      } as never,
+      autoToday: 3,
+    })
+    expect(hidden.find(item => item.key === 'do:stealth')?.label).toBe('结束演示')
+    expect(hidden.some(item => item.key === 'place:self')).toBe(false)
+    expect(hidden.some(item => item.key === 'go:auto')).toBe(false)
   })
 })
 

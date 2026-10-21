@@ -34,8 +34,9 @@ export type PaletteTarget =
   | { readonly kind: 'judg' }
   | { readonly kind: 'help' }
   | { readonly kind: 'auto' }
+  | { readonly kind: 'stealth'; readonly on: boolean }
 
-export type PaletteGroup = '要你' | '地方' | '话题' | '承诺' | '目标' | '产出' | '去哪'
+export type PaletteGroup = '要你' | '地方' | '话题' | '承诺' | '目标' | '产出' | '去哪' | '做'
 
 export interface PaletteItem {
   readonly key: string
@@ -48,7 +49,7 @@ export interface PaletteItem {
   readonly target: PaletteTarget
 }
 
-const GROUPS: readonly PaletteGroup[] = ['要你', '去哪', '地方', '话题', '承诺', '目标', '产出']
+const GROUPS: readonly PaletteGroup[] = ['要你', '去哪', '做', '地方', '话题', '承诺', '目标', '产出']
 
 export interface PaletteData {
   readonly inbox?: InboxView
@@ -75,19 +76,26 @@ export function paletteItems(data: PaletteData): readonly PaletteItem[] {
   if (data.inbox?.pledger?.enabled === true) {
     add({ key: 'go:judg', group: '去哪', icon: 'lock', label: '我定过的', sub: '只有你看得到', target: { kind: 'judg' }, extra: '判断 私账' })
   }
-  if ((data.autoToday ?? 0) > 0) {
+  const stealth = data.inbox?.stealth === true
+  // 隐身档下「今天自己办了的」不给：左栏清零态也不露它——那是你的规矩，不是给墙上看的。
+  if ((data.autoToday ?? 0) > 0 && !stealth) {
     add({
       key: 'go:auto', group: '去哪', icon: 'check', label: '今天自己办了的', sub: `${String(data.autoToday)} 件 · 凭你签的规矩`,
       target: { kind: 'auto' }, extra: '规矩 自动',
     })
   }
   add({ key: 'go:help', group: '去哪', icon: 'keyboard', label: '快捷键', sub: '?', target: { kind: 'help' }, extra: 'keyboard shortcuts' })
+  add(stealth
+    ? { key: 'do:stealth', group: '做', icon: 'eyeOff', label: '结束演示', sub: '私聊、私账、群名回到屏上', target: { kind: 'stealth', on: false }, extra: '隐身 演示 投屏 stealth demo' }
+    : { key: 'do:stealth', group: '做', icon: 'eyeOff', label: '开始演示', sub: '投屏前：隐去私聊、私账和群名', target: { kind: 'stealth', on: true }, extra: '隐身 演示 投屏 stealth demo' })
   const names = new Map<string, string>()
   // 云小助在岗的地方排前面：空着按 ⌘K 时先给的那几个，该是你真在用的。
   const conversations = [...(data.inbox?.conversations ?? [])]
     .sort((left, right) => Number(right.onDuty && right.kind !== 'assistant') - Number(left.onDuty && left.kind !== 'assistant'))
   for (const row of conversations) {
     names.set(row.placeKey, row.name)
+    // 自聊是审批与私语通道：演示时搜都搜不到。
+    if (stealth && row.selfChat === true) continue
     const direct = row.kind !== 'group'
     add({
       key: `place:${row.placeKey}`, group: '地方', icon: direct ? 'users' : 'hash',
@@ -142,17 +150,26 @@ export function matchPalette(items: readonly PaletteItem[], query: string, steal
   const words = query.trim().toLowerCase().split(/\s+/u).filter(word => word !== '')
   const hits = words.length === 0
     ? items.filter((item) => {
-      if (stealth) return item.group === '去哪'
-      return item.group === '要你' || item.group === '去哪'
+      if (stealth) return item.group === '去哪' || item.group === '做'
+      return item.group === '要你' || item.group === '去哪' || item.group === '做'
     }).concat(stealth ? [] : items.filter(item => item.group === '地方').slice(0, 5))
     : items.filter(item => words.every(word => item.hay.includes(word)))
   return [...hits].sort((left, right) => GROUPS.indexOf(left.group) - GROUPS.indexOf(right.group)).slice(0, 60)
 }
 
 /** 去那儿：和左栏、承诺页里点下去是同一个落点。 */
-function go(target: PaletteTarget): void {
+function go(target: PaletteTarget, inject: SurfaceInject): void {
   openPalette('closed')
   switch (target.kind) {
+    case 'stealth':
+      /*
+        切完整页重读：要藏的东西散在左栏、自聊、右栏、头像里，等各处下一次轮询（最多五秒）
+        才退场，就是在投屏的那几秒里把它们摆在墙上。
+      */
+      void inject.setStealth(target.on).then(({ error }) => {
+        if (error === undefined) window.location.reload()
+      })
+      return
     case 'need': jumpToNeed(target.need); return
     case 'topic': setFrame({ kind: 'session' }); openSessionNow(target.sessionId); return
     case 'place': setFrame({ kind: 'place', placeKey: target.placeKey, groupName: target.groupName }); return
@@ -210,7 +227,7 @@ function Search(props: { inject: SurfaceInject }): ReactNode {
     if (event.key === 'Enter') {
       event.preventDefault()
       const hit = hits[at]
-      if (hit !== undefined) go(hit.target)
+      if (hit !== undefined) go(hit.target, inject)
     }
     if (event.key === 'Escape') { event.preventDefault(); openPalette('closed') }
   }
@@ -232,7 +249,13 @@ function Search(props: { inject: SurfaceInject }): ReactNode {
       </div>
       <div className={css.list} ref={listRef} role="listbox">
         {hits.length === 0
-          ? <div className={css.empty}>{query.trim() === '' ? '正在读…' : `没有带「${query.trim()}」的。`}</div>
+          ? (
+            <div className={css.empty}>
+              {query.trim() === ''
+                ? '正在读…'
+                : `没有带「${query.trim()}」的。这里只找得到${AGENT}见过的群、人和东西——没接入的群在左栏最下面那一行里，别的到云之家里找。`}
+            </div>
+          )
           : hits.map((hit, index) => {
             const head = hit.group !== lastGroup ? hit.group : undefined
             lastGroup = hit.group
@@ -246,7 +269,7 @@ function Search(props: { inject: SurfaceInject }): ReactNode {
                   {...(index === at ? { 'data-on': '1' } : {})}
                   className={`${css.item} ${index === at ? css.itemOn : ''}`}
                   onMouseMove={() => { if (index !== at) setAt(index) }}
-                  onClick={() => { go(hit.target) }}
+                  onClick={() => { go(hit.target, inject) }}
                 >
                   <span className={css.icon}><ItemIcon icon={hit.icon} /></span>
                   <span className={css.label}>{hit.label}</span>
