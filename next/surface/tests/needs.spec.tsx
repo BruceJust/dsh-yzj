@@ -222,7 +222,7 @@ describe('左栏「要你」', () => {
     vi.useRealTimers()
   })
 
-  const mount = async (): Promise<void> => {
+  const mount = async (sessions: { ids: string[]; byId: Record<string, { displayTitle?: string; running?: boolean; updatedAt?: number }> } = { ids: [], byId: {} }): Promise<void> => {
     const inject = new Proxy({}, {
       get: (_target, name) => async () => Promise.resolve(name === 'inbox' ? VIEW : undefined),
     }) as SurfaceInject
@@ -230,7 +230,7 @@ describe('左栏「要你」', () => {
       root.render(
         <YzjSidebar
           inject={inject}
-          useSessions={selector => selector({ ids: [], byId: {}, current: 'session-z' })}
+          useSessions={selector => selector({ ...sessions, current: 'session-z' })}
           open={(id) => { opened.push(id) }}
           startSession={() => undefined}
           sessionActions={{ rename: async () => Promise.resolve() }}
@@ -272,6 +272,23 @@ describe('左栏「要你」', () => {
     act(() => { box.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', bubbles: true })) })
     expect(opened).toEqual([])
     box.remove()
+  })
+
+  it('本地会话在跑一回合，也在「运行中」——不报它不知道的时长', async () => {
+    await mount({
+      ids: ['local-1', 'local-2', 'session-a'],
+      byId: {
+        'local-1': { displayTitle: '整理周报', running: true, updatedAt: Date.now() },
+        'local-2': { displayTitle: '没在跑的', running: false, updatedAt: Date.now() },
+        // 话题会话归图上的活管，不在这里重复列。
+        'session-a': { displayTitle: '竞品对比', running: true, updatedAt: Date.now() },
+      },
+    })
+    const rows = [...host.querySelectorAll('section[aria-label="运行中"] button')].map(row => row.textContent ?? '')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toContain('整理周报')
+    expect(rows[0]).toContain('本地 · 在跑')
+    expect(rows[0]).not.toMatch(/在跑 \d/u)
   })
 
   it('撤回窗里答过的那件，立刻不在「要你」里', async () => {

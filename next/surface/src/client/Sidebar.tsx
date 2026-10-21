@@ -51,6 +51,8 @@ interface HostSession {
   readonly blank?: boolean
   /** Last activity: the row's relative clock, and the 「运行中」 health check. */
   readonly updatedAt?: number
+  /** 宿主说这个会话此刻有一回合在跑。本地会话没有任务对象，「运行中」只能从这里知道。 */
+  readonly running?: boolean
 }
 
 /**
@@ -422,7 +424,17 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
 
   /* ——— 2 · 运行中 ——— */
 
-  const running = inbox.running ?? []
+  /*
+    运行中 = 图上在跑的活 ∪ 宿主说正在跑一回合的**本地**会话。本地会话没有任务对象，
+    图上不知道它在跑——此前在桌上开的长活一跑起来就从左栏消失，只能回本地那一节去找。
+  */
+  const topicSessions = new Set(inbox.topicSessionIds)
+  const running = [
+    ...(inbox.running ?? []),
+    ...hostIds
+      .filter(id => hostById[id]?.running === true && !topicSessions.has(id) && !(inbox.running ?? []).some(run => run.sessionId === id))
+      .map(id => ({ sessionId: id, title: hostById[id]?.displayTitle ?? '本地会话', placeName: '本地', since: hostById[id]?.updatedAt ?? now, local: true })),
+  ]
   const runningSection = running.length === 0 ? null : (
     <section className={css.section} aria-label="运行中">
       {head(undefined, '运行中', <span className={css.headTail}><span className={css.zeroCount}>{running.length}</span></span>)}
@@ -442,7 +454,8 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
               <span className={`${css.meta} ${stalled ? css.metaNeed : ''}`}>
                 {stalled
                   ? `${span(now - last)}没进展`
-                  : `${stealth ? '' : `${run.placeName} · `}在跑 ${span(now - run.since)}`}
+                  // 本地会话只知道最后一次动静，不知道从几点开始跑——不报一个假的时长。
+                  : `${stealth ? '' : `${run.placeName} · `}在跑${'local' in run ? '' : ` ${span(now - run.since)}`}`}
               </span>
             </span>
           </button>
