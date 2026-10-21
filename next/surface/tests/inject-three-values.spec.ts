@@ -43,10 +43,10 @@ describe('通讯录：搜到了 / 一个也没有 / 读不了', () => {
 
   it('通道抛异常：同样是「读不了」，不是「没有」', async () => {
     const inject = injectWith(async () => { throw new Error('socket 断了') })
-    expect((await inject.people('张')).error).toBe('socket 断了')
+    expect((await inject.people('张')).error).toBe('工作台这边没响应，再试一次。')
   })
 
   it('压根没有连接时也一样', async () => {
-    expect((await createSurfaceInject(undefined).people('张')).error).toBe('通道未就绪')
+    expect((await createSurfaceInject(undefined).people('张')).error).toBe('工作台还没连上，稍等一下再试。')
   })
 })

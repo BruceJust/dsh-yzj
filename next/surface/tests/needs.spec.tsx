@@ -27,7 +27,7 @@ import type { TopicDescriptor } from '@yzj-next/channel'
 import { inboxView } from '../src/rpc.ts'
 import { YzjSidebar } from '../src/client/Sidebar.tsx'
 import type { InboxView, SurfaceInject } from '../src/client/rpc.ts'
-import { AGENT, plainError, waitLine } from '../src/client/words.ts'
+import { AGENT, plainError, turnErrorLine, waitLine } from '../src/client/words.ts'
 import { currentLanding, landOn, setAnswering } from '../src/client/store.ts'
 
 const TOPIC: TopicDescriptor = {
@@ -160,6 +160,18 @@ describe('屏上的公共说法', () => {
     expect(plainError('transport request failed: error decoding response body').retrying).toBe(true)
     // 已经是人话的原样放行：宿主的拒绝理由是写给人看的。
     expect(plainError('这条承诺已经完成了，不能再顺延').text).toBe('这条承诺已经完成了，不能再顺延')
+  })
+
+  it('一轮没答完：模型的错不说成云之家的错，每句都带下一步', () => {
+    expect(turnErrorLine('llm-pi-ai: request timed out after 10000ms')).toBe(`${AGENT}这一轮没连上模型，没答完——再说一句会重试。`)
+    expect(turnErrorLine('llm-pi-ai: 429 Too Many Requests')).toContain('模型那边正忙')
+    expect(turnErrorLine('401 Unauthorized: invalid api key')).toContain('设置')
+    expect(turnErrorLine('Error: maximum context length exceeded')).toContain('新话题')
+    expect(turnErrorLine('AbortError: aborted')).toBe('这一轮停下了。')
+    const odd = turnErrorLine('llm-pi-ai: Error: something odd happened in the provider adapter layer today')
+    expect(odd).toContain('something odd')
+    expect(odd).not.toContain('llm-pi-ai')
+    expect(turnErrorLine('')).toBe(`${AGENT}这一轮没答完——再说一句会重试。`)
   })
 })
 

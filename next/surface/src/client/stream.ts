@@ -16,6 +16,7 @@
  */
 
 import type { StreamArtifactWire, StreamCard, TopicMessageWire } from './rpc.ts'
+import { turnErrorLine } from './words.ts'
 
 /**
  * One node of the host's conversation snapshot.
@@ -456,7 +457,7 @@ export function buildStream(
         items.push({
           time,
           seat: seat++,
-          row: { kind: 'sysline', key, time, text: `本回合失败：${asText(node.message) || '未知错误'}` },
+          row: { kind: 'sysline', key, time, text: turnErrorLine(asText(node.message)) },
         })
         continue
       }

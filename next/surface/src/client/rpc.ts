@@ -5,6 +5,7 @@
  */
 
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import { plainError } from './words.ts'
 
 /** One Yunzhijia message, as the fused timeline renders it. */
 export interface TopicMessageWire {
@@ -1046,14 +1047,16 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     endpoint: string,
     payload: Record<string, unknown>,
   ): Promise<{ value?: T; error?: string }> => {
-    if (connection === undefined) return { error: '通道未就绪' }
+    // 出口只有这一个，人话也只在这里翻一次：服务端的拒绝理由本来就是整句中文，原样放行；
+    // 夹着 JSON 的 CLI 原话翻成一句人话（§5.8）。
+    if (connection === undefined) return { error: '工作台还没连上，稍等一下再试。' }
     try {
       const result = await connection.rpc.call('/yzj-next-surface', endpoint, payload)
       return result.ok
         ? { value: result.value as T }
-        : { error: result.error?.message ?? '操作失败' }
-    } catch (cause) {
-      return { error: cause instanceof Error ? cause.message : '通道无响应' }
+        : { error: plainError(result.error?.message ?? '没做成，再试一次。').text }
+    } catch {
+      return { error: '工作台这边没响应，再试一次。' }
     }
   }
 

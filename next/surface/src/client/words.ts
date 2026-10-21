@@ -74,7 +74,35 @@ export function plainError(raw: string): PlainError {
   if (message !== undefined) {
     return { text: message.replace(/^API error:\s*code=\d+,\s*/u, '').slice(0, 60), retrying: false }
   }
+  // 整句中文、没夹着结构的，是写给人看的：一个字不剪。
+  if (/[\u4e00-\u9fff]/u.test(text) && !/[{}[\]]/u.test(text)) return { text, retrying: false }
   return { text: text.length > 80 ? `${text.slice(0, 80)}…` : text, retrying: false }
+}
+
+/**
+ * 一轮没答完，用人话说为什么、下一步是什么 (§5.8)。
+ *
+ * 模型那一头的错和云之家那一头的错是两件事：连不上模型不该说成「连不上云之家」，所以
+ * 不走 {@link plainError}。每一句都带下一步——再说一句它会接着做，或者该去哪儿改。
+ * 认不出来的照实带上一小段原话，不编。
+ */
+export function turnErrorLine(raw: string): string {
+  const text = raw.trim()
+  if (/abort|cancel|已停止|已中止/iu.test(text)) return '这一轮停下了。'
+  if (/\b429\b|rate.?limit|too many requests|overload|\b529\b|繁忙/iu.test(text)) {
+    return `模型那边正忙，${AGENT}这一轮没答完——过一会儿再说一句，它会接着做。`
+  }
+  if (/\b401\b|\b403\b|api.?key|unauthori[sz]ed|forbidden|invalid.{0,12}key/iu.test(text)) {
+    return `模型的钥匙不对，${AGENT}这一轮没答完——要到设置里重新填一下。`
+  }
+  if (/context.{0,20}(length|window)|too long|max.?tokens|token limit|上下文/iu.test(text)) {
+    return `这个话题太长了，${AGENT}这一轮没答完——开一个新话题接着说会好。`
+  }
+  if (/timeout|timed out|ETIMEDOUT|ECONN|ENOTFOUND|fetch failed|network|socket|超时/iu.test(text)) {
+    return `${AGENT}这一轮没连上模型，没答完——再说一句会重试。`
+  }
+  const said = text.replace(/^(?:[\w-]+:\s*)+/u, '').replace(/^error:\s*/iu, '')
+  return `${AGENT}这一轮没答完${said === '' ? '' : `（${said.length > 40 ? `${said.slice(0, 40)}…` : said}）`}——再说一句会重试。`
 }
 
 /**
