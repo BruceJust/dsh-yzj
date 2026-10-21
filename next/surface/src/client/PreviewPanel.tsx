@@ -26,6 +26,7 @@ import {
 } from './preview.ts'
 import { parseDelimited, separatorFor } from './delimited.ts'
 import { markdownToHtml, previewDocument } from './markdown.ts'
+import { goToOrigin } from './store.ts'
 import css from './preview.module.css'
 
 /** 表格预览的记录窗口:一屏能读的量,读不完的那部分说出来。 */
@@ -235,10 +236,10 @@ export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
         <button type="button" className={css.act} aria-label="关闭预览" onClick={closePreview}>×</button>
       </div>
 
-      {stage === 'aside' && (
-        <div className={css.hint}>
-          并排 · <b>边看边回</b>，对话不离场 · 拖这一栏左缘调宽（中栏 ≥640 拖不破）· 更宽按 ⤢
-        </div>
+      {target.from !== undefined && (
+        <button type="button" className={css.from} onClick={() => { goToOrigin(target.from as NonNullable<typeof target.from>) }}>
+          来自「{target.from.label}」<span className={css.fromGo}>›</span>
+        </button>
       )}
       {saved !== '' && <div className={css.saved}>{saved}</div>}
 

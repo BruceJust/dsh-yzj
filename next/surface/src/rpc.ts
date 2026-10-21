@@ -1317,9 +1317,43 @@ export interface GoalArtifactRow {
    * false. So it is shown, and marked.
    */
   readonly shared?: boolean
-  /** 出处：它是在哪个话题里产出的——产出带出处，点一下回到那里 (界面重设计 律六). */
-  readonly placeName?: string
-  readonly sessionId?: string
+  /** 出处：它是从哪个话题、哪句话长出来的 (界面重设计 律六). */
+  readonly from?: ArtifactOrigin
+}
+
+/**
+ * 一份产出从哪长出来 —— 「来自「竞品对比表」」「来自和李婷的私聊」(界面重设计 律六).
+ *
+ * `messageId` 是接纳那一回合的云之家消息；桌面上直接说的那一回合没有它，客户端按 `at`
+ * 在流里找回它之前最近的那句人话。
+ */
+export interface ArtifactOrigin {
+  readonly label: string
+  readonly sessionId: string
+  readonly messageId?: string
+  readonly at: number
+}
+
+/** 话题 → 它叫什么、在哪个会话里。产出的出处从这里读。 */
+export function originsOf(ctx: Context): (topicKey: string, at: number, messageId?: string) => ArtifactOrigin | undefined {
+  const topics = new Map<string, { label: string; sessionId: string }>()
+  for (const branch of ctx.get('yzjTopics')?.tree() ?? []) {
+    for (const entry of branch.topics) {
+      const direct = entry.conversationKind === 'direct'
+      topics.set(entry.topicKey, {
+        label: direct ? `和${branch.place.groupName}的私聊` : entry.label === '' ? branch.place.groupName : entry.label,
+        sessionId: entry.sessionId,
+      })
+    }
+  }
+  return (topicKey, at, messageId) => {
+    const known = topics.get(topicKey)
+      ?? (topicKey.startsWith('session:')
+        ? { label: `和${SIGNATURE_AGENT}的会话`, sessionId: topicKey.slice('session:'.length) }
+        : undefined)
+    if (known === undefined) return undefined
+    return { ...known, at, ...(messageId === undefined || messageId === '' ? {} : { messageId }) }
+  }
 }
 
 /**
@@ -1502,6 +1536,8 @@ export interface ObjectRow {
   readonly action: string
   readonly placeKey: string
   readonly time: number
+  /** 从哪个话题、哪句话长出来的。 */
+  readonly from?: ArtifactOrigin
 }
 
 /** One thing this deployment has learned and still believes. */
@@ -1647,6 +1683,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     view that refreshes every six seconds.
   */
   const artifactsByTopic = new Map<string, GoalArtifactRow[]>()
+  const originOf = originsOf(ctx)
   for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
     const data = asRecord(event.data)
     const topicKey = asString(data?.topicKey)
@@ -1654,7 +1691,9 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     const uri = asString(artifact?.uri)
     if (topicKey === undefined || uri === undefined) continue
     const bucket = artifactsByTopic.get(topicKey) ?? []
+    const from = originOf(topicKey, event.time, asString(data?.messageId))
     bucket.push({
+      ...(from === undefined ? {} : { from }),
       uri,
       title: asString(artifact?.title) ?? uri,
       action: asString(data?.action) ?? '产出',
@@ -1875,11 +1914,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
       for (const artifact of artifactsByTopic.get(topicOfRow.get(child.id) ?? '') ?? []) {
         if (seen.has(artifact.uri)) continue
         seen.add(artifact.uri)
-        artifacts.push({
-          ...artifact,
-          ...(child.placeName === undefined ? {} : { placeName: child.placeName }),
-          ...(child.sessionId === undefined ? {} : { sessionId: child.sessionId }),
-        })
+        artifacts.push(artifact)
       }
     }
     artifacts.sort((left, right) => right.time - left.time)
@@ -2498,6 +2533,7 @@ export function objectFace(
 
   const nearby: ObjectRow[] = []
   const current: ObjectRow[] = []
+  const originOf = originsOf(ctx)
   for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
     const data = asRecord(event.data)
     const artifact = asRecord(data?.artifact)
@@ -2512,12 +2548,14 @@ export function objectFace(
       ? producedIn.startsWith('session:')
       : placeOfTopic.get(producedIn) === here
     if (!mine && !neighbour) continue
+    const from = originOf(producedIn, event.time, asString(data?.messageId))
     const row: ObjectRow = {
       uri,
       title: asString(artifact?.title) ?? uri,
       action: asString(data?.action) ?? '产出',
       placeKey,
       time: event.time,
+      ...(from === undefined ? {} : { from }),
     }
     nearby.push(row)
     if (mine) current.push(row)

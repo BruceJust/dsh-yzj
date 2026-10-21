@@ -76,6 +76,22 @@ function cardNodeIn(stream: HTMLElement | null, kind: string, id: string): Eleme
     .find(candidate => candidate.getAttribute('data-card') === anchor)
 }
 
+/**
+ * 一份产出长出来的那句话：有消息 id 就是那一条；没有（桌面上直接说的）就是那个时刻之前
+ * 最近的一句人话。
+ */
+function originNodeIn(stream: HTMLElement | null, kind: 'message' | 'at', id: string): Element | undefined {
+  if (kind === 'message') {
+    return [...(stream?.querySelectorAll('[data-msg]') ?? [])].find(candidate => candidate.getAttribute('data-msg') === id)
+  }
+  const at = Number(id)
+  let best: Element | undefined
+  for (const candidate of stream?.querySelectorAll('[data-said-at]') ?? []) {
+    if (Number(candidate.getAttribute('data-said-at')) <= at) best = candidate
+  }
+  return best
+}
+
 /** 指一下：闪 1.4 秒。用属性不用生成的类名——后者在找东西的那一刻可能是 undefined。 */
 function flash(node: Element): void {
   node.setAttribute('data-flash', '1')
@@ -333,6 +349,21 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   useEffect(() => {
     if (landing === undefined || landing.sessionId !== sessionId) return
     if (frame.kind !== 'session' || streamRef.current === null) return
+    // 回到一份产出长出来的那句话（律六）：不是卡，是一句话——落下、闪一下，不改「当前卡」。
+    if (landing.kind === 'message' || landing.kind === 'at') {
+      const node = originNodeIn(streamRef.current, landing.kind, landing.id)
+      if (node === undefined) {
+        if (paintedFor.current !== sessionId) return
+        landOn(undefined)
+        setToast('那句话不在这一段里了——可能太早，已经翻过去了。')
+        return
+      }
+      landOn(undefined)
+      atBottom.current = false
+      node.scrollIntoView({ block: 'center', behavior: 'instant' })
+      flash(node)
+      return
+    }
     const node = cardNodeIn(streamRef.current, landing.kind, landing.id)
     if (node === undefined) {
       if (paintedFor.current !== sessionId) return

@@ -13,6 +13,7 @@
 
 import type { ReactNode } from 'react'
 import { extensionOf, openPreview, sizeLabel, usePreview, type ArtifactRef } from './preview.ts'
+import { goToOrigin } from './store.ts'
 import css from './artifact.module.css'
 
 /**
@@ -24,6 +25,16 @@ import css from './artifact.module.css'
 function badgeOf(artifact: ArtifactRef): string {
   const ext = artifact.ext ?? extensionOf(artifact.title)
   return ext === undefined || ext.length > 4 ? '文件' : ext.toUpperCase()
+}
+
+/** 出处：来自「竞品对比」› —— 点了回到它长出来的那句话（律六）。 */
+export function FromLink(props: { from: NonNullable<ArtifactRef['from']> }): ReactNode {
+  const { from } = props
+  return (
+    <button type="button" className={css.from} onClick={() => { goToOrigin(from) }} title="回到它长出来的那句话">
+      来自「{from.label}」<span className={css.fromGo}>›</span>
+    </button>
+  )
 }
 
 export interface ArtifactCardProps {
@@ -83,6 +94,7 @@ export function ArtifactCard(props: ArtifactCardProps): ReactNode {
           {face}
           <span className={css.arrow}>{looking ? '◉' : '›'}</span>
         </button>
+        {artifact.from !== undefined && <FromLink from={artifact.from} />}
       </span>
     )
   }
@@ -106,13 +118,15 @@ export function ArtifactCard(props: ArtifactCardProps): ReactNode {
           {face}
           <span className={css.arrow}>↗</span>
         </a>
+        {artifact.from !== undefined && <FromLink from={artifact.from} />}
       </span>
     )
   }
 
   return (
     <span className={css.row}>
-      <span className={`${shell} ${css.inert}`} title={artifact.key}>{face}</span>
+      <span className={`${shell} ${css.inert}`}>{face}</span>
+      {artifact.from !== undefined && <FromLink from={artifact.from} />}
     </span>
   )
 }

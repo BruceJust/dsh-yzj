@@ -223,6 +223,31 @@ export interface Landing {
 let landing: Landing | undefined
 const landingListeners = new Set<() => void>()
 
+/**
+ * 回到一份产出长出来的那句话 (界面重设计 律六)：换回会话视图、打开那个会话、落在那句话上
+ * 并闪一下。`kind: 'message'` 落在那条云之家消息上；桌面上直接说的那一回合没有消息 id，
+ * 就用 `kind: 'at'`——落在那个时刻之前最近的一句人话上。
+ */
+export function goToOrigin(from: { readonly sessionId: string; readonly messageId?: string; readonly at: number }): void {
+  if (frame.kind !== 'session') setFrame({ kind: 'session' })
+  setSpotlight(undefined)
+  landOn(from.messageId === undefined
+    ? { sessionId: from.sessionId, kind: 'at', id: String(from.at) }
+    : { sessionId: from.sessionId, kind: 'message', id: from.messageId })
+  sessionOpener?.(from.sessionId)
+}
+
+/** 宿主「打开一个会话」那只手。装配处交代一次，右栏、预览、⌘K 都借它。 */
+let sessionOpener: ((sessionId: string) => void) | undefined
+
+export function setSessionOpener(open: ((sessionId: string) => void) | undefined): void {
+  sessionOpener = open
+}
+
+export function openSessionNow(sessionId: string): void {
+  sessionOpener?.(sessionId)
+}
+
 /** Ask the center column to land on one card once that session is on stage. */
 export function landOn(next: Landing | undefined): void {
   landing = next

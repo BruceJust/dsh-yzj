@@ -136,7 +136,7 @@ function renderRow(row: StreamRow, context: StreamContext, runningWork: boolean)
     case 'message': {
       const body = withoutImageMarks(row.text, (row.images ?? []).length > 0)
       return (
-        <div className={css.msg} data-msg={row.key.startsWith('m:') ? row.key.slice(2) : undefined}>
+        <div className={css.msg} data-msg={row.key.startsWith('m:') ? row.key.slice(2) : undefined} data-said-at={row.time}>
           <Avatar
             name={row.who}
             {...(row.avatar === undefined ? {} : { photo: row.avatar })}
@@ -195,7 +195,7 @@ function renderRow(row: StreamRow, context: StreamContext, runningWork: boolean)
       const agent = row.speaker === 'agent' || row.speaker === 'askAnswer'
       const name = SPEAKER[row.speaker] ?? row.speaker
       return (
-        <div className={css.msg}>
+        <div className={css.msg} data-said-at={agent ? undefined : row.time}>
           {agent
             ? <AgentFace size={28} className={css.face} />
             : <Avatar name={name} className={css.avatar} photoClassName={css.photo} />}

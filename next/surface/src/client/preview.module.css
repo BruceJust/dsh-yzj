@@ -83,17 +83,15 @@
   常显,因为它介绍的两个能力都是**看不见的**:宿主的拖拽把手要 hover 才现身,
   沉浸态藏在一个箭头图标后面。一行小字换两个能力被发现,划算。
 */
-.hint {
-  flex: none;
-  padding: 5px 12px;
-  border-bottom: 1px dashed var(--yzj-line);
-  background: var(--yzj-bg-sunk);
-  font-size:var(--yzj-fs-xs);
-  line-height: 1.6;
-  color: var(--yzj-ink-3);
+.from {
+  flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 2px; max-width: calc(100% - 16px);
+  margin: 6px 8px 0; padding: 2px 6px;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-.hint b { color: var(--yzj-ink-2); font-weight: 650; }
+.from:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+.fromGo { color: var(--yzj-ink-4); }
 
 .saved {
   flex: none;

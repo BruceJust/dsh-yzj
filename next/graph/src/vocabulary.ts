@@ -95,6 +95,8 @@ const lineageFamily: GraphFamily = {
         action: z.string().min(1),
         toolName: z.string().optional(),
         taskId: z.string().optional(),
+        /** 起源消息：接纳这一回合的那条云之家消息——产出带出处，点回原句 (界面重设计 律六)。 */
+        messageId: z.string().optional(),
       }),
     },
     'lineage/derived': {

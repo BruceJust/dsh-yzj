@@ -27,10 +27,20 @@ import type { AttachmentBodyWire, SurfaceInject } from './rpc.ts'
  * (otl 节点连下载口都没有),它能给的最诚实的东西是一扇门;IM 附件有字节,
  * 它能给预览和下载。同一张卡,亮的按钮不同——这不是两套 UI。
  */
+/** 一份产出从哪长出来：哪个话题、哪句话（律六）。 */
+export interface ArtifactOrigin {
+  readonly label: string
+  readonly sessionId: string
+  readonly messageId?: string
+  readonly at: number
+}
+
 export interface ArtifactRef {
   /** 稳定身份:同一个物在流里、右栏里、板上点开的是同一份预览。 */
   readonly key: string
   readonly title: string
+  /** 出处：不在它自己的话题里看它时，写明从哪长出来，点了回到那句话。 */
+  readonly from?: ArtifactOrigin
   /** 卡上那行小字:大小、谁发的、血缘。 */
   readonly meta?: string
   /**

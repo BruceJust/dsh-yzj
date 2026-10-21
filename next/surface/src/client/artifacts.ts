@@ -11,7 +11,7 @@
  * IM 出生形态」在代码里的兑现就是这一行。文档类没有这条路,它翻译成一扇门。
  */
 
-import { extensionOf, fileIdOfUri, safeHref, type ArtifactRef } from './preview.ts'
+import { extensionOf, fileIdOfUri, safeHref, type ArtifactOrigin, type ArtifactRef } from './preview.ts'
 
 /** 图上那条边说了什么。三处调用点的行各有各的字段,共同的只有这些。 */
 export interface ArtifactEdge {
@@ -24,16 +24,29 @@ export interface ArtifactEdge {
   readonly notes?: readonly (string | undefined)[]
   /** 越境、共用会话——要被看见的提醒,各自带着一句为什么。 */
   readonly marks?: readonly ({ readonly label: string; readonly why?: string } | undefined)[]
+  /** 出处：从哪个话题、哪句话长出来的。 */
+  readonly from?: ArtifactOrigin
+}
+
+/**
+ * 没记下名字的产出叫什么 —— 不把一串 `yzj://file/1a2b…` 或一条长链接当标题给人看。
+ * 说清它是哪一类东西，比一串地址更像一个名字。
+ */
+export function titleOf(uri: string, title: string): string {
+  const named = title.trim()
+  if (named !== '' && named !== uri) return named
+  if (uri.startsWith('yzj://file/')) return '一个文件'
+  if (uri.startsWith('yzj://message/')) return '一条消息'
+  if (/\/(sheet|table)s?\//iu.test(uri)) return '一张云之家表格'
+  if (/^https?:/iu.test(uri)) return '一篇云之家文档'
+  return '一份产出'
 }
 
 export function artifactRefOf(edge: ArtifactEdge): ArtifactRef {
   const fileId = fileIdOfUri(edge.uri)
   const href = safeHref(edge.uri)
-  /*
-    没有标题就用 URI 顶上。难看,但比空白强——而且它一眼就说明了是哪条边忘了
-    记名字,比一行「(未命名)」更快指向出问题的地方。
-  */
-  const title = edge.title === '' ? edge.uri : edge.title
+  // 没记下名字的不拿地址顶上：人读不懂一串地址，key 里还留着它，查问题够用。
+  const title = titleOf(edge.uri, edge.title)
   const meta = [edge.action, edge.toolName, ...(edge.notes ?? [])]
     .filter((part): part is string => part !== undefined && part !== '')
     .join(' · ')
@@ -45,6 +58,7 @@ export function artifactRefOf(edge: ArtifactEdge): ArtifactRef {
     key: `uri:${edge.uri}`,
     title,
     origin: 'agent',
+    ...(edge.from === undefined ? {} : { from: edge.from }),
     ...(marks.length === 0 ? {} : { marks }),
     ...(meta === '' ? {} : { meta }),
     ...(ext === undefined ? {} : { ext }),

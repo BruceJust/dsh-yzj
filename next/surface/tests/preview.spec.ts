@@ -197,8 +197,20 @@ describe('工件统一:一条产出边变成一张卡', () => {
     const ref = artifactRefOf({ uri: 'yzj://message/g-1/m-1', title: '', action: '发送消息' })
     expect(ref.fileId).toBeUndefined()
     expect(ref.href).toBeUndefined()
-    // 标题空着就顶上 URI:难看,但一眼指得出是哪条边忘了记名字。
-    expect(ref.title).toBe('yzj://message/g-1/m-1')
+    // 标题空着不拿地址顶上：说清它是哪一类东西；地址留在 key 里，查问题够用。
+    expect(ref.title).toBe('一条消息')
+    expect(ref.key).toContain('yzj://message/g-1/m-1')
+  })
+
+  it('没名字的产出按它是什么来叫，不给人看一串地址', () => {
+    expect(artifactRefOf({ uri: 'yzj://file/abc', title: '' }).title).toBe('一个文件')
+    expect(artifactRefOf({ uri: 'https://yzj.example.com/doc/9', title: 'https://yzj.example.com/doc/9' }).title).toBe('一篇云之家文档')
+    expect(artifactRefOf({ uri: 'https://yzj.example.com/sheet/3', title: '' }).title).toBe('一张云之家表格')
+  })
+
+  it('带着出处：从哪个话题、哪句话长出来', () => {
+    const from = { label: '竞品对比', sessionId: 's-1', messageId: 'm-7', at: 1 }
+    expect(artifactRefOf({ uri: 'yzj://file/abc', title: 'a.md', from }).from).toEqual(from)
   })
 
   it('补充信息并进小字,缺席的那些不留下分隔符', () => {

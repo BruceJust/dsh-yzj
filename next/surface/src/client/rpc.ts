@@ -560,9 +560,16 @@ export interface GoalArtifactWire {
   time: number
   /** 产在一个同时服务多个目标的会话里——归给谁都不准确，所以标出来。 */
   shared?: boolean
-  /** 出处：在哪个话题里产出的。 */
-  placeName?: string
-  sessionId?: string
+  /** 出处：从哪个话题、哪句话长出来的。 */
+  from?: ArtifactOriginWire
+}
+
+/** 一份产出从哪长出来（律六）。 */
+export interface ArtifactOriginWire {
+  label: string
+  sessionId: string
+  messageId?: string
+  at: number
 }
 
 export interface BoardAssessmentWire {
@@ -625,6 +632,8 @@ export interface ObjectRowWire {
   action: string
   placeKey: string
   time: number
+  /** 从哪个话题、哪句话长出来的。 */
+  from?: ArtifactOriginWire
 }
 
 export interface MemoryRowWire {

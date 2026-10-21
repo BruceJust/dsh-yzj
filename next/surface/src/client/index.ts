@@ -24,6 +24,7 @@ import { YzjRightColumn } from './RightColumn.tsx'
 import { YzjPreviewOverlay } from './PreviewOverlay.tsx'
 import { YzjSidebar } from './Sidebar.tsx'
 import { setPreviewOpener } from './preview.ts'
+import { setSessionOpener } from './store.ts'
 import { createSurfaceInject } from './rpc.ts'
 
 export { YzjConversationColumn, type ConversationColumnProps } from './ConversationColumn.tsx'
@@ -83,6 +84,8 @@ export function apply(ctx: ClientContext): void {
     } | undefined
     fork?(opts: { sessionId: string; atSeq?: number; increaseTitle?: boolean }): Promise<string>
   } | undefined
+  // 「回到那句话」「⌘K 去任何地方」借宿主打开会话的那只手——装配处交代一次。
+  setSessionOpener((id) => { sessions?.open?.(id) })
   /**
    * The host's workspace runtime. `list` is a snapshot store, not a getter —
    * the sidebar reads it per render so a directory opened just now appears

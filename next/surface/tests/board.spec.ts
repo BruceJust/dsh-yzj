@@ -31,7 +31,7 @@ import { sendErrand, takeErrand } from '../src/client/store.ts'
 import { errandFor } from '../src/client/RoomPicker.tsx'
 import { materialsOf } from '../src/client/EventHub.tsx'
 import {
-  boardFrame, bySignal, directionOf, eventsToday, inboxView, registrationFrom,
+  boardFrame, bySignal, directionOf, eventsToday, inboxView, objectFace, registrationFrom,
 } from '../src/rpc.ts'
 
 const OPERATOR: GraphActor = { kind: 'operator', openId: 'op-1' }
@@ -204,8 +204,32 @@ describe('产出归集：第二跳', () => {
     await produced('tk-1', 'https://s/1', '模板')
 
     const [artifact] = boardFrame(ctx).goals[0]?.artifacts ?? []
-    expect(artifact?.sessionId).toBe('sess-1')
-    expect(artifact?.placeName).toBeDefined()
+    expect(artifact?.from?.sessionId).toBe('sess-1')
+    expect(artifact?.from?.label).toBe('统一模板')
+  })
+
+  it('the object face says where each artifact grew from — the message that admitted the turn, or the moment', async () => {
+    await graph.append({
+      type: 'lineage/produced',
+      data: {
+        topicKey: 'tk-1', artifact: { uri: 'yzj://file/f-1', title: '对比.md', kind: 'file', placeKey: 'yzj-files' },
+        action: '上传文件', messageId: 'msg-42',
+      },
+      actor: OPERATOR,
+    })
+    await graph.append({
+      type: 'lineage/produced',
+      data: { topicKey: 'session:desk-1', artifact: { uri: 'yzj://file/f-2', title: '草稿.md', kind: 'file', placeKey: 'yzj-files' }, action: '上传文件' },
+      actor: OPERATOR,
+    })
+    const topic = TOPICS[0] as never
+    const [fromTopic] = objectFace(ctx, topic, 'sess-1').current
+    expect(fromTopic?.from).toMatchObject({ label: '统一模板', sessionId: 'sess-1', messageId: 'msg-42' })
+    const [fromDesk] = objectFace(ctx, undefined, 'desk-1').current
+    expect(fromDesk?.from?.sessionId).toBe('desk-1')
+    expect(fromDesk?.from?.label).toBe('和云小助的会话')
+    expect(fromDesk?.from?.messageId).toBeUndefined()
+    expect(fromDesk?.from?.at).toBeGreaterThan(0)
   })
 
   it('does not leak another goal\'s output into this one', async () => {

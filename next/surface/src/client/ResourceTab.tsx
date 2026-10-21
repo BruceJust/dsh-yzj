@@ -41,7 +41,8 @@ export function ResourceTab(props: ResourceTabProps): ReactNode {
         <ArtifactCard
           key={`${row.uri}:${String(row.time)}`}
           artifact={artifactRefOf({
-            uri: row.uri, title: row.title, action: row.action, notes: [row.placeKey],
+            uri: row.uri, title: row.title, action: row.action,
+            ...(row.from === undefined ? {} : { from: row.from }),
           })}
         />
       ))}

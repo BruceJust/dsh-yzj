@@ -96,3 +96,14 @@
 
 .arrow { flex: none; color: var(--yzj-ink-3); font-size:var(--yzj-fs-sm); }
 .card:hover .arrow { color: var(--yzj-pub); }
+
+/* 出处：来自「竞品对比」›——点了回到它长出来的那句话。 */
+.from {
+  display: inline-flex; align-items: center; gap: 2px; max-width: 100%;
+  margin: 2px 0 0; padding: 0 4px;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.from:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+.fromGo { color: var(--yzj-ink-4); }

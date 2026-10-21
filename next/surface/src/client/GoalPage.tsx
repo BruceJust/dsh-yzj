@@ -514,27 +514,18 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                 : (
                   <div className={css.artifacts}>
                     {goal.artifacts.map(artifact => (
-                      <div className={css.artifact} key={artifact.uri}>
-                        <ArtifactCard
-                          dense
-                          artifact={artifactRefOf({
-                            uri: artifact.uri,
-                            title: artifact.title,
-                            marks: [artifact.shared === true
-                              ? { label: '共用话题', why: '这个话题同时在为不止一个目标干活，说不准这份归哪个' }
-                              : undefined],
-                          })}
-                        />
-                        {artifact.placeName !== undefined && (
-                          artifact.sessionId === undefined
-                            ? <span className={css.from}>来自「{artifact.placeName}」</span>
-                            : (
-                              <button type="button" className={css.fromLink} onClick={() => { openSession(artifact.sessionId as string) }}>
-                                来自「{artifact.placeName}」<Icon name="chevR" size={12} />
-                              </button>
-                            )
-                        )}
-                      </div>
+                      <ArtifactCard
+                        key={artifact.uri}
+                        dense
+                        artifact={artifactRefOf({
+                          uri: artifact.uri,
+                          title: artifact.title,
+                          ...(artifact.from === undefined ? {} : { from: artifact.from }),
+                          marks: [artifact.shared === true
+                            ? { label: '共用话题', why: '这个话题同时在为不止一个目标干活，说不准这份归哪个' }
+                            : undefined],
+                        })}
+                      />
                     ))}
                   </div>
                 )}

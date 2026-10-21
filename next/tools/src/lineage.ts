@@ -218,6 +218,8 @@ export function applyLineage(ctx: Context): () => void {
             哪一份是哪一份的。填上它，精确归属成为常态，话题级降为兜底。
           */
           ...(binding?.taskId === undefined ? {} : { taskId: binding.taskId }),
+          // 起源消息：它是从哪句话长出来的。桌面上直接说的那一回合没有，客户端按时间找回去。
+          ...(binding?.messageId === undefined || binding.messageId === '' ? {} : { messageId: binding.messageId }),
         },
         actor: { kind: 'agent' },
       }).catch((error: unknown) => {
