@@ -59,7 +59,7 @@ export function escape(): boolean {
 
 /* ——— ⌘K 与 `?` 那一层 ——— */
 
-export type PaletteMode = 'closed' | 'search' | 'help'
+export type PaletteMode = 'closed' | 'search' | 'help' | 'auto'
 
 let palette: PaletteMode = 'closed'
 const paletteListeners = new Set<() => void>()
@@ -77,6 +77,12 @@ export function openPalette(mode: PaletteMode): void {
 export function subscribePalette(listener: () => void): () => void {
   paletteListeners.add(listener)
   return () => { paletteListeners.delete(listener) }
+}
+
+/** 今天从哪一刻算起：本地的零点。 */
+export function startOfToday(now: number = Date.now()): number {
+  const day = new Date(now)
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()
 }
 
 /** 全站那几个键。装一次（⌘K 那一层挂上时）。 */

@@ -564,6 +564,15 @@ export interface GoalArtifactWire {
   from?: ArtifactOriginWire
 }
 
+/** 没问你就办了的一件，和它凭的是什么（律九）。 */
+export interface AutoHandledWire {
+  at: number
+  what: string
+  placeName?: string
+  sessionId?: string
+  by: { kind: 'lease'; leaseId: string; rule: string; active: boolean } | { kind: 'message'; who: string }
+}
+
 /** 一份产出从哪长出来（律六）。 */
 export interface ArtifactOriginWire {
   label: string
@@ -734,6 +743,8 @@ export interface SurfaceInject {
   objects(sessionId?: string): Promise<ObjectFaceWire>
   /** 最近的产出，跨所有话题（⌘K 用）。 */
   artifacts(): Promise<ObjectRowWire[]>
+  /** 从 `since` 起，云小助按你的规矩、或凭群里那句话自己办成了的写（律九清零态）。 */
+  autoHandled(since: number): Promise<AutoHandledWire[]>
   fused(sessionId: string): Promise<FusedWindowWire | undefined>
   /**
    * Say one thing INTO the place.
@@ -1111,6 +1122,9 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     },
     async artifacts() {
       return await call<ObjectRowWire[]>('artifacts', {}) ?? []
+    },
+    async autoHandled(since) {
+      return await call<AutoHandledWire[]>('auto-handled', { since }) ?? []
     },
     async objects(sessionId) {
       return await call<ObjectFaceWire>(

@@ -35,10 +35,10 @@ import { avatarOf } from './stream.ts'
 import {
   answeringNow, currentFrame, landOn, publishNeeds, setFrame, setNeedJumper, subscribeAnswering, subscribeFrame,
 } from './store.ts'
-import { openPalette } from './keys.ts'
+import { openPalette, startOfToday } from './keys.ts'
 import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
 import { Icon } from './icons.tsx'
-import { span, waitLine } from './words.ts'
+import { AGENT, span, waitLine } from './words.ts'
 import tokens from './tokens.module.css'
 import css from './sidebar.module.css'
 
@@ -242,6 +242,22 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
   const stealth = inbox.stealth === true
   const needs = (inbox.needs ?? []).filter(need => !answering.some(ref => sameRef(ref, need.ref)))
 
+  /** 今天没问你就办了几件——只在「要你」清零时露出来，所以也只在那时去数。 */
+  const [autoToday, setAutoToday] = useState(0)
+  const cleared = needs.length === 0
+  useEffect(() => {
+    if (!cleared) return undefined
+    let alive = true
+    // 读不回来就当零件：清零态少一行，不是一个错误。
+    const count = (): void => {
+      void Promise.resolve(inject.autoHandled?.(startOfToday()))
+        .then((rows) => { if (alive) setAutoToday(rows?.length ?? 0) }, () => undefined)
+    }
+    count()
+    const timer = setInterval(count, 30_000)
+    return () => { alive = false; clearInterval(timer) }
+  }, [cleared, inject])
+
   /*
     `N` —— 下一件要你的 (律八).
 
@@ -380,10 +396,19 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
       ))}
       {needs.length === 0
         ? (
-          <div className={css.clear}>
-            <Icon name="check" size={14} className={css.clearMark} />
-            <span>都处理完了</span>
-          </div>
+          <>
+            <div className={css.clear}>
+              <Icon name="check" size={14} className={css.clearMark} />
+              <span>都处理完了</span>
+            </div>
+            {/* 清零不是空白（律九）：今天没问你就办了的那几件，凭的是你签的规矩。 */}
+            {autoToday > 0 && !stealth && (
+              <button type="button" className={css.auto} onClick={() => { openPalette('auto') }}>
+                今天{AGENT}按你的规矩自己办了 {autoToday} 件
+                <Icon name="chevR" size={12} />
+              </button>
+            )}
+          </>
         )
         : (
           <>

@@ -25,7 +25,7 @@ import {
   approvalCard, approvalFamily, leaseCard, leaseFamily, taskCard, taskFamily,
 } from '@yzj-next/objects'
 import type { TopicDescriptor } from '@yzj-next/channel'
-import { cardsFor, rulesFor, RULE_STREAK } from '../src/rpc.ts'
+import { autoHandled, cardsFor, rulesFor, RULE_STREAK } from '../src/rpc.ts'
 import { CardRow } from '../src/client/CardRow.tsx'
 import {
   dropAnsweredElsewhere, pressOnCard, resetAnswers, stage, stagedNow, undo, undoLatest, UNDO_MS,
@@ -246,6 +246,38 @@ describe('规则面板：你签的规矩', () => {
 
   it('没装租约族的部署：这一行空着，不去查一个不存在的族', () => {
     expect(rulesFor(ctx, TOPIC.placeKey)).toEqual([])
+  })
+
+  it('今天自己办了的：凭规矩或凭群里那句话、而且真办成了的写；人批的、没办成的不算', async () => {
+    graph.defineFamily({
+      kind: 'action',
+      events: {
+        'action/released': { schema: { parse: (data: unknown) => data } as never },
+        'action/settled': { schema: { parse: (data: unknown) => data } as never },
+      },
+      objectIdOf: () => undefined,
+      reduce: previous => previous ?? null,
+    } as never)
+    await lease('l-here', TOPIC.placeKey, 'op-1')
+    const release = async (callId: string, authority: Record<string, string>, outcome: string): Promise<void> => {
+      await graph.append({
+        type: 'action/released',
+        data: { sessionId: 's', callId, toolName: 'yzj_sheet_record_create', level: 'standard', argsDigest: 'd', authority, topicKey: TOPIC.topicKey },
+        actor: { kind: 'agent' },
+      })
+      await graph.append({ type: 'action/settled', data: { sessionId: 's', callId, outcome, durationMs: 1 }, actor: { kind: 'agent' } })
+    }
+    await release('a1', { kind: 'lease', leaseId: 'l-here', grantedBy: 'op-1' }, 'ok')
+    await release('a2', { kind: 'message', messageId: 'm-1', senderOpenId: 'p-li' }, 'ok')
+    await release('a3', { kind: 'approval', approvalId: 'ap-1', decidedBy: 'op-1' }, 'ok')
+    await release('a4', { kind: 'lease', leaseId: 'l-here', grantedBy: 'op-1' }, 'failed')
+    const rows = autoHandled(ctx, 0)
+    expect(rows.map(row => row.by.kind)).toEqual(['message', 'lease'])
+    expect(rows[0]?.by).toEqual({ kind: 'message', who: '李婷' })
+    expect(rows[1]?.what).toBe('写表格')
+    expect(rows[1]?.by).toMatchObject({ kind: 'lease', leaseId: 'l-here', active: true })
+    expect((rows[1]?.by as { rule: string }).rule).toContain('往表格里写不用每次问')
+    expect(autoHandled(ctx, Date.now() + 60_000)).toEqual([])
   })
 })
 

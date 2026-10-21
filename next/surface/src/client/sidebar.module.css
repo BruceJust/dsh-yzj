@@ -137,6 +137,14 @@
 .tailLate { margin-left: auto; font-size: var(--yzj-fs-xs); color: var(--yzj-late-ink); font-weight: 500; }
 .tailNeed { margin-left: auto; font-size: var(--yzj-fs-xs); color: var(--yzj-need-ink); font-weight: 500; }
 .ledger { margin-top: 4px; }
+/* 清零态的第二行：今天自己办了的。 */
+.auto {
+  display: flex; align-items: center; gap: 2px; width: 100%;
+  margin-top: 2px; padding: 4px 8px 4px 32px;
+  border: 0; border-radius: var(--yzj-r-md); background: none;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); text-align: left; cursor: pointer;
+}
+.auto:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
 /* ⌕ 跳到… ⌘K：⌘K 的那扇门，给不记快捷键的人。 */
 .jump { color: var(--yzj-ink-3); }
 .jump .kbd { margin-left: auto; }

@@ -14,7 +14,8 @@ import {
 } from './store.ts'
 import { openPreview, safeHref } from './preview.ts'
 import { artifactRefOf } from './artifacts.ts'
-import { KEYMAP, onGlobalKey, openPalette, paletteMode, subscribePalette } from './keys.ts'
+import { KEYMAP, onGlobalKey, openPalette, paletteMode, startOfToday, subscribePalette } from './keys.ts'
+import { AutoHandledSheet } from './AutoHandled.tsx'
 import { goalTitleOf } from './Board.tsx'
 import { AgentFace, Icon, type IconName } from './icons.tsx'
 import { AGENT } from './words.ts'
@@ -32,6 +33,7 @@ export type PaletteTarget =
   | { readonly kind: 'board' }
   | { readonly kind: 'judg' }
   | { readonly kind: 'help' }
+  | { readonly kind: 'auto' }
 
 export type PaletteGroup = '要你' | '地方' | '话题' | '承诺' | '目标' | '产出' | '去哪'
 
@@ -52,6 +54,8 @@ export interface PaletteData {
   readonly inbox?: InboxView
   readonly board?: BoardViewWire
   readonly artifacts?: readonly ObjectRowWire[]
+  /** 今天没问你就办了几件。 */
+  readonly autoToday?: number
 }
 
 /** 手上这几份数据能去的地方，一条一行。 */
@@ -70,6 +74,12 @@ export function paletteItems(data: PaletteData): readonly PaletteItem[] {
   add({ key: 'go:board', group: '去哪', icon: 'list', label: '承诺', sub: '谁欠你的、你欠谁的', target: { kind: 'board' }, extra: 'board 对账' })
   if (data.inbox?.pledger?.enabled === true) {
     add({ key: 'go:judg', group: '去哪', icon: 'lock', label: '我定过的', sub: '只有你看得到', target: { kind: 'judg' }, extra: '判断 私账' })
+  }
+  if ((data.autoToday ?? 0) > 0) {
+    add({
+      key: 'go:auto', group: '去哪', icon: 'check', label: '今天自己办了的', sub: `${String(data.autoToday)} 件 · 凭你签的规矩`,
+      target: { kind: 'auto' }, extra: '规矩 自动',
+    })
   }
   add({ key: 'go:help', group: '去哪', icon: 'keyboard', label: '快捷键', sub: '?', target: { kind: 'help' }, extra: 'keyboard shortcuts' })
   const names = new Map<string, string>()
@@ -149,6 +159,7 @@ function go(target: PaletteTarget): void {
     case 'board': setFrame({ kind: 'board' }); return
     case 'judg': pushFrame({ kind: 'judg' }, 0); return
     case 'help': openPalette('help'); return
+    case 'auto': openPalette('auto'); return
     case 'goal': pushFrame({ kind: 'goal', goalRef: target.goalRef, goalName: target.goalName }, 0); return
     case 'commitment':
       setFrame({ kind: 'board' })
@@ -179,9 +190,10 @@ function Search(props: { inject: SurfaceInject }): ReactNode {
 
   useEffect(() => {
     let alive = true
-    void Promise.all([inject.inbox(), inject.board(), inject.artifacts()]).then(([inbox, board, artifacts]) => {
-      if (alive) setData({ ...(inbox === undefined ? {} : { inbox }), board, artifacts })
-    })
+    void Promise.all([inject.inbox(), inject.board(), inject.artifacts(), inject.autoHandled(startOfToday())])
+      .then(([inbox, board, artifacts, auto]) => {
+        if (alive) setData({ ...(inbox === undefined ? {} : { inbox }), board, artifacts, autoToday: auto?.length ?? 0 })
+      }, () => undefined)
     return () => { alive = false }
   }, [inject])
 
@@ -288,7 +300,7 @@ export function YzjPalette(props: PaletteProps): ReactNode {
   if (mode === 'closed') return null
   return (
     <div className={`${tokens.tokens} ${css.mask}`} onClick={close}>
-      {mode === 'help' ? <KeyHelp /> : <Search inject={props.inject} />}
+      {mode === 'help' ? <KeyHelp /> : mode === 'auto' ? <AutoHandledSheet inject={props.inject} /> : <Search inject={props.inject} />}
     </div>
   )
 }

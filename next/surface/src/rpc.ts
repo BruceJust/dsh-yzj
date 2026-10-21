@@ -253,6 +253,12 @@ function stringField(payload: unknown, key: string): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 
+function numberField(payload: unknown, key: string): number | undefined {
+  if (typeof payload !== 'object' || payload === null) return undefined
+  const value = (payload as Record<string, unknown>)[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
 /** The commitments this topic is serving. */
 export function chipsFor(ctx: Context, topic: TopicDescriptor | undefined): TopicChip[] {
   if (topic === undefined) return []
@@ -395,6 +401,88 @@ export interface RuleRow {
   readonly signedBy?: string
   readonly until: number
   readonly saved: number
+}
+
+/**
+ * 今天云小助按你的规矩自己办了的 (界面重设计 律九 · §5.8 清零态).
+ *
+ * 读的是组织侧的账：`action/released` 里授权来源是**规矩**（人签的租约）或**群里那句话**
+ * （发消息的人叫它做的）、而且真的办成了（`action/settled` 为 ok）的那几次写。**不复用审计
+ * 报告**——审计不进界面；这里只回答「哪几件没问你就办了、凭的是什么」。
+ */
+export interface AutoHandledRow {
+  readonly at: number
+  /** 做了什么：写表格「竞品对比表」。 */
+  readonly what: string
+  readonly placeName?: string
+  readonly sessionId?: string
+  readonly by:
+    | { readonly kind: 'lease'; readonly leaseId: string; readonly rule: string; readonly active: boolean }
+    | { readonly kind: 'message'; readonly who: string }
+}
+
+const AUTO_VERB: Readonly<Record<string, string>> = {
+  doc: '写文档', sheet: '写表格', calendar: '改日程', im: '发群消息', file: '传文件', drive: '存文件',
+}
+const AUTO_CLASS: Readonly<Record<string, string>> = { doc: '文档', sheet: '表格', calendar: '日程', im: '群消息', file: '文件' }
+
+export function autoHandled(ctx: Context, since: number): readonly AutoHandledRow[] {
+  const settled = new Map<string, string>()
+  for (const event of ctx.yzjGraph.rawEvents(['action/settled'])) {
+    if (event.time < since) continue
+    const data = asRecord(event.data)
+    settled.set(`${asString(data?.sessionId) ?? ''}:${asString(data?.callId) ?? ''}`, asString(data?.outcome) ?? '')
+  }
+  const produced = [...ctx.yzjGraph.rawEvents(['lineage/produced'])].filter(event => event.time >= since)
+  const originOf = originsOf(ctx)
+  const peers = ctx.get('yzjTopics')?.peers() ?? []
+  const leases = new Map<string, { rule: string; active: boolean }>()
+  for (const object of ctx.yzjGraph.query({ kind: 'operator', openId: '' }, { kind: 'lease' })) {
+    const state = asRecord(object.state)
+    const scope = asRecord(state?.scope)
+    const cls = asString(scope?.toolClass) ?? ''
+    const placeKey = asString(scope?.placeKey)
+    const placeName = placeKey === undefined
+      ? undefined
+      : ctx.get('yzjTopics')?.tree().find(entry => entry.place.placeKey === placeKey)?.place.groupName
+    leases.set(object.id, {
+      rule: `${placeName === undefined ? '' : `在「${placeName}」`}往${AUTO_CLASS[cls] ?? cls}里写不用每次问`,
+      active: asString(state?.status) === 'active' && (asNumber(asRecord(state?.period)?.to) ?? 0) > Date.now(),
+    })
+  }
+  const out: AutoHandledRow[] = []
+  for (const event of ctx.yzjGraph.rawEvents(['action/released'])) {
+    if (event.time < since) continue
+    const data = asRecord(event.data)
+    const authority = asRecord(data?.authority)
+    const kind = asString(authority?.kind)
+    if (kind !== 'lease' && kind !== 'message') continue
+    if (settled.get(`${asString(data?.sessionId) ?? ''}:${asString(data?.callId) ?? ''}`) !== 'ok') continue
+    const toolName = asString(data?.toolName) ?? ''
+    const topicKey = asString(data?.topicKey)
+    // 同一个话题、同一个工具、一分钟内落下的那份产出，就是这次写出来的东西。
+    const made = produced.find(one => {
+      const fields = asRecord(one.data)
+      return asString(fields?.topicKey) === topicKey && asString(fields?.toolName) === toolName && Math.abs(one.time - event.time) < 60_000
+    })
+    const title = asString(asRecord(asRecord(made?.data)?.artifact)?.title)
+    const cls = toolClassOf(toolName) ?? ''
+    const from = topicKey === undefined ? undefined : originOf(topicKey, event.time)
+    const by: AutoHandledRow['by'] = kind === 'lease'
+      ? (() => {
+        const leaseId = asString(authority?.leaseId) ?? ''
+        const known = leases.get(leaseId)
+        return { kind: 'lease' as const, leaseId, rule: known?.rule ?? '你签的一条规矩', active: known?.active ?? false }
+      })()
+      : { kind: 'message' as const, who: peers.find(peer => peer.openId === asString(authority?.senderOpenId))?.name ?? '群里有人' }
+    out.push({
+      at: event.time,
+      what: `${AUTO_VERB[cls] ?? '写了一次'}${title === undefined ? '' : `「${title}」`}`,
+      ...(from === undefined ? {} : { placeName: from.label, sessionId: from.sessionId }),
+      by,
+    })
+  }
+  return out.reverse()
 }
 
 /** 在这个群里算数的规矩：限这个群的，加不限群的。 */
@@ -4311,6 +4399,8 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
           }
           case 'artifacts':
             return { ok: true, value: recentArtifacts(scoped) }
+          case 'auto-handled':
+            return { ok: true, value: autoHandled(scoped, numberField(payload, 'since') ?? 0) }
           case 'objects': {
             const sessionId = stringField(payload, 'sessionId')
             const topic = sessionId === undefined
