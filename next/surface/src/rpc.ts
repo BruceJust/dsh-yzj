@@ -494,6 +494,7 @@ function settledOutcomes(ctx: Context, since = 0): ReadonlyMap<string, string> {
  */
 export function autoHandled(ctx: Context, since: number): readonly AutoHandledRow[] {
   const settled = settledOutcomes(ctx, since)
+  const names = artifactNames(ctx)
   const me = asString((ctx.get('yzjCards')?.desktopActor() as { openId?: string } | undefined)?.openId)
   const produced = [...ctx.yzjGraph.rawEvents(['lineage/produced'])].filter(event => event.time >= since)
   const originOf = originsOf(ctx)
@@ -523,12 +524,23 @@ export function autoHandled(ctx: Context, since: number): readonly AutoHandledRo
     if (settled.get(`${asString(data?.sessionId) ?? ''}:${asString(data?.callId) ?? ''}`) !== 'ok') continue
     const toolName = asString(data?.toolName) ?? ''
     const topicKey = asString(data?.topicKey)
-    // 同一个话题、同一个工具、一分钟内落下的那份产出，就是这次写出来的东西。
-    const made = produced.find(one => {
+    const sessionId = asString(data?.sessionId)
+    const callId = asString(data?.callId)
+    /*
+      这次写出来的是哪一份：按调用对上（会话 + callId）。早先的产出边没记调用，只能退回
+      「同一个话题、同一个工具、一分钟内」——同一分钟里写了两份时，那一招会把两行都说成
+      同一份。
+    */
+    const made = produced.find((one) => {
       const fields = asRecord(one.data)
-      return asString(fields?.topicKey) === topicKey && asString(fields?.toolName) === toolName && Math.abs(one.time - event.time) < 60_000
+      return asString(fields?.callId) === callId && asString(fields?.sessionId) === sessionId
+    }) ?? produced.find((one) => {
+      const fields = asRecord(one.data)
+      return asString(fields?.callId) === undefined
+        && asString(fields?.topicKey) === topicKey && asString(fields?.toolName) === toolName && Math.abs(one.time - event.time) < 60_000
     })
-    const title = asString(asRecord(asRecord(made?.data)?.artifact)?.title)
+    const madeUri = asString(asRecord(asRecord(made?.data)?.artifact)?.uri)
+    const title = madeUri === undefined ? undefined : names.get(artifactIdentity(madeUri))?.title
     const cls = toolClassOf(toolName) ?? ''
     const from = topicKey === undefined ? undefined : originOf(topicKey, event.time)
     const by: AutoHandledRow['by'] = kind === 'lease'

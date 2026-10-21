@@ -97,6 +97,12 @@ const lineageFamily: GraphFamily = {
         taskId: z.string().optional(),
         /** 起源消息：接纳这一回合的那条云之家消息——产出带出处，点回原句 (界面重设计 律六)。 */
         messageId: z.string().optional(),
+        /**
+         * 哪一次调用写出来的（会话内唯一）。和放行账 `action/released` 的同名两格对上，
+         * 「它凭什么写了哪一份」就是一次精确的连接，不靠「同话题、同工具、一分钟内」去猜。
+         */
+        sessionId: z.string().optional(),
+        callId: z.string().optional(),
       }),
     },
     'lineage/derived': {

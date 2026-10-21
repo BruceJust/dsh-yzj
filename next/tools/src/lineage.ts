@@ -220,6 +220,9 @@ export function applyLineage(ctx: Context): () => void {
           ...(binding?.taskId === undefined ? {} : { taskId: binding.taskId }),
           // 起源消息：它是从哪句话长出来的。桌面上直接说的那一回合没有，客户端按时间找回去。
           ...(binding?.messageId === undefined || binding.messageId === '' ? {} : { messageId: binding.messageId }),
+          // 哪一次调用：和放行账对得上（「凭规矩写了哪一份」）。
+          ...(exec.agent === undefined ? {} : { sessionId: String(exec.agent.session.id) }),
+          ...(exec.callId === undefined || exec.callId === null ? {} : { callId: String(exec.callId) }),
         },
         actor: { kind: 'agent' },
       }).catch((error: unknown) => {

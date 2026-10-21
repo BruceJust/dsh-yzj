@@ -16,7 +16,7 @@ import { stage, stagedNow, subscribeStaged, undo, type Staged } from './answers.
 import { nudgeDraft, onMe, signalOf } from './ledger.ts'
 import { Avatar } from './Avatar.tsx'
 import { AgentFace } from './icons.tsx'
-import { AGENT } from './words.ts'
+import { AGENT, receiptLine } from './words.ts'
 import css from './ledger.module.css'
 
 /** 一行上能按的那几下。 */
@@ -89,7 +89,7 @@ export function useLedger(props: {
   const accept = useCallback((row: BoardRowWire, said: string): void => {
     stage({ kind: 'commitment', id: row.id, steps: [{ actionId: 'accept' }], said }, async () => {
       const result = await inject.cardAct('commitment', row.id, 'accept')
-      if (result?.outcome !== 'applied') say(result?.receipt ?? '没验收上，再试一次。')
+      if (result?.outcome !== 'applied') say(receiptLine(result, '没验收上，再试一次。'))
       void refresh()
     })
   }, [inject, refresh, say])

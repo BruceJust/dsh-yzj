@@ -80,6 +80,30 @@ export function plainError(raw: string): PlainError {
 }
 
 /**
+ * 一次回答没生效，用人话说为什么 (§5.8)。
+ *
+ * 卡服务的回执是写给云之家那一头的（「本次应答已记录但未生效」「由 op-1a2b 选择「approve」
+ * 并执行」）——账号 id 和动作 id 原样上屏，人读不懂。这里按结果说：谁答的、在哪答的，卡上
+ * 那一行吸收行已经写着，不用再贴一遍原文。
+ */
+export function receiptLine(result: { readonly outcome: string; readonly receipt: string } | undefined, fallback: string): string {
+  if (result === undefined) return fallback
+  switch (result.outcome) {
+    case 'unauthorized': return '这件不归你定，这次没生效。'
+    case 'duplicate': return '已经按你的选择办过了。'
+    case 'superseded':
+      return /已于|处理完毕/u.test(result.receipt)
+        ? '别处已经先答了，这次没生效——卡上写着是谁、在哪答的。'
+        : '这张卡现在不接受这个回答了，这次没生效。'
+    case 'applied': return ''
+    default: {
+      const text = result.receipt.replace(/^⚠️?\s*/u, '').trim()
+      return text === '' ? fallback : plainError(text).text
+    }
+  }
+}
+
+/**
  * 一轮没答完，用人话说为什么、下一步是什么 (§5.8)。
  *
  * 模型那一头的错和云之家那一头的错是两件事：连不上模型不该说成「连不上云之家」，所以

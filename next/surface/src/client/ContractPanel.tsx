@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { ContractViewWire, SurfaceInject } from './rpc.ts'
 import { AgentFace, Icon } from './icons.tsx'
-import { AGENT, plainError } from './words.ts'
+import { AGENT, plainError, receiptLine } from './words.ts'
 import tokens from './tokens.module.css'
 import css from './rules.module.css'
 
@@ -288,7 +288,7 @@ export function YzjContractPanel(props: ContractPanelProps): ReactNode {
                                     setBusy(false)
                                     setRevoking(undefined)
                                     setRevokeWhy('')
-                                    if (result?.outcome !== 'applied') setRuleNote(result?.receipt ?? '没收回来——再试一次。')
+                                    if (result?.outcome !== 'applied') setRuleNote(receiptLine(result, '没收回来——再试一次。'))
                                     void load()
                                   })
                                 }}

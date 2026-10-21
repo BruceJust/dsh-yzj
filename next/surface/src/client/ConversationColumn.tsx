@@ -39,7 +39,7 @@ import { commandKey, useBackKey, useLayerEscape } from './keys.ts'
 import { keepLastMessages, usePoll } from './poll.ts'
 import { UnreadLine } from './Unread.tsx'
 import { AgentFace, Icon } from './icons.tsx'
-import { AGENT, plainError } from './words.ts'
+import { AGENT, plainError, receiptLine } from './words.ts'
 import type { FusedWindowWire, StreamCard, SurfaceInject } from './rpc.ts'
 import tokens from './tokens.module.css'
 import css from './column.module.css'
@@ -536,7 +536,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       // 几笔一次请求：撤回窗里关页面时，只来得及发出一个。
       const results = await inject.cardActSteps(entry.kind, entry.id, entry.steps)
       const missed = results.find(result => result.outcome !== 'applied')
-      if (missed !== undefined) setToast(missed.receipt.replace(/^⚠️?\s*/u, ''))
+      if (missed !== undefined) setToast(receiptLine(missed, '这张卡没有回应，再试一次。'))
       await refresh()
     })
   }, [inject, refresh])

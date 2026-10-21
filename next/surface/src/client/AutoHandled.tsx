@@ -11,7 +11,7 @@ import type { AutoHandledWire, SurfaceInject } from './rpc.ts'
 import { openPalette, startOfToday } from './keys.ts'
 import { openSessionNow, setFrame } from './store.ts'
 import { Icon } from './icons.tsx'
-import { AGENT, whenOf } from './words.ts'
+import { AGENT, receiptLine, whenOf } from './words.ts'
 import { UnreadLine } from './Unread.tsx'
 import css from './auto.module.css'
 
@@ -44,7 +44,7 @@ export function AutoHandledSheet(props: { inject: SurfaceInject }): ReactNode {
     void inject.cardAct('lease', leaseId, 'revoke', '这件不该自己办').then((result) => {
       setBusy(false)
       setAsking(undefined)
-      setNote(result?.outcome === 'applied' ? '收回了。以后这类事又会每次问你。' : result?.receipt ?? '没收回来，再试一次。')
+      setNote(result?.outcome === 'applied' ? '收回了。以后这类事又会每次问你。' : receiptLine(result, '没收回来，再试一次。'))
       void load()
     })
   }

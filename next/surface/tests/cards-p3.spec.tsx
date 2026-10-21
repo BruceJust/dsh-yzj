@@ -278,10 +278,21 @@ describe('规则面板：你签的规矩', () => {
     await release('a4', { kind: 'lease', leaseId: 'l-here', grantedBy: 'op-1' }, 'failed')
     // 你自己在群里叫它做的不算「没问你就办了」——那是你问过了。
     await release('a5', { kind: 'message', messageId: 'm-2', senderOpenId: 'op-1' }, 'ok')
+    // 产出按调用对上：a1 写出了「竞品对比表」，同一分钟里 a2 写的是另一份——不再被说成同一份。
+    for (const [callId, title] of [['a1', '竞品对比表'], ['a2', '周报汇总']] as const) {
+      await graph.append({
+        type: 'lineage/produced',
+        data: {
+          topicKey: TOPIC.topicKey, action: '新增表格记录', toolName: 'yzj_sheet_record_create', sessionId: 's', callId,
+          artifact: { uri: `yzj://sheet/${callId}xxxxxx`, placeKey: 'yzj-sheet', kind: 'sheet', title },
+        },
+        actor: { kind: 'agent' },
+      })
+    }
     const rows = autoHandled(ctx, 0)
+    expect(rows.map(row => row.what)).toEqual(['写表格「周报汇总」', '写表格「竞品对比表」'])
     expect(rows.map(row => row.by.kind)).toEqual(['message', 'lease'])
     expect(rows[0]?.by).toEqual({ kind: 'message', who: '李婷' })
-    expect(rows[1]?.what).toBe('写表格')
     expect(rows[1]?.by).toMatchObject({ kind: 'lease', leaseId: 'l-here', active: true })
     expect((rows[1]?.by as { rule: string }).rule).toContain('往表格里新加东西不用每次问')
     expect(autoHandled(ctx, Date.now() + 60_000)).toEqual([])

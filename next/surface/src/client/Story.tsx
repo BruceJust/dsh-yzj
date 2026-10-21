@@ -20,7 +20,7 @@ import { safeHref } from './preview.ts'
 import { usePoll } from './poll.ts'
 import { Icon } from './icons.tsx'
 import { UnreadLine } from './Unread.tsx'
-import { AGENT, whenOf } from './words.ts'
+import { AGENT, receiptLine, whenOf } from './words.ts'
 import css from './story.module.css'
 
 const DAY_MS = 24 * 60 * 60_000
@@ -112,7 +112,7 @@ export function CommitmentStoryPanel(props: {
   const answer = (actionId: 'accept' | 'reject', said: string, input?: string): void => {
     stage({ kind: 'commitment', id, steps: [{ actionId, ...(input === undefined ? {} : { input }) }], said }, async () => {
       const result = await inject.cardAct('commitment', id, actionId, input)
-      if (result?.outcome !== 'applied') setNote(result?.receipt ?? '没成，再试一次。')
+      if (result?.outcome !== 'applied') setNote(receiptLine(result, '没成，再试一次。'))
       ledgerChanged()
       void load()
     })
