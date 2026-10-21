@@ -192,7 +192,7 @@ function Search(props: { inject: SurfaceInject }): ReactNode {
     let alive = true
     void Promise.all([inject.inbox(), inject.board(), inject.artifacts(), inject.autoHandled(startOfToday())])
       .then(([inbox, board, artifacts, auto]) => {
-        if (alive) setData({ ...(inbox === undefined ? {} : { inbox }), board, artifacts, autoToday: auto?.length ?? 0 })
+        if (alive) setData({ ...(inbox === undefined ? {} : { inbox }), ...(board === undefined ? {} : { board }), artifacts, autoToday: auto?.length ?? 0 })
       }, () => undefined)
     return () => { alive = false }
   }, [inject])

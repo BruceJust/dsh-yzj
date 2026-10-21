@@ -673,6 +673,11 @@ export interface PlaceView {
   readonly aliases: readonly string[]
   readonly staleReason?: string
   /**
+   * 这一间屋子的消息是**有意不取**的（演示隐身档下的自聊），不是没读到。客户端据此不
+   * 留上次读到的话——留着就等于把这一档要藏的东西又摆了回去。
+   */
+  readonly withheld?: boolean
+  /**
    * 在岗图景 (决策 #63 桌面出站对称)：本实例不在岗而有同侪对群在岗时，锚定条要在
    * 按下之前说「本群在岗：云小助（张三）——将由它接单」，而不是拦下这句话。
    */
@@ -774,7 +779,8 @@ export async function placeView(
     return {
       placeKey, groupName, topics: cards, onDuty, kind, selfChat, aliases,
       messages: [],
-      staleReason: '演示隐身档：自聊是私语通道，这一档下整间屋子不上屏。关掉隐身档即恢复。',
+      withheld: true,
+      staleReason: '正在演示，自聊里的话先不上屏',
     }
   }
   try {
@@ -2643,11 +2649,17 @@ export function objectFace(
   ctx: Context,
   topic: TopicDescriptor | undefined,
   sessionId?: string,
+  /**
+   * 站在一个群里、而不是某个话题里（群视图）。此前右栏只认会话：人在群视图里，右栏
+   * 摆的却是上一个打开过的话题的东西——标题写着这个群，内容是另一个群的。
+   */
+  place?: { readonly placeKey: string; readonly placeName?: string },
 ): ObjectFace {
   /** How lineage names a conversation: the topic, or the desk session itself. */
   const ownKey = topic?.topicKey
     ?? (sessionId === undefined ? undefined : `session:${sessionId}`)
-  const here = topic?.placeKey
+  const here = topic?.placeKey ?? place?.placeKey
+  const placeName = topic?.groupName ?? place?.placeName
 
   // topicKey → placeKey, so 资源 can be this place's pool rather than a dump of
   // everything the account ever made.
@@ -2720,7 +2732,7 @@ export function objectFace(
     resources: nearby.slice(-60).reverse(),
     scope: {
       kind: here === undefined ? 'local' : 'place',
-      ...(topic === undefined ? {} : { placeName: topic.groupName }),
+      ...(placeName === undefined ? {} : { placeName }),
     },
   }
 }
@@ -4408,6 +4420,14 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
           case 'auto-handled':
             return { ok: true, value: autoHandled(scoped, numberField(payload, 'since') ?? 0) }
           case 'objects': {
+            const placeKey = stringField(payload, 'placeKey')
+            if (placeKey !== undefined) {
+              const placeName = scoped.get('yzjTopics')?.tree().find(entry => entry.place.placeKey === placeKey)?.place.groupName
+              return {
+                ok: true,
+                value: objectFace(scoped, undefined, undefined, { placeKey, ...(placeName === undefined ? {} : { placeName }) }),
+              }
+            }
             const sessionId = stringField(payload, 'sessionId')
             const topic = sessionId === undefined
               ? undefined

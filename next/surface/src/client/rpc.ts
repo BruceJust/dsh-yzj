@@ -163,6 +163,8 @@ export interface PlaceViewWire {
   /** The words that address the agent, from the channel's config. */
   aliases?: string[]
   staleReason?: string
+  /** 消息是有意不取的（演示中的自聊），不是没读到：不留上次读到的话。 */
+  withheld?: boolean
   /** 在岗图景：锚定条按它在按下之前说「本群在岗：云小助（张三）」。 */
   presence?: PresenceWire
 }
@@ -677,9 +679,23 @@ export interface WorkspaceWire {
   owner?: string
 }
 
+/**
+ * 一次读的三种结果 —— 拿到了 / 宿主答「没有」/ 根本没读到。
+ *
+ * 后两种在屏上是两句不同的话：「这一条已经不在了」是一个答案，人可以照着它关掉这一栏；
+ * 「这会儿读不到」不是答案，屏上该留着上次读到的。把两者都收成 `undefined`，一次断线
+ * 就会被说成一条承诺没了。
+ */
+export type Read<T> =
+  | { readonly value: T }
+  | { readonly refused: string }
+  | { readonly unread: true }
+
 export interface SurfaceInject {
+  /** `undefined` = 没读到（不是「没有会话」）。 */
   inbox(): Promise<InboxView | undefined>
-  board(): Promise<BoardViewWire>
+  /** `undefined` = 没读到（不是「没有承诺」）。 */
+  board(): Promise<BoardViewWire | undefined>
   /** 立目标 = 登记动词的看板形态：落真身 + 登记一步完成。 */
   declareGoal(input: {
     what: string
@@ -714,9 +730,9 @@ export interface SurfaceInject {
   /** 作废一条承诺（含在这里立的目标）——立目标不能是单向门。 */
   voidCommitment(id: string, reason?: string): Promise<{ error?: string }>
   /** 目标页：承诺板放大一级，读的是同一个查询。 */
-  goalPage(goalRef: string): Promise<GoalPageWire | undefined>
+  goalPage(goalRef: string): Promise<Read<GoalPageWire>>
   /** 选中板上一行时右栏的来龙去脉：原话、之后每一笔（带证据档）、挂在哪。 */
-  commitmentStory(id: string): Promise<CommitmentStoryWire | undefined>
+  commitmentStory(id: string): Promise<Read<CommitmentStoryWire>>
   /**
    * 顺延期限——改的是当初说出口的那个日子（公事）。
    *
@@ -741,11 +757,12 @@ export interface SurfaceInject {
     pending?: string[]
     error?: string
   }>
-  objects(sessionId?: string): Promise<ObjectFaceWire>
+  /** `undefined` = 没读到。给了 `placeKey` 就是站在群里看（群视图），不看哪个话题。 */
+  objects(sessionId?: string, placeKey?: string): Promise<ObjectFaceWire | undefined>
   /** 最近的产出，跨所有话题（⌘K 用）。 */
   artifacts(): Promise<ObjectRowWire[]>
   /** 从 `since` 起，云小助按你的规矩、或凭群里那句话自己办成了的写（律九清零态）。 */
-  autoHandled(since: number): Promise<AutoHandledWire[]>
+  autoHandled(since: number): Promise<AutoHandledWire[] | undefined>
   fused(sessionId: string): Promise<FusedWindowWire | undefined>
   /**
    * Say one thing INTO the place.
@@ -1075,11 +1092,22 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     }
   }
 
+  /** 读，但把「宿主答没有」和「没读到」分开（见 {@link Read}）。 */
+  const read = async <T>(endpoint: string, payload: Record<string, unknown>): Promise<Read<T>> => {
+    if (connection === undefined) return { unread: true }
+    try {
+      const result = await connection.rpc.call('/yzj-next-surface', endpoint, payload)
+      return result.ok
+        ? { value: result.value as T }
+        : { refused: plainError(result.error?.message ?? '').text }
+    } catch {
+      return { unread: true }
+    }
+  }
+
   return {
     inbox: () => call<InboxView>('inbox', {}),
-    async board() {
-      return await call<BoardViewWire>('board', {}) ?? { rows: [], goals: [], unattached: [] }
-    },
+    board: () => call<BoardViewWire>('board', {}),
     async declareGoal(input) {
       const { error } = await write<{ commitmentId: string }>('declare-goal', { ...input })
       return error === undefined ? {} : { error }
@@ -1106,8 +1134,8 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       })
       return error === undefined ? {} : { error }
     },
-    goalPage: goalRef => call<GoalPageWire>('goal-page', { goalRef }),
-    commitmentStory: id => call<CommitmentStoryWire>('commitment-story', { id }),
+    goalPage: goalRef => read<GoalPageWire>('goal-page', { goalRef }),
+    commitmentStory: id => read<CommitmentStoryWire>('commitment-story', { id }),
     async postponeCommitment(id, due) {
       const { error } = await write<{ id: string }>('postpone-commitment', { id, due })
       return error === undefined ? {} : { error }
@@ -1126,14 +1154,11 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     async artifacts() {
       return await call<ObjectRowWire[]>('artifacts', {}) ?? []
     },
-    async autoHandled(since) {
-      return await call<AutoHandledWire[]>('auto-handled', { since }) ?? []
-    },
-    async objects(sessionId) {
-      return await call<ObjectFaceWire>(
-        'objects', sessionId === undefined ? {} : { sessionId },
-      ) ?? { current: [], memory: [], resources: [] }
-    },
+    autoHandled: since => call<AutoHandledWire[]>('auto-handled', { since }),
+    objects: (sessionId, placeKey) => call<ObjectFaceWire>('objects', {
+      ...(sessionId === undefined ? {} : { sessionId }),
+      ...(placeKey === undefined ? {} : { placeKey }),
+    }),
     fused: sessionId => call<FusedWindowWire>('fused', { sessionId }),
     async sendToPlace(sessionId, text, replyTo, register, handoff) {
       const result = await write<SentInPlace>('send-to-place', {

@@ -851,6 +851,22 @@ describe('the object face', () => {
     expect(face.scope).toEqual({ kind: 'place', placeName: 'dsh-2' })
   })
 
+  /*
+    群视图里站的是这个群，不是上一个打开过的话题：此前右栏只认会话，人在「别的群」的群视图
+    里，右栏摆的却是 dsh-2 那个话题的产出——标题一个群，内容另一个群。
+  */
+  it('stands in the PLACE when given one — no topic, that room\'s pool and conventions', async () => {
+    mountTree()
+    await produced(TOPIC.topicKey, 'yzj://doc/a', '价格页')
+    await produced(FAR.topicKey, 'yzj://doc/c', '别的群的')
+    await learned('place', FAR.placeKey, '别的群的规矩')
+    const face = objectFace(ctx, undefined, undefined, { placeKey: FAR.placeKey, placeName: FAR.groupName })
+    expect(face.current).toEqual([])
+    expect(face.resources.map(row => row.title)).toEqual(['别的群的'])
+    expect(face.memory.map(row => row.summary)).toEqual(['别的群的规矩'])
+    expect(face.scope).toEqual({ kind: 'place', placeName: '别的群' })
+  })
+
   it('gives a desk session the other desk sessions, not every group\'s output', async () => {
     mountTree()
     await produced(TOPIC.topicKey, 'yzj://doc/a', '群里的')

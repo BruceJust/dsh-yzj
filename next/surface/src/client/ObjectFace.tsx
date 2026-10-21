@@ -18,7 +18,7 @@
  */
 
 import {
-  useCallback, useEffect, useState, useSyncExternalStore, type ReactNode,
+  useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode,
 } from 'react'
 import type { ObjectFaceWire, SurfaceInject } from './rpc.ts'
 import { ArtifactPreview } from './PreviewPanel.tsx'
@@ -28,6 +28,7 @@ import { CommitmentStoryPanel } from './Story.tsx'
 import { currentFrame, currentSpotlight, focusOf, setSpotlight, subscribeFrame, subscribeSpotlight } from './store.ts'
 import { closeAside, useAsidePreviewHost, usePreview } from './preview.ts'
 import { usePoll } from './poll.ts'
+import { Skeleton, UnreadLine } from './Unread.tsx'
 import { AGENT } from './words.ts'
 import tokens from './tokens.module.css'
 import css from './objects.module.css'
@@ -69,10 +70,35 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
   const [host, setHost] = useState<HTMLDivElement | null>(null)
   useAsidePreviewHost(host)
 
+  /*
+    站在哪儿看：群视图里是这个群，不是上一个打开过的话题——那一栏标题写着这个群、内容却是
+    另一个群的，比空着更糟。还没出生的私聊没有可看的东西。
+  */
+  const placeKey = frame.kind === 'place' && frame.newDm === undefined ? frame.placeKey : undefined
+  const where_ = placeKey ?? sessionId ?? ''
+  /** 读到过一次没有；上一次读成了没有。读不到 ≠ 这里什么都没有。 */
+  const [loaded, setLoaded] = useState(false)
+  const [unread, setUnread] = useState(false)
+  /** 只有最新那一次读可以画：换了地方，上一处慢回来的结果不许盖上来。 */
+  const readSeq = useRef(0)
+  // 换了地方：先清掉上一处的东西，别让它顶着新地方的标题停留一拍。
+  useEffect(() => {
+    readSeq.current += 1
+    setFace(EMPTY)
+    setLoaded(false)
+    setUnread(false)
+  }, [where_])
+
   const refresh = useCallback(async (): Promise<void> => {
-    // 读不回来就当还没有，不让一次失败的读把整栏弄崩。
-    setFace(await inject.objects(sessionId) ?? EMPTY)
-  }, [inject, sessionId])
+    readSeq.current += 1
+    const ticket = readSeq.current
+    const next = await inject.objects(placeKey === undefined ? sessionId : undefined, placeKey)
+    if (ticket !== readSeq.current) return
+    setUnread(next === undefined)
+    if (next === undefined) return
+    setLoaded(true)
+    setFace(next)
+  }, [inject, sessionId, placeKey])
 
   usePoll(refresh, { active: focus.kind === 'things' })
 
@@ -147,7 +173,12 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
     )
   }
 
-  const rows = tab === 'current' ? face.current : tab === 'resources' ? face.resources : []
+  /** 群视图里没有「这个话题」：产出那一格不摆，默认看这个群的资料。 */
+  const tabs = placeKey === undefined
+    ? [['current', '产出'], ['memory', '记忆'], ['resources', '资料']] as const
+    : [['resources', '资料'], ['memory', '记忆']] as const
+  const shown: Tab = placeKey !== undefined && tab === 'current' ? 'resources' : tab
+  const rows = shown === 'current' ? face.current : shown === 'resources' ? face.resources : []
   const counts: Record<Tab, number> = {
     current: face.current.length,
     memory: face.memory.length,
@@ -206,11 +237,11 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
   return (
     <div className={`${tokens.tokens} ${css.panel}`} ref={setHost}>
       <div className={css.tabs}>
-        {([['current', '产出'], ['memory', '记忆'], ['resources', '资料']] as const).map(([id, label]) => (
+        {tabs.map(([id, label]) => (
           <button
             type="button"
             key={id}
-            className={`${css.tab} ${tab === id ? css.tabOn : ''}`}
+            className={`${css.tab} ${shown === id ? css.tabOn : ''}`}
             onClick={() => { setTab(id) }}
           >
             {label}
@@ -220,10 +251,11 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
       </div>
 
       {/* 半径常显：三个 tab 是同一个点上的三个半径,不说清楚就分不出哪个是哪个。 */}
-      <div className={css.radius}>{RADIUS[tab]}</div>
+      <div className={css.radius}>{RADIUS[shown]}</div>
+      {unread && <UnreadLine had={loaded} />}
 
       <div className={css.body}>
-        {tab === 'memory' && (
+        {!loaded ? !unread && <Skeleton rows={3} /> : shown === 'memory' && (
           face.memory.length === 0
             ? (
               <div className={css.calm}>
@@ -251,10 +283,10 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
           格**（v2.2 账本律③）：金库右栏的资源 tab 复用的就是这一个，不是另写一份
           长得像的。恒定如果靠两份代码各自保持一致，它就只是暂时一致。
         */}
-        {tab !== 'memory' && (
+        {loaded && shown !== 'memory' && (
           <ResourceTab
             rows={rows}
-            empty={tab === 'current'
+            empty={shown === 'current'
               ? `这里还没有产出。${AGENT}写的文档、建的表会出现在这儿。`
               : face.scope?.kind === 'place'
                 ? `「${where}」里还没有产出。`

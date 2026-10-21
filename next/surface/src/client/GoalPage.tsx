@@ -31,6 +31,7 @@ import { usePoll } from './poll.ts'
 import { UNUSUAL, rowSub, signalOf } from './ledger.ts'
 import { Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
+import { UnreadLine } from './Unread.tsx'
 import tokens from './tokens.module.css'
 import rows from './ledger.module.css'
 import css from './goal.module.css'
@@ -103,7 +104,9 @@ export function goalFacts(view: GoalPageWire): readonly { readonly text: string;
 export function YzjGoalPage(props: GoalPageProps): ReactNode {
   const { goalRef, goalName, inject, commission, deskSessionId, openSession, back } = props
   const [view, setView] = useState<GoalPageWire | undefined>(undefined)
-  const [missing, setMissing] = useState(false)
+  /** 宿主答「没有这个目标」时它的原话；没读到不算（读不到 ≠ 没有）。 */
+  const [missing, setMissing] = useState<string | undefined>(undefined)
+  const [unread, setUnread] = useState(false)
   const [busy, setBusy] = useState('')
   const [toast, setToast] = useState('')
   const [repair, setRepair] = useState<Repair | undefined>(undefined)
@@ -122,9 +125,16 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
     const ticket = fetchSeq.current
     const next = await inject.goalPage(goalRef)
     if (ticket !== fetchSeq.current) return
-    setMissing(next === undefined)
-    if (next !== undefined) setView(next)
     setNow(Date.now())
+    setUnread('unread' in next)
+    if ('unread' in next) return
+    if ('refused' in next) {
+      setMissing(next.refused)
+      setView(undefined)
+      return
+    }
+    setMissing(undefined)
+    setView(next.value)
   }, [inject, goalRef])
 
   usePoll(refresh)
@@ -187,10 +197,11 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
     return (
       <div className={`${tokens.tokens} ${css.page}`}>
         {head()}
+        {unread && <UnreadLine had={false} />}
         <div className={css.body}>
-          {missing
+          {missing !== undefined
             ? <div className={css.calm}>这个目标已经不在了——可能被作废了，或者被移走了。</div>
-            : (
+            : !unread && (
               <div className={css.skeleton} aria-label="正在读">
                 <span className={css.boneShort} />
                 <span className={css.boneTitle} />
@@ -296,6 +307,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
           )}
         </span>
       )}
+      {unread && <UnreadLine had />}
       <div className={rows.split}>
         <div className={css.body} ref={bodyRef}>
           <div className={css.column}>

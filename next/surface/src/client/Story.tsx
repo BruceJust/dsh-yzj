@@ -6,7 +6,7 @@
  * 全站唯一那一组修理动词——只给这条的主人；不是你的，就说该去找谁。
  */
 
-import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { CommitmentStoryWire, SurfaceInject } from './rpc.ts'
 import {
   landOn, ledgerChanged, pushFrame, requestPortal, sendErrand, setFrame, setSpotlight, subscribeLedger,
@@ -19,6 +19,7 @@ import { nudgeDraft } from './ledger.ts'
 import { safeHref } from './preview.ts'
 import { usePoll } from './poll.ts'
 import { Icon } from './icons.tsx'
+import { UnreadLine } from './Unread.tsx'
 import { AGENT, whenOf } from './words.ts'
 import css from './story.module.css'
 
@@ -61,8 +62,20 @@ export function CommitmentStoryPanel(props: {
   const staged = useSyncExternalStore(subscribeStaged, stagedNow)
   const pending = staged.find(entry => entry.kind === 'commitment' && entry.id === id)
 
+  /** 上一次读成了没有。读不到 ≠ 这一条不在了。 */
+  const [unread, setUnread] = useState(false)
+  /** 只有最新那一次读可以画：换了一行，上一行慢回来的故事不许盖上来。 */
+  const loadSeq = useRef(0)
+  // 换了一行：先清掉上一行的故事，别让它在新标题底下停留一拍。
+  useEffect(() => { setStory(null); setUnread(false) }, [id])
   const load = useCallback(async (): Promise<void> => {
-    setStory(await inject.commitmentStory(id))
+    loadSeq.current += 1
+    const ticket = loadSeq.current
+    const next = await inject.commitmentStory(id)
+    if (ticket !== loadSeq.current) return
+    setUnread('unread' in next)
+    if ('unread' in next) return
+    setStory('refused' in next ? undefined : next.value)
   }, [inject, id])
   usePoll(load)
   useEffect(() => subscribeLedger(() => { void load() }), [load])
@@ -105,7 +118,9 @@ export function CommitmentStoryPanel(props: {
     })
   }
 
-  if (story === null) return <div className={css.panel}><div className={css.calm}>正在读…</div></div>
+  if (story === null) {
+    return <div className={css.panel}>{unread ? <UnreadLine had={false} /> : <div className={css.calm}>正在读…</div>}</div>
+  }
   if (story === undefined) {
     return (
       <div className={css.panel}>
@@ -130,6 +145,7 @@ export function CommitmentStoryPanel(props: {
         <span className={css.topText}>{storyHead(story)}</span>
         <button type="button" className={css.close} onClick={close} aria-label="关闭"><Icon name="x" size={14} /></button>
       </div>
+      {unread && <UnreadLine had />}
       <div className={css.title}>{story.what}</div>
 
       {/* ——— 等你的那一下：放在最上面，因为它是此刻唯一要你做的事 ——— */}

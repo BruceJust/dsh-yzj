@@ -36,7 +36,8 @@ import {
   subscribeFrame, subscribeLanding, subscribeNeeds, takeErrand, type Frame,
 } from './store.ts'
 import { useBackKey } from './keys.ts'
-import { usePoll } from './poll.ts'
+import { keepLastMessages, usePoll } from './poll.ts'
+import { UnreadLine } from './Unread.tsx'
 import { AgentFace, Icon } from './icons.tsx'
 import { AGENT, plainError } from './words.ts'
 import type { FusedWindowWire, StreamCard, SurfaceInject } from './rpc.ts'
@@ -129,7 +130,9 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   const running = useSession(snapshot => snapshot.running) === true
   const runningCalls = useSession(snapshot => snapshot.runningCalls)
   const partial = useSession(snapshot => snapshot.partial)
-  const [window_, setWindow] = useState<FusedWindowWire>(EMPTY)
+  const [window_, setWindow] = useState<FusedWindowWire & { kept?: true }>(EMPTY)
+  /** 上一次整个没读到（连工作台都没答）。读不到 ≠ 这个话题没有话。 */
+  const [unread, setUnread] = useState(false)
   const [voice, setVoice] = useState<Voice>('private')
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
@@ -287,10 +290,17 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     if (sessionId === undefined) return
     fetchSeq.current += 1
     const ticket = fetchSeq.current
-    const next = await inject.fused(sessionId) ?? EMPTY
+    const next = await inject.fused(sessionId)
     if (ticket !== fetchSeq.current) return
-    if (next !== EMPTY) paintedFor.current = sessionId
-    setWindow(next)
+    const same = paintedFor.current === sessionId
+    // 整个没读到：同一个话题就留着屏上的，只说一句；换了话题就是空窗加那一句。
+    setUnread(next === undefined)
+    if (next === undefined) {
+      if (!same) setWindow(EMPTY)
+      return
+    }
+    paintedFor.current = sessionId
+    setWindow(previous => keepLastMessages(same ? previous : undefined, next))
   }, [inject, sessionId])
 
   // 云之家没有推送（F1），消息那一半靠轮询。
@@ -738,6 +748,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
       : running ? `${AGENT}在做，这句会插进去…` : `对${AGENT}说…${window_.privateHint ?? ''}`
 
   const staleLine = window_.staleReason === undefined ? undefined : plainError(window_.staleReason)
+  /** 说明条的后半句：底下摆的是什么。 */
+  const staleTail = window_.kept === true ? ' · 下面是上次读到的' : ' · 下面只有本地记下的内容'
   const answeredRefs = new Set(staged.map(entry => `${entry.kind}:${entry.id}`))
   const nextNeed = needs.find(need => (
     !answeredRefs.has(`${need.ref.kind}:${need.ref.id}`) && `${need.ref.kind}:${need.ref.id}` !== justAnswered
@@ -860,9 +872,10 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         </div>
       )}
 
-      {staleLine !== undefined && (
+      {unread && <UnreadLine had={window_ !== EMPTY} className={css.stale} />}
+      {!unread && staleLine !== undefined && (
         <div className={css.stale} title={window_.staleReason}>
-          {staleLine.text}{staleLine.retrying ? '，稍后自动重试' : ''} · 下面只有本地记下的内容
+          {staleLine.text}{staleLine.retrying ? '，稍后自动重试' : ''}{staleTail}
         </div>
       )}
 

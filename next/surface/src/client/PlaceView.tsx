@@ -38,7 +38,8 @@ import composerCss from './composer.module.css'
 import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
 import type { PlaceViewWire, SurfaceInject, TopicMessageWire } from './rpc.ts'
 import { useBackKey } from './keys.ts'
-import { usePoll } from './poll.ts'
+import { keepLastMessages, usePoll } from './poll.ts'
+import { UnreadLine } from './Unread.tsx'
 import tokens from './tokens.module.css'
 import css from './place.module.css'
 
@@ -66,7 +67,9 @@ const EMPTY: PlaceViewWire = { placeKey: '', groupName: '', messages: [], topics
 export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const { placeKey, groupName, inject, openSession, back, restoreScroll, newDm } = props
   useBackKey(back)
-  const [view, setView] = useState<PlaceViewWire>(EMPTY)
+  const [view, setView] = useState<PlaceViewWire & { kept?: true }>(EMPTY)
+  /** 上一次整个没读到（连工作台都没答）。读不到 ≠ 这个群没有话。 */
+  const [unread, setUnread] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const [earlierOpen, setEarlierOpen] = useState(false)
   /** Topic cards the reader asked to peek into (D13③: 展开是手势不是默认). */
@@ -206,7 +209,14 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const refresh = useCallback(async (): Promise<void> => {
     // 还没出生的私聊没有历史可拉——问一个不存在的 placeKey 只会拿回一次失败。
     if (newDm !== undefined) return
-    setView(await inject.place(placeKey) ?? { ...EMPTY, placeKey, groupName })
+    const next = await inject.place(placeKey)
+    setUnread(next === undefined)
+    // 整个没读到：留着屏上的；从没读到过，就是一个只有名字的空屋加那一句。
+    if (next === undefined) {
+      setView(current => (current.placeKey === placeKey ? current : { ...EMPTY, placeKey, groupName }))
+      return
+    }
+    setView(current => keepLastMessages(current.placeKey === placeKey ? current : undefined, next))
   }, [inject, placeKey, groupName, newDm])
 
   /*
@@ -616,9 +626,16 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
         </button>
       </header>
 
-      {view.staleReason !== undefined && (
+      {unread && <UnreadLine had={view.placeKey === placeKey} className={css.stale} />}
+      {!unread && view.staleReason !== undefined && (
         <div className={css.stale} title={view.staleReason}>
-          {plainError(view.staleReason).text}{plainError(view.staleReason).retrying ? '，稍后自动重试' : ''} · 下面只有已知的话题
+          {plainError(view.staleReason).text}
+          {view.withheld !== true && (
+            <>
+              {plainError(view.staleReason).retrying ? '，稍后自动重试' : ''}
+              {view.kept === true ? ' · 下面是上次读到的' : ' · 下面只有已知的话题'}
+            </>
+          )}
         </div>
       )}
 

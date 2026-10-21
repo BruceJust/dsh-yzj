@@ -12,6 +12,7 @@ import { openPalette, startOfToday } from './keys.ts'
 import { openSessionNow, setFrame } from './store.ts'
 import { Icon } from './icons.tsx'
 import { AGENT, whenOf } from './words.ts'
+import { UnreadLine } from './Unread.tsx'
 import css from './auto.module.css'
 
 export function AutoHandledSheet(props: { inject: SurfaceInject }): ReactNode {
@@ -21,8 +22,13 @@ export function AutoHandledSheet(props: { inject: SurfaceInject }): ReactNode {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
 
+  /** 上一次读成了没有。读不到 ≠ 今天什么都没自己办。 */
+  const [unread, setUnread] = useState(false)
+
   const load = useCallback(async (): Promise<void> => {
-    setRows(await inject.autoHandled(startOfToday()) ?? [])
+    const next = await inject.autoHandled(startOfToday())
+    setUnread(next === undefined)
+    if (next !== undefined) setRows(next)
   }, [inject])
   useEffect(() => { void load() }, [load])
   useEffect(() => {
@@ -53,8 +59,9 @@ export function AutoHandledSheet(props: { inject: SurfaceInject }): ReactNode {
         </button>
       </div>
       {note !== '' && <div className={css.note}>{note}</div>}
+      {unread && <UnreadLine had={rows !== undefined} />}
       <div className={css.list}>
-        {rows === undefined && <div className={css.calm}>正在读…</div>}
+        {rows === undefined && !unread && <div className={css.calm}>正在读…</div>}
         {rows !== undefined && rows.length === 0 && (
           <div className={css.calm}>今天还没有没问你就办的事。你签了规矩之后，那一类事{AGENT}会自己办，办了都记在这里。</div>
         )}

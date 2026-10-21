@@ -40,6 +40,7 @@ import { usePoll } from './poll.ts'
 import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
 import { Icon } from './icons.tsx'
 import { AGENT, span, waitLine } from './words.ts'
+import { Skeleton, UnreadLine } from './Unread.tsx'
 import tokens from './tokens.module.css'
 import css from './sidebar.module.css'
 
@@ -204,9 +205,18 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
    */
   const currentSessionId = useSessions(state => state.current)
   const [inbox, setInbox] = useState<InboxView>(EMPTY)
+  /**
+   * 读到过一次没有；上一次读成了没有。读不到 ≠ 都处理完了：一次断线落成「✓ 都处理完了」，
+   * 是这一栏能说的最危险的一句假话。
+   */
+  const [loaded, setLoaded] = useState(false)
+  const [unread, setUnread] = useState(false)
 
   const refresh = useCallback(async (): Promise<void> => {
-    const next = await inject.inbox() ?? EMPTY
+    const next = await inject.inbox()
+    setUnread(next === undefined)
+    if (next === undefined) return
+    setLoaded(true)
     setInbox(next)
     // 中栏「下一件」读的是同一份——两处各取一次，就会各说各的下一件。
     publishNeeds(next.needs ?? [])
@@ -237,19 +247,13 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
 
   /** 今天没问你就办了几件——只在「要你」清零时露出来，所以也只在那时去数。 */
   const [autoToday, setAutoToday] = useState(0)
-  const cleared = needs.length === 0
-  useEffect(() => {
-    if (!cleared) return undefined
-    let alive = true
-    // 读不回来就当零件：清零态少一行，不是一个错误。
-    const count = (): void => {
-      void Promise.resolve(inject.autoHandled?.(startOfToday()))
-        .then((rows) => { if (alive) setAutoToday(rows?.length ?? 0) }, () => undefined)
-    }
-    count()
-    const timer = setInterval(count, 30_000)
-    return () => { alive = false; clearInterval(timer) }
-  }, [cleared, inject])
+  const cleared = loaded && needs.length === 0
+  // 读不回来就留着上次的数：清零态少一行不是错误，可也不该因为一次断线把数归零。
+  const countAuto = useCallback(async (): Promise<void> => {
+    const rows = await inject.autoHandled?.(startOfToday())
+    if (rows !== undefined) setAutoToday(rows.length)
+  }, [inject])
+  usePoll(countAuto, { active: cleared, slow: true })
 
   /*
     `N` —— 下一件要你的 (律八).
@@ -387,7 +391,9 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
           <span className={needs.length > 0 ? css.needCount : css.zeroCount}>{needs.length}</span>
         </span>
       ))}
-      {needs.length === 0
+      {!loaded
+        ? unread ? <UnreadLine had={false} /> : <Skeleton rows={2} />
+        : needs.length === 0
         ? (
           <>
             <div className={css.clear}>
@@ -865,6 +871,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
           <kbd className={css.kbd}>⌘K</kbd>
         </button>
       </div>
+      {loaded && unread && <UnreadLine had />}
       {needSection}
       {runningSection}
       <div className={css.section}>{ledgerRow}</div>

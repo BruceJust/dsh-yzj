@@ -63,3 +63,21 @@ export function usePoll(refresh: () => unknown, options: { readonly active?: boo
     }
   }, [refresh, active, slow])
 }
+
+/**
+ * 一次没读成的窗，不许抹掉上次读到的话 (§5.8 读不到 ≠ 没有)。
+ *
+ * 服务端读云之家失败时回 `messages: []` 加一句 `staleReason`。照单全收，屏上那条「读不到」
+ * 底下就是一片空白——人看到的是话被删了。所以：同一处、这一次没读成、上一次读到过，就
+ * 留着上一次的话，`kept` 告诉说明条该说「下面是上次读到的」。有意不取的（演示中的自聊）
+ * 不留：留着就是把要藏的东西又摆回去。
+ */
+export function keepLastMessages<T extends {
+  readonly messages: readonly unknown[]
+  readonly staleReason?: string
+  readonly withheld?: boolean
+}>(previous: T | undefined, next: T): T & { readonly kept?: true } {
+  if (previous === undefined || next.staleReason === undefined || next.withheld === true) return next
+  if (next.messages.length > 0 || previous.messages.length === 0) return next
+  return { ...next, messages: previous.messages, kept: true }
+}

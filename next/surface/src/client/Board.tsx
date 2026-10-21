@@ -28,6 +28,7 @@ import { TODAY_LABEL, TODAY_OF, UNUSUAL, rowSub, signalOf, todayOf, type TodayKe
 import { Avatar } from './Avatar.tsx'
 import { AgentFace, Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
+import { Skeleton, UnreadLine } from './Unread.tsx'
 import tokens from './tokens.module.css'
 import css from './ledger.module.css'
 
@@ -139,6 +140,9 @@ const LENSES: readonly { id: BoardLens; label: string }[] = [
 export function YzjBoard(props: BoardProps): ReactNode {
   const { inject, commission, openSession, back, fromSessionId, restoreScroll } = props
   const [view, setView] = useState<BoardViewWire>(EMPTY)
+  /** 读到过一次没有；上一次读成了没有。读不到 ≠ 没有承诺。 */
+  const [loaded, setLoaded] = useState(false)
+  const [unread, setUnread] = useState(false)
   const [events, setEvents] = useState<BoardEventWire[]>([])
   /*
     透镜：从目标页 Back 回来时保留（那是同一次对账）；从左栏重新进来时回到「全部」——
@@ -196,8 +200,11 @@ export function YzjBoard(props: BoardProps): ReactNode {
     const ticket = fetchSeq.current
     const next = await inject.board()
     if (ticket !== fetchSeq.current) return
-    setView(next)
     setNow(Date.now())
+    setUnread(next === undefined)
+    if (next === undefined) return
+    setLoaded(true)
+    setView(next)
   }, [inject])
 
   // 会前那一眼读平台的日程：独立的一次读，读不到就是没有，不拖住整块板。
@@ -477,11 +484,14 @@ export function YzjBoard(props: BoardProps): ReactNode {
         </div>
       )}
 
+      {unread && <UnreadLine had={loaded} />}
       {view.mirrorNote !== undefined && <div className={css.note}>{view.mirrorNote}</div>}
 
       <div className={css.split}>
       <div className={css.body} ref={bodyRef}>
-        {totalOpen === 0 && view.goals.length === 0
+        {!loaded
+          ? !unread && <Skeleton />
+          : totalOpen === 0 && view.goals.length === 0
           ? (
             <div className={css.empty}>
               <AgentFace size={40} />

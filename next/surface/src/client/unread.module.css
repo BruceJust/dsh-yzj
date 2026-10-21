@@ -1,0 +1,13 @@
+/* 读不到 ≠ 没有 (§5.8)：一条琥珀色的说明条 + 首屏骨架。 */
+.line {
+  flex: none; padding: 6px 16px;
+  font-size: var(--yzj-fs-xs); color: var(--yzj-need-ink); background: var(--yzj-need-bg);
+}
+
+.skeleton { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+.bar {
+  height: 10px; border-radius: var(--yzj-r-sm); background: var(--yzj-bg-sunk);
+}
+.bar:nth-child(3n + 1) { width: 72%; }
+.bar:nth-child(3n + 2) { width: 48%; }
+.bar:nth-child(3n) { width: 61%; }
