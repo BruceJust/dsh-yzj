@@ -1,56 +1,39 @@
 /**
- * An answerable object, rendered where it happened.
+ * 一张卡 —— 一个等人答的图对象，长在它发问的地方 (界面重设计 §5.2).
  *
- * A card is a projection of a graph object, not a widget with state (卡片三定律
- * ①). So this component holds nothing but the text somebody is typing into it:
- * it renders what the host says the object is right now, and every button goes
- * back through the action bus — the same bus the Yunzhijia keyword reply uses.
- * That is what makes "answer on either surface, effect once" true rather than
- * aspirational, including the loud receipt when this surface loses the race.
+ * 卡是对象的投影，不是一个有状态的部件（卡片三定律①）：这里只存人正在敲的那几个字，
+ * 每一个按钮都回到动作总线——云之家里回关键词走的也是那条总线。「两处都能答、只生效
+ * 一次」因此是结构，不是愿望。
  *
- * Each kind gets its own shape because each decision HAS its own shape. A
- * confirmation is a form you read before signing — the tool, the arguments, the
- * deadline after which it self-rejects. An acceptance is a bar you clear. A
- * commitment is somebody's name against a date. Rendering all three as the same
- * grey box was the fastest way to make every decision feel equally unimportant.
+ * **一套语法，六种模式**。此前每一族各画各的：确认是一张表单，验收是一条横杠，承诺是
+ * 一个名字配一个日期——它们各有道理，可放在一起，人每次都得重新认一遍「这张卡要我干
+ * 什么」。现在每张卡都是同一副骨架：
+ *
+ *     ● 要你确认 · 云小助停在这一步等你 · 5 分钟
+ *     写入 12 条记录到「竞品对比 · 评审表」
+ *     写操作，照规矩写之前先问你一次。
+ *     ┌ 参数的一行摘要 … ┐                         看参数
+ *     ✦ 这类写入你已经连续确认 5 次，没拒过一次。  以后同类不用问 ›
+ *     [1 确认] [2 取消]                             云之家里回 1 / 2 也行
+ *
+ * 差别只在中间那一块（参数、交付物、逐条、差距）。号是服务端编的，和云之家里「回 1 / 2」
+ * 是同一张表（`numberedActions`）。
+ *
+ * **每一次回答都先进撤回窗**（律七）：卡立刻收成一行虚线框，5 秒后才真的落账。
  */
 
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
-import type { AnchoredTextWire, FamilyHeadWire, StreamCard, StripWire, SurfaceInject } from './rpc.ts'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import type { AnchoredTextWire, FamilyHeadWire, NeedWire, StreamCard, StripWire, SurfaceInject } from './rpc.ts'
 import { GearBox } from './Judg.tsx'
+import { AgentFace, Icon } from './icons.tsx'
+import { AGENT, span, waitLine, whenOf, whereOf } from './words.ts'
+import { registerCardKeys, stagedNow, subscribeStaged, undo, UNDO_MS, type Answer } from './answers.ts'
+import { artifactRefOf } from './artifacts.ts'
+import { openPreview, type PreviewTarget } from './preview.ts'
+import { jumpToNeed } from './store.ts'
 import css from './card.module.css'
 
-const KIND_LABEL: Record<string, string> = {
-  approval: '确认',
-  task: '任务',
-  waiting: '等待',
-  conflict: '冲突',
-  commitment: '承诺',
-}
-
-const STATUS: Record<string, string> = {
-  pending: '待确认',
-  approved: '已放行',
-  rejected: '已拒绝',
-  expired: '超时自动拒绝',
-  interrupted: '因重启中断',
-  superseded: '已重新发起',
-  terminal: '待验收',
-  accepted: '已验收',
-  voided: '已作废',
-  rework: '返工中',
-  open: '进行中',
-  escalated: '已升级',
-  closed: '已关闭',
-  merged: '已合并',
-  // 移交不是死法：事还在，只是换了一条边（决策 #59）。缺了这一行会露出裸状态串。
-  transferred: '已移交',
-  flagged: '待裁定',
-  resolved: '已裁定',
-}
-
-/** The arguments a reader must not have to guess at. Long values are clipped. */
-const ARG_LIMIT = 200
+type Action = StreamCard['actions'][number]
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -62,598 +45,790 @@ function record(value: unknown): Record<string, unknown> {
     : {}
 }
 
-/**
- * 一个参数值，摊平成一行.
- *
- * `limit` 是**负重档的落点**：默认档把长参数截到 200 字（卡是入口不是全文），
- * 负重档把它整个摆开——「摆开证据」不是多画一句说明，是真的把你要看的东西放出来。
- * 一个写着「证据已摆开」却仍然截断的卡，正是「说明文字占位同罪」要禁的那种。
- */
-function flatten(value: unknown, limit = ARG_LIMIT): string {
+/** 一个参数值摊平成一行。负重档下不截：「证据摆开」的意思就是你能看见全部。 */
+function flatten(value: unknown, limit: number): string {
   const rendered = typeof value === 'string' ? value : JSON.stringify(value) ?? ''
   const flat = rendered.replace(/\s+/gu, ' ').trim()
   return flat.length > limit ? `${flat.slice(0, limit)}…` : flat
 }
 
-/** 负重档下不截断：证据摆开的意思就是你能看见全部。 */
-const SPREAD_LIMIT = 4_000
-
-/** `HH:mm`, for a deadline the reader has to be able to act before. */
 function clock(value: unknown): string | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return undefined
   const when = new Date(value)
-  const pad = (part: number): string => String(part).padStart(2, '0')
-  return `${pad(when.getHours())}:${pad(when.getMinutes())}`
+  return `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`
+}
+
+/**
+ * 答完之后那一行怎么说 —— 用人做了什么来说，不用按钮的名字。
+ *
+ * 「你先不签了」「你按新指令了」是按钮名硬拼出来的句子；人回想自己做过什么的时候，
+ * 说的是「你让它按新指令做」。
+ */
+const SAID: Record<string, string> = {
+  'approval:approve': '确认了',
+  'approval:reject': '取消了',
+  'approval:retry': '让它重试',
+  'task:accept': '通过了验收',
+  'task:reject': '打回了',
+  'task:resume': '让它继续',
+  'task:void': '作废了',
+  'commitment:done': '标了完成',
+  'commitment:accept': '通过了验收',
+  'commitment:reject': '打回了',
+  'commitment:publish': '写进了目标文档',
+  'commitment:unpublish': '没写进目标文档',
+  'commitment:void': '作废了',
+  'lease:grant': '签了这条规矩',
+  'lease:decline': '先没签',
+  'lease:revoke': '收回了这条规矩',
+  'conflict:continue': '让它照原来的做',
+  'conflict:cancel': '让它按新指令做',
+  'waiting:resolve': '标了已解决',
+  'assessment:accept': '验收了这个目标',
+  'assessment:continue': '让目标继续',
+  'proposal:confirmed': '定了',
+}
+
+/** 没有人答、自己走到终点的卡，各自怎么收尾。 */
+const SETTLED: Record<string, string> = {
+  expired: '没等到回答，到点自动取消了',
+  superseded: '已经重新发起了',
+  rejected: '取消了',
+  approved: '确认了',
+  accepted: '验收通过了',
+  voided: '作废了',
+  closed: '办完了',
+  merged: '合并到另一条里了',
+  transferred: '移交给别人了',
+  revoked: '规矩已收回',
+  declined: '没签',
+  resolved: '已解决',
+  continued: '目标继续',
+}
+
+/** 卡的标题：这件事是什么。每一族的「是什么」住在不同的字段里。 */
+export function titleOf(card: StreamCard): string {
+  const state = record(card.state)
+  if (card.kind === 'approval') return text(state.reason).replace(/^云之家操作确认[：:]\s*/u, '') || '一次写操作'
+  if (card.kind === 'lease') return text(state.reason)
+  if (card.kind === 'proposal') return text(state.title)
+  if (card.kind === 'assessment') return text(state.goalName) || '这个目标还差什么'
+  return text(state.what) || text(state.summary) || text(state.note) || card.demand?.label || ''
+}
+
+/** 谁在等你。等你的是一个人时说人；是云小助时说它停在哪儿。规矩卡没人在等。 */
+function waitingOf(card: StreamCard, now: number): string | undefined {
+  const state = record(card.state)
+  if (card.kind === 'lease') return undefined
+  if (card.kind === 'commitment') {
+    const executor = record(state.executor)
+    const who = text(executor.kind) === 'human' ? (text(executor.name) || '对方') : AGENT
+    return waitLine(who, card.at, now)
+  }
+  if (card.kind === 'approval') {
+    const waited = now - card.at
+    return waited < 60_000 ? `${AGENT}停在这一步等你` : `${AGENT}停在这一步等你 · ${span(waited)}`
+  }
+  return waitLine(AGENT, card.at, now)
+}
+
+/** 交付物里**能打开来看**的那几个——验收「先并排看」看的就是它们。 */
+function filesOf(card: StreamCard): { readonly targets: PreviewTarget[]; readonly links: { title: string; href: string }[] } {
+  const state = record(card.state)
+  const targets: PreviewTarget[] = []
+  const links: { title: string; href: string }[] = []
+  if (card.kind !== 'task' || !Array.isArray(state.artifacts)) return { targets, links }
+  for (const raw of state.artifacts) {
+    const one = record(raw)
+    const ref = artifactRefOf({ uri: text(one.uri), title: text(one.title) })
+    if (ref.fileId !== undefined) targets.push({ ...ref, fileId: ref.fileId })
+    else if (ref.href !== undefined) links.push({ title: ref.title, href: ref.href })
+  }
+  return { targets, links }
+}
+
+/** 这一笔要不要先写一句原因。打回、作废要；写确认的「取消」不必（原因可选，快路优先）。 */
+function needsReason(card: StreamCard, action: Action): 'required' | 'optional' | undefined {
+  if (!action.needsInput) return undefined
+  if (card.kind === 'approval') return undefined
+  return action.id === 'reject' || action.id === 'void' ? 'required' : 'optional'
 }
 
 export interface CardRowProps {
   card: StreamCard
-  busy: boolean
-  act(kind: string, id: string, actionId: string, input?: string, dwellMs?: number): void
+  /** 墙钟。等了多久、几秒后生效都从它算。 */
+  now: number
+  /** 流里此刻「当前」的那张（J/K、落点、点过它）——数字键答它。 */
+  current?: boolean
+  /** 作答：进撤回窗。 */
+  answer(answer: Answer): void
   /** 私条上的动词走它。不给 = 这张卡长在没有私账的地方，私条整块不画。 */
   inject?: SurfaceInject
   /** 引用指名押：把句柄放进私语道 composer（「押 [card#…]：」），由人把话说完。 */
   pledgeOn?(handle: string): void
+  /** 这张刚在这里答过：吸收行下面接「下一件」。值是下一件（没有了 = undefined）。 */
+  next?: { readonly need: NeedWire | undefined }
+  /** 律九：起草一条等你签的规矩。 */
+  proposeRule?(hint: NonNullable<StreamCard['ruleHint']>): void
+  /** 点进卡里 = 它成了当前的那张。 */
+  focus?(): void
 }
 
-interface Action {
-  id: string
-  label: string
-  style?: string
-  needsInput: boolean
-  available: boolean
-}
-
-/**
- * 卡 + 私账在它旁边的那三样 (私账层 接缝④⑤).
- *
- * **卡组件本体零改动**是这条接缝的形状：后视镜条与两读卡由渲染管道**组合**在卡的
- * 后面，而不是长进卡的定义里。这不只是整洁——文本投影走的是另一条路（`renderText`），
- * 那条路上根本没有这些字段，于是「私账内容离开桌面通道即事故」成了一件结构上做不到
- * 的事，而不是一条要靠人记得的纪律。
- */
 export function CardRow(props: CardRowProps): ReactNode {
+  const { card } = props
+  const staged = useSyncExternalStore(subscribeStaged, stagedNow)
+  const pending = staged.find(one => one.kind === card.kind && one.id === card.id)
   return (
     <>
-      <CardBody {...props} />
+      {pending !== undefined
+        ? <Absorbed card={card} now={props.now} pending={{ said: pending.said, deadline: pending.deadline, landing: pending.landing }} />
+        : card.resolved
+          ? <Absorbed card={card} now={props.now} />
+          : card.kind === 'proposal' ? <Verdicts {...props} /> : <OpenCard {...props} />}
+      {/* 「下一件」只长在答过的卡下（窗里的也算：不必等 5 秒才往下走）；撤回之后卡又开着，它就不在了。 */}
+      {(pending !== undefined || card.resolved) && props.next !== undefined && <NextLine need={props.next.need} now={props.now} />}
       <PledgerTail {...props} />
     </>
   )
 }
 
-function CardBody(props: CardRowProps): ReactNode {
-  const { card, busy, act } = props
-  const [input, setInput] = useState('')
-  /**
-   * 负重档的**无一键通过**：主动作要按两下 (档位生效面).
-   *
-   * 这不是防误触。「你先拆，我再补」的意思是**把手从自动驾驶上拿回来**——而一颗
-   * 按一下就过的绿色按钮，正是三主权时刻退化成三剧场时刻的那个手势。第二下不是
-   * 摩擦，它就是那次裁决本身。
-   */
-  const [arming, setArming] = useState<string | undefined>(undefined)
+/**
+ * 吸收行 —— 答完的卡收成一行 (§5.2 回答之后).
+ *
+ * 虚线是「待生效」（还在撤回窗里，按 Z 能撤），实线是「已生效」。已生效的写明**在哪、由谁**
+ * 答的：一个对象有好几处投影，这一行就是它们之所以可信的那条出处。
+ */
+function Absorbed(props: {
+  card: StreamCard
+  now: number
+  pending?: { said: string; deadline: number; landing: boolean }
+}): ReactNode {
+  const { card, now, pending } = props
+  const title = titleOf(card)
+  if (pending !== undefined) {
+    const left = Math.max(0, Math.ceil((pending.deadline - now) / 1_000))
+    return (
+      <div className={`${css.absorbed} ${css.absorbedPending}`} data-testid="card-pending">
+        <Icon name="check" size={14} className={css.absorbedMark} />
+        <span className={css.absorbedText}>
+          {pending.said}
+          {title === '' ? '' : <span className={css.absorbedTitle}> · {title}</span>}
+        </span>
+        {pending.landing
+          ? <span className={css.absorbedWhen}>正在生效…</span>
+          : (
+            <>
+              <span className={css.absorbedWhen}>{left > 0 ? `${String(left)} 秒后生效` : '马上生效'}</span>
+              <button
+                type="button"
+                className={css.undo}
+                onClick={() => { undo(card) }}
+              >
+                <Icon name="undo" size={13} />撤回<kbd className={css.kbd}>Z</kbd>
+              </button>
+            </>
+          )}
+      </div>
+    )
+  }
   const state = record(card.state)
   const status = text(state.status)
-  const actions = card.actions.filter(action => action.available)
+  const answered = card.answered
+  const negative = /^(rejected|voided|expired|declined|revoked)$/u.test(status)
+  const line = answered !== undefined
+    ? `${answered.mine ? '你' : (answered.who ?? '有人')}${whereOf(answered.via)}${answered.via === 'yzj-text' ? `回了「${answered.label}」` : (SAID[`${card.kind}:${answered.actionId}`] ?? `${answered.label}了`)}`
+    : SETTLED[status] ?? '已处理'
+  return (
+    <div className={css.absorbed} data-testid="card-absorbed">
+      <Icon name={negative ? 'x' : 'check'} size={14} className={negative ? css.absorbedMarkOff : css.absorbedMark} />
+      <span className={css.absorbedText}>
+        {line}
+        {title === '' ? '' : <span className={css.absorbedTitle}> · {title}</span>}
+        {text(state.reason) !== '' && card.kind !== 'approval' && card.kind !== 'lease' && (
+          <span className={css.absorbedTitle}>：{text(state.reason)}</span>
+        )}
+      </span>
+      {answered !== undefined && <span className={css.absorbedWhen}>{whenOf(answered.at, now)}</span>}
+    </div>
+  )
+}
+
+/** 「下一件：验收 Q3 复盘材料初稿 · 李婷等你 13 小时 [N]」——连着处理，不回左栏找。 */
+function NextLine(props: { need: NeedWire | undefined; now: number }): ReactNode {
+  const { need, now } = props
+  if (need === undefined) {
+    return (
+      <div className={css.next} data-testid="card-next">
+        <Icon name="check" size={13} className={css.absorbedMark} />要你的都处理完了
+      </div>
+    )
+  }
+  return (
+    <button type="button" className={`${css.next} ${css.nextGo}`} data-testid="card-next" onClick={() => { jumpToNeed(need) }}>
+      <span className={css.nextTag}>下一件</span>
+      <b>{need.verb}</b>
+      <span className={css.nextLabel}>{need.label}</span>
+      <span className={css.nextWait}>· {waitLine(need.waiting, need.since, now)}</span>
+      <kbd className={css.kbd}>N</kbd>
+    </button>
+  )
+}
+
+function OpenCard(props: CardRowProps): ReactNode {
+  const { card, now, current, answer, proposeRule, focus } = props
+  const state = record(card.state)
+  const demand = card.demand
+  const blocking = demand?.layer === 'blocking'
+  const anchor = `${card.kind}:${card.id}`
+  const [reasonFor, setReasonFor] = useState<Action | undefined>(undefined)
+  const [reason, setReason] = useState('')
+  const [unseen, setUnseen] = useState<Action | undefined>(undefined)
+  const [looked, setLooked] = useState(false)
+  const [showArgs, setShowArgs] = useState(false)
   /*
-    「先看」条在场 = 你定的规矩生效：不预选、无一键通过（决策 #64 §4.4 换挡生效面）。
-    停留从这张卡挂上屏那一刻起算——本人行为事实，随裁决广播只进私账。
+    负重档：主动作要按两下 (档位生效面).
+
+    「你先拆，我再补」的意思是把手从自动驾驶上拿回来——一颗按一下就过的按钮，正是三主权
+    时刻退化成三剧场时刻的那个手势。第二下不是摩擦，它就是那次裁决本身。
   */
   const weight = (card.strips ?? []).some(strip => strip.kind === 'spread')
+  const [arming, setArming] = useState<string | undefined>(undefined)
   const mountedAt = useRef(Date.now())
+  const reasonBox = useRef<HTMLInputElement | null>(null)
+  const files = filesOf(card)
+  const title = titleOf(card)
 
-  const run = (action: Action): void => {
-    act(card.kind, card.id, action.id, action.needsInput && input !== '' ? input : undefined, Date.now() - mountedAt.current)
-    setInput('')
-    setArming(undefined)
+  const available = card.actions.filter(action => action.available)
+  const numbered = available.filter(action => action.n !== undefined).sort((a, b) => (a.n ?? 0) - (b.n ?? 0))
+  const secondary = available.filter(action => action.n === undefined && action.secondary === true)
+
+  const said = (action: Action, input?: string): string => {
+    const base = `你${SAID[`${card.kind}:${action.id}`] ?? `${action.label}了`}`
+    return input === undefined || input === '' ? base : `${base}：${input}`
   }
-
-  const buttons = (needsInputPlaceholder: string): ReactNode => (
-    actions.length === 0 ? null : (
-      <>
-        {actions.map((action) => {
-          // 不预选：负重档下没有哪一颗按钮被画成「就按这个」。
-          const emphasis = weight
-            ? ''
-            : `${action.style === 'primary' ? css.primary : ''} ${action.style === 'danger' ? css.danger : ''}`
-          const armed = arming === action.id
-          const twoStep = weight && action.style === 'primary'
-          return (
-            <button
-              type="button"
-              key={action.id}
-              className={`${css.button} ${emphasis} ${armed ? css.primary : ''}`}
-              disabled={busy}
-              title={twoStep && !armed ? '负重档：这一下只是拿起来，再按一下才算数' : undefined}
-              onClick={() => {
-                if (twoStep && !armed) { setArming(action.id); return }
-                run(action)
-              }}
-            >
-              {armed ? `再按一次：${action.label}` : action.label}
-            </button>
-          )
-        })}
-        {actions.some(action => action.needsInput) && (
-          <input
-            className={css.input}
-            value={input}
-            placeholder={needsInputPlaceholder}
-            disabled={busy}
-            onChange={(event) => { setInput(event.target.value) }}
-          />
-        )}
-      </>
-    )
-  )
-
-  // 验收条 — horizontal, green, a threshold rather than a form.
-  if (card.kind === 'task') {
-    const settled = status === 'accepted' || status === 'voided'
-    const round = typeof state.round === 'number' ? state.round : 0
-    return (
-      <div className={`${css.accept} ${settled ? css.acceptDone : ''} ${status === 'interrupted' ? css.acceptBroken : ''}`}>
-        <span className={css.acceptLabel}>
-          {settled
-            ? status === 'voided' ? '🗑 已作废' : '✅ 已验收'
-            : status === 'interrupted' ? '⚡ 中断 · 可继续' : '待验收'}
-        </span>
-        <span className={css.acceptWhat}>{text(state.what)}</span>
-        {!settled && <span className={css.acceptActions}>{buttons('打回/作废的原因')}</span>}
-        {/*
-          中断的落点必须说出来：「继续」之所以值得按，正是因为结果会回到它
-          出生的那个地方,而不是留在这一列里。
-        */}
-        {status === 'interrupted' && (
-          <span className={css.acceptNote}>
-            载体断了，这件事没结束。按「继续」它接着做——<b>结果仍然发回原来那个会话</b>。
-          </span>
-        )}
-        <span className={css.acceptNote}>
-          {round > 0 && `已返工 ${String(round)} 轮${text(state.reason) === '' ? '' : `：${text(state.reason)}`} · `}
-          {settled
-            ? text(state.reason) === '' ? '终态已定。' : `原因：${text(state.reason)}`
-            : '也可在云之家回复「验收」「打回 <原因>」「作废 <原因>」。'}
-        </span>
-      </div>
-    )
+  const commit = (action: Action, input?: string): void => {
+    answer({
+      kind: card.kind,
+      id: card.id,
+      steps: [{
+        actionId: action.id,
+        ...(input === undefined || input === '' ? {} : { input }),
+        dwellMs: Date.now() - mountedAt.current,
+      }],
+      said: said(action, input),
+    })
   }
-
-  // 确认卡 — the form you read before signing.
-  if (card.kind === 'approval') {
-    const strong = text(state.level) === 'strong'
-    const args = Object.entries(record(state.args))
-    const deadline = clock(state.deadline)
-    const done = status === 'approved'
-    const dead = status !== 'pending' && !done
-    return (
-      <div className={`${css.card} ${css.approval} ${done ? css.approvalDone : ''} ${dead ? css.approvalDead : ''}`}>
-        <div className={css.head}>
-          <span className={`${css.domain} ${done ? css.domainGreen : dead ? css.domainGrey : css.domainAmber}`}>
-            云之家 · {STATUS[status] ?? status}
-          </span>
-          <span className={css.title}>{text(state.reason) || '需要确认'}</span>
-          {/*
-            徽标说的是**这道门为什么在这儿**，不是一句关于后果的断言。
-
-            强风险这一族有两种理由：做了收不回（删文档、作废），或者改变触达面（建群、
-            把一条惯例记成「不限场所」）。后者是撤销得掉的，而卡上顶着「不可撤销」，
-            这张卡自己就成了那句谎——和场所合同面板那一格同一处病。
-          */}
-          {strong && <span className={css.risk}>强风险 · 每次都问</span>}
-        </div>
-        <div className={css.fields}>
-          <span className={css.fieldKey}>工具</span>
-          <span className={`${css.fieldValue} ${css.fieldMono}`}>{text(state.toolName)}</span>
-          {args.map(([key, value]) => (
-            <Fragment key={key}>
-              <span className={css.fieldKey}>{key}</span>
-              <span className={css.fieldValue}>
-                {flatten(value, weight ? SPREAD_LIMIT : ARG_LIMIT)}
-              </span>
-            </Fragment>
-          ))}
-          {deadline !== undefined && status === 'pending' && (
-            <>
-              <span className={css.fieldKey}>期限</span>
-              <span className={css.fieldValue}>{deadline} 前未答复即自动拒绝</span>
-            </>
-          )}
-        </div>
-        {status === 'pending'
-          ? <div className={css.actions}>{buttons('拒绝理由（可选）')}</div>
-          : (
-            <div className={`${css.foot} ${done ? css.footDone : ''}`}>
-              {done ? '已放行，操作已执行。' : `${STATUS[status] ?? status}${text(state.reason) === '' ? '' : ''}`}
-            </div>
-          )}
-      </div>
-    )
+  const look = (): boolean => {
+    const first = files.targets[0]
+    if (first !== undefined) {
+      openPreview(first)
+      setLooked(true)
+      return true
+    }
+    const link = files.links[0]
+    if (link !== undefined) {
+      window.open(link.href, '_blank', 'noopener')
+      setLooked(true)
+      return true
+    }
+    return false
   }
-
-  // 承诺卡 — somebody's name against a date.
-  if (card.kind === 'commitment') {
-    const executor = record(state.executor)
-    const human = text(executor.kind) === 'human'
-    const due = text(state.due)
-    const settled = status === 'closed' || status === 'voided'
-    return (
-      <div className={`${css.card} ${css.commitment}`}>
-        <div className={css.head}>
-          <span className={`${css.exTag} ${human ? css.exHuman : css.exAgent}`}>
-            {human ? (text(executor.name) || text(executor.openId) || '某人') : 'agent'}
-          </span>
-          <span className={css.title}>{text(state.what)}</span>
-          <span className={`${css.domain} ${settled ? css.domainGrey : css.domainViolet}`}>
-            {STATUS[status] ?? status}
-          </span>
-        </div>
-        <div className={css.fields}>
-          {due !== '' && (
-            <>
-              <span className={css.fieldKey}>期限</span>
-              <span className={css.fieldValue}>{due}</span>
-            </>
-          )}
-          {text(state.lastReceipt) !== '' && (
-            <>
-              <span className={css.fieldKey}>最新回执</span>
-              <span className={css.fieldValue}>{text(state.lastReceipt)}</span>
-            </>
-          )}
-          {text(state.parentGoalRef) !== '' && (
-            <>
-              <span className={css.fieldKey}>挂在目标</span>
-              <span className={css.fieldValue}>
-                {text(state.parentGoalRef)}
-                {text(state.attachedVia) === 'inferred' && ' · 推断待核，可回复「改挂 <目标>」'}
-              </span>
-            </>
-          )}
-          {/*
-            负重档：**把已经在图上的证据摆出来** —— 交付主张的原话与返工轮次。
-
-            默认档下它们不占位（卡是入口不是全文），而负重档的整个意思就是「你先看，
-            我再补」。摆的是同一份数据，不是新造的一段话：证据只能来自图。
-          */}
-          {weight && text(record(state.delivery).claim) !== '' && (
-            <>
-              <span className={css.fieldKey}>交付主张</span>
-              <span className={css.fieldValue}>
-                {flatten(record(state.delivery).claim, SPREAD_LIMIT)}
-              </span>
-            </>
-          )}
-          {weight && typeof state.round === 'number' && state.round > 0 && (
-            <>
-              <span className={css.fieldKey}>已返工</span>
-              <span className={css.fieldValue}>
-                {String(state.round)} 轮{text(state.reason) === '' ? '' : `：${text(state.reason)}`}
-              </span>
-            </>
-          )}
-        </div>
-        {actions.length > 0
-          ? <div className={css.actions}>{buttons('作废理由')}</div>
-          : <div className={css.foot}>也可在云之家回复这张卡作答。</div>}
-      </div>
-    )
+  const press = (action: Action): void => {
+    focus?.()
+    if (weight && action.style === 'primary' && arming !== action.id) { setArming(action.id); return }
+    const need = needsReason(card, action)
+    if (need !== undefined) {
+      setReasonFor(action)
+      setReason('')
+      requestAnimationFrame(() => { reasonBox.current?.focus() })
+      return
+    }
+    /*
+      验收的设计摩擦，只花在会错的地方 (§9.2 第 5 项)：交付物是文件、而你一眼都没看——
+      这是验收唯一常见的错。卡里多一行，给两个出口；别的情况一律不拦。
+    */
+    if (action.id === 'accept' && files.targets.length > 0 && !looked && unseen === undefined) {
+      setUnseen(action)
+      return
+    }
+    commit(action)
   }
 
   /*
-    提案裁决卡 — 逐条，且确认即签发 (v4.9).
-
-    Per-item buttons rather than "type the numbers you mean": deciding item by
-    item is the whole ritual, and making somebody transcribe indices into a box
-    turns three decisions into one typo. The text channel keeps the numbered
-    form for people answering from Yunzhijia — same action ids, same state
-    machine, one arbiter.
-
-    There is deliberately NO second confirmation. 一次主权时刻一次确认: the press
-    IS the signature, and the registration utterance that follows is its
-    mechanical consequence, not another thing to approve.
+    键盘 (律八)：数字答当前这张，`V` 并排看交付物。哪张是「当前」由中栏定——卡只管
+    自己怎么答。
   */
-  if (card.kind === 'proposal') {
-    const items = Array.isArray(state.items) ? state.items : []
-    const decisions = record(state.decisions)
-    const isGoal = text(state.kind) === 'goal'
-    // 同一张卡四种模式：提案（立目标 / 拆解）、裁决卡（发现）、交付推断（提议）。
-    const isFinding = text(state.kind) === 'finding'
-    const isDelivery = text(state.kind) === 'delivery'
-    const settled = card.resolved
-    /*
-      按下去必须真的发生一件事 (v4.10 人签发).
+  const pressRef = useRef(press)
+  pressRef.current = press
+  const lookRef = useRef(look)
+  lookRef.current = look
+  useEffect(() => registerCardKeys(anchor, (key) => {
+    if (key === 'v' || key === 'V') return lookRef.current()
+    if (!/^[1-9]$/u.test(key)) return false
+    const action = numbered.find(one => one.n === Number(key))
+    if (action === undefined) return false
+    pressRef.current(action)
+    return true
+  }), [anchor, numbered.map(one => `${one.id}:${String(one.n)}`).join('|')])
 
-      A goal proposal mints nothing unless a body link is available, and the
-      bus answers 「已记录。」 for a transition that produced no events — so an
-      enabled button here produced a success receipt, no goal, and no clue.
-      The one press the whole design calls 签发 must never be a no-op, so the
-      condition that decides whether anything happens also decides whether the
-      button is live.
+  const why = whyOf(card, state)
+  const body = bodyOf(card, state, weight, showArgs, () => { setShowArgs(value => !value) })
+  const wait = blocking ? waitingOf(card, now) : undefined
 
-      Scheme-less is accepted (`www.yunzhijia.com/doc/…` is what the address-bar
-      chip yields); anything that is not a link at all is not, because the node
-      side treats "typed but not a link" as "do not use the old one".
-    */
-    const typed = input.trim()
-    const looksLikeLink = /^(https?:\/\/)?[^\s/]+\.[^\s/]+/u.test(typed)
-    const canSign = !isGoal
-      || (typed === '' ? text(state.goalRef) !== '' : looksLikeLink)
-    const decide = (id: string, index: number): void => {
-      if (id === 'confirmed' && !canSign) return
-      // 转办 <编号> <姓名>：名字从下面那一栏来，空着就不发——没有去向的转办不是转办。
-      if (id === 'transferred') {
-        if (input.trim() === '') return
-        act(card.kind, card.id, id, `${String(index + 1)} ${input.trim()}`)
-        setInput('')
-        return
-      }
-      act(card.kind, card.id, id, isGoal ? (input === '' ? undefined : input) : String(index + 1))
-      setInput('')
-    }
-    return (
-      <div className={`${css.card} ${css.proposal}`}>
-        <div className={css.head}>
-          <span className={`${css.domain} ${settled ? css.domainGrey : css.domainAmber}`}>
-            {isFinding ? '裁决卡 · 发现' : isDelivery ? '交付推断' : `提案 · ${isGoal ? '立目标' : '拆解'}`}
-            {settled ? ' · 已裁决' : isDelivery ? ' · 待确认' : ' · 待裁决'}
-          </span>
-          <span className={css.title}>{text(state.title)}</span>
+  return (
+    <div
+      className={`${css.card} ${blocking ? css.blocking : ''} ${current === true ? css.current : ''}`}
+      onPointerDown={() => { focus?.() }}
+    >
+      <div className={css.head}>
+        {blocking
+          ? (
+            <>
+              <span className={css.dot} />
+              <b className={css.verb}>要你{demand?.verb ?? '答'}</b>
+              {wait !== undefined && <span className={css.wait}>{wait}</span>}
+            </>
+          )
+          : <span className={css.quiet}>{quietHeadOf(card, state)}</span>}
+      </div>
+      {title !== '' && <div className={css.title}>{title}</div>}
+      {why.length > 0 && <div className={css.why}>{why.join(' ')}</div>}
+      {body}
+      {(files.targets.length > 0 || files.links.length > 0) && (
+        <div className={css.files}>
+          {files.targets.map(target => (
+            <button
+              type="button"
+              key={target.key}
+              className={css.file}
+              onClick={() => { openPreview(target); setLooked(true) }}
+            >
+              <Icon name="file" size={14} />
+              <span className={css.fileName}>{target.title}</span>
+              <span className={css.fileVerb}>并排看<kbd className={css.kbd}>V</kbd></span>
+            </button>
+          ))}
+          {files.links.map(link => (
+            <a
+              key={link.href}
+              className={css.file}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => { setLooked(true) }}
+            >
+              <Icon name="doc" size={14} />
+              <span className={css.fileName}>{link.title}</span>
+              <span className={css.fileVerb}>在云之家打开<Icon name="ext" size={12} /></span>
+            </a>
+          ))}
         </div>
-        {isGoal && text(state.criteria) !== '' && (
-          <div className={css.fields}>
-            <span className={css.fieldKey}>怎么算完成</span>
-            <span className={css.fieldValue}>{text(state.criteria)}</span>
-          </div>
-        )}
-        <div className={css.items}>
-          {items.map((raw, index) => {
-            const item = record(raw)
-            const decided = text(decisions[String(index)])
-            return (
-              <div className={css.item} key={`${card.id}:${String(index)}`}>
-                <span className={css.itemNo}>{index + 1}</span>
-                <span className={css.itemWhat}>{text(item.what)}</span>
-                {(isFinding || isDelivery)
-                  ? (text(item.evidence) === '' ? null : <span className={css.itemWhere}>依据：{text(item.evidence)}</span>)
-                  : (
-                    <span className={css.itemWho}>
-                      {text(item.executorName) || text(item.executorOpenId) || '未定'}
-                      {text(item.due) === '' ? '' : ` · ${text(item.due)}`}
-                    </span>
-                  )}
-                {/*
-                  场所是委派话语的一等参数——它得写在卡上，不能只活在实现里。
-
-                  And it has to be the EFFECTIVE destination: an item with no
-                  place of its own still lands in the conversation the proposal
-                  was made in, so showing only `item.placeName` left this blank
-                  while confirming would post into a real group. Blank where
-                  something will happen is the worst of the three states.
-                */}
-                {!isGoal && !isFinding && !isDelivery && (() => {
-                  // A place KEY is a hex handle, not a name. When the item has
-                  // no place of its own it lands here, and「这个会话所在的群」
-                  // is the true, readable answer — printing the key would be
-                  // technically correct and useless to somebody signing.
-                  const where = text(item.placeName) !== ''
-                    ? text(item.placeName)
-                    : text(item.placeKey) !== ''
-                      ? text(item.placeKey)
-                      : text(state.placeKey) !== '' ? '这个会话所在的群' : ''
-                  return where === ''
-                    ? (
-                      <span className={css.itemNowhere}>
-                        ⚠ 没有可投递的会话，确认后需你亲自去说
-                      </span>
-                    )
-                    : <span className={css.itemWhere}>登记发到「{where}」</span>
-                })()}
-                {decided !== '' && (
-                  <span className={`${css.itemMark} ${
-                    decided === 'confirmed' ? css.markOk : decided === 'rejected' ? css.markNo : css.markHold
-                  }`}
-                  >
-                    {decided === 'confirmed' ? '已确认' : decided === 'rejected' ? (isDelivery ? '不是交付' : '已驳回') : decided === 'transferred' ? '已转办' : '已挂起'}
-                  </span>
-                )}
-                {/*
-                  挂起 = 「不是现在」，所以它必须还能变成「是」或「不」。
-                  Hiding the controls once an item was held made 挂起 a one-way
-                  door: on a desktop-only proposal there is no text projection
-                  to reply 「确认 2」 into, so the only exit left was 收起 —
-                  which discards it. That turns the third answer into a slower
-                  rejection, which is exactly the distinction it exists to keep.
-                */}
-                {(decided === '' || decided === 'held') && !settled
-                  && (
-                      <span className={css.itemActs}>
-                        <button
-                          type="button"
-                          className={`${css.button} ${css.primary}`}
-                          disabled={busy || !canSign}
-                          title={canSign
-                            ? undefined
-                            : '先把云之家目标文档的链接贴进下面那一栏——目标的真身不在这里，没有它就没有可签发的东西'}
-                          onClick={() => { decide('confirmed', index) }}
-                        >
-                          确认
-                        </button>
-                        <button
-                          type="button"
-                          className={css.button}
-                          disabled={busy}
-                          onClick={() => { decide('rejected', index) }}
-                        >
-                          {isDelivery ? '不是交付' : '驳回'}
-                        </button>
-                        {isFinding && (
-                          <button
-                            type="button"
-                            className={css.button}
-                            disabled={busy || input.trim() === ''}
-                            title={input.trim() === '' ? '先在下面那一栏写上转办给谁' : `给「${input.trim()}」立一条承诺，证据一起带过去`}
-                            onClick={() => { decide('transferred', index) }}
-                          >
-                            转办
-                          </button>
-                        )}
-                        {!isGoal && !isDelivery && decided !== 'held' && (
-                          <button
-                            type="button"
-                            className={css.button}
-                            disabled={busy}
-                            onClick={() => { decide('held', index) }}
-                          >
-                            挂起
-                          </button>
-                        )}
-                      </span>
-                    )}
-              </div>
-            )
-          })}
+      )}
+      {card.ruleHint !== undefined && proposeRule !== undefined && (
+        <div className={css.rule}>
+          <AgentFace size={16} />
+          <span>这类写入你已经连续确认 {card.ruleHint.streak} 次，没拒过一次。</span>
+          <button
+            type="button"
+            className={css.ruleGo}
+            onClick={() => { if (card.ruleHint !== undefined) proposeRule(card.ruleHint) }}
+          >
+            以后同类不用问<Icon name="chevR" size={12} />
+          </button>
         </div>
-        {isFinding && !settled && (
-          <div className={css.actions}>
+      )}
+      {unseen !== undefined && (
+        <div className={css.warn}>
+          <span>你还没打开交付的文件。</span>
+          <button type="button" className={css.inline} onClick={() => { look() }}>先看<kbd className={css.kbd}>V</kbd></button>
+          <button type="button" className={css.inline} onClick={() => { commit(unseen); setUnseen(undefined) }}>不看，直接通过</button>
+        </div>
+      )}
+      {reasonFor !== undefined
+        ? (
+          <form
+            className={css.reason}
+            onSubmit={(event) => {
+              event.preventDefault()
+              const typed = reason.trim()
+              if (needsReason(card, reasonFor) === 'required' && typed === '') return
+              commit(reasonFor, typed)
+              setReasonFor(undefined)
+            }}
+          >
             <input
+              ref={reasonBox}
               className={css.input}
-              value={input}
-              placeholder="转办给谁（姓名）——按某一条的「转办」时用"
-              disabled={busy}
-              onChange={(event) => { setInput(event.target.value) }}
+              value={reason}
+              placeholder={needsReason(card, reasonFor) === 'required' ? `${reasonFor.label}的原因（会以你的名义发出）` : '说一句原因（可以不写）'}
+              onChange={(event) => { setReason(event.target.value) }}
+              onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); setReasonFor(undefined) } }}
             />
-          </div>
-        )}
-        {isGoal && !settled && (
-          <div className={css.actions}>
-            <input
-              className={css.input}
-              value={input}
-              placeholder={text(state.goalRef) === ''
-                ? '云之家目标文档的链接（必填——真身不在这里）'
-                : `真身：${text(state.goalRef)}（要换的话贴新链接）`}
-              disabled={busy}
-              onChange={(event) => { setInput(event.target.value) }}
-            />
-            {!canSign && (
-              <span className={css.signHint}>
-                {typed === ''
-                  ? '贴上链接才能确认——没有真身的目标行，正是这套设计拒绝画出来的东西。'
-                  : '这看起来不像一个链接。写错了就直接改，它不会退回用旧的那个。'}
+            <button
+              type="submit"
+              className={`${css.btn} ${reasonFor.style === 'danger' ? css.btnDanger : css.btnPrimary}`}
+              disabled={needsReason(card, reasonFor) === 'required' && reason.trim() === ''}
+            >
+              {reasonFor.label}
+            </button>
+            <button type="button" className={css.inline} onClick={() => { setReasonFor(undefined) }}>算了</button>
+            <span className={css.reasonNote}>{UNDO_MS / 1_000} 秒内可以撤回</span>
+          </form>
+        )
+        : (numbered.length > 0 || secondary.length > 0) && (
+          <div className={css.foot}>
+            {numbered.map((action) => {
+              const armed = arming === action.id
+              const primary = !weight && action.style === 'primary'
+              return (
+                <button
+                  type="button"
+                  key={action.id}
+                  className={`${css.btn} ${primary || armed ? css.btnPrimary : ''}`}
+                  title={weight && action.style === 'primary' && !armed ? '你定的规矩：这一下只是拿起来，再按一下才算数' : undefined}
+                  onClick={() => { press(action) }}
+                >
+                  <kbd className={css.n}>{action.n}</kbd>
+                  {armed ? `再按一次：${action.label}` : `${action.label}${needsReason(card, action) === 'required' ? '…' : ''}`}
+                </button>
+              )
+            })}
+            {secondary.map(action => (
+              <button type="button" key={action.id} className={css.inline} onClick={() => { press(action) }}>
+                {action.label}…
+              </button>
+            ))}
+            {numbered.length > 0 && (
+              <span className={css.alt}>
+                云之家里回 {numbered.map(action => action.n).join(' / ')} 也行
               </span>
             )}
           </div>
         )}
-        <div className={css.foot}>
-          {settled
-            ? (isDelivery ? '已答。' : '已裁决。没被确认的条目不会变成任何人的活。')
-            : isGoal
-              ? '确认才算你签发——agent 只能提案。'
-              : isFinding
-                ? '确认 = 这条发现成立（改动仍要过写确认）；转办 = 给那个人立一条承诺，证据一起带过去。确认之前不动数据。'
-                : isDelivery
-                  ? '确认 = 以你的名义把「已交付」回到登记场所，那条承诺进入待验收；不是交付 = 这个文件与它无关，不再问。'
-                  : '确认一条即签发一条：那条承诺会以你的名义发到执行者所在的会话，不会静默落库。'}
-          {!settled && actions.some(action => action.id === 'settle') && (
-            <button
-              type="button"
-              className={css.linkBtn}
-              disabled={busy}
-              onClick={() => { act(card.kind, card.id, 'settle') }}
-            >
-              收起
-            </button>
-          )}
-        </div>
+    </div>
+  )
+}
+
+/** 不在等你的卡，头上只说它是什么、谁的——不上色（律三）。 */
+function quietHeadOf(card: StreamCard, state: Record<string, unknown>): string {
+  if (card.kind === 'commitment') {
+    const executor = record(state.executor)
+    const who = text(executor.kind) === 'human' ? (text(executor.name) || '某人') : AGENT
+    return `承诺 · ${who}负责`
+  }
+  if (card.kind === 'lease') return '规矩 · 生效中'
+  if (card.kind === 'task') return `${AGENT}在做`
+  if (card.kind === 'waiting') return `${AGENT}在等`
+  return ''
+}
+
+/** 标题下那一行：为什么这件事停在这里等你。只写事实，不写道理（律一）。 */
+function whyOf(card: StreamCard, state: Record<string, unknown>): string[] {
+  const status = text(state.status)
+  if (card.kind === 'approval') {
+    if (status === 'interrupted') return [`${AGENT}重启过，这一步断在半路了。重试会照原样再做一遍。`]
+    const deadline = clock(state.deadline)
+    return [
+      text(state.level) === 'strong'
+        ? '这类操作收不回，或者会改变谁看得到——每次都问你。'
+        : '写操作，照规矩写之前先问你一次。',
+      ...(deadline === undefined || status !== 'pending' ? [] : [`${deadline} 前没答就自动取消。`]),
+    ]
+  }
+  if (card.kind === 'task') {
+    const round = typeof state.round === 'number' ? state.round : 0
+    if (status === 'interrupted') return ['断在半路了。继续会接着做，结果仍然发回原来那个会话。']
+    return [
+      ...(text(state.summary) === '' ? [] : [flatten(state.summary, 160)]),
+      ...(round > 0 ? [`已经打回过 ${String(round)} 次${text(state.reason) === '' ? '' : `：${text(state.reason)}`}。`] : []),
+    ]
+  }
+  if (card.kind === 'commitment') {
+    const executor = record(state.executor)
+    const who = text(executor.kind) === 'human' ? (text(executor.name) || '对方') : AGENT
+    const due = text(state.due)
+    const delivery = record(state.delivery)
+    return [
+      `${who}负责${due === '' ? '' : ` · 原话「${due}」`}。`,
+      ...(text(delivery.claim) === '' ? [] : [`说交了：「${flatten(delivery.claim, 120)}」`]),
+      ...(text(state.parentGoalRef) === ''
+        ? []
+        : [text(state.attachedVia) === 'inferred' ? '挂在一个目标下（推断的，说错了回一句「改挂 …」）。' : '挂在一个目标下。']),
+    ]
+  }
+  if (card.kind === 'lease') {
+    const scope = record(state.scope)
+    const cls = TOOL_CLASS[text(scope.toolClass)] ?? text(scope.toolClass)
+    return [
+      `范围：往${cls}里写${text(scope.placeKey) === '' ? '，不限群' : '，只在这一个群'} · ${text(state.periodText)}，到期自动失效，随时可以收回。`,
+      '删除、覆盖、建群照旧每次都问。',
+    ]
+  }
+  if (card.kind === 'conflict') {
+    return [
+      ...(text(state.priorInstruction) === '' ? [] : [`原来让它做：${text(state.priorInstruction)}`]),
+      ...(text(state.newInstruction) === '' ? [] : [`新的一句：${text(state.newInstruction)}`]),
+    ]
+  }
+  if (card.kind === 'waiting') {
+    return text(state.waitingFor) === '' ? [] : [`在等：${text(state.waitingFor)}`]
+  }
+  if (card.kind === 'assessment') {
+    return text(state.summary) === '' ? [] : [text(state.summary)]
+  }
+  return []
+}
+
+const TOOL_CLASS: Record<string, string> = { doc: '文档', sheet: '表格', calendar: '日程', im: '群消息', file: '文件' }
+
+/** 中间那一块：每一族自己的证据。 */
+/** 一眼就知道是给机器的值：长十六进制串、uuid。 */
+const OPAQUE_ID = /^(?:[0-9a-f]{16,}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/iu
+
+function bodyOf(
+  card: StreamCard,
+  state: Record<string, unknown>,
+  weight: boolean,
+  showArgs: boolean,
+  toggleArgs: () => void,
+): ReactNode {
+  if (card.kind === 'approval') {
+    const args = Object.entries(record(state.args))
+    if (args.length === 0) return null
+    // 摘要只放人读得懂的值：24 位的工作区号、uuid 是给机器的，全文在「看参数」里。
+    const summary = args
+      .map(([, value]) => flatten(value, 40))
+      .filter(value => value !== '' && !OPAQUE_ID.test(value))
+      .join(' · ')
+    return (
+      <div className={css.body}>
+        {showArgs || weight
+          ? (
+            <div className={css.fields}>
+              <span className={css.fieldKey}>工具</span>
+              <span className={`${css.fieldValue} ${css.mono}`}>{text(state.toolName)}</span>
+              {args.map(([key, value]) => (
+                <span className={css.fieldPair} key={key}>
+                  <span className={css.fieldKey}>{key}</span>
+                  <span className={css.fieldValue}>{flatten(value, weight ? 4_000 : 400)}</span>
+                </span>
+              ))}
+            </div>
+          )
+          : summary !== '' && <div className={css.args}>{summary}</div>}
+        {!weight && (
+          <button type="button" className={css.inline} onClick={toggleArgs}>
+            {showArgs ? '收起参数' : '看参数'}
+          </button>
+        )}
       </div>
     )
   }
-
-  /*
-    差距简报 — 验收权 ≠ 验收材料 (v4.10).
-
-    Every line carries the object it was read off. That column is the whole
-    difference between this and an OKR check-in: one cites the graph, the other
-    asks somebody how they feel it is going.
-  */
   if (card.kind === 'assessment') {
     const lines = Array.isArray(state.lines) ? state.lines : []
-    const done = status !== 'open'
     return (
-      <div className={`${css.card} ${css.assessment}`}>
-        <div className={css.head}>
-          <span className={`${css.domain} ${done ? css.domainGrey : css.domainViolet}`}>
-            差距简报{status === 'accepted' ? ' · 已验收' : status === 'continued' ? ' · 继续' : ''}
-          </span>
-          <span className={css.title}>{text(state.goalName) || text(state.goalRef)}</span>
-        </div>
-        <div className={css.reportBody}>{text(state.summary)}</div>
-        <div className={css.items}>
-          {lines.map((raw, index) => {
-            const line = record(raw)
-            const verdict = text(line.verdict)
-            return (
-              <div className={css.item} key={`${card.id}:${String(index)}`}>
-                <span className={`${css.itemMark} ${
-                  verdict === 'met' ? css.markOk : verdict === 'partial' ? css.markHold : css.markNo
-                }`}
-                >
-                  {verdict === 'met' ? '已达成' : verdict === 'partial' ? '部分' : '缺失'}
-                </span>
-                <span className={css.itemWhat}>{text(line.criterion)}</span>
-                <span className={css.itemWho}>{text(line.evidence)}</span>
-              </div>
-            )
-          })}
-        </div>
-        {actions.length > 0
-          ? <div className={css.actions}>{buttons('（不需要说明）')}</div>
-          : null}
-        <div className={css.foot}>
-          {done
-            ? status === 'accepted' ? '你验收了这个目标。' : '看过了，目标继续。'
-            : '这是材料，不是判决——验收是你的动作。缺口要变委派，去承诺板的这个目标上按「变委派」。'}
-        </div>
+      <div className={css.items}>
+        {lines.map((raw, index) => {
+          const line = record(raw)
+          const verdict = text(line.verdict)
+          return (
+            <div className={css.item} key={`${card.id}:${String(index)}`}>
+              <span className={`${css.mark} ${verdict === 'met' ? css.markOk : verdict === 'partial' ? css.markHold : css.markNo}`}>
+                {verdict === 'met' ? '已达成' : verdict === 'partial' ? '部分' : '缺失'}
+              </span>
+              <span className={css.itemWhat}>{text(line.criterion)}</span>
+              {text(line.evidence) !== '' && <span className={css.itemWhy}>{text(line.evidence)}</span>}
+            </div>
+          )
+        })}
       </div>
     )
   }
+  if (card.kind === 'commitment' && weight && typeof state.round === 'number' && state.round > 0) {
+    return <div className={css.why}>已返工 {String(state.round)} 轮{text(state.reason) === '' ? '' : `：${text(state.reason)}`}</div>
+  }
+  return null
+}
 
-  // 冲突 / 等待 — the two that pause work rather than produce it.
-  const conflict = card.kind === 'conflict'
+/**
+ * 逐条裁决 —— 拆解提案、对账发现、交付推断、立目标 (§5.2 逐条裁决).
+ *
+ * 每条一排选项；数字键选当前那一条，选完自动跳到下一条；**选满了才能「定下这 N 处」**，
+ * 一窗提交。此前是每按一下就落一笔——三条要定的事，第一条按下去它就已经发出去了，
+ * 剩下两条还没想好。
+ */
+function Verdicts(props: CardRowProps): ReactNode {
+  const { card, now, current, answer, focus } = props
+  const state = record(card.state)
+  const items = Array.isArray(state.items) ? state.items : []
+  const decisions = record(state.decisions)
+  const kindOf = text(state.kind)
+  const isGoal = kindOf === 'goal'
+  const isFinding = kindOf === 'finding'
+  const isDelivery = kindOf === 'delivery'
+  const options: readonly (readonly [string, string])[] = isDelivery
+    ? [['confirmed', '是交付'], ['rejected', '不是交付']]
+    : isFinding
+      ? [['confirmed', '成立'], ['rejected', '驳回'], ['transferred', '转办']]
+      : isGoal
+        ? [['confirmed', '签发'], ['rejected', '驳回']]
+        : [['confirmed', '确认'], ['rejected', '驳回'], ['held', '挂起']]
+  const open = items.map((_, index) => index).filter((index) => {
+    const decided = text(decisions[String(index)])
+    return decided === '' || decided === 'held'
+  })
+  const [picks, setPicks] = useState<Record<number, string>>({})
+  const [extra, setExtra] = useState('')
+  const cursor = open.find(index => picks[index] === undefined)
+  const typed = extra.trim()
+  const looksLikeLink = /^(https?:\/\/)?[^\s/]+\.[^\s/]+/u.test(typed)
+  const canSign = !isGoal || (typed === '' ? text(state.goalRef) !== '' : looksLikeLink)
+  const transferBlocked = open.some(index => picks[index] === 'transferred') && typed === ''
+  const full = open.length > 0 && open.every(index => picks[index] !== undefined)
+  const signBlocked = isGoal && open.some(index => picks[index] === 'confirmed') && !canSign
+  const ready = full && !transferBlocked && !signBlocked
+  const settle = card.actions.find(action => action.id === 'settle' && action.available)
+
+  const submit = (): boolean => {
+    if (!ready) return false
+    const steps = open.map((index) => {
+      const pick = picks[index] ?? 'held'
+      const input = isGoal
+        ? (typed === '' ? undefined : typed)
+        : pick === 'transferred' ? `${String(index + 1)} ${typed}` : String(index + 1)
+      return { actionId: pick, ...(input === undefined ? {} : { input }) }
+    })
+    const counts = options
+      .map(([id, label]) => [label, open.filter(index => picks[index] === id).length] as const)
+      .filter(([, count]) => count > 0)
+      .map(([label, count]) => `${label} ${String(count)}`)
+      .join(' · ')
+    answer({ kind: card.kind, id: card.id, steps, said: `你定了 ${String(open.length)} 处（${counts}）` })
+    return true
+  }
+  const pick = (index: number, id: string): void => {
+    focus?.()
+    setPicks(value => ({ ...value, [index]: id }))
+  }
+
+  const pickRef = useRef({ cursor, options, submit, pick })
+  pickRef.current = { cursor, options, submit, pick }
+  useEffect(() => registerCardKeys(`${card.kind}:${card.id}`, (key) => {
+    const live = pickRef.current
+    if (key === 'Enter') return live.submit()
+    if (!/^[1-9]$/u.test(key) || live.cursor === undefined) return false
+    const option = live.options[Number(key) - 1]
+    if (option === undefined) return false
+    live.pick(live.cursor, option[0])
+    return true
+  }), [card.kind, card.id])
+
+  const blocking = card.demand?.layer === 'blocking'
   return (
-    <div className={`${css.card} ${conflict ? css.conflict : css.waiting}`}>
+    <div
+      className={`${css.card} ${blocking ? css.blocking : ''} ${current === true ? css.current : ''}`}
+      onPointerDown={() => { focus?.() }}
+    >
       <div className={css.head}>
-        <span className={`${css.domain} ${conflict ? css.domainAmber : css.domainGrey}`}>
-          {KIND_LABEL[card.kind] ?? card.kind} · {STATUS[status] ?? status}
-        </span>
-        <span className={css.title}>
-          {text(state.what) || text(state.note) || text(state.summary) || KIND_LABEL[card.kind]}
-        </span>
+        {blocking
+          ? (
+            <>
+              <span className={css.dot} />
+              <b className={css.verb}>要你{card.demand?.verb ?? '定'}</b>
+              <span className={css.wait}>{waitLine(AGENT, card.at, now)}</span>
+            </>
+          )
+          : <span className={css.quiet}>{isFinding ? `${AGENT}发现的事` : isDelivery ? '像是交了' : isGoal ? '新目标' : '拆解'}</span>}
       </div>
-      <div className={css.fields}>
-        {text(state.newInstruction) !== '' && (
-          <>
-            <span className={css.fieldKey}>新指令</span>
-            <span className={css.fieldValue}>{text(state.newInstruction)}</span>
-          </>
-        )}
-        {text(state.priorInstruction) !== '' && (
-          <>
-            <span className={css.fieldKey}>原指令</span>
-            <span className={css.fieldValue}>{text(state.priorInstruction)}</span>
-          </>
-        )}
-        {text(state.waitingFor) !== '' && (
-          <>
-            <span className={css.fieldKey}>在等</span>
-            <span className={css.fieldValue}>{text(state.waitingFor)}</span>
-          </>
-        )}
+      <div className={css.title}>{text(state.title)}</div>
+      {isGoal && text(state.criteria) !== '' && <div className={css.why}>完成标准：{text(state.criteria)}</div>}
+      <div className={css.items}>
+        {items.map((raw, index) => {
+          const item = record(raw)
+          const decided = text(decisions[String(index)])
+          const live = open.includes(index)
+          // 去向按「这一条自己的群 › 卡的群」取，说名字；有群却认不出名字时也不能说成「没有群」。
+          const destination = text(item.placeKey) || text(state.placeKey)
+          const where = !isGoal && !isFinding && !isDelivery
+            ? text(item.placeName) || card.placeNames?.[destination] || (destination === '' ? '' : '它记下的那个群')
+            : ''
+          return (
+            <div className={`${css.item} ${live && cursor === index ? css.itemCursor : ''}`} key={`${card.id}:${String(index)}`}>
+              <span className={css.itemNo}>{index + 1}</span>
+              <span className={css.itemText}>
+                <span className={css.itemWhat}>{text(item.what)}</span>
+                <span className={css.itemWhy}>
+                  {isFinding || isDelivery
+                    ? (text(item.evidence) === '' ? '' : `依据：${text(item.evidence)}`)
+                    : [
+                      text(item.executorName) || (isGoal ? '' : '还没定谁'),
+                      text(item.due) === '' ? '' : `原话「${text(item.due)}」`,
+                      where === '' ? (isGoal ? '' : '没有能投递的群，定下后要你亲自去说') : `登记发到「${where}」`,
+                    ].filter(part => part !== '').join(' · ')}
+                </span>
+              </span>
+              {live
+                ? (
+                  <span className={css.pills}>
+                    {options.map(([id, label], at) => (
+                      <button
+                        type="button"
+                        key={id}
+                        className={`${css.pill} ${picks[index] === id ? css.pillOn : ''}`}
+                        onClick={() => { pick(index, id) }}
+                      >
+                        {cursor === index && <kbd className={css.n}>{at + 1}</kbd>}{label}
+                      </button>
+                    ))}
+                  </span>
+                )
+                : (
+                  <span className={`${css.mark} ${decided === 'confirmed' ? css.markOk : decided === 'rejected' ? css.markNo : css.markHold}`}>
+                    {decided === 'confirmed' ? '已确认' : decided === 'rejected' ? (isDelivery ? '不是交付' : '已驳回') : decided === 'transferred' ? '已转办' : '已挂起'}
+                  </span>
+                )}
+            </div>
+          )
+        })}
       </div>
-      {actions.length > 0
-        ? <div className={css.actions}>{buttons('说明（可选）')}</div>
-        : <div className={css.foot}>也可在云之家回复这张卡作答。</div>}
+      {(isGoal || isFinding) && open.length > 0 && (
+        <input
+          className={css.input}
+          value={extra}
+          placeholder={isGoal
+            ? (text(state.goalRef) === '' ? '云之家里目标文档的链接（签发要用它）' : '目标文档链接（要换的话贴新的）')
+            : '转办给谁（姓名）'}
+          onChange={(event) => { setExtra(event.target.value) }}
+        />
+      )}
+      {signBlocked && (
+        <div className={css.warn}>
+          {typed === '' ? '贴上目标文档的链接才能签发——目标的正文在云之家里。' : '这看起来不像一个链接。'}
+        </div>
+      )}
+      <div className={css.foot}>
+        {open.length > 0 && (
+          <button
+            type="button"
+            className={`${css.btn} ${ready ? css.btnPrimary : ''}`}
+            disabled={!ready}
+            onClick={() => { submit() }}
+          >
+            {full ? `定下这 ${String(open.length)} 处` : `还有 ${String(open.filter(index => picks[index] === undefined).length)} 处没选`}
+            <kbd className={css.n}>⏎</kbd>
+          </button>
+        )}
+        {settle !== undefined && (
+          <button
+            type="button"
+            className={css.inline}
+            onClick={() => { answer({ kind: card.kind, id: card.id, steps: [{ actionId: 'settle' }], said: '你收起了这张卡' }) }}
+          >
+            收起…
+          </button>
+        )}
+        {open.length > 0 && !isGoal && <span className={css.alt}>云之家里回「确认 1」「驳回 2」也行</span>}
+      </div>
     </div>
   )
 }
@@ -687,7 +862,7 @@ function PledgerTail(props: CardRowProps): ReactNode {
     void action().then((result) => { setNote(result.error ?? result.note); setEditing(undefined) }).finally(() => { setBusy(false) })
   }
   const tiny = (label: string, title: string, onClick: () => void): ReactNode => (
-    <button type="button" className={css.button} disabled={busy} title={title} onClick={onClick}>{label}</button>
+    <button type="button" key={label} className={css.inline} disabled={busy} title={title} onClick={onClick}>{label}</button>
   )
   const photo = (one: AnchoredTextWire, index: number): ReactNode => (
     <div key={`${one.at}:${String(index)}`} className={css.mirrorCase}>{one.text}</div>
@@ -699,13 +874,14 @@ function PledgerTail(props: CardRowProps): ReactNode {
       setGearAt(key)
     })
   }
+  const lock = <Icon name="lock" size={13} className={css.mirrorMark} />
 
   return (
     <div className={css.pledgerTail}>
       {note !== undefined && <div className={css.gearNote}>{note}</div>}
       {card.pledgeHandle !== undefined && pledgeOn !== undefined && (
         <div className={css.mirror}>
-          <span className={css.mirrorMark}>🔒</span>
+          {lock}
           <span className={css.twoReadLine}>{tiny('押一句 ›', '对这次裁决押一句可证伪的话——有结果时回到这张卡下面；只有你能看到', () => { pledgeOn(card.pledgeHandle ?? '') })}</span>
         </div>
       )}
@@ -714,10 +890,10 @@ function PledgerTail(props: CardRowProps): ReactNode {
           const row = strip.row
           return (
             <div key={`pledge:${row.expectationId}`} className={css.mirror}>
-              <span className={css.mirrorMark}>🔒</span>
+              {lock}
               <span className={css.mirrorBody}>
                 <span className={css.mirrorNote}>只有你能看到 · 押</span>
-                「<b>{row.text}</b>」{row.status === 'settled' ? ' · 已见分晓' : row.premise === 'changed' ? ' · ⚠ 前提已变' : ` · ${row.checkpointText}见分晓`}
+                「<b>{row.text}</b>」{row.status === 'settled' ? ' · 已见分晓' : row.premise === 'changed' ? ' · 前提已变' : ` · ${row.checkpointText}见分晓`}
                 {row.status !== 'settled' && row.status !== 'withdrawn' && (
                   <span className={css.twoReadLine}>
                     {tiny('撤回', '撤回留痕不删史；撤回之后这条裁决不能再押', () => { setEditing({ key: `withdraw:${row.expectationId}`, text: '' }) })}
@@ -742,11 +918,11 @@ function PledgerTail(props: CardRowProps): ReactNode {
                   : '后来的事，当时看不到')
           return (
             <div key={`receipt:${row.calibrationId}`} className={css.twoRead} data-testid="strip-receipt">
-              <span className={css.twoReadHead}>🔒 只有你能看到 · 回执 · <b>{row.type === 'pledged' ? '押过的' : row.type === 'reversed' ? '同意了，被现实推翻' : '没同意，被现实印证'}</b></span>
+              <span className={css.twoReadHead}>{lock} 只有你能看到 · 回执 · <b>{row.type === 'pledged' ? '押过的' : row.type === 'reversed' ? '同意了，被现实推翻' : '没同意，被现实印证'}</b></span>
               <span className={css.twoReadBody}>
                 <span className={css.twoReadLine}><b>你当时</b> · {row.verdict.text}</span>
                 {row.then.map(photo)}
-                <span className={css.twoReadLine}><b>后来</b>{row.later.length === 0 ? ' · 还没有结果——到「我的判断」里补一句' : ''}</span>
+                <span className={css.twoReadLine}><b>后来</b>{row.later.length === 0 ? ' · 还没有结果——到「我定过的」里补一句' : ''}</span>
                 {row.later.map(photo)}
                 {row.dismissed
                   ? <span className={css.twoReadLine}>这不是那件事的结果——没记入。{(['q1', 'q2', 'q3', 'q4'] as const).map(id => tiny(ATTRIBUTION_LABEL[id], '记回来', () => { run(() => inject.attribute(row.calibrationId, id)) }))}</span>
@@ -775,7 +951,7 @@ function PledgerTail(props: CardRowProps): ReactNode {
         if (strip.kind === 'spread') {
           return (
             <div key={`spread:${String(index)}`} className={css.twoRead} data-testid="strip-spread">
-              <span className={css.twoReadHead}>🔒 你定的规矩 · 先看 · 要求 × 交付</span>
+              <span className={css.twoReadHead}>{lock} 你定的规矩 · 先看 · 要求 × 交付</span>
               <span className={css.twoReadBody}>
                 <span className={css.twoReadLine}><b>要求</b></span>
                 {strip.requirements.map(photo)}
@@ -788,7 +964,7 @@ function PledgerTail(props: CardRowProps): ReactNode {
         }
         return (
           <div key={`mirror:${String(index)}`} className={css.mirror} data-testid="strip-mirror">
-            <span className={css.mirrorMark}>🔒</span>
+            {lock}
             <span className={css.mirrorBody}>
               <span className={css.mirrorNote}>你定的规矩 · 上次 · 你在{strip.family}上的结果：</span>
               {strip.cases.map(one => (

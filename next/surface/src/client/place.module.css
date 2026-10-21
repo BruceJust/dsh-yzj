@@ -1,330 +1,199 @@
+/*
+ * 群视图 (界面重设计 §4.3 / §5.1).
+ *
+ * 和话题流同一套消息语法：头像、名字和时间一行、正文不加气泡。话题卡是一行，带一个
+ * 信号——有事等你才上琥珀色。
+ */
+
 .place {
   position: relative;
   display: flex; flex-direction: column; height: 100%; min-height: 0;
-  background: var(--yzj-bg);
+  background: var(--yzj-bg); color: var(--yzj-ink);
 }
 
+/* ——— 头 ——— */
 .head {
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 12px 20px 10px; border-bottom: 1px solid var(--yzj-line);
+  flex: none;
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  height: 52px; padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--yzj-line-2);
 }
-.icon { font-family: var(--yzj-mono); color: var(--yzj-ink-3); }
-.title { font-size:var(--yzj-fs-lg); font-weight: 700; color: var(--yzj-ink); }
-.sub { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-
-.filters { margin-left: auto; display: inline-flex; gap: 4px; }
-.filter {
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 3px 10px; border-radius:var(--yzj-r-lg);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-  color: var(--yzj-ink-3); cursor: pointer;
-  transition: background .12s, color .12s;
-}
-.filterOn { background: var(--yzj-pub-tint); color: var(--yzj-pub); border-color: var(--yzj-pub-line); }
-
 .back {
-  font: inherit; font-size:var(--yzj-fs-xs);
-  padding: 4px 11px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-  color: var(--yzj-ink-2); cursor: pointer;
-  transition: box-shadow .15s;
+  flex: none; display: inline-flex; align-items: center; gap: 2px;
+  height: 28px; padding: 0 8px 0 4px;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  font: inherit; font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2); cursor: pointer;
 }
-.back:hover { box-shadow: var(--yzj-shadow-1); }
+.back:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+.headRule { flex: none; width: 1px; height: 18px; background: var(--yzj-line); }
+.icon { flex: none; display: inline-flex; color: var(--yzj-ink-3); }
+.title { min-width: 0; font-size: var(--yzj-fs-lg); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { flex: none; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.filters { margin-left: auto; display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--yzj-r-sm); background: var(--yzj-bg-sunk); }
+.filter {
+  height: 24px; padding: 0 10px;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); cursor: pointer;
+}
+.filterOn { background: var(--yzj-bg); color: var(--yzj-ink); box-shadow: var(--yzj-shadow-1); }
+.rules {
+  flex: none; height: 28px; padding: 0 10px;
+  border: 0; border-radius: var(--yzj-r-pill); background: none;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-2); cursor: pointer;
+}
+.rules:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+.rulesOff { color: var(--yzj-need-ink); background: var(--yzj-need-bg); }
 
 .stale {
-  padding: 7px 20px; font-size:var(--yzj-fs-xs);
-  color: var(--yzj-need-ink); background: var(--yzj-need-bg);
-  border-bottom: 1px solid var(--yzj-need-line);
+  flex: none; padding: 6px 16px;
+  font-size: var(--yzj-fs-xs); color: var(--yzj-need-ink); background: var(--yzj-need-bg);
 }
 
-.body { flex: 1; overflow-y: auto; padding: 14px 20px 24px; }
+.body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 16px 18px; }
 
-/* 主楼消息 */
-.row { display: flex; gap: 10px; align-items: flex-start; padding: 5px 0; }
+/* ——— 消息 ——— */
+.row {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 0 10px;
+  padding: 6px 8px; border-radius: var(--yzj-r-md);
+}
+.row:hover { background: var(--yzj-hover); }
 .avatar {
-  width: 22px; height: 22px; border-radius:var(--yzj-r-sm); flex: none; margin-top: 2px;
-  display: flex; align-items: center; justify-content: center;
-  font-size:var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-on-color);
+  width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
+  display: inline-grid; place-items: center;
+  font-size: var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-on-color);
 }
-.rowBody { min-width: 0; max-width: 680px; display: block; }
-.rowHead { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
-.name { font-size:var(--yzj-fs-sm); font-weight: 650; color: var(--yzj-ink); }
-.clock { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); font-variant-numeric: tabular-nums; }
-.bubble {
-  display: inline-block;
-  border-radius: var(--yzj-r-md); padding: 8px 12px;
-  border: 1px solid var(--yzj-line); background: var(--yzj-pub-tint);
-  font-size:var(--yzj-fs-sm); line-height: 1.65;
-  white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%;
+.photo { width: 100%; height: 100%; object-fit: cover; }
+.rowBody { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rowHead { display: flex; align-items: baseline; gap: 8px; min-height: 20px; }
+.name { font-size: var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink); }
+.clock { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); font-variant-numeric: tabular-nums; }
+.text {
+  font-size: var(--yzj-fs-md); line-height: 1.65; color: var(--yzj-ink);
+  white-space: pre-wrap; overflow-wrap: anywhere;
 }
-
-/* 话题卡：长在它生出来的那句话的位置上 */
-.topicCard {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  margin: 8px 0; padding: 10px 13px; text-align: left;
-  border: 1px solid var(--yzj-line); border-left: 3px solid var(--yzj-pub-line);
-  border-radius:var(--yzj-r-md); background: var(--yzj-pub-tint);
-  box-shadow: var(--yzj-shadow-1); cursor: pointer;
-  transition: transform .12s, box-shadow .15s;
-}
-.topicCard:hover { transform: translateY(-2px); box-shadow:var(--yzj-shadow-2); }
-.topicHot { border-left-color: var(--yzj-pub); background: linear-gradient(160deg, var(--yzj-pub-tint), var(--yzj-pub-tint)); }
-
-.threadIcon { font-size:var(--yzj-fs-lg); flex: none; }
-.topicBody { flex: 1; min-width: 0; }
-.topicTitle {
-  display: block; font-size:var(--yzj-fs-sm); font-weight: 700; color: var(--yzj-ink);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.topicMeta { display: block; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); margin-top: 2px; }
-
-.badge {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 600;
-  padding: 2px 8px; border-radius:var(--yzj-r-pill);
-  background: var(--yzj-pub-line); color: var(--yzj-ink-3);
-}
-.badgeHot { background: var(--yzj-pub-tint); color: var(--yzj-pub); border: 1px solid var(--yzj-pub-line); }
-.arrow { flex: none; color: var(--yzj-ink-3); font-size:var(--yzj-fs-lg); }
-
-.calm {
-  margin: 24px auto; max-width: 520px;
-  border: 1px dashed var(--yzj-pub-line); border-radius:var(--yzj-r-md);
-  padding: 18px 20px; font-size:var(--yzj-fs-sm); color: var(--yzj-ink-2);
-  line-height: 1.85; background: var(--yzj-bg-sunk); text-align: center;
-}
-.calm code {
-  padding: 1px 6px; border-radius:var(--yzj-r-sm); background: var(--yzj-pub-tint);
-  font-family: var(--yzj-mono); font-size:var(--yzj-fs-xs);
-}
-
-/* 更早的话题：仍然点得进去,但不霸占房间 */
-.earlier { margin-bottom: 12px; border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md); background: var(--yzj-bg-sunk); }
-.earlierHead {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  padding: 8px 12px; border: 0; background: none; text-align: left; cursor: pointer;
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650; color: var(--yzj-ink-2);
-}
-.earlierHead:hover { color: var(--yzj-ink); }
-.earlierTwist { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); }
-.earlierNote { margin-left: auto; font-size:var(--yzj-fs-xs); font-weight: 400; color: var(--yzj-ink-3); }
-.earlierItem {
-  display: flex; align-items: center; gap: 9px; width: 100%;
-  padding: 7px 12px 7px 28px; border: 0; border-top: 1px dashed var(--yzj-pub-line);
-  background: none; text-align: left; cursor: pointer; font: inherit;
-}
-.earlierItem:hover { background: var(--yzj-pub-tint); }
-
-/* 冷链平铺：引用线,和云之家/微信两端一致 */
-.quote {
-  display: block; margin-bottom: 4px; padding-left: 8px;
-  border-left: 2px solid var(--yzj-line);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px;
-}
-
-/* 就地展开：扫一眼,零导航 */
-.topicWrap { display: flex; flex-direction: column; }
-.peek {
-  align-self: flex-start; margin: -4px 0 8px 34px;
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 9px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-  color: var(--yzj-ink-3); cursor: pointer;
-}
-.peek:hover { color: var(--yzj-pub); border-color: var(--yzj-pub-line); }
-.peekBody {
-  margin: -4px 0 10px 34px; padding: 8px 11px;
-  border-left: 2px solid var(--yzj-pub-line); border-radius:0 var(--yzj-r-md) var(--yzj-r-md) 0;
-  background: var(--yzj-bg-sunk); display: flex; flex-direction: column; gap: 4px;
-}
-.peekLine {
-  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.6;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* ---------- 群视图的 composer：房间里当然要能说话 ---------- */
-.composer { border-top: 1px solid var(--yzj-line); padding: 10px 20px 14px; background: var(--yzj-bg); }
-
-.anchorBar {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 8px; padding: 5px 10px;
-  border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md);
-  background: var(--yzj-bg-sunk); font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2);
-}
-.anchorPinned { border-color: var(--yzj-pub-line); background: var(--yzj-pub-tint); }
-.anchorLabel { flex: none; font-size:var(--yzj-fs-xs); font-weight: 700; letter-spacing: .06em; color: var(--yzj-ink-3); }
-.anchorWhere {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.anchorQuote { color: var(--yzj-ink-3); overflow: hidden; text-overflow: ellipsis; }
-.anchorIgnite {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 8px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-need-bg); color: var(--yzj-need-ink); border: 1px solid var(--yzj-need-line);
-}
-.anchorClear {
-  flex: none; border: 0; background: none; cursor: pointer;
-  font: inherit; font-size:var(--yzj-fs-md); line-height: 1; color: var(--yzj-ink-3); padding: 0 2px;
-}
-.anchorClear:hover { color: var(--yzj-late-ink); }
-
-.cbox {
-  display: flex; align-items: flex-end; gap: 10px;
-  border: 1.5px solid var(--yzj-pub); border-radius:var(--yzj-r-md); padding: 10px 12px;
-  background: var(--yzj-pub-tint);
-}
-.input {
-  flex: 1; border: none; background: transparent; resize: none;
-  font: inherit; font-size:var(--yzj-fs-sm); line-height: 1.6;
-  min-height: 40px; max-height: 120px; outline: none; color: var(--yzj-ink);
-}
-.send {
-  flex: none; font: inherit; font-size:var(--yzj-fs-sm); font-weight: 650;
-  padding: 7px 16px; border: 0; border-radius:var(--yzj-r-md);
-  background: var(--yzj-pub-solid); color: var(--yzj-on-color); cursor: pointer;
-}
-.send:hover:not(:disabled) { transform: translateY(-1px); }
-.send:disabled { opacity: .45; cursor: default; }
-
-/* hover 双动词 */
-.verbs { margin-left: auto; display: inline-flex; gap: 4px; opacity: 0; transition: opacity .12s; }
-.row:hover .verbs { opacity: 1; }
+.verbs { margin-left: auto; display: inline-flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+.row:hover .verbs, .verbs:focus-within { opacity: 1; }
 .verb {
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 8px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-  color: var(--yzj-ink-2); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 24px; padding: 0 7px;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  color: var(--yzj-ink-3); font: inherit; font-size: var(--yzj-fs-xs); cursor: pointer;
 }
-.verb:hover { color: var(--yzj-pub); border-color: var(--yzj-pub-line); background: var(--yzj-pub-tint); }
-
-.toast {
-  position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%);
-  background: var(--yzj-solid); color: var(--yzj-on-solid); font-size:var(--yzj-fs-sm);
-  padding: 9px 18px; border-radius:var(--yzj-r-md); box-shadow: var(--yzj-shadow-2); z-index: 30;
+.verb:hover { background: var(--yzj-press); color: var(--yzj-ink); }
+.quoteRow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.quote {
+  min-width: 0; max-width: 420px; padding: 1px 0 1px 8px;
+  border-left: 2px solid var(--yzj-line);
+  font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-/* ---------- 未接单：可见状态的出生故事（v4.8） ---------- */
-.anchorCold {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 8px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-pub-tint); color: var(--yzj-ink-3); border: 1px solid var(--yzj-line);
+.quoteLink { border-top: 0; border-right: 0; border-bottom: 0; background: none; cursor: pointer; font: inherit; font-size: var(--yzj-fs-xs); text-align: left; }
+.quoteLink:hover { color: var(--yzj-ink); border-left-color: var(--yzj-ink-3); }
+.quoteTopic {
+  flex: none; display: inline-flex; align-items: center; gap: 2px;
+  border: 0; padding: 0; background: none; cursor: pointer;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3);
 }
-
-/*
-  传送门带过来的东西，摆在输入框上方 —— 看得见，也丢得掉。
-
-  虚线：它还没生效。这句话没发出去之前，登记先验和目标语境都只是**打算**，实线会让
-  它看起来像已经落库的事实。
-*/
-/*
-  最小听众不变量的警示：**说，不拦**（v4.24 决策 #58）。
-
-  琥珀而不是红：选一个他可能不在的群是合法的社交选择。红色会让人以为这里出了错，而这里
-  只有一个我们答不了的问题。
-*/
-.audienceRisk {
-  margin-bottom: 6px; padding: 6px 11px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-need-line); background: var(--yzj-need-bg);
-  font-size:var(--yzj-fs-xs); line-height: 1.7; color: var(--yzj-need-ink);
-}
-
-.errandBar {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin-bottom: 8px; padding: 5px 10px; border-radius:var(--yzj-r-md);
-  border: 1px dashed var(--yzj-pub); background: var(--yzj-pub-tint);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2);
-}
-.errandTag { line-height: 1.6; }
-.errandTag b { color: var(--yzj-pub-ink); }
-.errandDrop {
-  margin-left: auto; font: inherit; font-size:var(--yzj-fs-xs);
-  padding: 2px 9px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg); color: var(--yzj-ink-3);
-}
-.errandDrop:hover { color: var(--yzj-ink); }
-
-.notOnDuty {
-  margin-bottom: 8px; padding: 9px 12px;
-  border: 1px solid var(--yzj-need-line); border-radius:var(--yzj-r-md);
-  background: var(--yzj-need-bg);
-  font-size:var(--yzj-fs-xs); line-height: 1.75; color: var(--yzj-need-ink);
-}
-.notOnDuty b { color: var(--yzj-need-ink); }
-.notOnDutyActions { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
-.notOnDutyBtn {
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 3px 10px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-need-line); background: var(--yzj-bg); color: var(--yzj-need-ink);
-}
-.notOnDutyBtn:hover { box-shadow: var(--yzj-shadow-1); }
-
-/* 日期分隔：HH:mm 说不出是哪天，一条时间线必须说得出 */
-.day {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 0 6px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
-}
-.day::before, .day::after { content: ""; flex: 1; height: 1px; background: var(--yzj-line); }
-
-/* 一个话题可以同时欠你答复、又正在跑 */
-.tools { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
-.callBtn {
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 4px 11px; border-radius:var(--yzj-r-sm);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-  color: var(--yzj-ink-2); cursor: pointer;
-  transition: background .15s, color .15s, border-color .15s;
-}
-.callBtn:hover { color: var(--yzj-pub); border-color: var(--yzj-pub-line); }
-.callOn { background: var(--yzj-pub-tint); color: var(--yzj-pub); border-color: var(--yzj-pub-line); }
-
-/* 引用行是门，不是标签 */
-.quoteLink {
-  border: 0; background: none; padding: 0 0 0 8px; cursor: pointer;
-  font: inherit; text-align: left;
-}
-.quoteLink:hover { color: var(--yzj-pub); border-left-color: var(--yzj-pub); }
-
-/* 跳过去之后闪一下：不然「跳到了」和「没动」看起来一样 */
-.flash { animation: flash 1.6s ease; border-radius:var(--yzj-r-md); }
-
+.quoteTopic:hover { color: var(--yzj-ink); }
+.flash { animation: flash 1.6s ease; }
 @keyframes flash {
-  0%, 70% { background: var(--yzj-pub-tint); }
+  0%, 60% { background: var(--yzj-need-bg); }
   100% { background: transparent; }
 }
 
-/* 订阅面没有 composer：那一头没有人会读到回复 */
+/* ——— 话题卡：一行，一个信号 ——— */
+.topicWrap { display: flex; flex-direction: column; margin: 4px 0 4px 46px; max-width: 640px; }
+.topicCard {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0;
+  padding: 9px 12px; text-align: left;
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-md);
+  background: var(--yzj-bg); cursor: pointer; font: inherit;
+}
+.topicCard:hover { background: var(--yzj-hover); }
+.threadIcon { flex: none; color: var(--yzj-ink-3); }
+.topicTitle {
+  flex: 0 1 auto; min-width: 0; font-size: var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.signal { flex: none; margin-left: auto; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.signalNeed {
+  flex: 0 1 auto; margin-left: auto; min-width: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--yzj-fs-xs); color: var(--yzj-need-ink);
+}
+.signalNeed b { flex: none; font-weight: 600; }
+.signalText { min-width: 0; color: var(--yzj-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needDot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--yzj-need); box-shadow: 0 0 0 3px var(--yzj-need-bg); }
+.arrow { flex: none; color: var(--yzj-ink-4); }
+/* 「看最后几条」是第二眼的事：悬停到那张话题卡上才出现，不在每张卡下面各占一行。 */
+.peek {
+  align-self: flex-start; margin: 2px 0 0 4px;
+  opacity: 0; transition: opacity .12s;
+  border: 0; padding: 2px 6px; border-radius: var(--yzj-r-sm); background: none;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); cursor: pointer;
+}
+.topicWrap:hover .peek, .peek:focus-visible, .peekOpen { opacity: 1; }
+.peek:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+.peekBody {
+  margin: 4px 0 4px 12px; padding: 6px 10px;
+  border-left: 2px solid var(--yzj-line);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.peekLine { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ——— 更早的话题 ——— */
+.earlier { margin: 0 0 10px; border: 1px solid var(--yzj-line-2); border-radius: var(--yzj-r-md); }
+.earlierHead {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 8px 12px; border: 0; background: none; text-align: left; cursor: pointer;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-2);
+}
+.earlierHead:hover { color: var(--yzj-ink); }
+.earlierTwist { color: var(--yzj-ink-3); transition: transform .15s; }
+.earlierOpen { transform: rotate(90deg); }
+.earlierItem {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 7px 12px 7px 28px; border: 0; border-top: 1px solid var(--yzj-line-2);
+  background: none; text-align: left; cursor: pointer; font: inherit;
+}
+.earlierItem:hover { background: var(--yzj-hover); }
+
+.calm {
+  margin: 32px auto; max-width: 420px; text-align: center;
+  font-size: var(--yzj-fs-sm); color: var(--yzj-ink-3); line-height: 1.7;
+}
+.day {
+  display: flex; align-items: center; gap: 12px; margin: 14px 8px 8px;
+  font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3);
+}
+.day::before, .day::after { content: ""; flex: 1; border-top: 1px solid var(--yzj-line-2); }
+
+/* ——— 没接单：可见状态的出生故事（v4.8） ——— */
+.notOnDuty {
+  margin: 0 16px 8px; padding: 9px 12px;
+  border-radius: var(--yzj-r-md); background: var(--yzj-need-bg);
+  font-size: var(--yzj-fs-sm); line-height: 1.6; color: var(--yzj-need-ink);
+}
+.notOnDutyActions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.notOnDutyBtn {
+  height: 26px; padding: 0 10px;
+  border: 1px solid var(--yzj-need-line); border-radius: var(--yzj-r-sm);
+  background: var(--yzj-bg); color: var(--yzj-ink);
+  font: inherit; font-size: var(--yzj-fs-xs); cursor: pointer;
+}
+.notOnDutyBtn:hover { background: var(--yzj-hover); }
+
+/* 订阅号没有输入框：那一头没有人会读到回复 */
 .feedNote {
-  border-top: 1px solid var(--yzj-line);
-  padding: 12px 20px 14px; background: var(--yzj-bg-sunk);
-  font-size:var(--yzj-fs-xs); line-height: 1.8; color: var(--yzj-ink-3);
+  flex: none; margin: 0 16px 14px; padding: 10px 14px;
+  border-radius: var(--yzj-r-md); background: var(--yzj-bg-sunk);
+  font-size: var(--yzj-fs-xs); line-height: 1.7; color: var(--yzj-ink-3);
 }
 .feedNote b { color: var(--yzj-ink-2); }
-/* 引用行：跳过去 与 开话题 是两个问题,所以并排两个控件 */
-.quoteRow { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
-.quoteTopic {
-  flex: none; font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 1px 8px; border-radius:var(--yzj-r-md); cursor: pointer;
-  border: 1px solid var(--yzj-pub-line); background: var(--yzj-bg); color: var(--yzj-pub-ink);
-}
-.quoteTopic:hover { background: var(--yzj-pub-solid); color: var(--yzj-on-color); border-color: var(--yzj-pub-solid); }
-/* 未接单时,通往合同的那个门自己要显眼一点——接入开关就在它后面 */
-.contractOff {
-  border-color: var(--yzj-need-line) !important; background: var(--yzj-need-bg) !important; color: var(--yzj-need-ink) !important;
-}
 
-/*
-  私语通道里那一段 —— 立约邀约与校准回执 (私账层 §7).
-
-  纸色，和金库同一套颜色。**颜色在这里说一句话**：这一段只有你看得见，而它就长在
-  一间和别人共用的语法（群视图）里——所以它必须一眼看出来不一样。
-*/
-.privateStream { margin-bottom: 10px; }
-.privateNote {
-  margin-bottom: 6px; padding: 7px 11px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-late-bg); border: 1px solid var(--yzj-late-line); color: var(--yzj-late-ink);
-  font-size:var(--yzj-fs-xs); line-height: 1.6;
+.toast {
+  position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); z-index: 30;
+  max-width: min(560px, 80%);
+  background: var(--yzj-solid); color: var(--yzj-on-solid); font-size: var(--yzj-fs-sm); line-height: 1.5;
+  padding: 9px 16px; border-radius: var(--yzj-r-md); box-shadow: var(--yzj-shadow-2);
 }
-
-/* 真人头像撑满头像框；取不到就退回缩写（见 Avatar.tsx）。 */
-.photo { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }

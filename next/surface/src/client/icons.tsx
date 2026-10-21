@@ -43,6 +43,8 @@ const PATHS = {
   eyeOff: <><path d="M2 8s2.2-4 6-4c1.1 0 2 .3 2.9.8M14 8s-2.2 4-6 4c-1.1 0-2.1-.3-2.9-.8" /><path d="M3 13 13 3" /></>,
   pause: <path d="M6 4v8M10 4v8" />,
   redo: <path d="M11 4l2.5 2.5L11 9M13.5 6.5H6a3.5 3.5 0 0 0 0 7h3" />,
+  smile: <><circle cx="8" cy="8" r="5.5" /><path d="M5.8 9.6c.6.8 1.3 1.1 2.2 1.1s1.6-.3 2.2-1.1M6 6.4h.01M10 6.4h.01" /></>,
+  copy: <><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5" /></>,
 } as const
 
 export type IconName = keyof typeof PATHS

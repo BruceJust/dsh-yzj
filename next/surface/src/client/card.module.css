@@ -1,208 +1,242 @@
-/**
- * Cards. Each object kind gets the shape its decision actually has — a
- * confirmation is a form you read before signing, an acceptance is a bar you
- * clear, an artifact is a door. One generic grey box for all of them was the
- * fastest way to make every decision feel equally unimportant.
+/*
+ * 卡 —— 一套骨架 (界面重设计 §5.2).
+ *
+ * 静为常态（律三）：卡本体是白底细边，和流里其它东西一个分量。「要你」只在两处上色——
+ * 头上那颗琥珀点和动词、左边一道 3px 的琥珀线。不在等你的卡连这两处都没有。
  */
 
 .card {
-  border-radius:var(--yzj-r-md);
+  max-width: 600px;
+  margin: 2px 0;
+  padding: 12px 14px 12px;
   border: 1px solid var(--yzj-line);
+  border-radius: var(--yzj-r-md);
   background: var(--yzj-bg);
-  box-shadow: var(--yzj-shadow-1);
-  max-width: 560px;
-  overflow: hidden;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: box-shadow .15s, border-color .15s;
 }
+.blocking { border-color: var(--yzj-need-line); box-shadow: inset 3px 0 0 var(--yzj-need); }
+/*
+ * 当前那张：J/K 走到的、点过的。数字键答它。
+ * 外圈和它自己的颜色同族——要你的卡圈琥珀，别的卡圈墨色；不为「当前」再引入第三种颜色。
+ */
+.current { box-shadow: inset 3px 0 0 var(--yzj-need), 0 0 0 2px var(--yzj-need-line); }
+.card:not(.blocking).current { box-shadow: 0 0 0 2px var(--yzj-line); }
 
-/* 确认卡：待办的顶边是琥珀色,放行后转绿 —— 状态从边框就能读出来 */
-.approval { border-color: var(--yzj-need-line); border-top: 3px solid var(--yzj-need-ink); background: var(--yzj-need-bg); }
-.approvalDone { border-color: var(--yzj-ok-line); border-top-color: var(--yzj-ok-ink); background: var(--yzj-ok-bg); }
-.approvalDead { border-color: var(--yzj-line); border-top-color: var(--yzj-line); background: var(--yzj-bg-sunk); }
-
-.head { display: flex; align-items: center; gap: 8px; padding: 11px 14px 9px; }
-
-.domain {
-  font-size:var(--yzj-fs-xs); font-weight: 700; letter-spacing: .05em;
-  padding: 2.5px 7px; border-radius:var(--yzj-r-sm); flex: none;
-  font-family: var(--yzj-mono);
-  background: var(--yzj-pub-tint); color: var(--yzj-ink-2);
+/* ——— 头：● 要你确认 · 云小助停在这一步等你 · 5 分钟 ——— */
+.head {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  font-size: var(--yzj-fs-xs); line-height: 1.5;
 }
-.domainAmber { background: var(--yzj-need-bg); color: var(--yzj-need-ink); }
-.domainGreen { background: var(--yzj-ok-bg); color: var(--yzj-ok-ink); }
-.domainRed { background: var(--yzj-late-bg); color: var(--yzj-late-ink); }
-.domainBlue { background: var(--yzj-pub-tint); color: var(--yzj-pub); }
-.domainViolet { background: var(--yzj-bg-sunk); color: var(--yzj-ink-2); }
-.domainGrey { background: var(--yzj-pub-line); color: var(--yzj-ink-3); }
-
-.title { font-size:var(--yzj-fs-sm); font-weight: 700; flex: 1; min-width: 0; overflow-wrap: anywhere; }
-
-.risk {
-  flex: none; font-size:var(--yzj-fs-xs); color: var(--yzj-need-ink);
-  background: var(--yzj-need-bg); padding: 2px 7px;
-  border-radius:var(--yzj-r-pill); border: 1px solid var(--yzj-need-line);
+.dot {
+  width: 8px; height: 8px; flex: none; border-radius: 50%;
+  background: var(--yzj-need); box-shadow: 0 0 0 3px var(--yzj-need-bg);
 }
+.verb { flex: none; color: var(--yzj-need-ink); font-weight: 600; }
+.wait { color: var(--yzj-ink-3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quiet { color: var(--yzj-ink-3); }
 
+.title { font-size: var(--yzj-fs-md); font-weight: 600; color: var(--yzj-ink); line-height: 1.45; overflow-wrap: anywhere; }
+.why { font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2); line-height: 1.6; overflow-wrap: anywhere; }
+
+/* ——— 中间那一块 ——— */
+.body { display: flex; align-items: flex-start; gap: 10px; }
+.args {
+  flex: 1; min-width: 0;
+  padding: 6px 10px; border-radius: var(--yzj-r-sm);
+  background: var(--yzj-bg-sunk); color: var(--yzj-ink-2);
+  font-size: var(--yzj-fs-sm); line-height: 1.6;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .fields {
-  padding: 0 14px 10px;
-  display: grid; grid-template-columns: 84px 1fr; gap: 4px 10px;
-  font-size:var(--yzj-fs-xs);
+  flex: 1; min-width: 0;
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px;
+  padding: 8px 10px; border-radius: var(--yzj-r-sm); background: var(--yzj-bg-sunk);
+  font-size: var(--yzj-fs-xs); line-height: 1.6;
 }
+.fieldPair { display: contents; }
 .fieldKey { color: var(--yzj-ink-3); overflow: hidden; text-overflow: ellipsis; }
-.fieldValue { min-width: 0; overflow-wrap: anywhere; }
-.fieldMono { font-family: var(--yzj-mono); font-size:var(--yzj-fs-xs); }
+.fieldValue { min-width: 0; color: var(--yzj-ink); overflow-wrap: anywhere; white-space: pre-wrap; }
+.mono { font-family: var(--yzj-mono); }
 
-.note {
-  margin: 0 14px 10px; padding: 7px 10px;
-  border: 1px dashed var(--yzj-line); border-radius:var(--yzj-r-md);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); line-height: 1.6; background: var(--yzj-bg-sunk);
+.files { display: flex; flex-direction: column; gap: 4px; }
+.file {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-sm);
+  background: var(--yzj-bg); color: var(--yzj-ink); text-decoration: none;
+  font: inherit; font-size: var(--yzj-fs-sm); text-align: left; cursor: pointer;
 }
-.noteTag {
-  font-family: var(--yzj-mono); font-size:var(--yzj-fs-xs);
-  color: var(--yzj-pub-ink); background: var(--yzj-pub-tint);
-  padding: 1px 5px; border-radius:var(--yzj-r-sm);
-}
+.file:hover { background: var(--yzj-hover); }
+.fileName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fileVerb { flex: none; display: inline-flex; align-items: center; gap: 6px; color: var(--yzj-ink-3); font-size: var(--yzj-fs-xs); }
 
-.actions {
-  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-  padding: 10px 14px 12px; border-top: 1px solid var(--yzj-pub-line);
+/* 律九：规矩提议。云小助的脸开头——这是它在提议，不是界面在劝。 */
+.rule {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding-top: 2px;
+  font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2);
 }
-
-.button {
-  font: inherit; font-size:var(--yzj-fs-sm); font-weight: 600;
-  padding: 6px 14px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line);
-  background: var(--yzj-bg); color: var(--yzj-ink-2); cursor: pointer;
-  transition: transform .1s, box-shadow .15s;
+.ruleGo {
+  display: inline-flex; align-items: center; gap: 2px;
+  border: 0; padding: 0; background: none; cursor: pointer;
+  font: inherit; color: var(--yzj-pub-ink); font-weight: 500;
 }
-.button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--yzj-shadow-1); }
-.button:disabled { opacity: .5; cursor: default; }
-.primary { background: var(--yzj-solid); color: var(--yzj-on-solid); border-color: var(--yzj-solid); }
-.primary:hover:not(:disabled) { background: var(--yzj-solid); }
-.danger { color: var(--yzj-late-ink); border-color: var(--yzj-late-line); }
+.ruleGo:hover { text-decoration: underline; }
 
-.input {
-  flex: 1 1 150px; min-width: 120px;
-  font: inherit; font-size:var(--yzj-fs-xs);
-  padding: 6px 10px; border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md);
-  background: var(--yzj-bg); color: var(--yzj-ink);
-}
-
-.foot {
-  display: flex; align-items: center; gap: 7px;
-  padding: 10px 14px 12px; font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3);
-  border-top: 1px solid var(--yzj-pub-line);
-}
-.footDone { color: var(--yzj-ok-ink); font-weight: 650; font-size:var(--yzj-fs-sm); }
-
-/* 验收条：绿色,横排,是一道要迈过去的门槛而不是一张单子 */
-.accept {
+.warn {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  border: 1px solid var(--yzj-ok-line); border-radius:var(--yzj-r-md);
-  background: linear-gradient(160deg, var(--yzj-ok-bg), var(--yzj-hover));
-  padding: 10px 14px; max-width: 560px; box-shadow: var(--yzj-shadow-1);
+  padding: 7px 10px; border-radius: var(--yzj-r-sm);
+  background: var(--yzj-need-bg); color: var(--yzj-need-ink);
+  font-size: var(--yzj-fs-sm);
 }
-.acceptDone { border-color: var(--yzj-line); background: var(--yzj-bg-sunk); }
-.acceptLabel { font-size:var(--yzj-fs-sm); font-weight: 650; color: var(--yzj-ok-ink); }
-.acceptDone .acceptLabel { color: var(--yzj-ink-3); }
-.acceptWhat { font-size:var(--yzj-fs-sm); color: var(--yzj-ink); flex: 1 1 160px; min-width: 0; }
-.acceptNote { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); width: 100%; }
-.acceptActions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-/* 裁决卡 / 冲突 */
-.conflict { border-color: var(--yzj-need-line); border-top: 3px solid var(--yzj-need-ink); background: var(--yzj-need-bg); }
-
-/* 承诺卡：执行者是人还是 agent,一眼要分得开 */
-.commitment { border-left: 3px solid var(--yzj-ink-2); }
-.exTag {
-  font-size:var(--yzj-fs-xs); font-weight: 700; padding: 2px 8px; border-radius:var(--yzj-r-sm); flex: none;
+/* ——— 底：编了号的动词 ——— */
+.foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 32px; padding: 0 12px 0 6px;
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-sm);
+  background: var(--yzj-bg); color: var(--yzj-ink);
+  font: inherit; font-size: var(--yzj-fs-sm); font-weight: 500; cursor: pointer;
 }
-.exHuman { background: var(--yzj-bg-sunk); color: var(--yzj-ink-2); border: 1px solid var(--yzj-line); }
-.exAgent { background: var(--yzj-pub-tint); color: var(--yzj-pub); border: 1px solid var(--yzj-pub-line); }
+.btn:hover:not(:disabled) { background: var(--yzj-hover); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btnPrimary, .btnPrimary:hover:not(:disabled) { background: var(--yzj-solid); border-color: var(--yzj-solid); color: var(--yzj-on-solid); }
+.btnDanger, .btnDanger:hover:not(:disabled) { background: var(--yzj-late-solid); border-color: var(--yzj-late-solid); color: var(--yzj-on-color); }
+.n {
+  min-width: 20px; height: 20px; padding: 0 4px;
+  display: inline-grid; place-items: center;
+  border-radius: var(--yzj-r-sm);
+  /* 跟着按钮自己的字色走：实心钮上是浅的、描边钮上是深的，两种主题都不用另写。 */
+  background: color-mix(in srgb, currentColor 14%, transparent); color: inherit;
+  font: 600 var(--yzj-fs-xs)/1 var(--yzj-mono);
+}
+.alt { margin-left: auto; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.inline {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 0; padding: 4px 6px; border-radius: var(--yzj-r-sm);
+  background: none; color: var(--yzj-ink-2); cursor: pointer;
+  font: inherit; font-size: var(--yzj-fs-sm);
+}
+.inline:hover:not(:disabled) { background: var(--yzj-hover); color: var(--yzj-ink); }
+.inline:disabled { opacity: .5; cursor: default; }
+.kbd {
+  font: 500 var(--yzj-fs-xs)/1 var(--yzj-mono);
+  padding: 2px 5px; border: 1px solid var(--yzj-line); border-bottom-width: 2px;
+  border-radius: var(--yzj-r-sm); color: var(--yzj-ink-3); background: var(--yzj-bg);
+}
 
-.overdue { color: var(--yzj-late-ink); font-weight: 700; }
+.reason { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.reason .input { flex: 1 1 240px; }
+.reasonNote { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.input {
+  min-width: 0; height: 32px; padding: 0 10px;
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-sm);
+  background: var(--yzj-bg); color: var(--yzj-ink);
+  font: inherit; font-size: var(--yzj-fs-sm); outline: none;
+}
+.input:focus { border-color: var(--yzj-pub); }
 
-/* 等待卡 */
-.waiting { border-left: 3px solid var(--yzj-ink-3); }
-
-/* ---------- 提案裁决 / 差距简报 (v4.9 / v4.10) ---------- */
-.proposal { border-left: 3px solid var(--yzj-need); }
-.assessment { border-left: 3px solid var(--yzj-ink-2); }
-
-.items { display: flex; flex-direction: column; margin: 6px 0 2px; }
+/* ——— 逐条 ——— */
+.items { display: flex; flex-direction: column; }
 .item {
-  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
-  padding: 5px 0; border-top: 1px dashed var(--yzj-line); font-size:var(--yzj-fs-xs);
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 6px; border-top: 1px solid var(--yzj-line-2);
+  border-radius: var(--yzj-r-sm);
 }
+.item:first-child { border-top: 0; }
+.itemCursor { background: var(--yzj-bg-sunk); }
 .itemNo {
-  flex: none; width: 18px; height: 18px; line-height: 18px; text-align: center;
-  font-size:var(--yzj-fs-xs); font-weight: 700; border-radius:var(--yzj-r-md);
-  background: var(--yzj-pub-tint); color: var(--yzj-ink-3);
+  flex: none; width: 20px; height: 20px; margin-top: 1px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--yzj-press); color: var(--yzj-ink-2);
+  font: 600 var(--yzj-fs-xs)/1 var(--yzj-mono);
 }
-.itemWhat { color: var(--yzj-ink); font-weight: 600; }
-.itemWho { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); }
-.itemWhere {
-  font-size:var(--yzj-fs-xs); color: var(--yzj-pub-ink);
-  padding: 1px 7px; border-radius:var(--yzj-r-md); background: var(--yzj-pub-tint);
+.itemText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.itemWhat { font-size: var(--yzj-fs-sm); color: var(--yzj-ink); font-weight: 500; overflow-wrap: anywhere; }
+.itemWhy { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); line-height: 1.5; overflow-wrap: anywhere; }
+.pills { flex: none; display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 26px; padding: 0 10px;
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-pill);
+  background: var(--yzj-bg); color: var(--yzj-ink-2);
+  font: inherit; font-size: var(--yzj-fs-xs); cursor: pointer;
 }
-.itemActs { margin-left: auto; display: flex; gap: 5px; }
-.itemMark {
-  flex: none; font-size:var(--yzj-fs-xs); font-weight: 700;
-  padding: 1px 8px; border-radius:var(--yzj-r-md);
+.pill:hover { background: var(--yzj-hover); }
+.pill .n { min-width: 16px; height: 16px; }
+.pillOn, .pillOn:hover { background: var(--yzj-solid); border-color: var(--yzj-solid); color: var(--yzj-on-solid); }
+.mark {
+  flex: none; padding: 2px 8px; border-radius: var(--yzj-r-pill);
+  font-size: var(--yzj-fs-xs); font-weight: 500;
 }
-/* 提案里判定跟在行尾（右推）,简报里它是行首的裁决——同一个标记,两种位置 */
-.item > .itemMark:last-child { margin-left: auto; }
 .markOk { background: var(--yzj-ok-bg); color: var(--yzj-ok-ink); }
 .markNo { background: var(--yzj-late-bg); color: var(--yzj-late-ink); }
-.markHold { background: var(--yzj-need-bg); color: var(--yzj-need-ink); }
-.reportBody {
-  margin: 4px 0 2px; font-size:var(--yzj-fs-xs); line-height: 1.7; color: var(--yzj-ink-2);
+.markHold { background: var(--yzj-bg-sunk); color: var(--yzj-ink-2); }
+
+/* ——— 吸收行：答完的卡收成一行。虚线 = 撤回窗里，实线 = 已生效 ——— */
+.absorbed {
+  max-width: 600px; margin: 2px 0;
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--yzj-line-2); border-radius: var(--yzj-r-md);
+  background: var(--yzj-bg);
+  font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2);
 }
-.linkBtn {
-  margin-left: 8px; font: inherit; font-size:var(--yzj-fs-xs);
-  border: 0; background: none; color: var(--yzj-ink-3);
-  cursor: pointer; text-decoration: underline;
+.absorbedPending { border: 1px dashed var(--yzj-line); background: var(--yzj-bg-sunk); }
+.absorbedMark { flex: none; color: var(--yzj-ok); }
+.absorbedMarkOff { flex: none; color: var(--yzj-ink-3); }
+.absorbedText { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--yzj-ink); }
+.absorbedTitle { color: var(--yzj-ink-2); }
+.absorbedWhen { flex: none; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); font-variant-numeric: tabular-nums; }
+.undo {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-sm);
+  padding: 3px 6px 3px 8px; background: var(--yzj-bg); color: var(--yzj-ink);
+  font: inherit; font-size: var(--yzj-fs-xs); cursor: pointer;
 }
-.linkBtn:hover { color: var(--yzj-ink); }
-/* 没有可投递的会话：空白最坏,因为确认之后真的会有事发生 */
-.itemNowhere {
-  font-size:var(--yzj-fs-xs); font-weight: 650; color: var(--yzj-need-ink);
-  padding: 1px 7px; border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
+.undo:hover { background: var(--yzj-hover); }
+.undo .kbd { padding: 1px 4px; }
+
+/* 下一件 */
+.next {
+  max-width: 600px; margin: 2px 0 6px;
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 4px 12px; border: 0; background: none; text-align: left;
+  font: inherit; font-size: var(--yzj-fs-sm); color: var(--yzj-ink-2);
 }
-/* 为什么按不下去,说在眼睛已经在的地方 */
-.signHint { flex-basis: 100%; font-size:var(--yzj-fs-xs); line-height: 1.6; color: var(--yzj-need-ink); }
-/* 中断：不是死了,是等着被继续 */
-.acceptBroken { background: var(--yzj-need-bg); border-color: var(--yzj-need-line); }
+.nextGo { cursor: pointer; border-radius: var(--yzj-r-md); }
+.nextGo:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+.nextTag { flex: none; color: var(--yzj-ink-3); }
+.nextLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--yzj-ink); }
+.nextWait { flex: none; color: var(--yzj-ink-3); font-size: var(--yzj-fs-xs); }
 
 /*
-  私账长在卡旁边的那三样 (私账层 接缝④⑤).
+  私账长在卡旁边的那几样 (私账层 接缝④⑤).
 
-  纸色，和金库同一套颜色——**颜色在这里承担一句话**：这一块只有你看得见。它和卡
-  本体的冷灰蓝并排，读起来就是两本账并排，而那正是它想说的事。
-
-  它们由渲染管道组合在卡后面，卡组件本体零改动；文本投影那条路上没有这些字段。
+  纸色——**颜色在这里承担一句话**：这一块只有你看得见。它和卡本体并排，读起来就是两本
+  账并排，而那正是它想说的事。它们由渲染管道组合在卡后面；文本投影那条路上没有这些字段。
 */
-.pledgerTail { display: flex; flex-direction: column; gap: 6px; margin: -2px 0 10px; }
-
+.pledgerTail { display: flex; flex-direction: column; gap: 6px; max-width: 600px; margin: 2px 0 8px; }
+.pledgerTail:empty { display: none; }
 .mirror {
-  display: flex; gap: 7px; align-items: flex-start;
-  padding: 6px 10px; border: 1px dashed var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.6;
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 6px 10px; border: 1px dashed var(--yzj-pri-line); border-radius: var(--yzj-r-md); background: var(--yzj-pri-bg);
+  font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.6;
 }
-.mirrorMark { flex: none; }
+.mirrorMark { flex: none; margin-top: 2px; }
 .mirrorBody { flex: 1; min-width: 0; }
 .mirrorCase { display: block; color: var(--yzj-pri-ink); }
 .mirrorNote { display: block; color: var(--yzj-pri-ink); margin-top: 2px; }
-
 .gearNote {
-  padding: 6px 10px; border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-pri-bg);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.6;
+  padding: 6px 10px; border: 1px solid var(--yzj-pri-line); border-radius: var(--yzj-r-md); background: var(--yzj-pri-bg);
+  font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.6;
 }
-
 .twoRead {
-  padding: 7px 10px; border: 1px solid var(--yzj-pri-line); border-radius:var(--yzj-r-md); background: var(--yzj-need-bg);
-  font-size:var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.65;
+  padding: 7px 10px; border: 1px solid var(--yzj-pri-line); border-radius: var(--yzj-r-md); background: var(--yzj-pri-bg);
+  font-size: var(--yzj-fs-xs); color: var(--yzj-pri-ink); line-height: 1.65;
 }
-.twoReadHead { display: block; font-weight: 700; color: var(--yzj-ink); margin-bottom: 3px; }
+.twoReadHead { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--yzj-ink); margin-bottom: 3px; }
 .twoReadBody { display: block; }
 .twoReadLine { display: block; color: var(--yzj-pri-ink); }
-.twoReadNote { display: block; color: var(--yzj-pri-ink); margin-top: 3px; }
+.twoReadLine .inline { font-size: var(--yzj-fs-xs); padding: 2px 6px; color: var(--yzj-pri-ink); }

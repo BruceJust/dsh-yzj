@@ -33,7 +33,7 @@ import type {
 } from './rpc.ts'
 import { avatarOf } from './stream.ts'
 import {
-  answeringNow, currentFrame, landOn, setFrame, subscribeAnswering, subscribeFrame,
+  answeringNow, currentFrame, landOn, publishNeeds, setFrame, setNeedJumper, subscribeAnswering, subscribeFrame,
 } from './store.ts'
 import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
 import { Icon } from './icons.tsx'
@@ -204,7 +204,10 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
   const [inbox, setInbox] = useState<InboxView>(EMPTY)
 
   const refresh = useCallback(async (): Promise<void> => {
-    setInbox(await inject.inbox() ?? EMPTY)
+    const next = await inject.inbox() ?? EMPTY
+    setInbox(next)
+    // 中栏「下一件」读的是同一份——两处各取一次，就会各说各的下一件。
+    publishNeeds(next.needs ?? [])
   }, [inject])
 
   useEffect(() => {
@@ -252,6 +255,11 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     setJumped(need.ref)
     go(need.sessionId, need.ref)
   }, [go])
+  // 把这只手借给中栏的「下一件」：连着处理时不必回左栏找。
+  useEffect(() => {
+    setNeedJumper(jumpTo)
+    return () => { setNeedJumper(undefined) }
+  }, [jumpTo])
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== 'n' && event.key !== 'N') return

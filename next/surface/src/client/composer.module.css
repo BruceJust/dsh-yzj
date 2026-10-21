@@ -1,0 +1,119 @@
+/*
+ * 输入框 (界面重设计 §5.3).
+ *
+ * 听众是唯一上色的东西（律三）：蓝 = 别人听得见；纸色 = 只有你和云小助；琥珀 = 有人
+ * 该听见却听不见。其余都是中性灰。
+ */
+
+.composer {
+  flex: none;
+  margin: 0 16px 14px;
+  border: 1px solid var(--yzj-line);
+  border-radius: var(--yzj-r-lg);
+  background: var(--yzj-bg);
+  box-shadow: var(--yzj-shadow-1);
+  display: flex; flex-direction: column;
+  transition: border-color .15s;
+}
+.composer:focus-within { border-color: var(--yzj-ink-4); }
+.pub, .pub:focus-within { border-color: var(--yzj-pub-line); }
+.pri { background: var(--yzj-bg); }
+.ask { background: var(--yzj-bg); }
+
+/* ——— 上方那一格：同一时刻只说一件事 ——— */
+.hint {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  margin: 6px 6px 0; padding: 7px 10px;
+  border-radius: var(--yzj-r-md);
+  background: var(--yzj-bg-sunk); color: var(--yzj-ink-2);
+  font-size: var(--yzj-fs-sm); line-height: 1.5;
+}
+.hintRisk { background: var(--yzj-need-bg); color: var(--yzj-need-ink); }
+.hintOk { color: var(--yzj-ink); }
+.hintOk .hintMark { color: var(--yzj-ok); }
+.hintShake { animation: shake .32s; }
+@keyframes shake {
+  20%, 60% { transform: translateX(-3px); }
+  40%, 80% { transform: translateX(3px); }
+}
+.hintMark { flex: none; }
+.hintText { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.hintQuote { color: var(--yzj-ink-3); }
+.hintFix {
+  flex: none; height: 26px; padding: 0 10px;
+  border: 0; border-radius: var(--yzj-r-sm);
+  background: var(--yzj-pub-solid); color: var(--yzj-on-color);
+  font: inherit; font-size: var(--yzj-fs-xs); font-weight: 600; cursor: pointer;
+}
+.hintDrop {
+  flex: none; width: 22px; height: 22px; display: grid; place-items: center;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  color: var(--yzj-ink-3); cursor: pointer;
+}
+.hintDrop:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+
+.input {
+  min-height: 44px; max-height: 220px;
+  padding: 10px 14px 4px;
+  border: 0; outline: none; resize: none; background: transparent;
+  font: inherit; font-size: var(--yzj-fs-md); line-height: 1.55; color: var(--yzj-ink);
+  field-sizing: content;
+}
+.input::placeholder { color: var(--yzj-ink-4); }
+
+/* ——— 下面一行：听众 · 工具 · 发送 ——— */
+.bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px 8px; min-width: 0; }
+.audienceWrap { position: relative; min-width: 0; }
+.audience {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--yzj-pri-line); border-radius: var(--yzj-r-pill);
+  background: var(--yzj-pri-bg); color: var(--yzj-pri-ink);
+  font: inherit; font-size: var(--yzj-fs-xs); font-weight: 500; cursor: pointer;
+}
+.audience:disabled { cursor: default; }
+.audienceText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pub .audience { border-color: var(--yzj-pub-line); background: var(--yzj-pub-tint); color: var(--yzj-pub-ink); }
+.ask .audience { border-color: var(--yzj-line); background: var(--yzj-bg-sunk); color: var(--yzj-ink-2); }
+.audience.audienceRisk { border-color: var(--yzj-need-line); background: var(--yzj-need-bg); color: var(--yzj-need-ink); }
+
+.menu {
+  position: absolute; left: 0; bottom: 34px; z-index: 60;
+  width: 300px; padding: 4px;
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-md);
+  background: var(--yzj-bg-raised); box-shadow: var(--yzj-shadow-2);
+}
+.menuItem {
+  width: 100%; display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 10px; border: 0; border-radius: var(--yzj-r-sm);
+  background: none; color: var(--yzj-ink); text-align: left; cursor: pointer; font: inherit;
+}
+.menuItem:hover { background: var(--yzj-hover); }
+.menuItem > svg:first-child { margin-top: 2px; color: var(--yzj-ink-2); }
+.menuOn { background: var(--yzj-press); }
+.menuText { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: var(--yzj-fs-sm); }
+.menuText span { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+
+.tools { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.tool {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 28px; padding: 0 8px;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  color: var(--yzj-ink-3); font: inherit; font-size: var(--yzj-fs-xs); cursor: pointer;
+}
+.tool:hover:not(:disabled) { background: var(--yzj-hover); color: var(--yzj-ink); }
+.tool:disabled { opacity: .5; cursor: default; }
+.toolOn, .toolOn:hover:not(:disabled) { color: var(--yzj-pub-ink); background: var(--yzj-pub-tint); }
+
+.blocked { margin-left: auto; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.send {
+  margin-left: auto; flex: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px;
+  border: 0; border-radius: var(--yzj-r-sm);
+  background: var(--yzj-solid); color: var(--yzj-on-solid);
+  font: inherit; font-size: var(--yzj-fs-sm); font-weight: 600; cursor: pointer;
+}
+.blocked + .send { margin-left: 8px; }
+.send:disabled { opacity: .35; cursor: default; }
+.sendPub { background: var(--yzj-pub-solid); color: var(--yzj-on-color); }

@@ -1,20 +1,28 @@
 // @vitest-environment jsdom
-/** 桌面上的裁决卡（发现）与交付推断提议卡：同一张提案卡的第三、四种脸——依据上卡、动词按模式亮。 */
+/**
+ * 桌面上的裁决卡（发现）与交付推断提议卡：同一张提案卡的第三、四种脸——依据上卡、动词按模式亮。
+ *
+ * 逐条裁决是「选满了才定下」(界面重设计 §5.2)：每一条先选，「定下这 N 处」一窗提交——
+ * 此前每按一下就落一笔，三条要定的事，第一条按下去它就已经发出去了。
+ */
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { CardRow } from '../src/client/CardRow.tsx'
+import { resetAnswers, type Answer } from '../src/client/answers.ts'
 import type { StreamCard } from '../src/client/rpc.ts'
 
-async function rendered(node: React.ReactNode): Promise<{ text: string; host: HTMLElement }> {
+async function rendered(node: React.ReactNode): Promise<{ text: () => string; host: HTMLElement }> {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const root = createRoot(host)
-  await act(async () => { root.render(node); await new Promise(resolve => setTimeout(resolve, 40)) })
-  return { text: host.textContent ?? '', host }
+  await act(async () => { root.render(node); await new Promise(resolve => setTimeout(resolve, 20)) })
+  return { text: () => host.textContent ?? '', host }
 }
 
-const actions = (ids: readonly string[]): StreamCard['actions'] => ids.map(id => ({ id, label: id, needsInput: true, available: true }))
+const actions = (ids: readonly string[]): StreamCard['actions'] => ids.map(id => ({
+  id, label: id, needsInput: true, available: true, ...(id === 'settle' ? { secondary: true } : {}),
+}))
 
 function card(kind: string, items: Record<string, unknown>[], extra: Record<string, unknown> = {}): StreamCard {
   return {
@@ -24,44 +32,53 @@ function card(kind: string, items: Record<string, unknown>[], extra: Record<stri
   }
 }
 
+const buttons = (host: HTMLElement): HTMLButtonElement[] => [...host.querySelectorAll('button')]
+/** 胶囊上当前那一条带着号（「3转办」），按字尾认。 */
+const pill = (host: HTMLElement, label: string, nth = 0): HTMLButtonElement | undefined => (
+  buttons(host).filter(button => (button.textContent ?? '').endsWith(label))[nth]
+)
+
+afterEach(() => { resetAnswers() })
+
 describe('裁决卡 · 发现', () => {
-  it('头上写「裁决卡 · 发现」，条目下面是依据；有转办栏与转办键，转办空名不发', async () => {
-    const acted: unknown[] = []
+  it('条目下面是依据；转办要写名字才定得下；定下时一窗提交每一条', async () => {
+    const answers: Answer[] = []
     const { text, host } = await rendered(
-      <CardRow card={card('finding', [{ what: '第 12 行不符', evidence: '对账单 L12' }, { what: '发票号缺失', evidence: '对账单 L88' }])} busy={false} act={(...args) => { acted.push(args) }} />,
+      <CardRow card={card('finding', [{ what: '第 12 行不符', evidence: '对账单 L12' }, { what: '发票号缺失', evidence: '对账单 L88' }])} now={10} answer={(one) => { answers.push(one) }} />,
     )
-    expect(text).toContain('裁决卡 · 发现')
-    expect(text).toContain('依据：对账单 L12')
-    expect(text).not.toContain('登记发到')
-    expect(text).toContain('确认 = 这条发现成立')
-    const transfer = [...host.querySelectorAll('button')].find(button => button.textContent === '转办')
-    expect(transfer?.disabled).toBe(true)
+    expect(text()).toContain('依据：对账单 L12')
+    expect(text()).not.toContain('登记发到')
+    await act(async () => { pill(host, '转办', 0)?.click() })
+    await act(async () => { pill(host, '驳回', 1)?.click() })
+    const submit = (): HTMLButtonElement | undefined => buttons(host).find(button => (button.textContent ?? '').startsWith('定下这'))
+    expect(submit()?.disabled).toBe(true)
     const input = host.querySelector('input')!
     await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
-      setter.call(input, '李四')
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '李四')
       input.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    const armed = [...host.querySelectorAll('button')].find(button => button.textContent === '转办')
-    expect(armed?.disabled).toBe(false)
-    await act(async () => { armed?.click() })
-    expect(acted).toEqual([['proposal', 'prp-1', 'transferred', '1 李四']])
+    expect(submit()?.disabled).toBe(false)
+    await act(async () => { submit()?.click() })
+    expect(answers).toHaveLength(1)
+    expect(answers[0]?.steps).toEqual([
+      { actionId: 'transferred', input: '1 李四' },
+      { actionId: 'rejected', input: '2' },
+    ])
   })
 })
 
 describe('交付推断提议卡', () => {
-  it('头上写「交付推断 · 待确认」，第二个动词叫「不是交付」，没有挂起', async () => {
-    const acted: unknown[] = []
-    const { text, host } = await rendered(
-      <CardRow card={card('delivery', [{ what: '给财务出费用明细', evidence: '费用明细.xlsx', commitmentId: 'cmt-1' }], { artifact: { msgId: 'm', fileId: 'f', name: '费用明细.xlsx', placeKey: 'p' } })} busy={false} act={(...args) => { acted.push(args) }} />,
+  it('第二个动词叫「不是交付」，没有挂起、没有转办', async () => {
+    const answers: Answer[] = []
+    const { host } = await rendered(
+      <CardRow card={card('delivery', [{ what: '给财务出费用明细', evidence: '费用明细.xlsx', commitmentId: 'cmt-1' }], { artifact: { msgId: 'm', fileId: 'f', name: '费用明细.xlsx', placeKey: 'p' } })} now={10} answer={(one) => { answers.push(one) }} />,
     )
-    expect(text).toContain('交付推断 · 待确认')
-    expect(text).toContain('依据：费用明细.xlsx')
-    const labels = [...host.querySelectorAll('button')].map(button => button.textContent)
-    expect(labels).toContain('不是交付')
-    expect(labels).not.toContain('挂起')
-    expect(labels).not.toContain('转办')
-    await act(async () => { [...host.querySelectorAll('button')].find(button => button.textContent === '不是交付')?.click() })
-    expect(acted).toEqual([['proposal', 'prp-1', 'rejected', '1']])
+    const labels = buttons(host).map(button => button.textContent ?? '')
+    expect(labels.some(label => label.endsWith('不是交付'))).toBe(true)
+    expect(labels.some(label => label.endsWith('挂起'))).toBe(false)
+    expect(labels.some(label => label.endsWith('转办'))).toBe(false)
+    await act(async () => { pill(host, '不是交付')?.click() })
+    await act(async () => { buttons(host).find(button => (button.textContent ?? '').startsWith('定下这 1 处'))?.click() })
+    expect(answers[0]?.steps).toEqual([{ actionId: 'rejected', input: '1' }])
   })
 })

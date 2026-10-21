@@ -76,3 +76,29 @@ export function plainError(raw: string): PlainError {
   }
   return { text: text.length > 80 ? `${text.slice(0, 80)}…` : text, retrying: false }
 }
+
+/**
+ * 一件事发生在什么时候，按人回想的方式：刚刚、几分钟前、今天几点、昨天几点、几月几号。
+ *
+ * 吸收行「你在云之家里回了确认 · 昨天 16:52」读的就是它——回想「这是我什么时候答的」
+ * 时，人用的是这套粒度，不是一个绝对时间戳。
+ */
+export function whenOf(at: number, now: number): string {
+  const ago = now - at
+  if (ago < MIN) return '刚刚'
+  if (ago < HOUR) return `${String(Math.floor(ago / MIN))} 分钟前`
+  const when = new Date(at)
+  const today = new Date(now)
+  const clock = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`
+  const dayOf = (date: Date): number => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  const days = Math.round((dayOf(today) - dayOf(when)) / DAY)
+  if (days === 0) return clock
+  if (days === 1) return `昨天 ${clock}`
+  return `${String(when.getMonth() + 1)} 月 ${String(when.getDate())} 日 ${clock}`
+}
+
+/** 回答发生在哪儿，用人的话。桌面上答的不必说「在这里」——人就站在这里。 */
+export function whereOf(via: string): string {
+  if (via === 'yzj-text') return '在云之家里'
+  return ''
+}

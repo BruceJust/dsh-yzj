@@ -94,7 +94,13 @@ export interface StreamCard {
   strips?: StripWire[]
   /** 引用指名押的句柄：这张卡上有你签发过、还没押过的裁决时才有。 */
   pledgeHandle?: string
-  actions: { id: string; label: string; style?: string; needsInput: boolean; available: boolean }[]
+  actions: { id: string; label: string; style?: string; needsInput: boolean; available: boolean; n?: number; secondary?: boolean }[]
+  /** 在哪、由谁答掉的——吸收行写出处靠它。 */
+  answered?: { via: string; at: number; actionId: string; label: string; mine: boolean; who?: string }
+  /** 律九：这一类你已经连续同意了几次。只是一个数，规矩由人签。 */
+  ruleHint?: { toolClass: string; placeKey: string; placeName?: string; streak: number }
+  /** 卡提到的群各叫什么：placeKey → 群名；认不出的不在表里。 */
+  placeNames?: Record<string, string>
 }
 
 export interface StreamArtifactWire {
@@ -133,6 +139,8 @@ export interface PlaceTopicCardWire {
   owes?: string
   /** 等你答的那张卡。点进去落在它身上。 */
   cardRef?: CardRefWire
+  /** 要你做的那个动词。 */
+  verb?: string
 }
 
 export interface PlaceViewWire {
@@ -176,6 +184,8 @@ export interface ContractViewWire {
   /** 「我的 agent 为什么没接」：这个场所最近几次让位 (决策 #63)。 */
   yields?: { time: number; reason: 'object-owner' | 'speaker-instance' | 'presence' | 'ack-order'; to?: string; loud: boolean }[]
   leasesAvailable: boolean
+  /** 你签的规矩：在这个群算数的（限这个群的 + 不限群的），生效中或等你签。 */
+  rules?: { leaseId: string; toolClass: string; reason: string; status: 'active' | 'proposed'; scoped: boolean; signedBy?: string; until: number; saved: number }[]
   /** 在岗图景 (决策 #63)：接单开关的范围在这里选。 */
   presence?: PresenceWire
 }
@@ -855,6 +865,8 @@ export interface SurfaceInject {
   clearClause(key: 'spread' | 'mirror' | 'morning' | 'lease', family?: string): Promise<{ note?: string; error?: string }>
   /** 「不用再问我」= 传送门到组织侧租约强确认卡。 */
   proposeLease(family: string, days?: number): Promise<{ leaseId?: string; note?: string; error?: string }>
+  /** 律九「以后同类不用问」：起草一条等你签的规矩，长在这段对话里。 */
+  proposeRule(hint: { toolClass: string; placeKey: string; placeName?: string }, sessionId?: string): Promise<{ leaseId?: string; note?: string; error?: string }>
   /** 取走：判例册 + README。读操作。 */
   judgExport(): Promise<{ casebook: string; readme: string } | undefined>
   /** 销毁整本账——两段式，第二段要把那句话原样打出来。 */
@@ -1162,6 +1174,14 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
     },
     async proposeLease(family, days) {
       const { value, error } = await write<{ leaseId?: string; note?: string }>('pledger-lease', { family, ...(days === undefined ? {} : { days }) })
+      return error === undefined ? { ...value } : { error }
+    },
+    async proposeRule(hint, sessionId) {
+      const { value, error } = await write<{ leaseId?: string; note?: string }>('propose-rule', {
+        toolClass: hint.toolClass, placeKey: hint.placeKey,
+        ...(hint.placeName === undefined ? {} : { placeName: hint.placeName }),
+        ...(sessionId === undefined ? {} : { sessionId }),
+      })
       return error === undefined ? { ...value } : { error }
     },
     judgExport: () => call<{ casebook: string; readme: string }>('pledger-export', {}),

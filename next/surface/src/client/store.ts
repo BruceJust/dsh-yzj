@@ -19,6 +19,7 @@
  * inventing one.
  */
 import { closePreview } from './preview.ts'
+import type { NeedWire } from './rpc.ts'
 
 export type Frame =
   | { readonly kind: 'session' }
@@ -386,4 +387,45 @@ export function setAnswering(next: readonly { readonly kind: string; readonly id
 export function subscribeAnswering(listener: () => void): () => void {
   answeringListeners.add(listener)
   return () => { answeringListeners.delete(listener) }
+}
+
+/* ——— 「要你」的那张表 —— 左栏取回来，中栏「下一件」也读它（律八） ——— */
+
+/**
+ * 跨会话的那几件「要你」，按代价排好。
+ *
+ * 只有左栏去取（收件箱是唯一的跨会话聚合处）；中栏答完一件时要说「下一件是什么」，读的
+ * 就是这一份——两处各取一次，就会出现左栏说下一件是 A、卡下面说是 B 的那一拍。
+ */
+let needs: readonly NeedWire[] = []
+const needsListeners = new Set<() => void>()
+
+export function needsNow(): readonly NeedWire[] {
+  return needs
+}
+
+export function publishNeeds(next: readonly NeedWire[]): void {
+  needs = next
+  for (const listener of needsListeners) listener()
+}
+
+export function subscribeNeeds(listener: () => void): () => void {
+  needsListeners.add(listener)
+  return () => { needsListeners.delete(listener) }
+}
+
+/**
+ * 跳到一件「要你」——左栏那只手，借给中栏的「下一件」用。
+ *
+ * 跳转要做三件事（落点、帧、宿主开会话），宿主那个动词只有左栏拿着。借手而不是复制：
+ * 两处各写一遍，`N` 键和「下一件」就会在某一次改动之后各落各的地方。
+ */
+let needJumper: ((need: NeedWire) => void) | undefined
+
+export function setNeedJumper(jump: ((need: NeedWire) => void) | undefined): void {
+  needJumper = jump
+}
+
+export function jumpToNeed(need: NeedWire): void {
+  needJumper?.(need)
 }

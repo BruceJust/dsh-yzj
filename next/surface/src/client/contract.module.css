@@ -53,13 +53,6 @@
 .value { flex: 1; min-width: 0; line-height: 1.7; overflow-wrap: anywhere; }
 .value b { font-weight: 650; }
 
-.list { margin: 6px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
-.list li { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-2); }
-.list code, .code {
-  font-family: var(--yzj-mono); font-size:var(--yzj-fs-xs);
-  background: var(--yzj-pub-tint); border-radius:var(--yzj-r-sm); padding: 1px 5px; margin-right: 4px;
-  color: var(--yzj-ink-2);
-}
 
 .note { font-size:var(--yzj-fs-xs); color: var(--yzj-ink-3); margin-top: 4px; line-height: 1.6; }
 
@@ -78,31 +71,3 @@
   border: 1px solid var(--yzj-pub-line); background: var(--yzj-pub-tint); color: var(--yzj-pub-ink);
 }
 .serveBtn:hover { background: var(--yzj-pub-solid); color: var(--yzj-on-color); border-color: var(--yzj-pub-solid); }
-.confirm {
-  margin-top: 8px; padding: 9px 11px; border-radius:var(--yzj-r-md);
-  background: var(--yzj-need-bg); border: 1px solid var(--yzj-need-line);
-}
-.confirmBody { font-size:var(--yzj-fs-xs); line-height: 1.75; color: var(--yzj-ink-2); }
-.confirmActs { display: flex; gap: 8px; margin-top: 8px; }
-.confirmGo {
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650; padding: 4px 14px;
-  border: 0; border-radius:var(--yzj-r-md); background: var(--yzj-pub-solid); color: var(--yzj-on-color); cursor: pointer;
-}
-.confirmGo:disabled { opacity: .5; cursor: default; }
-.confirmNo {
-  font: inherit; font-size:var(--yzj-fs-xs); padding: 4px 10px; cursor: pointer;
-  border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-md); background: var(--yzj-bg); color: var(--yzj-ink-3);
-}
-.noteBad { margin-top: 6px; font-size:var(--yzj-fs-xs); color: var(--yzj-late-ink); }
-
-/* 接单范围的两个选项 (决策 #63)：范围是接单的第一个参数。 */
-.choice { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; font-size:var(--yzj-fs-xs); line-height: 1.6; }
-.choice label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
-.choice input { margin-top: 3px; flex: none; }
-
-/* 请对方退岗的拟稿：你亲自发。 */
-.draft {
-  width: 100%; box-sizing: border-box; margin: 4px 0; padding: 6px 8px;
-  font: inherit; font-size:var(--yzj-fs-xs); line-height: 1.5; resize: vertical;
-  border: 1px dashed currentColor; border-radius:var(--yzj-r-sm); background: transparent; opacity: .85;
-}

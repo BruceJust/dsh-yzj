@@ -31,6 +31,10 @@ import { Avatar } from './Avatar.tsx'
 import { landOn, pushFrame, setFrame, takeErrand } from './store.ts'
 import { YzjContractPanel } from './ContractPanel.tsx'
 import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
+import { Composer, registrationLine, type Hint } from './Composer.tsx'
+import { Icon } from './icons.tsx'
+import { AGENT, plainError } from './words.ts'
+import composerCss from './composer.module.css'
 import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
 import type { PlaceViewWire, SurfaceInject, TopicMessageWire } from './rpc.ts'
 import tokens from './tokens.module.css'
@@ -241,6 +245,8 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     { goalRef: string; goalName: string } | undefined
   >(undefined)
   const [pendingCall, setPendingCall] = useState<string | undefined>(undefined)
+  /** 催：带着一份拟好的稿，不装载语境，也不另记一条。 */
+  const [pendingNudge, setPendingNudge] = useState<string | undefined>(undefined)
   const [pendingRegister, setPendingRegister] = useState<
     { openId: string; name: string; parentCommitmentId?: string } | undefined
   >(undefined)
@@ -283,6 +289,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     if (errand.subject === 'goal' && errand.goalRef !== '') {
       setPendingGoal({ goalRef: errand.goalRef, goalName: errand.goalName })
     }
+    setPendingNudge(errand.subject === 'nudge' ? errand.goalName : undefined)
   }, [placeKey])
 
   /*
@@ -449,8 +456,8 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     if (sessionId === undefined) {
       setPendingGoal(undefined)
       return pendingRegister === undefined
-        ? '已发出。这一句没有点着 agent，没有新话题可挂——目标语境这次没有落点。'
-        : '已发出。板上那条承诺挂在这个目标下面；这一句没点着 agent，所以没有新话题可挂。'
+        ? `已发出。这一句没叫上${AGENT}，没有长出话题，目标这次没挂上。`
+        : `已发出。那条承诺挂在这个目标下；这一句没叫上${AGENT}，所以没有长出话题。`
     }
     const armed = await inject.armTopicGoal(sessionId, pendingGoal.goalRef, pendingGoal.goalName)
     if (armed.error !== undefined) {
@@ -479,11 +486,12 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
       setPendingRegister(undefined)
       setPendingHandoff(undefined)
       setAudienceRisk('')
-      setToast(`已发出。本群在岗的是 云小助（${result.deferredTo.name}），这句话将由它接单。`)
-    } else if (result.error !== undefined) setToast(result.error)
+      setToast(`已发出。这个群在岗的是 ${result.deferredTo.name}，这句会由它接。`)
+    } else if (result.error !== undefined) setToast(plainError(result.error).text)
     else {
       setDraft('')
       setReplyTo(undefined)
+      setPendingNudge(undefined)
       // 说出口了，这次先验就用掉了——下一句话是新的一句话。
       setPendingRegister(undefined)
       setPendingHandoff(undefined)
@@ -496,7 +504,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
         setToast(result.note ?? note ?? (result.toCommitmentId !== undefined
           ? '已移交：这句话说出去了，新的那条承诺从它出生。'
           : result.ignited === true
-            ? '已发出，并且点着了：这条链正在收纳为一个话题。'
+            ? '已发出，正在长出一个话题。'
             : '已发到群里。'))
       })
     }
@@ -544,15 +552,52 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     void inject.sendInPlace(placeKey, text, replyTo?.msgId, register, pendingHandoff).then(settle)
   }
 
+  /* ——— 输入框上方那一格：同一时刻只说一件事（§5.3） ——— */
+  const hint: Hint | undefined = pendingNudge !== undefined
+    ? { kind: 'draft', about: pendingNudge, drop: () => { setPendingNudge(undefined) } }
+    : audienceRisk !== ''
+      ? { kind: 'risk', text: audienceRisk }
+      : pendingRegister !== undefined
+        ? { kind: 'register', ...registrationLine(draft, pendingRegister), drop: () => { setPendingRegister(undefined) } }
+        : pendingHandoff !== undefined
+          ? {
+            kind: 'register',
+            ok: true,
+            line: `发出后：原来那条转为「已移交」留档，新的一条交给 ${pendingHandoff.name ?? '对方'}。`,
+            drop: () => { setPendingHandoff(undefined) },
+          }
+          : replyTo !== undefined
+            ? { kind: 'reply', who: replyTo.who, text: replyTo.text, drop: () => { setReplyTo(undefined) } }
+            : pendingGoal !== undefined
+              ? {
+                kind: 'context',
+                text: addressed
+                  ? `带着目标「${pendingGoal.goalName}」——新长出来的话题会挂在它下面。`
+                  : `带着目标「${pendingGoal.goalName}」——句子里带上 ${alias ?? `@${AGENT}`}，这次委派才会记成可跟踪的承诺。`,
+                drop: () => { setPendingGoal(undefined) },
+              }
+              : addressed
+                // 点火预告——和它的反面。没接单的群里同一个手势结果相反，得在按下之前说。
+                ? view.onDuty === false
+                  ? peerOnDuty === undefined
+                    ? { kind: 'note', warn: true, text: `${AGENT}没接这个群，@ 它不会有人应。` }
+                    : { kind: 'note', text: `这个群在岗的是 ${peerOnDuty.name}，这句会由它接。` }
+                  : { kind: 'note', text: replyTo === undefined ? '发出去会长出一个新话题。' : '这一串会收成一个话题。' }
+                : undefined
+
   return (
     <div className={`${tokens.tokens} ${css.place}`}>
       <header className={css.head}>
-        <span className={css.icon}>{newDm === undefined ? '#' : '💬'}</span>
+        <button type="button" className={css.back} onClick={back}>
+          <Icon name="chevL" size={14} />返回
+        </button>
+        <span className={css.headRule} />
+        <span className={css.icon}><Icon name={newDm === undefined ? 'hash' : 'users'} size={16} /></span>
         <span className={css.title}>{view.groupName || groupName}</span>
         <span className={css.sub}>
           {newDm === undefined
-            ? `群视图 · ${String(view.topics.length)} 个话题${hot > 0 ? ` · ${String(hot)} 个在办` : ''}`
-            : '还没有过私聊 · 你这一句就是第一句'}
+            ? `${String(view.topics.length)} 个话题${hot > 0 ? ` · ${String(hot)} 个在办` : ''}`
+            : '还没有过私聊'}
         </span>
         <span className={css.filters}>
           {(['all', 'topics'] as const).map(value => (
@@ -566,29 +611,20 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
             </button>
           ))}
         </span>
-        {/*
-          场所合同的常驻入口。
-
-          它此前只在一次**被拒的发送之后**才出现——于是「这个 agent 在这儿能
-          做什么」这个随时都会冒出来的问题，只能靠先写一条自己并不想发的 @
-          再被拦下来才问得到；接单开关就住在那扇门后面，路径变成六步。
-          场所自己的屏幕上，本就该有一个通往它自己合同的门。
-        */}
+        {/* 云小助在这里能做什么——这个问题随时会冒出来，所以门常驻在屋子自己的头上。 */}
         <button
           type="button"
-          className={`${css.filter} ${view.onDuty === false ? css.contractOff : ''}`}
-          title={view.onDuty === false
-            ? 'agent 没有在这个场所接单——合同里可以接入'
-            : '看这个场所的合同：接单、记忆策略、需要确认的写操作'}
+          className={`${css.rules} ${view.onDuty === false ? css.rulesOff : ''}`}
           onClick={() => { setContractOpen(true) }}
         >
-          {view.onDuty === false ? '未接入 · 场所合同' : '场所合同'}
+          {view.onDuty === false ? `${AGENT}没接这个群` : `${AGENT}在这里的规则`}
         </button>
-        <button type="button" className={css.back} onClick={back}>返回会话</button>
       </header>
 
       {view.staleReason !== undefined && (
-        <div className={css.stale}>云之家消息读取失败，下面只有已知话题：{view.staleReason}</div>
+        <div className={css.stale} title={view.staleReason}>
+          {plainError(view.staleReason).text}{plainError(view.staleReason).retrying ? '，稍后自动重试' : ''} · 下面只有已知的话题
+        </div>
       )}
 
       <div className={css.body} ref={bodyRef}>
@@ -608,11 +644,8 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
               className={css.earlierHead}
               onClick={() => { setEarlierOpen(value => !value) }}
             >
-              <span className={css.earlierTwist}>{earlierOpen ? '▾' : '▸'}</span>
+              <Icon name="chevR" size={12} className={`${css.earlierTwist} ${earlierOpen ? css.earlierOpen : ''}`} />
               更早的话题 · {earlier.length}
-              <span className={css.earlierNote}>
-                起点已不在这一屏，仍然点得进去
-              </span>
             </button>
             {earlierOpen && earlier.map(topic => (
               <button
@@ -621,9 +654,9 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                 className={css.earlierItem}
                 onClick={() => { enter(topic.sessionId, topic.cardRef) }}
               >
-                <span className={css.threadIcon}>🧵</span>
+                <Icon name="steps" size={14} className={css.threadIcon} />
                 <span className={css.topicTitle}>{topic.label}</span>
-                <span className={`${css.badge} ${topic.hot ? css.badgeHot : ''}`}>{topic.badge}</span>
+                <TopicSignal topic={topic} />
               </button>
             ))}
           </div>
@@ -631,17 +664,12 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
 
         {rows.length === 0 && newDm !== undefined && (
           <div className={css.calm}>
-            你和 <b>{newDm.name}</b> 还没有过私聊。
-            <br />
-            云之家没有「建一个私聊」这个动作——<b>它的出生就是第一句话</b>，也就是下面这一句。
-            按下发送之后，这间屋子会出现在左边的会话列表里。
+            你和 <b>{newDm.name}</b> 还没有过私聊。下面这一句发出去，私聊就有了。
           </div>
         )}
         {rows.length === 0 && newDm === undefined && (
           <div className={css.calm}>
-            这个场所还没有内容。
-            <br />
-            在群里 <code>{view.aliases?.[0] ?? '@agent'}</code> 说一句话，这里会长出一张话题卡——它就长在你说那句话的位置上。
+            这个群还没有内容。在群里对 {view.aliases?.[0] ?? `@${AGENT}`} 说一句话，这里会长出一个话题。
           </div>
         )}
 
@@ -655,41 +683,21 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
               <div className={css.topicWrap} key={row.key}>
               <button
                 type="button"
-                className={`${css.topicCard} ${row.topic.hot ? css.topicHot : ''}`}
+                className={css.topicCard}
                 onClick={() => { enter(row.topic.sessionId, row.topic.cardRef) }}
               >
-                <span className={css.threadIcon}>🧵</span>
-                <span className={css.topicBody}>
-                  <span className={css.topicTitle}>{row.topic.label}</span>
-                  <span className={css.topicMeta}>
-                    {/*
-                      有事等你时，卡上说的是**那件事**，不是「还在办」(v4.14 逐级兑付)。
-
-                      「进行中」对一个进来找验收项的人毫无用处——它说这里没完，不说
-                      等的是谁。徽标写模式（待验收/待裁决），这一行写那件事自己的话，
-                      点进去决断条接着指到对象：每一跳都是门，门上都写着门后是什么。
-                    */}
-                    {row.topic.owes ?? (
-                      <>
-                        {row.time > 0 ? `起于 ${clockOf(row.time)} 的这句话` : '话题起点已滚出窗口'}
-                        {' · '}
-                        {row.topic.hot ? '热卡 = 还在办' : '冷卡 = 归档索引'}
-                      </>
-                    )}
-                  </span>
-                </span>
-                <span className={`${css.badge} ${row.topic.hot ? css.badgeHot : ''}`}>
-                  {row.topic.badge}
-                </span>
-                <span className={css.arrow}>›</span>
+                <Icon name="steps" size={14} className={css.threadIcon} />
+                <span className={css.topicTitle}>{row.topic.label}</span>
+                <TopicSignal topic={row.topic} />
+                <Icon name="chevR" size={14} className={css.arrow} />
               </button>
               {/* 就地展开 (D13③): a gesture, never the default render. */}
               <button
                 type="button"
-                className={css.peek}
+                className={`${css.peek} ${peeked[row.topic.topicKey] === undefined ? '' : css.peekOpen}`}
                 onClick={() => { peek(row.topic.topicKey, row.topic.sessionId) }}
               >
-                {peeked[row.topic.topicKey] === undefined ? '展开看最后几条' : '收起'}
+                {peeked[row.topic.topicKey] === undefined ? '看最后几条' : '收起'}
               </button>
               {peeked[row.topic.topicKey] !== undefined && (
                 <div className={css.peekBody}>
@@ -739,12 +747,12 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                         }
                       }}
                     >
-                      ↩ 回复
+                      <Icon name="undo" size={14} />回复
                     </button>
                     <button
                       type="button"
                       className={css.verb}
-                      title="就这事让 agent 干：挂链并 @ 它"
+                      title={`回复这句，并叫上${AGENT}来办`}
                       onClick={() => {
                         anchor({
                           msgId: row.message.msgId,
@@ -760,7 +768,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                         }
                       }}
                     >
-                      ⚡ @agent
+                      <Icon name="at" size={14} />交给{AGENT}
                     </button>
                     <CopyButton text={row.message.content} className={css.verb} />
                     <button
@@ -769,14 +777,14 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                       title="转发到另一个会话"
                       onClick={() => { setForwarding(row.message.content) }}
                     >
-                      ↗ 转发
+                      <Icon name="redo" size={14} />转发
                     </button>
                   </span>
                 </span>
                 {row.message.replyToSummary !== undefined && (
                   <span className={css.quoteRow}>
                     {row.message.replyToId === undefined
-                      ? <span className={css.quote}>↳ {row.message.replyToSummary}</span>
+                      ? <span className={css.quote}>{row.message.replyToSummary}</span>
                       : (
                         <button
                           type="button"
@@ -784,7 +792,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                           title="跳到被回复的那条"
                           onClick={() => { jumpTo(row.message.replyToId as string) }}
                         >
-                          ↳ {row.message.replyToSummary}
+                          {row.message.replyToSummary}
                         </button>
                       )}
                     {/*
@@ -800,7 +808,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                         title="打开这条引用链所属的话题，看完整的一串"
                         onClick={() => { enter(topicOfQuote(row.message) as string) }}
                       >
-                        打开话题 ›
+                        打开话题<Icon name="chevR" size={12} />
                       </button>
                     )}
                   </span>
@@ -817,7 +825,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                   )
                   return isPlaceholderOnly(body, row.message.file?.name)
                     ? null
-                    : <span className={css.bubble}>{body}</span>
+                    : <span className={css.text}>{body}</span>
                 })()}
                 <Attachments message={row.message} inject={inject} />
               </span>
@@ -852,210 +860,77 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
         </div>
       )}
 
+      {view.kind !== 'assistant' && notOnDuty && (
+        /*
+          没接单：什么都没发出去。只说「失败」会教人以为产品随机罢工；说清为什么、给出两扇
+          真门，才是一次拒绝而不是一条死路。
+        */
+        <div className={css.notOnDuty}>
+          <span><b>{AGENT}没接这个群</b>，这句没有发出去——在同事面前留一个永远不会有人应的 @，比在这里说清楚糟得多。</span>
+          <span className={css.notOnDutyActions}>
+            <button type="button" className={css.notOnDutyBtn} onClick={() => { setContractOpen(true) }}>
+              {AGENT}在这里的规则
+            </button>
+            {(view.aliases ?? []).some(word => draft.includes(word)) && (
+              <button
+                type="button"
+                className={css.notOnDutyBtn}
+                onClick={() => {
+                  for (const word of view.aliases ?? []) setDraft(value => value.split(word).join('').trim())
+                  setNotOnDuty(false)
+                }}
+              >
+                去掉 {(view.aliases ?? [])[0] ?? '@'}，当普通消息发
+              </button>
+            )}
+            {replyTo?.agent === true && (
+              <button type="button" className={css.notOnDutyBtn} onClick={() => { setReplyTo(undefined); setNotOnDuty(false) }}>
+                不回复它，当普通消息发
+              </button>
+            )}
+            <button type="button" className={css.notOnDutyBtn} onClick={() => { setNotOnDuty(false) }}>知道了</button>
+          </span>
+        </div>
+      )}
+
       {view.kind !== 'assistant' && (
-      <div className={css.composer}>
-        {/*
-          **传送门带过来的东西要看得见** —— 目标语境与登记先验。
-
-          这两样此刻只活在内存里,而它们决定这句话发出去之后会发生什么:板上长出一条挂在
-          谁名下的活、挂在哪个目标下面。看不见的话,一次「换个人」之后带过来的还是上一个
-          人——而那只有等承诺落到板上才发现。
-        */}
-        {audienceRisk !== '' && (
-          <div className={css.audienceRisk}>
-            ⚠️ {audienceRisk}
-          </div>
-        )}
-        {(pendingGoal !== undefined || pendingRegister !== undefined
-          || pendingHandoff !== undefined) && (
-          <div className={css.errandBar}>
-            {pendingRegister !== undefined && (
-              <span className={css.errandTag}>
-                这一句是在登记 <b>{pendingRegister.name}</b> 的承诺
-              </span>
-            )}
-            {pendingHandoff !== undefined && (
-              <span className={css.errandTag}>
-                这一句是<b>移交</b>：发出去之后，旧的那条转为「已移交」留档，
-                新的一条交给 <b>{pendingHandoff.name ?? pendingHandoff.openId}</b>
-              </span>
-            )}
-            {pendingGoal !== undefined && (
-              <span className={css.errandTag}>带着目标：{pendingGoal.goalName}</span>
-            )}
-            <button
-              type="button"
-              className={css.errandDrop}
-              title="不带它了——这句话就当一句普通的话说出去"
-              onClick={() => {
-                setPendingGoal(undefined)
-                setPendingRegister(undefined)
-                setPendingHandoff(undefined)
-                setAudienceRisk('')
-              }}
-            >
-              不带了
-            </button>
-          </div>
-        )}
-        {/*
-          未接单：可见状态的出生故事.
-
-          Nothing was sent. Saying only "failed" would teach people the product
-          randomly does nothing; saying WHY, plus the two real doors out of it,
-          is the difference between a refusal and a dead end (§5.5).
-        */}
-        {notOnDuty && (
-          <div className={css.notOnDuty}>
-            <b>agent 没有在这个场所接单。</b>
-            这条<b>没有发出去</b>——在同事面前留一个永远不会有人应答的 @，
-            比在这里说清楚糟得多。
-            <span className={css.notOnDutyActions}>
-              <button
-                type="button"
-                className={css.notOnDutyBtn}
-                onClick={() => { setContractOpen(true) }}
-              >
-                看这个场所的合同
-              </button>
-              {(view.aliases ?? []).some(alias => draft.includes(alias)) && (
-                <button
-                  type="button"
-                  className={css.notOnDutyBtn}
-                  title="去掉触发词，作为一条普通消息发给同事"
-                  onClick={() => {
-                    for (const alias of view.aliases ?? []) {
-                      setDraft(value => value.split(alias).join('').trim())
-                    }
-                    setNotOnDuty(false)
-                  }}
-                >
-                  去掉 {(view.aliases ?? [])[0] ?? '@'} 再发
-                </button>
-              )}
-              {replyTo?.agent === true && (
-                <button
-                  type="button"
-                  className={css.notOnDutyBtn}
-                  title="回复 agent 的消息本身就是受话；取消挂链就是普通发言"
-                  onClick={() => {
-                    setReplyTo(undefined)
-                    setNotOnDuty(false)
-                  }}
-                >
-                  取消挂链再发
-                </button>
-              )}
-              <button
-                type="button"
-                className={css.notOnDutyBtn}
-                onClick={() => { setNotOnDuty(false) }}
-              >
-                知道了
-              </button>
-            </span>
-          </div>
-        )}
-        {/* 锚定条: 落点 in force, before the send key is pressed. */}
-        <div className={`${css.anchorBar} ${replyTo === undefined ? '' : css.anchorPinned}`}>
-          <span className={css.anchorLabel}>落点</span>
-          {replyTo === undefined
-            ? <span className={css.anchorWhere}>发到主楼 · {view.groupName || groupName}</span>
-            : (
-              <>
-                <span className={css.anchorWhere}>
-                  ↩ 挂到 {replyTo.who} 的这句
-                  <span className={css.anchorQuote}>{replyTo.text}</span>
-                </span>
-                <button
-                  type="button"
-                  className={css.anchorClear}
-                  title="回默认落点"
-                  onClick={() => { setReplyTo(undefined) }}
-                >
-                  ×
-                </button>
-              </>
-            )}
-          {addressed && (
-            // 点火预告 —— and its opposite. Where the agent is not on duty the
-            // same gesture has the opposite outcome, so the bar has to say
-            // THAT before the key is pressed, not after.
-            view.onDuty === false
-              ? peerOnDuty === undefined
-                ? <span className={css.anchorCold}>这个场所没接单 · @ 不会被应答</span>
-                : (
-                  // 桌面出站对称 (决策 #63)：不就地点火，锚定条明示由谁接单。
-                  <span className={css.anchorIgnite}>
-                    本群在岗：云小助（{peerOnDuty.name}）——将由它接单
-                  </span>
-                )
-              : (
-                <span className={css.anchorIgnite}>
-                  {replyTo === undefined ? '将长出一个新话题' : '整条链将收纳为话题'}
-                </span>
-              )
-          )}
-        </div>
-
-        {/* 一次发送回答四个正交问题；落点有控件了，受话也该有。 */}
-        <div className={css.tools}>
-          <EmojiButton insert={insert} />
-          {alias !== undefined && (
-            <button
-              type="button"
-              className={`${css.callBtn} ${calling ? css.callOn : ''}`}
-              title={`把 ${alias} 加到这条消息里——agent 才会应答`}
-              onClick={toggleCall}
-            >
-              ⚡ 叫上 {alias}
-            </button>
-          )}
-        </div>
-
-        <div className={css.cbox}>
-          <textarea
-            className={css.input}
-            ref={boxRef}
-            value={draft}
-            disabled={busy}
-            placeholder={replyTo === undefined
-              ? `发到主楼…（${view.aliases?.[0] ?? '@agent'} 可以叫上 agent）`
-              : `回复 ${replyTo.who}…`}
-            onChange={(event) => { setDraft(event.target.value) }}
-            onKeyDown={(event) => {
-              /*
-                输入法正在选字时，回车是「选这个词」，不是「发出去」.
-
-                A composing Enter is the IME's own key: intercepting it sends a
-                half-typed sentence — into a real group, in front of colleagues.
-                `isComposing` is the browser's own answer to exactly this, and
-                the `229` check covers the engines that report the keyCode but
-                not the flag.
-              */
-              if (event.nativeEvent.isComposing || event.keyCode === 229) return
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault()
-                send()
-              }
-            }}
-          />
-          <button
-            type="button"
-            className={css.send}
-            disabled={busy || draft.trim() === ''}
-            onClick={send}
-          >
-            {/* A key that says 「交给 agent」 where no agent will take it is a
-                promise the place cannot keep. */}
-            {addressed && view.onDuty !== false
-              ? '发送并交给 agent'
+        <Composer
+          voice="place"
+          voices={['place']}
+          setVoice={() => undefined}
+          placeName={view.groupName || groupName}
+          draft={draft}
+          setDraft={setDraft}
+          busy={busy}
+          send={send}
+          boxRef={boxRef}
+          hint={hint}
+          sendLabel={newDm !== undefined
+            ? `发给${newDm.name}`
+            : addressed && view.onDuty !== false
+              ? `发到群里 · 交给${AGENT}`
               : addressed && peerOnDuty !== undefined
-                ? `发送，由 云小助（${peerOnDuty.name}）接单`
+                ? `发到群里 · 由 ${peerOnDuty.name} 接`
                 : '发到群里'}
-          </button>
-        </div>
-      </div>
+          placeholder={replyTo === undefined
+            ? `发到「${view.groupName || groupName}」…`
+            : `回复 ${replyTo.who}…`}
+          tools={(
+            <>
+              <EmojiButton insert={insert} />
+              {alias !== undefined && (
+                <button
+                  type="button"
+                  className={`${composerCss.tool} ${calling ? composerCss.toolOn : ''}`}
+                  title={`把 ${alias} 加进这句——${AGENT}才会接`}
+                  onClick={toggleCall}
+                >
+                  <Icon name="at" size={14} />叫上{AGENT}
+                </button>
+              )}
+            </>
+          )}
+        />
       )}
     </div>
   )
@@ -1065,4 +940,24 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
 function clip(text: string): string {
   const flat = text.replace(/\s+/gu, ' ').trim()
   return flat.length > 42 ? `${flat.slice(0, 42)}…` : flat
+}
+
+/**
+ * 话题卡上的那一个信号 (律五：一行一个信号).
+ *
+ * 有事等你就说那件事（琥珀点 + 动词 + 它自己那句话）；在办就说在办；都没有就是办完了。
+ * 「热卡 / 冷卡 / 归档索引」是设计的词，不上屏。
+ */
+function TopicSignal(props: { topic: PlaceViewWire['topics'][number] }): ReactNode {
+  const { topic } = props
+  if (topic.owes !== undefined) {
+    return (
+      <span className={css.signalNeed}>
+        <span className={css.needDot} />
+        <b>要你{topic.verb ?? '答'}</b>
+        <span className={css.signalText}>{topic.owes}</span>
+      </span>
+    )
+  }
+  return <span className={css.signal}>{topic.hot ? `${AGENT}在办` : '办完了'}</span>
 }

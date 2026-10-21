@@ -1,0 +1,123 @@
+/*
+ * 云小助在这里的规则 (界面重设计 §5.7).
+ *
+ * 六行，按「它能替我做什么、什么时候会问我」的顺序。只有「要你注意」的地方上琥珀色。
+ */
+
+.mask {
+  position: absolute; inset: 0; z-index: 60;
+  background: var(--yzj-scrim);
+  display: flex; align-items: center; justify-content: center;
+}
+.panel {
+  width: 560px; max-width: calc(100% - 32px); max-height: 86%;
+  overflow-y: auto;
+  border-radius: var(--yzj-r-lg); background: var(--yzj-bg-raised);
+  box-shadow: var(--yzj-shadow-2);
+  animation: popin .18s ease;
+}
+@keyframes popin {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.head {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 18px 12px; background: var(--yzj-bg-raised);
+  border-bottom: 1px solid var(--yzj-line-2);
+}
+.headText { display: flex; flex-direction: column; min-width: 0; }
+.title { font-size: var(--yzj-fs-lg); font-weight: 600; color: var(--yzj-ink); }
+.sub { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.close {
+  margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center;
+  border: 0; border-radius: var(--yzj-r-sm); background: none; color: var(--yzj-ink-3); cursor: pointer;
+}
+.close:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+.calm { padding: 24px 18px; font-size: var(--yzj-fs-sm); color: var(--yzj-ink-3); }
+
+.lines { padding: 6px 18px 18px; display: flex; flex-direction: column; }
+.line { padding: 12px 0; border-bottom: 1px solid var(--yzj-line-2); }
+.lineHead { display: flex; align-items: center; gap: 8px; font-size: var(--yzj-fs-sm); font-weight: 600; color: var(--yzj-ink); }
+.no {
+  width: 20px; height: 20px; display: inline-grid; place-items: center; border-radius: 50%;
+  background: var(--yzj-press); color: var(--yzj-ink-2);
+  font: 600 var(--yzj-fs-xs)/1 var(--yzj-mono);
+}
+.lineBody {
+  margin: 6px 0 0 28px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  font-size: var(--yzj-fs-sm); line-height: 1.65; color: var(--yzj-ink-2);
+}
+.prose { margin: 0; }
+.panel b { color: var(--yzj-ink); font-weight: 600; }
+.note { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.dim { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.warn {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 10px; border-radius: var(--yzj-r-sm);
+  background: var(--yzj-need-bg); color: var(--yzj-need-ink); font-size: var(--yzj-fs-xs);
+}
+.box {
+  align-self: stretch;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px; border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-md);
+  background: var(--yzj-bg); font-size: var(--yzj-fs-sm);
+}
+.draft {
+  width: 100%; padding: 8px 10px; resize: vertical;
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-sm);
+  background: var(--yzj-bg-sunk); color: var(--yzj-ink);
+  font: inherit; font-size: var(--yzj-fs-xs); line-height: 1.6;
+}
+.choice { display: flex; flex-direction: column; gap: 6px; }
+.choice label { display: flex; align-items: flex-start; gap: 8px; font-size: var(--yzj-fs-sm); cursor: pointer; }
+.choice input { margin-top: 4px; }
+.acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.btn {
+  height: 30px; padding: 0 12px;
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-sm);
+  background: var(--yzj-bg); color: var(--yzj-ink);
+  font: inherit; font-size: var(--yzj-fs-sm); cursor: pointer;
+}
+.btn:hover:not(:disabled) { background: var(--yzj-hover); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btnPrimary, .btnPrimary:hover:not(:disabled) { background: var(--yzj-solid); border-color: var(--yzj-solid); color: var(--yzj-on-solid); }
+.btnDanger, .btnDanger:hover:not(:disabled) { background: var(--yzj-late-solid); border-color: var(--yzj-late-solid); color: var(--yzj-on-color); }
+.inline {
+  height: 26px; padding: 0 8px;
+  border: 0; border-radius: var(--yzj-r-sm); background: none;
+  color: var(--yzj-ink-2); font: inherit; font-size: var(--yzj-fs-xs); cursor: pointer;
+}
+.inline:hover:not(:disabled) { background: var(--yzj-hover); color: var(--yzj-ink); }
+
+.rule {
+  align-self: stretch;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 10px; border: 1px solid var(--yzj-line-2); border-radius: var(--yzj-r-md);
+}
+.ruleMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ruleMeta { font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); }
+.revoke { flex-basis: 100%; }
+.reason {
+  flex: 1; min-width: 160px; height: 28px; padding: 0 8px;
+  border: 1px solid var(--yzj-line); border-radius: var(--yzj-r-sm);
+  background: var(--yzj-bg); color: var(--yzj-ink); font: inherit; font-size: var(--yzj-fs-xs);
+}
+
+.detailToggle {
+  align-self: flex-start; margin-top: 10px;
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 0; padding: 4px 6px; border-radius: var(--yzj-r-sm); background: none;
+  font: inherit; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-3); cursor: pointer;
+}
+.detailToggle:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
+.chevOpen { transform: rotate(90deg); }
+.detail { display: flex; flex-direction: column; gap: 6px; padding: 6px 6px 0; }
+.detailHead { margin-top: 6px; font-size: var(--yzj-fs-xs); font-weight: 600; color: var(--yzj-ink-2); }
+.list { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; font-size: var(--yzj-fs-xs); color: var(--yzj-ink-2); }
+.list code, .codes code {
+  font-family: var(--yzj-mono); font-size: var(--yzj-fs-xs);
+  background: var(--yzj-bg-sunk); border-radius: var(--yzj-r-sm); padding: 1px 5px; margin-right: 6px;
+  color: var(--yzj-ink-2);
+}
+.codes { display: flex; flex-wrap: wrap; gap: 4px; }

@@ -1,5 +1,5 @@
 /**
- * 完整轨迹 (§7.1 trace-link) — every node of the turn, unfolded.
+ * 完整过程 (§7.1 trace-link) — every node of the turn, unfolded.
  *
  * The design says 「轨迹沿用 harness 会话视图，产品只做入口」. Taking the whole
  * `conversation` seat took that view with it, so the entry has to lead
@@ -157,13 +157,13 @@ export function YzjTracePanel(props: TracePanelProps): ReactNode {
       <div
         className={`${css.panel} ${trace.panel}`}
         role="dialog"
-        aria-label="完整轨迹"
+        aria-label="完整过程"
         onClick={(event) => { event.stopPropagation() }}
       >
         <div className={css.head}>
           <span className={css.avatar}>≡</span>
           <span>
-            <div className={css.title}>完整轨迹</div>
+            <div className={css.title}>完整过程</div>
             <div className={css.sub}>{title} · {rows.length} 个节点，按发生顺序</div>
           </span>
           <button

@@ -17,6 +17,7 @@ import {
 } from '@yzj-next/graph'
 import { cardMoment, type AnswerableDemand, type AnswerableMode, type CardRef } from '@yzj-next/cards'
 import type { Strip } from '@yzj-next/pledger'
+import { registrationFrom } from './client/registration.ts'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS, listOf } from '@yzj-next/tools'
 import {
   commitmentIdFor, createGoalBody, eventHub, executorName, failureOf, goalCommitmentIdFor,
@@ -85,9 +86,62 @@ export interface StreamCard {
     readonly style?: string
     readonly needsInput: boolean
     readonly available: boolean
+    /** 卡上的号，也是云之家里「回 n」的号。没有 = 不编号。 */
+    readonly n?: number
+    /** 作废、收回这类不占号的善后动词。 */
+    readonly secondary?: boolean
   }[]
   /** 引用指名押的句柄 `[card#kind:id]`：只在这张卡上有你签发过、还没押过的裁决时才有（私账层 §4.1）。 */
   readonly pledgeHandle?: string
+  /**
+   * 这张卡是**在哪、由谁**答掉的 (界面重设计 §5.2 ④).
+   *
+   * 一个对象有好几处投影——流里的卡、云之家里的那条、DM 兜底。答完以后只写「已放行」，
+   * 人就得自己回想是在哪按的；而「你在云之家里回了确认 · 昨天 16:52」这一行，正是多投影
+   * 之所以可信的那条出处。读的是 `answer/recorded` 里**生效**的那一次。
+   */
+  readonly answered?: AnsweredWire
+  /**
+   * 规矩提议 (律九) —— 同一类写入你已经连续同意了若干次，一次没拒。
+   *
+   * 只是一个**数**：提议由人点开、规矩由人签（租约卡），云小助从不代签。强写不提——
+   * 删除、覆盖、建群照旧每次都问。
+   */
+  readonly ruleHint?: RuleHintWire
+  /**
+   * 这张卡提到的群各叫什么（卡自己的群，和每一条要登记去的群）。卡上「登记发到哪」要
+   * 说出名字——「这个会话所在的群」是一句让人去猜的话。
+   */
+  readonly placeNames?: Readonly<Record<string, string>>
+}
+
+/** 一次生效的回答，摊成一行字需要的全部。 */
+export interface AnsweredWire {
+  readonly via: string
+  readonly at: number
+  readonly actionId: string
+  /** 按的是哪一个动词，用卡自己的说法（「放行」「通过验收」）。 */
+  readonly label: string
+  /** 是你答的，还是别人。 */
+  readonly mine: boolean
+  readonly who?: string
+}
+
+/** 「以后同类不用问」那一行要说清的范围。 */
+export interface RuleHintWire {
+  readonly toolClass: string
+  readonly placeKey: string
+  readonly placeName?: string
+  /** 连续同意了几次（中间没有一次拒绝）。 */
+  readonly streak: number
+}
+
+/** 连续同意几次才提议。少了是噪声，多了是疲劳已经发生过很久。 */
+export const RULE_STREAK = 5
+
+/** 工具类在屏上的叫法。规矩写给人看，`sheet` 不是一个人会说的词。 */
+export const TOOL_CLASS_LABEL: Readonly<Record<string, string>> = {
+  doc: '文档', sheet: '表格', calendar: '日程', im: '群消息', file: '文件',
 }
 
 /**
@@ -313,6 +367,13 @@ export interface ContractView {
   /** False while no lease can be granted — stated, not implied by an empty list. */
   readonly leasesAvailable: boolean
   /**
+   * 你签的规矩 (界面重设计 §5.7 第五行) —— 在这个群生效的、和等你签的。
+   *
+   * 每一条写明范围、谁签的、到什么时候、替你省了几次确认。「省了几次」数的是组织侧的
+   * 账（`action/released` 里凭这条规矩放行的写），不是私账层的分数。
+   */
+  readonly rules: readonly RuleRow[]
+  /**
    * 在岗图景 (决策 #63)：本实例在这里是对群在岗 / 仅本人 / 不接单，声明帖发出去了没有，
    * 以及观察到的同侪在岗实例。接单开关的两种范围在这里选。
    */
@@ -322,6 +383,60 @@ export interface ContractView {
 /** 接单记录上的范围，认得出才带上——旧记录没有它，按对群读，但不替它编一个。 */
 function scopeOf(value: string | undefined): { scope?: 'all' | 'self' | 'standby' } {
   return value === 'all' || value === 'self' || value === 'standby' ? { scope: value } : {}
+}
+
+export interface RuleRow {
+  readonly leaseId: string
+  readonly toolClass: string
+  readonly reason: string
+  readonly status: 'active' | 'proposed'
+  /** 只在这一个群，还是不限群。 */
+  readonly scoped: boolean
+  readonly signedBy?: string
+  readonly until: number
+  readonly saved: number
+}
+
+/** 在这个群里算数的规矩：限这个群的，加不限群的。 */
+export function rulesFor(ctx: Context, placeKey: string): RuleRow[] {
+  // 租约族没装的部署里没有「规矩」这回事：这一行空着，而不是去查一个不存在的族。
+  if (ctx.get('yzjLeases') === undefined) return []
+  const me = asString((ctx.get('yzjCards')?.desktopActor() as { openId?: string } | undefined)?.openId)
+  const saved = new Map<string, number>()
+  for (const event of ctx.yzjGraph.rawEvents(['action/released'])) {
+    const authority = asRecord(asRecord(event.data)?.authority)
+    if (asString(authority?.kind) !== 'lease') continue
+    const id = asString(authority?.leaseId)
+    if (id !== undefined) saved.set(id, (saved.get(id) ?? 0) + 1)
+  }
+  const out: RuleRow[] = []
+  for (const object of ctx.yzjGraph.query({ kind: 'operator', openId: '' }, { kind: 'lease', status: ['active', 'proposed'] })) {
+    const state = asRecord(object.state)
+    const scope = asRecord(state?.scope)
+    const scopedTo = asString(scope?.placeKey)
+    if (scopedTo !== undefined && scopedTo !== placeKey) continue
+    const until = asNumber(asRecord(state?.period)?.to) ?? 0
+    const status = asString(state?.status) === 'active' ? 'active' : 'proposed'
+    if (status === 'active' && until <= Date.now()) continue
+    const grantedBy = asString(state?.grantedBy)
+    const signedBy = grantedBy === undefined
+      ? undefined
+      : grantedBy === me ? '你' : ctx.get('yzjTopics')?.peers().find(peer => peer.openId === grantedBy)?.name ?? '别人'
+    out.push({
+      leaseId: object.id,
+      toolClass: asString(scope?.toolClass) ?? '',
+      reason: asString(state?.reason) ?? '',
+      status,
+      scoped: scopedTo !== undefined,
+      until,
+      saved: saved.get(object.id) ?? 0,
+      ...(signedBy === undefined ? {} : { signedBy }),
+    })
+  }
+  // 等你签的在最前（它要你），其余按替你省的次数——最常起作用的那条最先看到。
+  return out.sort((a, b) => (
+    Number(b.status === 'proposed') - Number(a.status === 'proposed') || b.saved - a.saved || a.leaseId.localeCompare(b.leaseId)
+  ))
 }
 
 export function contractView(ctx: Context, placeKey: string): ContractView {
@@ -404,7 +519,8 @@ export function contractView(ctx: Context, placeKey: string): ContractView {
     standardCount,
     bannedTools: [...GATEWAY_ESCAPE_TOOLS],
     revocations,
-    leasesAvailable: false,
+    leasesAvailable: ctx.get('yzjLeases') !== undefined,
+    rules: rulesFor(ctx, placeKey),
     ...(topics === undefined ? {} : { presence: topics.presenceIn(placeKey) }),
   }
 }
@@ -423,6 +539,8 @@ export interface PlaceTopicCard {
   readonly owes?: string
   /** 等你答的就是这张卡：点进去落在它身上，不落在话题末尾（见 {@link InboxItem.cardRef}）。 */
   readonly cardRef?: CardRef
+  /** 要你做的那个动词（确认 / 验收 / 定 …）——话题卡上那一个信号的头一个字。 */
+  readonly verb?: string
 }
 
 /**
@@ -540,7 +658,7 @@ export async function placeView(
       badge: demand?.badge ?? (live ? '进行中' : '已归档'),
       hot: live,
       /** 有人在等你的时候，卡自己说清等的是什么——徽标只有四个字。 */
-      ...(pending === undefined ? {} : { owes: pending.demand.label, cardRef: pending.ref }),
+      ...(pending === undefined ? {} : { owes: pending.demand.label, cardRef: pending.ref, verb: pending.demand.verb ?? '答' }),
     }
   })
   const aliases = topics?.aliases() ?? []
@@ -2563,40 +2681,8 @@ export function inboxView(ctx: Context): InboxView {
   }
 }
 
-/**
- * 登记路径的**结构化先验** —— 委派五步④ (v3.15 裁决④).
- *
- * 我上一轮判过这条「要 session 才有 turn，是通道层动刀」——**那是错的**。裁决说得很
- * 清楚：判定根本不在群 session 里跑。传送门第②步里操作者**已经选过执行者**了，那次
- * 选择本身就是先验：选了人 → 登记路径，选了 agent → 委派路径。剩下的只是把他填进
- * 骨架的两个空读出来，而那个骨架**是我们自己给的**。
- *
- * 所以这不是「用正则做语义判定」（那是被明确否掉的）：**分类**来自先验，这里只做
- * **抽取**。句子改到认不出骨架时就**认不出**——返回 undefined，那句话照常发出去，由
- * agent 像观察任何一句话那样去观察它。宁可退回旧路，也不拿一个猜出来的事由去登记
- * 一条挂在别人名下的承诺。
- */
-export function registrationFrom(
-  text: string, name: string,
-): { readonly what: string; readonly due?: string } | undefined {
-  // 受话是 composer 补上的那一截，不是句子的一部分。
-  const body = text.replace(/^\s*@\S+\s*/u, '').trim()
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
-  const matched = new RegExp(
-    `^登记承诺[：:]\\s*(.+?)[，,]\\s*${escaped}\\s*负责[，,]?\\s*(.*?)[。.]?\\s*$`, 'u',
-  ).exec(body)
-  if (matched === null) return undefined
-  const what = (matched[1] ?? '').trim()
-  const due = (matched[2] ?? '').trim()
-  /*
-    空还空着就不算填过。
-
-    骨架里那两个〔…〕是**故意留白**的；原样发出去说明人还没写，而拿「〔要做什么〕」
-    去登记一条承诺，比不登记坏得多——板上会长出一行没有人看得懂的活，挂在同事名下。
-  */
-  if (what === '' || what.includes('〔')) return undefined
-  return due === '' || due.includes('〔') ? { what } : { what, due }
-}
+/** 抽取住在客户端那一份里：发送前的登记预览与发送后的落库，必须是同一个函数。 */
+export { registrationFrom }
 
 /** One line, or it stops being a preview and becomes a paragraph. */
 function clip(text: string): string {
@@ -2636,6 +2722,96 @@ function pledgerDesk(ctx: Context): Context['yzjPledgerDesk'] {
   return stealthMode ? undefined : ctx.get('yzjPledgerDesk')
 }
 
+/** 每张卡上**生效**的那一次回答（输掉的、重复的不算——它们是证据，不是出处）。 */
+function appliedAnswers(
+  ctx: Context,
+): Map<string, { readonly actionId: string; readonly actor: string; readonly via: string; readonly time: number }> {
+  const out = new Map<string, { actionId: string; actor: string; via: string; time: number }>()
+  for (const event of ctx.yzjGraph.rawEvents(['answer/recorded'])) {
+    const data = asRecord(event.data)
+    if (data?.outcome !== 'applied') continue
+    const ref = asRecord(data.cardRef)
+    const kind = asString(ref?.kind)
+    const id = asString(ref?.id)
+    if (kind === undefined || id === undefined) continue
+    out.set(`${kind}:${id}`, {
+      actionId: asString(data.actionId) ?? '',
+      actor: asString(data.actor) ?? '',
+      via: asString(data.via) ?? '',
+      time: event.time,
+    })
+  }
+  return out
+}
+
+/**
+ * 写确认的同意序列，按「工具类 × 场所」从新往旧数连续同意了几次 (律九).
+ *
+ * 一次拒绝就断：拒绝是「这类事不是每次都该做」的证据，规矩提议要从那之后重新攒。超时、
+ * 中断、重新发起都不是回答，跳过——它们既不算同意，也不算你说了不。强写不进表：删除、
+ * 覆盖、建群永远每次都问，提一句「以后不用问」本身就是在劝人拆安全地板。
+ */
+function approvalStreaks(ctx: Context, viewer: GraphViewer): Map<string, number> {
+  const groups = new Map<string, { seq: number; status: string }[]>()
+  for (const object of ctx.yzjGraph.query(viewer, { kind: 'approval' })) {
+    const state = asRecord(object.state)
+    if (asString(state?.level) !== 'standard') continue
+    const toolClass = toolClassOf(asString(state?.toolName) ?? '')
+    const placeKey = asString(state?.placeKey)
+    if (toolClass === undefined || placeKey === undefined) continue
+    const key = `${toolClass}\0${placeKey}`
+    const list = groups.get(key) ?? []
+    list.push({ seq: object.createdSeq, status: asString(state?.status) ?? '' })
+    groups.set(key, list)
+  }
+  const out = new Map<string, number>()
+  for (const [key, list] of groups) {
+    let streak = 0
+    for (const one of list.sort((left, right) => right.seq - left.seq)) {
+      if (one.status === 'rejected') break
+      if (one.status === 'approved') streak += 1
+    }
+    out.set(key, streak)
+  }
+  return out
+}
+
+/** 已经有规矩（生效中或等你签）的「类 × 场所」：再提一次是在重复问同一个问题。 */
+function leasedScopes(ctx: Context, viewer: GraphViewer): Set<string> {
+  const out = new Set<string>()
+  for (const object of ctx.yzjGraph.query(viewer, { kind: 'lease', status: ['proposed', 'active'] })) {
+    const scope = asRecord(asRecord(object.state)?.scope)
+    const toolClass = asString(scope?.toolClass)
+    if (toolClass === undefined) continue
+    // 不限场所的规矩覆盖每一个场所。
+    out.add(`${toolClass}\0${asString(scope?.placeKey) ?? '*'}`)
+  }
+  return out
+}
+
+function ruleHintOf(
+  state: Record<string, JsonValue> | undefined,
+  streaks: ReadonlyMap<string, number>,
+  leased: ReadonlySet<string>,
+  topic: TopicDescriptor | undefined,
+): RuleHintWire | undefined {
+  if (asString(state?.level) !== 'standard') return undefined
+  const toolClass = toolClassOf(asString(state?.toolName) ?? '')
+  /*
+    没有场所就不提。一条不带场所的规矩覆盖**所有**群——那不是「这类事」，是「一切这类事」，
+    范围比人刚才连续答的那几次宽得多。
+  */
+  const placeKey = asString(state?.placeKey)
+  if (toolClass === undefined || placeKey === undefined) return undefined
+  if (leased.has(`${toolClass}\0${placeKey}`) || leased.has(`${toolClass}\0*`)) return undefined
+  const streak = streaks.get(`${toolClass}\0${placeKey}`) ?? 0
+  if (streak < RULE_STREAK) return undefined
+  return {
+    toolClass, placeKey, streak,
+    ...(topic !== undefined && topic.placeKey === placeKey ? { placeName: topic.groupName } : {}),
+  }
+}
+
 export function cardsFor(
   ctx: Context, topic: TopicDescriptor | undefined, sessionId?: string,
 ): StreamCard[] {
@@ -2654,6 +2830,29 @@ export function cardsFor(
   // 操作者看自己那一份分区（`audienceAllows` 对 operator viewer 一律放行）。
   const viewer: GraphViewer = { kind: 'operator', openId: topic?.groupId ?? '' }
   const out: StreamCard[] = []
+  /*
+    两张只读的表，每次取窗只建一次：生效的回答（按卡），和写确认的同意序列（按类 × 场所）。
+    逐卡去扫事件日志是 O(卡 × 事件)，五秒一轮询——这一屏会越用越慢。
+  */
+  const me = asString((ctx.yzjCards.desktopActor() as { openId?: string }).openId)
+  const answers = appliedAnswers(ctx)
+  const streaks = approvalStreaks(ctx, viewer)
+  const leased = leasedScopes(ctx, viewer)
+  const peerName = (openId: string): string | undefined => (
+    ctx.get('yzjTopics')?.peers().find(peer => peer.openId === openId)?.name
+  )
+  // 私聊的「群名」是对方的名字——「登记发到『代少兵』」读起来像发给了一个群，所以说成私聊。
+  const placeNameOf = (placeKey: string | undefined): string | undefined => {
+    if (placeKey === undefined) return undefined
+    const entry = placeKey === topic?.placeKey
+      ? { name: topic.groupName, kind: topic.conversationKind }
+      : (() => {
+        const found = ctx.get('yzjTopics')?.tree().find(candidate => candidate.place.placeKey === placeKey)
+        return found === undefined ? undefined : { name: found.place.groupName, kind: found.topics[0]?.conversationKind }
+      })()
+    if (entry === undefined) return undefined
+    return entry.kind === 'direct' ? `和${entry.name}的私聊` : entry.name
+  }
   /*
     遍历**已注册的卡类型**，而不是一份手写的名单 (v4.15 家族即接口)。
 
@@ -2696,6 +2895,25 @@ export function cardsFor(
       */
       const strips = desk?.stripsFor(kind, object.id, resolved) ?? []
       const pledgeHandle = resolved ? desk?.pledgeHandle(kind, object.id) : undefined
+      const applied = answers.get(`${kind}:${object.id}`)
+      const answered: AnsweredWire | undefined = applied === undefined
+        ? undefined
+        : {
+          via: applied.via,
+          at: applied.time,
+          actionId: applied.actionId,
+          label: definition.actions.find(action => action.id === applied.actionId)?.label ?? applied.actionId,
+          mine: me !== undefined && applied.actor === me,
+          ...(() => {
+            const who = me !== undefined && applied.actor === me ? undefined : peerName(applied.actor)
+            return who === undefined ? {} : { who }
+          })(),
+        }
+      const ruleHint = kind === 'approval' && !resolved
+        ? ruleHintOf(state, streaks, leased, topic)
+        : undefined
+      // 号和云之家里「回 1 / 2」是同一张表——服务端编好，客户端只照着画。
+      const numbered = ctx.yzjCards.numberedActions(kind, object.state).map(action => action.id)
       out.push({
         kind,
         id: object.id,
@@ -2705,15 +2923,32 @@ export function cardsFor(
         ...(demand === undefined ? {} : { demand }),
         ...(strips.length === 0 ? {} : { strips }),
         ...(pledgeHandle === undefined ? {} : { pledgeHandle }),
-        actions: definition.actions.map(action => ({
-          id: action.id,
-          label: action.label,
-          ...(action.style === undefined ? {} : { style: action.style }),
-          needsInput: action.needsInput === true,
-          available: action.available === undefined
-            ? true
-            : action.available(object.state as never),
-        })),
+        ...(answered === undefined ? {} : { answered }),
+        ...(ruleHint === undefined ? {} : { ruleHint }),
+        ...(() => {
+          const keys = [state?.placeKey, ...(Array.isArray(state?.items) ? state.items : []).map(item => asRecord(item)?.placeKey)]
+          const placeNames: Record<string, string> = {}
+          for (const key of keys) {
+            const placeKey = asString(key)
+            const name = placeNameOf(placeKey)
+            if (placeKey !== undefined && name !== undefined) placeNames[placeKey] = name
+          }
+          return Object.keys(placeNames).length === 0 ? {} : { placeNames }
+        })(),
+        actions: definition.actions.map(action => {
+          const n = numbered.indexOf(action.id) + 1
+          return {
+            id: action.id,
+            label: action.label,
+            ...(action.style === undefined ? {} : { style: action.style }),
+            needsInput: action.needsInput === true,
+            available: action.available === undefined
+              ? true
+              : action.available(object.state as never),
+            ...(n === 0 ? {} : { n }),
+            ...(action.secondary === true ? { secondary: true } : {}),
+          }
+        }),
       })
     }
   }
@@ -3161,6 +3396,35 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             } catch (error) {
               return failure(error instanceof Error ? error.message : String(error))
             }
+          }
+          /**
+           * 「以后同类不用问 ›」(律九) —— **只起草，不生效**。
+           *
+           * 起草出来的是一张规矩卡（租约，等你签），长在这段对话里；签发是人的主权动作，
+           * 按下「签」之前什么都没变。服务端**重算一遍**连续同意数，不信客户端报上来的
+           * 那个数：一条免确认的规矩，凭据必须是图上的事实。
+           */
+          case 'propose-rule': {
+            const toolClass = stringField(payload, 'toolClass')
+            const placeKey = stringField(payload, 'placeKey')
+            const sessionId = stringField(payload, 'sessionId')
+            if (toolClass === undefined || placeKey === undefined) return failure('要说清是哪一类、哪个群')
+            const decider = asString((scoped.yzjCards.desktopActor() as { openId?: string }).openId)
+            if (decider === undefined) return failure('还不知道你是谁（云之家身份还没就绪），等一会儿再试。')
+            const viewer: GraphViewer = { kind: 'operator', openId: '' }
+            const streak = approvalStreaks(scoped, viewer).get(`${toolClass}\0${placeKey}`) ?? 0
+            if (streak < RULE_STREAK) return failure('这一类最近没有连续同意过那么多次——先照常一件件答。')
+            const leased = leasedScopes(scoped, viewer)
+            if (leased.has(`${toolClass}\0${placeKey}`) || leased.has(`${toolClass}\0*`)) {
+              return { ok: true, value: { note: '这一类已经有一条规矩了（生效中或等你签）。' } }
+            }
+            const placeName = stringField(payload, 'placeName') ?? '这个群'
+            const leaseId = await proposeLease(scoped, {
+              decider, toolClass, placeKey, days: 30, family: 'write-confirm',
+              reason: `在「${placeName}」，${SIGNATURE_AGENT}往${TOOL_CLASS_LABEL[toolClass] ?? toolClass}里写不用每次问你（你已连续确认 ${String(streak)} 次，没拒过）`,
+              ...(sessionId === undefined ? {} : { sessionAnchor: sessionId }),
+            })
+            return { ok: true, value: { leaseId } }
           }
           /**
            * 「不用再问我」= 传送门到组织侧租约强确认卡（v3.1 最小租约同批开工）。

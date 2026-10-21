@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { InboxConversationWire, PersonWire, SurfaceInject } from './rpc.ts'
 import { avatarOf } from './stream.ts'
+import { Icon } from './icons.tsx'
 import css from './compose.module.css'
 
 /** dsh's relative-time buckets, so a row here reads like a row in the sidebar. */
@@ -69,7 +70,7 @@ export function EmojiButton(props: EmojiButtonProps): ReactNode {
         aria-label="表情"
         onClick={() => { setOpen(value => !value) }}
       >
-        ☺
+        <Icon name="smile" size={16} />
       </button>
       {open && (
         <div className={css.pop}>
@@ -110,7 +111,7 @@ export function CopyButton(props: { text: string; className?: string | undefined
         void navigator.clipboard.writeText(text).then(() => { setDone(true) })
       }}
     >
-      {done ? '已复制' : '⧉ 复制'}
+      <Icon name={done ? 'check' : 'copy'} size={14} />{done ? '已复制' : '复制'}
     </button>
   )
 }
@@ -301,7 +302,7 @@ export function MentionPicker(props: MentionPickerProps): ReactNode {
         aria-label="@成员"
         onClick={() => { setOpen(value => !value) }}
       >
-        @
+        <Icon name="users" size={16} />
       </button>
       {open && (
         <div className={`${css.pop} ${css.mentionPop}`}>

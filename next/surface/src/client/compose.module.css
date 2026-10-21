@@ -1,14 +1,13 @@
 .wrap { position: relative; display: inline-flex; }
 
 .iconBtn {
-  flex: none; width: 26px; height: 26px;
+  flex: none; width: 28px; height: 28px;
   display: grid; place-items: center;
-  border: 1px solid var(--yzj-line); border-radius:var(--yzj-r-sm);
-  background: var(--yzj-bg); color: var(--yzj-ink-2);
-  font: inherit; font-size:var(--yzj-fs-md); line-height: 1; cursor: pointer;
-  transition: color .12s, border-color .12s;
+  border: 0; border-radius: var(--yzj-r-sm);
+  background: none; color: var(--yzj-ink-3);
+  font: inherit; line-height: 1; cursor: pointer;
 }
-.iconBtn:hover { color: var(--yzj-pub); border-color: var(--yzj-pub-line); }
+.iconBtn:hover { background: var(--yzj-hover); color: var(--yzj-ink); }
 
 /* 表情：一小把工作里真会打的，不是一个 1800 格的搜索题 */
 .pop {
@@ -25,12 +24,13 @@
 .emoji:hover { background: var(--yzj-pub-tint); }
 
 .verb {
-  font: inherit; font-size:var(--yzj-fs-xs); font-weight: 650;
-  padding: 2px 8px; border-radius:var(--yzj-r-md);
-  border: 1px solid var(--yzj-line); background: var(--yzj-bg);
-  color: var(--yzj-ink-2); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  font: inherit; font-size: var(--yzj-fs-xs);
+  height: 24px; padding: 0 7px; border-radius: var(--yzj-r-sm);
+  border: 0; background: none;
+  color: var(--yzj-ink-3); cursor: pointer;
 }
-.verb:hover { color: var(--yzj-pub); border-color: var(--yzj-pub-line); background: var(--yzj-pub-tint); }
+.verb:hover { background: var(--yzj-press); color: var(--yzj-ink); }
 
 /* ---------- 转发：走的是同一条发送路径,所以同一套规则 ---------- */
 .mask {

@@ -77,6 +77,7 @@ export function apply(ctx: ClientContext): void {
     binding?(id: string): {
       session?: {
         prompt?(content: unknown[], mode: 'queue' | 'steer'): Promise<{ ok: boolean }>
+        cancel?(): Promise<{ ok: boolean; error?: { message?: string } }>
         rename?(title: string): Promise<{ ok: boolean; error?: { message?: string } }>
       }
     } | undefined
@@ -218,6 +219,13 @@ export function apply(ctx: ClientContext): void {
         if (face?.prompt === undefined) return '这个会话不可输入'
         const result = await face.prompt([{ type: 'text', text }], mode)
         return result?.ok === false ? '发送失败' : undefined
+      },
+      // 运行健康度的「停下」：宿主自己的取消，排着队的话不受影响。
+      cancel: async (id) => {
+        const face = sessions?.binding?.(id)?.session
+        if (face?.cancel === undefined) return '这个会话停不下来'
+        const result = await face.cancel()
+        return result?.ok === false ? (result.error?.message ?? '没能停下') : undefined
       },
       openSession: (id: string) => { sessions?.open?.(id) },
       // The object face is part of the workbench, not an occasional inspector,
