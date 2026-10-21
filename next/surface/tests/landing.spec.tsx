@@ -94,7 +94,9 @@ describe('中栏的落点', () => {
     landOn({ sessionId: 's-1', kind: 'task', id: 'tk-1' })
     await mount('s-1', windowWith([CARD]))
     expect(cardNode()).toBeDefined()
-    expect(scrolled).toEqual([cardNode()])
+    // 落下后流还在填的那一小会儿会再钉几次——但每一次滚向的都是这张卡。
+    expect(scrolled.length).toBeGreaterThan(0)
+    expect(scrolled.every(node => node === cardNode())).toBe(true)
     expect(cardNode()?.getAttribute('data-flash')).toBe('1')
     expect(currentLanding()).toBeUndefined()
   })

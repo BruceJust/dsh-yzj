@@ -74,6 +74,9 @@ export interface ConversationColumnProps {
 
 const EMPTY: FusedWindowWire = { messages: [], chips: [], cards: [], artifacts: [] }
 
+/** 落下的卡钉多久。够本地会话的历史分批到齐，又短到不和人抢滚动条。 */
+const PIN_MS = 2_500
+
 /** 扫属性，不拼选择器：id 是数据，不是常量。 */
 function cardNodeIn(stream: HTMLElement | null, kind: string, id: string): Element | undefined {
   const anchor = `${kind}:${id}`
@@ -128,6 +131,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   const { sessionId, useSession, inject, prompt, cancel, openSession, openDetails, titleOf } = props
   const frame = useSyncExternalStore(subscribeFrame, currentFrame)
   const landing = useSyncExternalStore(subscribeLanding, currentLanding)
+  /** 刚落下的那张卡：流还在填的那一小会儿钉住它（见下面那个 effect）。 */
+  const pinned = useRef<{ kind: string; id: string; until: number } | undefined>(undefined)
   const needs = useSyncExternalStore(subscribeNeeds, needsNow)
   const staged = useSyncExternalStore(subscribeStaged, stagedNow)
   const nodes = useSession(snapshot => snapshot.nodes) ?? []
@@ -407,7 +412,20 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
     setCurrentCard(`${landing.kind}:${landing.id}`)
     node.scrollIntoView({ block: 'center', behavior: 'instant' })
     flash(node)
+    pinned.current = { kind: landing.kind, id: landing.id, until: Date.now() + PIN_MS }
   }, [landing, sessionId, rows, frame.kind])
+
+  /*
+    落下之后流还在往里填：本地会话的历史是宿主分批送来的，卡先画出来、更早的话后到，
+    卡就被挤出视野（实测：按 N 落进本地会话，卡在屏幕下面 1,500px，只剩一颗指针）。
+    所以落下后的一小会儿钉住它，每次重排都挪回中间；人一滚轮、一按键就放手。
+  */
+  useEffect(() => {
+    const pin = pinned.current
+    if (pin === undefined) return
+    if (Date.now() > pin.until) { pinned.current = undefined; return }
+    cardNodeIn(streamRef.current, pin.kind, pin.id)?.scrollIntoView({ block: 'center', behavior: 'instant' })
+  }, [rows])
 
   /** 说出口了，目标才装载。话已经发出去了，所以失败要把两半都说清。 */
   const armPending = useCallback(async (): Promise<void> => {
@@ -931,6 +949,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
         className={css.stream}
         {...{ [FRAME_SCROLL]: '' }}
         ref={streamRef}
+        onWheel={() => { pinned.current = undefined }}
+        onTouchStart={() => { pinned.current = undefined }}
         onScroll={(event) => {
           const node = event.currentTarget
           atBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 60
