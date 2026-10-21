@@ -337,6 +337,11 @@ function namedArtifact(
   }
 }
 
+/** 一个 placeKey 是不是一间会话（群或私聊）——知识库、日程、文件区不是。 */
+function isConversationPlace(placeKey: string | undefined): boolean {
+  return placeKey !== undefined && /^yzj-(group|dm)-/u.test(placeKey)
+}
+
 /** What this topic produced, oldest first — the stream sorts it into place. */
 export function artifactsFor(
   ctx: Context,
@@ -357,9 +362,12 @@ export function artifactsFor(
       ...namedArtifact(names, uri, kind),
       action: asString(data?.action) ?? '产出',
       time: event.time,
-      // A document written into another place is the crossing the audit trail
-      // exists for, so it is marked here rather than silently blending in.
-      foreign: asString(artifact?.placeKey) !== topic.placeKey,
+      /*
+        写进了**另一个会话**（别的群、别的私聊）才是越境——审计要的就是它，所以单独标出来。
+        知识库、日程、文件的 placeKey 本来就不是会话（`yzj-kb-*`、`yzj-calendar`），此前
+        每一份文档都被标成「写到了别的群」。
+      */
+      foreign: isConversationPlace(asString(artifact?.placeKey)) && asString(artifact?.placeKey) !== topic.placeKey,
       ...(kind === undefined ? {} : { kind }),
       ...(toolName === undefined ? {} : { toolName }),
     })

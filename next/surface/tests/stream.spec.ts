@@ -1107,10 +1107,12 @@ describe('artifacts in the stream', () => {
     expect(artifactsFor(ctx, TOPIC).map(row => row.uri)).toEqual(['yzj://doc/a'])
   })
 
-  it('marks a document written into another place — that is the crossing audit', async () => {
+  it('marks what landed in ANOTHER CONVERSATION — that is the crossing audit; a knowledge base is not a room', async () => {
     await produce('yzj://doc/here', TOPIC.topicKey, TOPIC.placeKey)
-    await produce('yzj://doc/elsewhere', TOPIC.topicKey, 'yzj-kb-9')
-    expect(artifactsFor(ctx, TOPIC).map(row => row.foreign)).toEqual([false, true])
+    // 每一份文档都住在某个知识库里：它不是「写到了别的群」。
+    await produce('yzj://doc/kb', TOPIC.topicKey, 'yzj-kb-9')
+    await produce('yzj://message/g2/m1', TOPIC.topicKey, 'yzj-group-g2')
+    expect(artifactsFor(ctx, TOPIC).map(row => row.foreign)).toEqual([false, false, true])
   })
 
   it('lands on the same time axis as everything else in the column', () => {

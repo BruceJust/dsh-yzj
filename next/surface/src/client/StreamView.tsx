@@ -267,7 +267,7 @@ function renderRow(row: StreamRow, context: StreamContext, runningWork: boolean)
               action: row.artifact.action,
               notes: [clock],
               marks: [row.artifact.foreign
-                ? { label: '写到了别的群', why: '这次写出去的东西落在了别的群里' }
+                ? { label: '发到了别的会话', why: '这次写出去的东西落在了另一个群或私聊里——那里的人看得见' }
                 : undefined],
             })}
           />
