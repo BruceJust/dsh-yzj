@@ -462,8 +462,13 @@ export function buildStream(
         fold(settled ? { ...step, state: 'done', detail: '模型那边没答上来，重试了一次' } : step, time)
         continue
       }
-      flush()
+      /*
+        只在真要画出一行时才收口工作块。此前任何一个非步骤节点都先收口——只调了工具、一个字
+        没说的那一步也算——于是一轮里每调一次模型就断一块：实测一屏连着七个「做了 4 步」
+        「做了 6 步」……中间什么都没有。
+      */
       if (kind === 'command') {
+        flush()
         items.push({
           time,
           seat: seat++,
@@ -472,6 +477,7 @@ export function buildStream(
         continue
       }
       if (kind === 'turn-error') {
+        flush()
         items.push({
           time,
           seat: seat++,
@@ -484,6 +490,7 @@ export function buildStream(
       // A step that only called tools said nothing; its calls are already the
       // work block's steps.
       if (text === '') continue
+      flush()
       // The ANSWER to a projection is a projection too: it never went to the
       // group, and drawing it in the same public blue as a delivered reply
       // would say it did.

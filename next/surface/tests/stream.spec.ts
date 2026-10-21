@@ -255,6 +255,21 @@ describe('a step says what the tool says it did', () => {
     expect(step?.detail).toBe('用了一个工具')
   })
 
+  it('只调了工具、一个字没说的那一步不把工作块切断——中间没东西就是一块', () => {
+    const rows = buildStream(
+      [
+        toolRan(1, 'a', 1_000),
+        { kind: 'assistant', seq: 2, time: 1_100, blocks: [{ kind: 'reasoning', text: '再查一个' }] },
+        toolRan(3, 'b', 1_200),
+        answered(4, '好了', 1_300),
+        toolRan(5, 'c', 1_400),
+      ],
+      [], [],
+    )
+    const works = rows.filter(row => row.kind === 'work')
+    expect(works.map(row => row.steps.length)).toEqual([2, 1])
+  })
+
   it('宿主的「Load skill yzj-cli」说成人话', () => {
     expect(stepDetail('skill', 'Load skill yzj-cli')).toBe('看了一下怎么用云之家')
     expect(stepDetail('skill', 'Load skill pdf')).toBe('看了一下怎么用「pdf」')
