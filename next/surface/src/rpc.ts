@@ -454,6 +454,20 @@ export interface RuleRow {
   readonly saved: number
 }
 
+/**
+ * 一个人上屏（和投进群里）叫什么：登记时抄下的名字 › 在群里见过的名字 › 「一位同事」。
+ * 账号 id 从不当名字——它会原样出现在板上、出现在投进群的告知里。
+ */
+function nameOfGoalDoc(name: string | undefined): { readonly name?: string } {
+  return name === undefined ? {} : { name }
+}
+
+function personName(ctx: Context, openId: string | undefined, name: string | undefined): string {
+  if (name !== undefined && name.trim() !== '') return name
+  const seen = openId === undefined ? undefined : ctx.get('yzjTopics')?.peers().find(peer => peer.openId === openId)?.name
+  return seen ?? '一位同事'
+}
+
 /** 近处候选的第一种出处。排序认的就是它，所以只写一处。 */
 const IN_GOAL = '这个目标里已经有活在跟'
 
@@ -1424,6 +1438,10 @@ export interface BoardRow {
 export interface BoardGoal {
   /** The goal artifact's URI — the join key, and the thing that has no node. */
   readonly goalRef: string
+  /**
+   * 没有立目标那一行时，这个目标叫什么：正文那份文档最近的名字。链接从不当名字上屏。
+   */
+  readonly name?: string
   /** The commitment that DECLARED this goal, when one exists in view. */
   readonly row?: BoardRow
   readonly children: readonly BoardRow[]
@@ -1953,7 +1971,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     const origin = asRecord(state?.origin)
     const mirror = asString(origin?.kind) === 'foreign' && asString(origin?.operatorOpenId) !== undefined
       ? {
-        operator: topics?.peers().find(peer => peer.openId === asString(origin?.operatorOpenId))?.name ?? asString(origin?.operatorOpenId) ?? '',
+        operator: personName(ctx, asString(origin?.operatorOpenId), undefined),
         handle: asString(origin?.handle) ?? '',
       }
       : undefined
@@ -1968,7 +1986,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
       what: asString(state?.what) ?? '',
       executorKind: kind,
       who: kind === 'human'
-        ? asString(executor?.name) ?? asString(executor?.openId) ?? '某人'
+        ? personName(ctx, asString(executor?.openId), asString(executor?.name))
         : 'agent',
       status,
       ...(due === undefined || due.trim() === '' ? {} : { due: dueOf(due, object.createdAt) }),
@@ -2087,6 +2105,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     truthChanges.set(uri, { at: event.time, detail: asString(data?.detail) ?? '云之家里的目标正文改过了' })
   }
 
+  const goalDocName = (goalRef: string): string | undefined => names.get(artifactIdentity(goalRef))?.title
   const goals: BoardGoal[] = [...byGoal.entries()].map(([goalRef, children]) => {
     // 一份东西一张卡，摆它最近一次被动的那一刻（名字已经统一成最新的那个）。
     const latest = new Map<string, GoalArtifactRow>()
@@ -2138,6 +2157,7 @@ export function boardFrame(ctx: Context, now: number = Date.now()): BoardView {
     const drifted = copyDrifted || truthDrifted
     return {
       goalRef,
+      ...(row === undefined ? nameOfGoalDoc(goalDocName(goalRef)) : {}),
       ...(row === undefined ? {} : { row }),
       children,
       artifacts,
@@ -2506,7 +2526,7 @@ export async function commitmentStory(ctx: Context, id: string, now: number = Da
       ...(where === undefined ? {} : { where }),
     },
     steps,
-    ...(goalRef === undefined ? {} : { goal: { ref: goalRef, name: goalName ?? goalRef } }),
+    ...(goalRef === undefined ? {} : { goal: { ref: goalRef, name: goalName ?? artifactNames(ctx).get(artifactIdentity(goalRef))?.title ?? '一个目标' } }),
     ...(row.sessionId === undefined ? {} : { sessionId: row.sessionId }),
     ...(row.placeName === undefined ? {} : { placeName: row.placeName }),
     ...(row.evidence === undefined ? {} : { evidence: row.evidence }),
@@ -3645,7 +3665,7 @@ async function handoffFromPrior(
   }
   // 解除告知是系统补的一句，不是他按的发送：agent 的口吻，署名、进账、不点火。
   const sent = await ctx.get('yzjTopics')?.sayInPlace(
-    done.fromPlaceKey, releaseNotice({ what: done.what, toName: name ?? openId }),
+    done.fromPlaceKey, releaseNotice({ what: done.what, toName: personName(ctx, openId, name) }),
   ).catch(() => undefined)
   return {
     toCommitmentId: done.toCommitmentId,
@@ -4133,7 +4153,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             const existing = scoped.yzjGraph.rawObject('commitment', commitmentId)
             if (existing !== undefined) {
               const status = asString(asRecord(existing.state)?.status) ?? 'open'
-              const named = asString(asRecord(existing.state)?.what) ?? goalRef
+              const named = asString(asRecord(existing.state)?.what) ?? '没有名字的目标'
               return failure(status === 'open'
                 ? `这篇文档已经是目标「${named}」的正文了。要改名，到那个目标上改。`
                 : `这篇文档对应的目标「${named}」已经${status === 'voided' ? '作废' : '结束'}，不能用同一篇再开。`)
@@ -4815,7 +4835,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               // 同一个人两条来源时，语境那一条更贴近此刻的问题。
               if (seen === undefined || (here && seen.why !== IN_GOAL)
                 || (seen.why === why && object.updatedAt > seen.at)) {
-                out.set(openId, { openId, name: name ?? openId, why, at: object.updatedAt })
+                out.set(openId, { openId, name: personName(scoped, openId, name), why, at: object.updatedAt })
               }
             }
             const ranked = [...out.values()]

@@ -20,7 +20,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { YzjGraph, type GraphActor } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
-import { countedRows, groupsOf, jumpTarget, matchWorkspaces, nudgeDraft, signalOf, sinceText, todayOf } from '../src/client/Board.tsx'
+import { countedRows, goalTitleOf, groupsOf, jumpTarget, matchWorkspaces, nudgeDraft, signalOf, sinceText, todayOf } from '../src/client/Board.tsx'
 import type { BoardRowWire, BoardViewWire } from '../src/client/rpc.ts'
 import { cascadeLine, voidGate } from '../src/client/RepairVerbs.tsx'
 import {
@@ -1368,5 +1368,17 @@ describe('作废全入口两段式', () => {
       })
     }
     expect(ungated).toEqual([])
+  })
+})
+
+/*
+  链接和账号 id 从不当名字上屏 (律一)。实测：一个没立过目标行的目标，组头写着
+  「6a880632ecd3fb103b85c455」——那是链接的最后一段。
+*/
+describe('目标连名字都没有时', () => {
+  it('链接最后一段是 id 就说「没有名字的目标」；是字就用字', () => {
+    expect(goalTitleOf('https://www.yunzhijia.com/knowledge/lingee/#/store/doc/6a880632ecd3fb103b85c455')).toBe('没有名字的目标')
+    expect(goalTitleOf('https://yzj.example.com/doc/q3')).toBe('q3')
+    expect(goalTitleOf('Q4 路线图')).toBe('Q4 路线图')
   })
 })

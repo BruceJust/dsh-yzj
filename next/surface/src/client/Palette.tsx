@@ -16,7 +16,7 @@ import { openPreview, safeHref } from './preview.ts'
 import { artifactRefOf } from './artifacts.ts'
 import { KEYMAP, onGlobalKey, openPalette, paletteMode, startOfToday, subscribePalette } from './keys.ts'
 import { AutoHandledSheet } from './AutoHandled.tsx'
-import { goalTitleOf } from './Board.tsx'
+import { goalTitleOf } from './ledger.ts'
 import { AgentFace, Icon, type IconName } from './icons.tsx'
 import { AGENT } from './words.ts'
 import tokens from './tokens.module.css'
@@ -106,7 +106,7 @@ export function paletteItems(data: PaletteData): readonly PaletteItem[] {
     }
   }
   for (const goal of data.board?.goals ?? []) {
-    const name = goal.row?.what ?? goalTitleOf(goal.goalRef)
+    const name = goal.row?.what ?? goal.name ?? goalTitleOf(goal.goalRef)
     add({
       key: `goal:${goal.goalRef}`, group: '目标', icon: 'target', label: name,
       sub: `${String(goal.counts.open)} 在跟${goal.counts.overdue > 0 ? ` · ${String(goal.counts.overdue)} 逾期` : ''}`,

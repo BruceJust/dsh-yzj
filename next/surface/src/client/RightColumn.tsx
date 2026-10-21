@@ -27,6 +27,7 @@ import type { SurfaceInject } from './rpc.ts'
 import { YzjObjectFace } from './ObjectFace.tsx'
 import { YzjJudgObjectFace } from './JudgObjectFace.tsx'
 import { currentFrame, pushFrame, subscribeFrame } from './store.ts'
+import { goalTitleOf } from './ledger.ts'
 
 export interface RightColumnProps {
   sessionId?: string
@@ -55,7 +56,7 @@ export function YzjRightColumn(props: RightColumnProps): ReactNode {
               openSession(id)
             },
           })}
-        openGoal={(goalRef) => { pushFrame({ kind: 'goal', goalRef, goalName: goalRef }) }}
+        openGoal={(goalRef) => { pushFrame({ kind: 'goal', goalRef, goalName: goalTitleOf(goalRef) }) }}
       />
     )
   }

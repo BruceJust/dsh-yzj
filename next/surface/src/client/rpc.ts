@@ -532,6 +532,8 @@ export interface BoardRowWire {
 /** One goal and the work serving it, joined by URI (v4.8). */
 export interface BoardGoalWire {
   goalRef: string
+  /** 没有立目标那一行时，正文那份文档最近的名字。 */
+  name?: string
   row?: BoardRowWire
   children: BoardRowWire[]
   counts: { open: number; overdue: number; settled: number }

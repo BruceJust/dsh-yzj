@@ -29,7 +29,7 @@ import { artifactRefOf } from './artifacts.ts'
 import { LedgerRow, StoryDock, useLedger, useRowKeys } from './LedgerRow.tsx'
 import { useBackKey } from './keys.ts'
 import { usePoll } from './poll.ts'
-import { UNUSUAL, rowSub, signalOf } from './ledger.ts'
+import { UNUSUAL, goalTitleOf, rowSub, signalOf } from './ledger.ts'
 import { Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
 import { UnreadLine } from './Unread.tsx'
@@ -220,7 +220,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
   }
 
   const { goal, decisions, retired, mySlice } = view
-  const name = goal.row?.what ?? goalName
+  // 进来时带的名字可能只是那条链接（右栏从判例点过来）：链接不当标题。
+  const name = goal.row?.what ?? goal.name ?? (goalName === goalRef || goalName === '' ? goalTitleOf(goalRef) : goalName)
   const href = safeHref(goalRef)
   const mine = goal.row?.stewardedBy === undefined
   const hint = goalHintOf(view, now)

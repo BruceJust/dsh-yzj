@@ -26,6 +26,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import tokens from './tokens.module.css'
 import css from './contract.module.css'
 import { Icon } from './icons.tsx'
+import { plainError } from './words.ts'
 import picker from './picker.module.css'
 
 /** One directory level, as the host's browse capability returns it. */
@@ -67,7 +68,7 @@ export function YzjDirectoryPicker(props: DirectoryPickerProps): ReactNode {
         }
       })
       .catch((cause: unknown) => {
-        setBrowseError(cause instanceof Error ? cause.message : String(cause))
+        setBrowseError(plainError(cause instanceof Error ? cause.message : String(cause)).text)
       })
   }, [listDirectory])
 
@@ -79,7 +80,7 @@ export function YzjDirectoryPicker(props: DirectoryPickerProps): ReactNode {
     void choose(path)
       .then(close)
       .catch((cause: unknown) => {
-        setError(cause instanceof Error ? cause.message : String(cause))
+        setError(plainError(cause instanceof Error ? cause.message : String(cause)).text)
       })
       .finally(() => { setBusy(false) })
   }, [choose, close])
@@ -116,7 +117,7 @@ export function YzjDirectoryPicker(props: DirectoryPickerProps): ReactNode {
                 void pickDirectory()
                   .then((path) => { if (path !== null) use(path) })
                   .catch((cause: unknown) => {
-                    setError(cause instanceof Error ? cause.message : String(cause))
+                    setError(plainError(cause instanceof Error ? cause.message : String(cause)).text)
                   })
                   .finally(() => { setWaitingNative(false) })
               }}

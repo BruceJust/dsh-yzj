@@ -131,3 +131,20 @@ export function rowSub(row: BoardRowWire, goalLabel?: string): string {
     goalLabel,
   ].filter((part): part is string => part !== undefined && part !== '').join(' · ')
 }
+
+/**
+ * 目标连名字都没有时叫什么。链接的最后一段如果是个 id（`6a880632ecd3…`），它不是名字——
+ * 说「没有名字的目标」，不把一串 id 当标题摆上屏。
+ */
+export function goalTitleOf(ref: string): string {
+  const named = (word: string): string => (
+    word === '' || /^[0-9a-f]{12,}$/iu.test(word) || /^[A-Za-z0-9_-]{20,}$/u.test(word) ? '没有名字的目标' : word
+  )
+  try {
+    const last = new URL(ref.replace('#/', '')).pathname.split('/').filter(part => part !== '').at(-1)
+    return named(last === undefined ? '' : decodeURIComponent(last))
+  } catch {
+    // 不是链接：它本身可能就是个名字。
+    return named(ref.trim())
+  }
+}

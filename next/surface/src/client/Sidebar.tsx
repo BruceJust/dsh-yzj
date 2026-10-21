@@ -39,7 +39,7 @@ import { commandKey, openPalette, startOfToday } from './keys.ts'
 import { usePoll } from './poll.ts'
 import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
 import { Icon } from './icons.tsx'
-import { AGENT, span, waitLine } from './words.ts'
+import { AGENT, plainError, span, waitLine } from './words.ts'
 import { Skeleton, UnreadLine } from './Unread.tsx'
 import { STALL_MS } from './StreamView.tsx'
 import tokens from './tokens.module.css'
@@ -314,7 +314,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     void workspaces.pickDirectory()
       .then(async (path) => { if (path !== null) await adopt(path) })
       .catch((cause: unknown) => {
-        setPickError(cause instanceof Error ? cause.message : String(cause))
+        setPickError(plainError(cause instanceof Error ? cause.message : String(cause)).text)
       })
       .finally(() => { setPicking(false) })
   }, [adopt, workspaces])
@@ -654,7 +654,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
                 setRenaming(undefined)
                 if (next === '' || next === title) return
                 void sessionActions.rename(entry.id, next).catch((cause: unknown) => {
-                  setRowError(cause instanceof Error ? cause.message : String(cause))
+                  setRowError(plainError(cause instanceof Error ? cause.message : String(cause)).text)
                 })
               }}
             />
@@ -696,7 +696,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
             }
             if (id === 'fork') {
               void sessionActions.fork?.(entry.id).catch((cause: unknown) => {
-                setRowError(cause instanceof Error ? cause.message : String(cause))
+                setRowError(plainError(cause instanceof Error ? cause.message : String(cause)).text)
               })
               return
             }
@@ -721,7 +721,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
             onClick={() => {
               setArchiving(undefined)
               void sessionActions.archive?.(id).catch((cause: unknown) => {
-                setRowError(cause instanceof Error ? cause.message : String(cause))
+                setRowError(plainError(cause instanceof Error ? cause.message : String(cause)).text)
               })
             }}
           >

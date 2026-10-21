@@ -25,7 +25,7 @@ import { DeclareGoal } from './DeclareGoal.tsx'
 import { LedgerRow, StoryDock, useLedger, useRowKeys } from './LedgerRow.tsx'
 import { useBackKey } from './keys.ts'
 import { usePoll } from './poll.ts'
-import { TODAY_LABEL, TODAY_OF, UNUSUAL, rowSub, signalOf, todayOf, type TodayKey } from './ledger.ts'
+import { TODAY_LABEL, TODAY_OF, UNUSUAL, goalTitleOf, rowSub, signalOf, todayOf, type TodayKey } from './ledger.ts'
 import { Avatar } from './Avatar.tsx'
 import { AgentFace, Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
@@ -37,7 +37,7 @@ import css from './ledger.module.css'
 export { safeHref } from './preview.ts'
 export { matchWorkspaces } from './DeclareGoal.tsx'
 export {
-  TODAY_LABEL, nudgeDraft, signalOf, sinceText, todayOf, type RowSignal, type SignalKey, type TodayKey,
+  TODAY_LABEL, goalTitleOf, nudgeDraft, signalOf, sinceText, todayOf, type RowSignal, type SignalKey, type TodayKey,
 } from './ledger.ts'
 
 export interface BoardProps {
@@ -77,14 +77,6 @@ export interface Group {
  * 目标行本身不进任何组：它是组头。
  */
 /** 目标没有登记名字时（只知道它的文档链接），从链接里取一个人读得懂的名字。 */
-export function goalTitleOf(ref: string): string {
-  try {
-    const last = new URL(ref.replace('#/', '')).pathname.split('/').filter(part => part !== '').at(-1)
-    return last === undefined ? '没有名字的目标' : decodeURIComponent(last)
-  } catch {
-    return ref
-  }
-}
 
 /** 这一组此刻有没有要看的：有在跟的活，或者是一个还开着、却还没挂上任何活的目标。 */
 export function isLive(group: Group): boolean {
@@ -96,7 +88,7 @@ export function groupsOf(view: BoardViewWire, lens: BoardLens): readonly Group[]
   const work = view.rows.filter(row => row.isGoal === undefined || row.goalRef !== undefined)
   if (lens === 'all') {
     const goals: Group[] = view.goals.map(goal => ({
-      key: `goal:${goal.goalRef}`, kind: 'goal', title: goal.row?.what ?? goalTitleOf(goal.goalRef), goal, rows: goal.children,
+      key: `goal:${goal.goalRef}`, kind: 'goal', title: goal.row?.what ?? goal.name ?? goalTitleOf(goal.goalRef), goal, rows: goal.children,
     }))
     const loose = view.unattached.filter(row => row.isGoal === undefined)
     const rest: Group[] = [

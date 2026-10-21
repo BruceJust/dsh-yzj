@@ -229,7 +229,8 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
       </span>
       <div className={css.memText}>{item.summary}</div>
       <div className={css.memMeta}>
-        {item.sourceAnchors.length === 0 ? '没记出处' : `出处：${item.sourceAnchors.join('、')}`}
+        {/* 出处是消息 id（yzj:msg-…），不上屏；说它从几句话里学来的。 */}
+        {item.sourceAnchors.length === 0 ? '没记出处' : `从 ${String(item.sourceAnchors.length)} 句话里学到的`}
       </div>
     </div>
   )
