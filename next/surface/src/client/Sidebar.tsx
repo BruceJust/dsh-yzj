@@ -35,6 +35,7 @@ import { avatarOf } from './stream.ts'
 import {
   answeringNow, currentFrame, landOn, publishNeeds, setFrame, setNeedJumper, subscribeAnswering, subscribeFrame,
 } from './store.ts'
+import { openPalette } from './keys.ts'
 import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
 import { Icon } from './icons.tsx'
 import { span, waitLine } from './words.ts'
@@ -839,6 +840,13 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
           close={() => { setOpening(false) }}
         />
       )}
+      <div className={css.section}>
+        <button type="button" className={`${css.row} ${css.jump}`} onClick={() => { openPalette('search') }}>
+          <span className={css.lead}><Icon name="search" /></span>
+          <span className={css.titleDim}>跳到…</span>
+          <kbd className={css.kbd}>⌘K</kbd>
+        </button>
+      </div>
       {needSection}
       {runningSection}
       <div className={css.section}>{ledgerRow}</div>

@@ -137,6 +137,9 @@
 .tailLate { margin-left: auto; font-size: var(--yzj-fs-xs); color: var(--yzj-late-ink); font-weight: 500; }
 .tailNeed { margin-left: auto; font-size: var(--yzj-fs-xs); color: var(--yzj-need-ink); font-weight: 500; }
 .ledger { margin-top: 4px; }
+/* ⌕ 跳到… ⌘K：⌘K 的那扇门，给不记快捷键的人。 */
+.jump { color: var(--yzj-ink-3); }
+.jump .kbd { margin-left: auto; }
 
 .unread {
   flex: none; min-width: 18px; height: 18px; padding: 0 5px;

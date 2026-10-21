@@ -14,6 +14,7 @@ import type { FamilyHeadWire, JudgViewWire, PledgeRowWire, ReceiptRowWire, Surfa
 import { YzjJudgContract } from './JudgContract.tsx'
 import { currentJudgSelection, setJudgSelection, subscribeJudgSelection } from './store.ts'
 import { Icon } from './icons.tsx'
+import { useBackKey } from './keys.ts'
 import tokens from './tokens.module.css'
 import css from './vault.module.css'
 
@@ -129,6 +130,7 @@ export function YzjJudg(props: JudgProps): ReactNode {
   const [confirm, setConfirm] = useState('')
   const [takeout, setTakeout] = useState<string | undefined>(undefined)
   const selected = useSyncExternalStore(subscribeJudgSelection, currentJudgSelection)
+  useBackKey(back)
   const seen = useRef(new Set<string>())
 
   const reload = useCallback(async (): Promise<void> => { setView(await inject.judg()) }, [inject])

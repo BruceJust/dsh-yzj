@@ -732,6 +732,8 @@ export interface SurfaceInject {
     error?: string
   }>
   objects(sessionId?: string): Promise<ObjectFaceWire>
+  /** 最近的产出，跨所有话题（⌘K 用）。 */
+  artifacts(): Promise<ObjectRowWire[]>
   fused(sessionId: string): Promise<FusedWindowWire | undefined>
   /**
    * Say one thing INTO the place.
@@ -1106,6 +1108,9 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
         executor?: { openId: string; name: string }; placeKey?: string; pending?: string[]
       }>('handoff-context', { id })
       return error === undefined ? value ?? {} : { error }
+    },
+    async artifacts() {
+      return await call<ObjectRowWire[]>('artifacts', {}) ?? []
     },
     async objects(sessionId) {
       return await call<ObjectFaceWire>(

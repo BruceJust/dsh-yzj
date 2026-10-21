@@ -69,7 +69,8 @@ export function YzjObjectFace(props: ObjectFaceProps): ReactNode {
   useAsidePreviewHost(host)
 
   const refresh = useCallback(async (): Promise<void> => {
-    setFace(await inject.objects(sessionId))
+    // 读不回来就当还没有，不让一次失败的读把整栏弄崩。
+    setFace(await inject.objects(sessionId) ?? EMPTY)
   }, [inject, sessionId])
 
   useEffect(() => {

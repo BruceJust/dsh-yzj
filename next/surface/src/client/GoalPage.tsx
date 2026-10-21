@@ -26,6 +26,7 @@ import { safeHref } from './preview.ts'
 import { ArtifactCard } from './ArtifactCard.tsx'
 import { artifactRefOf } from './artifacts.ts'
 import { LedgerRow, StoryDock, useLedger, useRowKeys } from './LedgerRow.tsx'
+import { useBackKey } from './keys.ts'
 import { UNUSUAL, rowSub, signalOf } from './ledger.ts'
 import { Icon } from './icons.tsx'
 import { AGENT } from './words.ts'
@@ -158,6 +159,7 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
   const children = useMemo(() => view?.goal.children ?? [], [view])
   const { spotlight, selected, docked, staged, actions } = useLedger({ inject, commission, openSession, refresh, say: setToast })
   useRowKeys(bodyRef, children, selected)
+  useBackKey(back)
 
   /** 拆解、评估：按下就是对云小助说了那句话。没送出去才出声。 */
   const say = useCallback((key: string, text: string): void => {

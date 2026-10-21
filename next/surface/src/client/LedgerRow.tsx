@@ -68,8 +68,13 @@ export function useLedger(props: {
       return
     }
     setSpotlight({ kind: 'commitment', id: row.id, title: row.what, ...(intent === undefined ? {} : { intent }) })
-    revealAside(() => { setDocked(true) })
   }, [])
+
+  // 选中从哪来都一样（点一行、J/K、⌘K）：右栏打开；开不出来就停在这一屏右边。
+  const pickedId = spotlight?.kind === 'commitment' ? spotlight.id : undefined
+  useEffect(() => {
+    if (pickedId !== undefined) revealAside(() => { setDocked(true) })
+  }, [pickedId])
 
   const nudge = useCallback((row: BoardRowWire): void => {
     if (row.sessionId === undefined) {
@@ -213,14 +218,13 @@ export function StoryDock(props: {
   )
 }
 
-/** J/K 在行间走（右栏跟着换），Esc 收起右栏。 */
+/** J/K 在行间走（右栏跟着换）。Esc 归全站那一条链（keys.ts）。 */
 export function useRowKeys(body: RefObject<HTMLElement | null>, rows: readonly BoardRowWire[], selected: string | undefined): void {
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement | null
       if (target !== null && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/u.test(target.tagName))) return
       if (event.metaKey || event.ctrlKey || event.altKey) return
-      if (event.key === 'Escape' && currentSpotlight()?.kind === 'commitment') { setSpotlight(undefined); return }
       if (event.key !== 'j' && event.key !== 'k') return
       const nodes = [...(body.current?.querySelectorAll<HTMLElement>('[data-row]') ?? [])]
       if (nodes.length === 0) return

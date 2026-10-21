@@ -2514,6 +2514,37 @@ export function objectPreviewOf(
   }
 }
 
+/**
+ * 最近的产出，跨所有话题 —— ⌘K 搜「产出」用 (界面重设计 §8)。
+ *
+ * 只读、按链接去重、新的在前、最多 200 份：⌘K 是到已有东西的捷径，不是第二个资料库。
+ */
+export function recentArtifacts(ctx: Context, limit = 200): readonly ObjectRow[] {
+  const originOf = originsOf(ctx)
+  const seen = new Set<string>()
+  const out: ObjectRow[] = []
+  const events = [...ctx.yzjGraph.rawEvents(['lineage/produced'])].reverse()
+  for (const event of events) {
+    const data = asRecord(event.data)
+    const artifact = asRecord(data?.artifact)
+    const uri = asString(artifact?.uri)
+    // 发出去的消息不算产出：它在聊天记录里，不在资料里。
+    if (uri === undefined || seen.has(uri) || asString(artifact?.kind) === 'message') continue
+    seen.add(uri)
+    const from = originOf(asString(data?.topicKey) ?? '', event.time, asString(data?.messageId))
+    out.push({
+      uri,
+      title: asString(artifact?.title) ?? uri,
+      action: asString(data?.action) ?? '产出',
+      placeKey: asString(artifact?.placeKey) ?? '',
+      time: event.time,
+      ...(from === undefined ? {} : { from }),
+    })
+    if (out.length >= limit) break
+  }
+  return out
+}
+
 export function objectFace(
   ctx: Context,
   topic: TopicDescriptor | undefined,
@@ -4278,6 +4309,8 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
               return failure(error instanceof Error ? error.message : String(error))
             }
           }
+          case 'artifacts':
+            return { ok: true, value: recentArtifacts(scoped) }
           case 'objects': {
             const sessionId = stringField(payload, 'sessionId')
             const topic = sessionId === undefined

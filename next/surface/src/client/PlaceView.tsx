@@ -37,6 +37,7 @@ import { AGENT, plainError } from './words.ts'
 import composerCss from './composer.module.css'
 import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
 import type { PlaceViewWire, SurfaceInject, TopicMessageWire } from './rpc.ts'
+import { useBackKey } from './keys.ts'
 import tokens from './tokens.module.css'
 import css from './place.module.css'
 
@@ -63,6 +64,7 @@ const EMPTY: PlaceViewWire = { placeKey: '', groupName: '', messages: [], topics
 
 export function YzjPlaceView(props: PlaceViewProps): ReactNode {
   const { placeKey, groupName, inject, openSession, back, restoreScroll, newDm } = props
+  useBackKey(back)
   const [view, setView] = useState<PlaceViewWire>(EMPTY)
   const [filter, setFilter] = useState<Filter>('all')
   const [earlierOpen, setEarlierOpen] = useState(false)

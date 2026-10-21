@@ -22,6 +22,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { YzjConversationColumn } from './ConversationColumn.tsx'
 import { YzjRightColumn } from './RightColumn.tsx'
 import { YzjPreviewOverlay } from './PreviewOverlay.tsx'
+import { YzjPalette } from './Palette.tsx'
 import { YzjSidebar } from './Sidebar.tsx'
 import { setPreviewOpener } from './preview.ts'
 import { setSessionOpener } from './store.ts'
@@ -39,6 +40,7 @@ export { YzjGoalPage, type GoalPageProps } from './GoalPage.tsx'
 export { ArtifactCard, type ArtifactCardProps } from './ArtifactCard.tsx'
 export { ArtifactPreview, type ArtifactPreviewProps } from './PreviewPanel.tsx'
 export { YzjPreviewOverlay, type PreviewOverlayProps } from './PreviewOverlay.tsx'
+export { YzjPalette, type PaletteProps } from './Palette.tsx'
 export { artifactRefOf, type ArtifactEdge } from './artifacts.ts'
 export { parseDelimited, separatorFor } from './delimited.ts'
 export {
@@ -277,5 +279,18 @@ export function apply(ctx: ClientContext): void {
       inject: () => ({ inject: surfaceInject }),
     },
     props => YzjPreviewOverlay({ inject: props.inject }),
+  ))
+
+  /**
+   * ⌘K 与快捷键表 (界面重设计 §8)：到已有地方的捷径，盖在整框上，Esc 就走。全站那几个
+   * 键（⌘K、`?`、Esc 链）也挂在这一层——它在任何一屏都在。
+   */
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register(
+    {
+      name: 'shell.overlay',
+      id: 'yzj-palette',
+      inject: () => ({ inject: surfaceInject }),
+    },
+    props => YzjPalette({ inject: props.inject }),
   ))
 }

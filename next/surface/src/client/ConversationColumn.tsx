@@ -35,6 +35,7 @@ import {
   backTarget, currentFrame, currentLanding, landOn, needsNow, popFrame, setFrame, setSpotlight,
   subscribeFrame, subscribeLanding, subscribeNeeds, takeErrand, type Frame,
 } from './store.ts'
+import { useBackKey } from './keys.ts'
 import { AgentFace, Icon } from './icons.tsx'
 import { AGENT, plainError } from './words.ts'
 import type { FusedWindowWire, StreamCard, SurfaceInject } from './rpc.ts'
@@ -177,6 +178,9 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   /** 刚在这里答过的那张：它下面接「下一件」。 */
   const [justAnswered, setJustAnswered] = useState<string | undefined>(undefined)
   const back = backTarget()
+  const goBack = useCallback((): void => { setRestoreScroll(popFrame()) }, [])
+  // Esc 的最后一步：从群里点进来的话题，回到那个群、回到离开时的位置。
+  useBackKey(frame.kind === 'session' && back !== undefined ? goBack : undefined)
 
   /*
     右栏跟着焦点走（律六）：回到会话、群、「我定过的」时打开它——那几屏的右栏有东西摆；
@@ -755,7 +759,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
               type="button"
               className={css.back}
               title="回到上一屏离开时的位置（Esc）"
-              onClick={() => { setRestoreScroll(popFrame()) }}
+              onClick={goBack}
             >
               <Icon name="chevL" size={14} />{backLabel(back)}
             </button>

@@ -22,6 +22,7 @@ import { revealAside } from './preview.ts'
 import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
 import { DeclareGoal } from './DeclareGoal.tsx'
 import { LedgerRow, StoryDock, useLedger, useRowKeys } from './LedgerRow.tsx'
+import { useBackKey } from './keys.ts'
 import { TODAY_LABEL, TODAY_OF, UNUSUAL, rowSub, signalOf, todayOf, type TodayKey } from './ledger.ts'
 import { Avatar } from './Avatar.tsx'
 import { AgentFace, Icon } from './icons.tsx'
@@ -220,6 +221,36 @@ export function YzjBoard(props: BoardProps): ReactNode {
 
   const { spotlight, selected, docked, staged, actions } = useLedger({ inject, commission, openSession, refresh, say: setToast })
   useRowKeys(bodyRef, view.rows, selected)
+  useBackKey(back)
+
+  /*
+    从别处选中的（⌘K、来龙去脉里的「合并」）：那一行可能在别的透镜里、在折起来的组里。
+    门要真的开——调回「全部」、展开那一组和它的折叠，再落过去。
+  */
+  const revealed = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (selected === undefined) { revealed.current = undefined; return }
+    if (selected === revealed.current) return
+    const node = bodyRef.current?.querySelector(`[data-row="${selected}"]`)
+    if (node !== null && node !== undefined) {
+      revealed.current = selected
+      node.scrollIntoView({ block: 'nearest' })
+      return
+    }
+    const landing: BoardLens = groupsOf(view, lens).some(group => group.rows.some(row => row.id === selected)) ? lens : 'all'
+    const group = groupsOf(view, landing).find(one => one.rows.some(row => row.id === selected))
+    // 板还没读回来：等下一次。
+    if (group === undefined) return
+    revealed.current = selected
+    if (landing !== lens) setLens(landing)
+    setShut(value => value.filter(one => one !== group.key))
+    setOpened(value => ({ ...value, quiet: true, [`n:${group.key}`]: true, [`d:${group.key}`]: true }))
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        bodyRef.current?.querySelector(`[data-row="${selected}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      })
+    })
+  }, [selected, view, lens, setLens])
 
   /** 今天条的一个数：落到那一类的第一行。它被折着、或在别的透镜里，就先把视野调过去。 */
   const jump = useCallback((key: TodayKey): void => {
