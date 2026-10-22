@@ -19,7 +19,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asRecord, asString, type GraphActor } from '@yzj-next/graph'
+import { asNumber, asRecord, asString, type GraphActor } from '@yzj-next/graph'
 import { describeObject, ownsCommitment, processSummary, readSignature } from '@yzj-next/objects'
 import {
   accountKeyFor, conversationKindForGroup, groupIdFromPlaceKey, hasLeadingAlias,
@@ -1052,6 +1052,79 @@ export class YzjPoller {
    */
   groupNameOf(groupId: string): string | undefined {
     return this.state.conversation(groupId)?.name
+  }
+
+  /**
+   * 把一件活交回给云小助重做 —— 打回之后，或续跑一件没有续跑地址的活 (返工闭环).
+   *
+   * 打回此前只是一行记录：理由进了日志，云小助从没被叫回去改，「返工中」就成了一个只有
+   * 云小助能出去、而它永远不会来的状态。实测一件 8/18 打回的活在「运行中」挂了两个月。
+   *
+   * 地址全从图上读：任务记得它在哪个话题、为哪句话开的、谁派的；话题记得它在哪个群、
+   * 根是哪条。所以重启过、旧版本留下的活也找得到回去的路——不靠进程里还记不记得。
+   *
+   * @returns 排上了没有。false = 这件活不在可重做的状态，或者找不到它的屋子。
+   */
+  async rerunTask(taskId: string): Promise<boolean> {
+    const identity = this.identity
+    if (identity === undefined) return false
+    const task = asRecord(this.ctx.yzjGraph.rawObject('task', taskId)?.state)
+    const status = asString(task?.status)
+    if (status !== 'rework' && status !== 'open') return false
+    if (this.orchestrator.isRunningTask(taskId)) return true
+    const topicKey = asString(task?.topicKey)
+    const anchor = asString(task?.sourceAnchor)?.replace(/^yzj:/u, '')
+    const handle = topicKey === undefined ? undefined : this.ctx.yzjGraph.topicHandle(topicKey)
+    if (anchor === undefined || anchor === '' || handle?.groupId === undefined || handle.topicRootId === undefined) {
+      return false
+    }
+    const groupId = handle.groupId
+    const group = this.groupFromRoster(groupId)
+      ?? (await this.client.recentGroups(this.config.groupPages)).find(candidate => candidate.groupId === groupId)
+    if (group === undefined) return false
+    const trigger: YzjMessage = {
+      msgId: anchor,
+      content: asString(task?.what) ?? '',
+      fromOpenId: asString(task?.delegatedBy) ?? identity.openId,
+      msgType: 'text',
+      sendTime: '',
+      param: {},
+    }
+    const route = topicRouteFor(identity, group, trigger, [], handle.topicRootId, handle.generation)
+    // 算出来的不是它原来那个话题，就不跑：交付落错屋子比不交更坏。
+    if (route.topicKey !== topicKey) return false
+    const rejected = asRecord(this.ctx.yzjGraph.rawEvents(['task/rejected'])
+      .filter(event => asString(asRecord(event.data)?.taskId) === taskId)
+      .at(-1)?.data)
+    const round = asNumber(rejected?.round)
+    const reason = asString(rejected?.reason)
+    this.orchestrator.enqueue(group, trigger, route, [], undefined, {
+      taskId,
+      ...(round === undefined ? {} : { round }),
+      ...(reason === undefined ? {} : { reason }),
+    })
+    return true
+  }
+
+  /**
+   * 开机时还挂在「返工中」的活：没有回合在改它（进程刚起来，什么都没在跑）。
+   *
+   * 不自动重跑——重启后自己重来一遍是「中断不自动重试」那条规矩不许的（可能重复写入）。
+   * 把它说成它真实的样子：停了、等人定。它从「运行中」挪到「要你」，卡上是
+   * 「继续 / 就这样收了 / 作废」。不往群里发任何东西：这是一次对账，不是一次通知。
+   */
+  async parkStalledRework(): Promise<number> {
+    const identity = this.identity
+    if (identity === undefined) return 0
+    let parked = 0
+    for (const object of this.ctx.yzjGraph.query(
+      { kind: 'operator', openId: identity.openId }, { kind: 'task', status: ['rework'] },
+    )) {
+      if (this.orchestrator.isRunningTask(object.id)) continue
+      await this.orchestrator.interruptTask(object.id, '打回之后没有接着改')
+      parked += 1
+    }
+    return parked
   }
 
   private groupFromRoster(groupId: string): YzjGroup | undefined {

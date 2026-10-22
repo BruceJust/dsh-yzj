@@ -71,6 +71,19 @@ export interface PendingTask {
     readonly tiebreak: 'sole' | 'msgId'
     readonly contenders: readonly string[]
   }
+  /** 重做一件已有的活（打回之后、或续跑一件没有续跑地址的活）：结果落回它自己那张卡。 */
+  readonly redo?: Redo
+}
+
+/**
+ * 重做：这一回合不开新任务，交付落回 `taskId` 那张卡 (返工闭环).
+ *
+ * `round` / `reason` 在 = 这是打回之后的返工，云小助要知道上一版错在哪。
+ */
+export interface Redo {
+  readonly taskId: string
+  readonly round?: number
+  readonly reason?: string
 }
 
 /**

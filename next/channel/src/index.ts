@@ -231,6 +231,8 @@ export function apply(ctx: Context, config: Config): void {
       // system's actor is a bare `operator` that no `allowedActors` accepts —
       // fail closed while the identity is still unknown.
       ctx.yzjCards.setDesktopActor({ kind: 'operator', openId: identity.openId }, identity.name)
+      // 开机对账：挂在「返工中」却没人在改的活，说成它真实的样子——停了，等人定。
+      void poller.parkStalledRework().catch(onError)
       const delivery = new YzjCardDelivery(ctx, client, identity.openId)
       disposers.push(ctx.provide('yzjCardChannel', delivery))
       // The read/write face the desktop surface consumes. Provided only once
@@ -363,10 +365,27 @@ export function apply(ctx: Context, config: Config): void {
         if (event.type !== 'task/resumed') return
         const data = event.data as { taskId?: unknown }
         if (typeof data.taskId !== 'string') return
-        void orchestrator.resumeTask(data.taskId).then((resumed) => {
-          if (!resumed) {
-            console.warn(`[yzj-next-channel] task ${String(data.taskId)} has no resume address`)
-          }
+        const taskId = data.taskId
+        void orchestrator.resumeTask(taskId).then(async (resumed) => {
+          // 没有续跑地址（重启前的旧中断、开机时停下的返工）：从图上找回去的路。
+          if (resumed || await poller.rerunTask(taskId)) return
+          console.warn(`[yzj-next-channel] task ${taskId} has no resume address`)
+        }).catch(onError)
+      }))
+      /*
+        打回 = 一句新吩咐，落在同一张卡上 (返工闭环).
+
+        此前打回只记了理由：云小助从没被叫回去改，「返工中」成了没有出口的状态。和「继续」
+        同一个理由挂在**决定**上而不是关键词上——群里回「打回 …」和桌面按「打回」，落到
+        图上是同一个 `task/rejected`。
+      */
+      disposers.push(ctx.on('yzj-graph/appended', (event) => {
+        if (event.type !== 'task/rejected') return
+        const data = event.data as { taskId?: unknown }
+        if (typeof data.taskId !== 'string') return
+        const taskId = data.taskId
+        void poller.rerunTask(taskId).then((queued) => {
+          if (!queued) console.warn(`[yzj-next-channel] task ${taskId} was sent back but has no way home`)
         }).catch(onError)
       }))
       // A retried approval re-issues the work as a NEW turn. The retry is
