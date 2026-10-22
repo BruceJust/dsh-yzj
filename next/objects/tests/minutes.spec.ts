@@ -35,6 +35,14 @@ beforeEach(async () => {
   await graph.selectAccount('acct-1')
 })
 
+/**
+ * 本地时区 2026-08-18 的凌晨 0:30。
+ *
+ * 期限按本地日期读，所以夹具也按本地钟点造——写死一个 epoch 数，测试就只在造它的那个
+ * 时区里绿（东八区的 8/18 上午，在太平洋时区还是 8/17）。
+ */
+const DUE_EARLY = new Date(2026, 7, 18, 0, 30).getTime()
+
 /** 真实形状：minutes.decisions[{content,basis,owner}] / actionItems[{text,assignee,dueDate,executors[]}] */
 const PAYLOAD = {
   title: 'Q3 对账对齐会',
@@ -48,7 +56,7 @@ const PAYLOAD = {
       {
         text: '拉三家竞品各一页',
         assignee: '张锐',
-        dueDate: 1787022000000,
+        dueDate: DUE_EARLY,
         executors: [{ openId: 'p-9', name: '张锐', jobTitle: '后端开发' }],
       },
       { text: '核对发票差异', assignee: '王五', dueDate: 0, executors: [] },
@@ -69,8 +77,21 @@ describe('读一份纪要', () => {
     expect(read.decisions[0]?.basis).toBe('财务确认过新版口径已发布')
     expect(read.tasks.map(task => task.what))
       .toEqual(['拉三家竞品各一页', '核对发票差异', '整理会议纪要'])
-    // 1787022000000 是本地时区的 2026-08-18；期限按本地日期读，因为看它的人在本地。
     expect(read.tasks[0]?.due).toBe('2026-08-18')
+  })
+
+  /*
+    期限按本地日期读，因为看它的人在本地。
+
+    同一天的头尾两个钟点都得读成这一天：只要不在 UTC，两头总有一头落在 UTC 的另一天，
+    按 UTC 读的实现过不了这一条——在哪个时区跑都一样。
+  */
+  it('期限按本地日期读，一天的头尾都算这一天', () => {
+    const dueOf = (dueDate: number): string | undefined => readMinutes('st-1', {
+      minutes: { actionItems: [{ text: '交周报', assignee: '张锐', dueDate, executors: [] }] },
+    } as never).tasks[0]?.due
+    expect(dueOf(new Date(2026, 7, 18, 0, 30).getTime())).toBe('2026-08-18')
+    expect(dueOf(new Date(2026, 7, 18, 23, 30).getTime())).toBe('2026-08-18')
   })
 
   it('参会人只作为证据留下，不冒充听众', () => {
