@@ -41,7 +41,11 @@ function inline(text: string): string {
       The frame cannot navigate anywhere (`sandbox=""` denies it), so a live
       href would be a control that silently does nothing — worse than showing
       where it points. The target is rendered as visible text instead.
+
+      文档内的锚点（目录里的「#1-总览」）除外：它指的就是下面那个标题，念出来只是
+      在每一行目录后面多挂一串乱码。
     */
+    .replace(/\[([^\]]+)\]\(#[^)]*\)/gu, '$1')
     .replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/gu, '$1 <span class="u">$2</span>')
 }
 
@@ -80,6 +84,18 @@ export function markdownToHtml(source: string): string {
       paragraph = []
     }
   }
+  /*
+    连着的几行引用是一段引用，不是几段：一行一个 blockquote，左边那道线就断成
+    一截一截。每行留着换行——文档头上「类型：… / 基线：… / 范围：…」这种写法，
+    作者要的就是一行一条。
+  */
+  let quote: string[] = []
+  const closeQuote = (): void => {
+    if (quote.length > 0) {
+      out.push(`<blockquote>${quote.map(inline).join('<br>')}</blockquote>`)
+      quote = []
+    }
+  }
 
   for (const line of lines) {
     if (/^\s*```/u.test(line)) {
@@ -91,6 +107,7 @@ export function markdownToHtml(source: string): string {
         closeTable()
         closeParagraph()
         closeList()
+        closeQuote()
         inFence = true
       }
       continue
@@ -103,6 +120,7 @@ export function markdownToHtml(source: string): string {
       closeTable()
       closeParagraph()
       closeList()
+      closeQuote()
       continue
     }
     const heading = /^(#{1,6})\s+(.*)$/u.exec(line)
@@ -121,14 +139,17 @@ export function markdownToHtml(source: string): string {
       out.push('<hr>')
       continue
     }
-    const quote = /^\s*&gt;\s?(.*)$/u.exec(line)
-    if (quote !== null) {
+    const quoted = /^\s*&gt;\s?(.*)$/u.exec(line)
+    if (quoted !== null) {
       closeTable()
       closeParagraph()
       closeList()
-      out.push(`<blockquote>${inline(quote[1] ?? '')}</blockquote>`)
+      // 引用里的空行（「>」单独一行）是段落的分隔，不是一行空字。
+      if ((quoted[1] ?? '').trim() === '') closeQuote()
+      else quote.push(quoted[1] ?? '')
       continue
     }
+    closeQuote()
     // A table is recognised by its separator row, so the header is buffered
     // until the line after it proves what it was.
     // A table at the very top of a file is still a table; the only thing the
@@ -167,6 +188,7 @@ export function markdownToHtml(source: string): string {
     paragraph.push(line.trim())
   }
   if (inFence && fence.length > 0) out.push(`<pre><code>${fence.join('\n')}</code></pre>`)
+  closeQuote()
   closeTable()
   closeParagraph()
   closeList()
@@ -191,7 +213,8 @@ export function previewDocument(body: string, dark = false): string {
   const ink = dark ? FRAME_INK.dark : FRAME_INK.light
   return `<!doctype html><meta charset="utf-8"><style>
   :root { color-scheme: ${ink.scheme}; }
-  body { margin: 0; padding: 4px 2px; font: 13px/1.75 -apple-system, "PingFang SC", system-ui, sans-serif; color: ${ink.ink}; background: transparent; }
+  /* system-ui 打头：Chromium 不认 -apple-system，排在前面就落到苹方，苹方的连字符是一道长横，「kwork-server」读成「kwork–server」。 */
+  body { margin: 0; padding: 4px 2px; font: 13px/1.75 system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; color: ${ink.ink}; background: transparent; }
   h1,h2,h3,h4,h5,h6 { margin: 1.1em 0 .5em; line-height: 1.35; }
   h1 { font-size: 1.5em; } h2 { font-size: 1.28em; } h3 { font-size: 1.12em; }
   p, li { margin: .45em 0; }

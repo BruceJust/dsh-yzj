@@ -65,6 +65,18 @@ describe('人真的会写的那些', () => {
   it('keeps an ordinary paragraph as one paragraph', () => {
     expect(markdownToHtml('第一行\n第二行')).toBe('<p>第一行 第二行</p>')
   })
+
+  /* 一行一个 blockquote，左边那道线就断成一截一截（实测：一份接口文档的文档头）。 */
+  it('连着的引用是一段引用，每行留着换行；「>」单独一行才分段', () => {
+    expect(markdownToHtml('> 类型：接口梳理\n> 基线：`main`\n>\n> 范围：后端'))
+      .toBe('<blockquote>类型：接口梳理<br>基线：<code>main</code></blockquote>\n<blockquote>范围：后端</blockquote>')
+  })
+
+  /* 目录里每一行后面挂一串「#1-总览」，读的人只看到乱码——它指的就是下面那个标题。 */
+  it('文档内的锚点只留字；往外的链接照旧把去处写出来', () => {
+    expect(markdownToHtml('1. [总览](#1-总览)')).toBe('<ol>\n<li>总览</li>\n</ol>')
+    expect(markdownToHtml('[文档](https://a.example/x)')).toContain('文档 <span class="u">https://a.example/x</span>')
+  })
 })
 
 describe('装进框里的那份文档', () => {
@@ -85,6 +97,14 @@ describe('装进框里的那份文档', () => {
       expect(out.slice(closed)).toMatch(/<pre>|<h1>|<blockquote>|<hr>/u)
     }
     expect(markdownToHtml(table).endsWith('</tbody></table>')).toBe(true)
+  })
+
+  /* Chromium 不认 -apple-system：它排在前面，正文就落到苹方，连字符画成一道长横。 */
+  it('字体先认 system-ui——「kwork-server」不被画成「kwork–server」', () => {
+    const doc = previewDocument('<p>x</p>')
+    const stack = /font: 13px\/1\.75 ([^;]+);/u.exec(doc)?.[1] ?? ''
+    expect(stack.startsWith('system-ui')).toBe(true)
+    expect(stack.indexOf('PingFang SC')).toBeGreaterThan(stack.indexOf('BlinkMacSystemFont'))
   })
 
   it('跟着宿主的明暗排版：暗色下是浅字、暗色方案，框底透明', () => {
