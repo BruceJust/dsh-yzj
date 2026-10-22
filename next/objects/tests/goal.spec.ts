@@ -721,9 +721,10 @@ describe('签发的边界', () => {
     const proposalId = await openBreakdown()
     const ref = { kind: 'proposal', id: proposalId }
     /*
-      Keywords match by PREFIX (that is how 「确认 1,3」 carries its selection),
-      so a loose synonym is a loaded gun. These three were measured resolving
-      to `confirmed` before the list was narrowed to imperative verbs.
+      These three were measured resolving to `confirmed` back when keywords
+      matched by bare prefix; the list was narrowed to imperative verbs then.
+      Now a reason-taking verb also needs a break before its reason (「确认 1,3」),
+      and a bare verb must be the whole reply — see 「一句话不是签字」 in cards.
     */
     expect(cards.resolveKeyword(ref, '同意归同意，但先别登记')).toBeUndefined()
     expect(cards.resolveKeyword(ref, '就这样下去可不行')).toBeUndefined()

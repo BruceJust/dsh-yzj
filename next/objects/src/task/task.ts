@@ -235,7 +235,12 @@ export const taskCard: CardDefinition<TaskState> = {
       id: 'accept',
       label: '验收',
       style: 'primary',
-      keywords: ['验收', '收了', '就这样收了', '可以', '通过', 'done'],
+      /*
+        人对着交付说「完成了」，就是在收口——此前这句话不在词表里，落到云小助那儿，它答
+        「好，这件事就算完成了」，卡上什么都没动（实测 2026-10-21）。词表能放宽，是因为
+        现在认的是整句：「完成了吗？」「可以再加一列吗」都不是签字。
+      */
+      keywords: ['验收', '收了', '就这样收了', '可以', '通过', '完成', '没问题', 'ok', 'done'],
       // 验收是人签发的裁决终态：如实声明（家族即接口），判据留给听的人（私账侧的比值分子）。
       verdict: 'acceptance',
       allowedActors: (actor, state) => mayJudge(actor.openId, state),

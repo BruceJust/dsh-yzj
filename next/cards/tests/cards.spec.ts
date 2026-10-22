@@ -132,11 +132,44 @@ describe('registry and keyword resolution', () => {
     expect(cards.resolveKeyword(ref, '确认')).toEqual({ actionId: 'approve' })
     expect(cards.resolveKeyword(ref, '  同意 ')).toEqual({ actionId: 'approve' })
     expect(cards.resolveKeyword(ref, '再想想')).toBeUndefined()
-    // The leftover comes back with the action, with or without a separating
-    // space — the card knows where its own keyword ends.
+    // The reason comes back with the action, after a space or a punctuation
+    // mark — the card knows where its own keyword ends.
     expect(cards.resolveKeyword(ref, '取消 价格没定')).toEqual({ actionId: 'reject', input: '价格没定' })
     expect(cards.resolveKeyword(ref, '取消，理由是价格没定'))
       .toEqual({ actionId: 'reject', input: '理由是价格没定' })
+  })
+})
+
+/**
+ * 回一个词是一次签字，签字不能有歧义 (实测 2026-10-21).
+ *
+ * 此前按前缀认：对着写入确认回「确认一下金额对吗」就放行了。人在追问，系统替他签了字。
+ */
+describe('一句话不是签字', () => {
+  const ref = { kind: 'confirm', id: 'c1' }
+
+  it('不带原因的动词：整句就是这个词才算，语气词和句末标点不改变它', () => {
+    expect(cards.resolveKeyword(ref, '确认！')).toEqual({ actionId: 'approve' })
+    expect(cards.resolveKeyword(ref, '同意的')).toEqual({ actionId: 'approve' })
+    expect(cards.resolveKeyword(ref, 'OK~')).toEqual({ actionId: 'approve' })
+    expect(cards.resolveKeyword(ref, '确认一下金额对吗')).toBeUndefined()
+    expect(cards.resolveKeyword(ref, '同意，但是先别发')).toBeUndefined()
+    expect(cards.resolveKeyword(ref, 'okr 那份发我')).toBeUndefined()
+    // 问号让它成了一个问题。
+    expect(cards.resolveKeyword(ref, '确认？')).toBeUndefined()
+  })
+
+  it('带原因的动词：词和原因要隔开，「不要紧」式的连写不是在答卡', () => {
+    expect(cards.resolveKeyword(ref, '取消')).toEqual({ actionId: 'reject' })
+    expect(cards.resolveKeyword(ref, '取消：价格没定')).toEqual({ actionId: 'reject', input: '价格没定' })
+    expect(cards.resolveKeyword(ref, '取消掉那个会议')).toBeUndefined()
+    expect(cards.resolveKeyword(ref, '拒绝了也没关系吧？')).toBeUndefined()
+  })
+
+  it('编号照旧：「1」「2 价格没定」', async () => {
+    await openConfirm('c1')
+    expect(cards.resolveKeyword(ref, '1')).toEqual({ actionId: 'approve' })
+    expect(cards.resolveKeyword(ref, '2 价格没定')).toEqual({ actionId: 'reject', input: '价格没定' })
   })
 })
 

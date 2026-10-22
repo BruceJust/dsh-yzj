@@ -471,6 +471,20 @@ describe('返工闭环：打回之后人还能定', () => {
     expect(cards.demandOf(graph.rawObject('task', 'tsk-run') as never)).toBeUndefined()
   })
 
+  it('对着交付说「完成了」就是收口；「可以再加一列吗」「完成了吗？」是在说话，不是签字', async () => {
+    const id = await openTerminalTask()
+    const ref = { kind: 'task', id }
+    for (const said of ['完成了', '完成了！', '没问题', '可以了', 'OK', '验收']) {
+      expect(cards.resolveKeyword(ref, said)?.actionId, said).toBe('accept')
+    }
+    for (const said of ['可以再加一列吗', '完成了吗？', '通过邮件发我一份', '可以？', '没问题的话就发群里']) {
+      expect(cards.resolveKeyword(ref, said), said).toBeUndefined()
+    }
+    // 带原因的照旧：打回要原因，原因跟在词后面。
+    expect(cards.resolveKeyword(ref, '打回 口径不对')).toEqual({ actionId: 'reject', input: '口径不对' })
+    expect(cards.resolveKeyword(ref, '不行就算了')).toBeUndefined()
+  })
+
   it('派活的人说不用再改，就是收口', async () => {
     const id = await openTerminalTask()
     await cards.act({ kind: 'task', id }, 'reject', OPERATOR, 'yzj-text', '口径不对')

@@ -242,13 +242,31 @@ export class YzjCards extends Service {
         return { actionId: action.id, ...(rest === '' ? {} : { input: rest }) }
       }
     }
+    /*
+      **回一个词是一次签字，签字不能有歧义** (实测 2026-10-21).
+
+      此前按前缀认：对着交付回「可以再加一列吗」= 验收（吸收态，收不回）；对着写入确认回
+      「确认一下金额对吗」= 放行；「yzj 那个文档…」以 `y` 开头 = 放行；「改天再说」= 按新的。
+      人在追问，系统替他签了字。
+
+      - 不带原因的动词（放行、验收、继续、签发…）：整句就是这个词，后面最多跟语气词和句末
+        标点。带了别的话、或者是个问句，那就是一句话，交给云小助。
+      - 带原因的动词（打回、作废、收回、取消）：词和原因之间要隔开——「打回 口径不对」
+        「打回：口径不对」。「不行就算了」「不要紧」不是在答卡。
+    */
     const normalized = normalize(trimmed)
     for (const action of definition.actions) {
       for (const keyword of action.keywords) {
         const target = normalize(keyword)
         if (target === '' || !normalized.startsWith(target)) continue
-        const input = leftoverAfter(trimmed, keyword)
-        return { actionId: action.id, ...(input === undefined ? {} : { input }) }
+        const tail = tailAfter(trimmed, keyword)
+        if (action.needsInput === true) {
+          if (tail !== '' && !SEPARATOR.test(tail)) continue
+          const input = tail.replace(LEADING_SEPARATORS, '').trim()
+          return { actionId: action.id, ...(input === '' ? {} : { input }) }
+        }
+        if (!SOFT_TAIL.test(tail)) continue
+        return { actionId: action.id }
       }
     }
     return undefined
@@ -615,7 +633,8 @@ function actorKey(actor: GraphActor): string {
  * it; walk the original text until as many non-space characters as the keyword
  * has have been consumed.
  */
-function leftoverAfter(text: string, keyword: string): string | undefined {
+/** 关键词之后原样剩下的那段（关键词按去空白后的字数吃掉）。 */
+function tailAfter(text: string, keyword: string): string {
   const wanted = normalize(keyword).length
   let consumed = 0
   let index = 0
@@ -623,9 +642,14 @@ function leftoverAfter(text: string, keyword: string): string | undefined {
     if (!/\s/u.test(text[index] ?? '')) consumed += 1
     index += 1
   }
-  const rest = text.slice(index).replace(/^[\s，,。．.：:；;!！?？]+/u, '').trim()
-  return rest === '' ? undefined : rest
+  return text.slice(index)
 }
+
+/** 词和原因之间的那道隔断。 */
+const SEPARATOR = /^[\s，,。．.：:；;、!！]/u
+const LEADING_SEPARATORS = /^[\s，,。．.：:；;、!！?？]+/u
+/** 「可以了」「验收！」「ok~」：语气词和句末标点不改变签的是什么。问号会——「可以？」是在问。 */
+const SOFT_TAIL = /^[\s了的啦呀啊吧哈喽咯嘞]*[\s。．.!！~～]*$/u
 
 function normalize(text: string): string {
   return text.replace(/\s+/gu, '').replace(/[。．.!！?？,，;；:：]+$/u, '').toLowerCase()
