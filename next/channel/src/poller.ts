@@ -175,6 +175,23 @@ export function unlinkPlan(input: {
 }
 
 /**
+ * 这条消息是不是回复了云小助说的话 —— 回复某人就是向他受话 (v4.7)。
+ *
+ * 是云小助说的才算。操作者从桌面发的话也在出站登记里（回声抑制要它），可同事回复操作者
+ * 的一句话，是在跟操作者说，不是在叫云小助。和桌面发送那一路（`deskSendPlan`）同一个
+ * 判据——评审 2026-08-19 只修了那一路，入站这一路还拿「我们发过的」当「云小助说的」。
+ */
+export function repliesToAgentIn(
+  state: Pick<ChannelState, 'isAgentOutboundId'>,
+  message: YzjMessage,
+): boolean {
+  for (const anchor of [message.param.replyMsgId, message.param.replyRootMsgId]) {
+    if (anchor !== undefined && state.isAgentOutboundId(anchor)) return true
+  }
+  return false
+}
+
+/**
  * 话题里这类东西不止一条时，IM 动词不替人挑。私聊、自聊是一个活很久的话题，`.find` 挑中的
  * 是查询顺序里的第一条，不是人心里那条；挂错、摘错的账要靠下一条更正才改得回来。
  */
@@ -470,12 +487,7 @@ export class YzjPoller {
       // 受话判定 (v4.7): identity cannot answer "did the agent send that" —
       // the agent posts under the operator's account — so the outbound
       // registry answers it.
-      repliesToAgent: (candidate) => {
-        for (const anchor of [candidate.param.replyMsgId, candidate.param.replyRootMsgId]) {
-          if (anchor !== undefined && this.state.isOwnOutboundId(anchor)) return true
-        }
-        return false
-      },
+      repliesToAgent: candidate => repliesToAgentIn(this.state, candidate),
       cardForAnchor: anchor => this.ctx.yzjCards.cardForAnchor(anchor),
       resolveKeyword: (cardRef, text) => this.ctx.yzjCards.resolveKeyword(cardRef, text),
     })

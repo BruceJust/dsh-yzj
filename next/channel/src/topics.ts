@@ -64,6 +64,15 @@ export interface TopicMessage {
    * triage uses to avoid answering itself.
    */
   readonly own: boolean
+  /**
+   * 是**云小助**说的，不是操作者从桌面发的 —— 「回复它 = 叫云小助」认的是这一个。
+   *
+   * `own` 两者都算（回声抑制、这一列不重复画，要的就是「我们发的」）；可回复自己从桌面
+   * 发的话不是在叫云小助。此前回复键拿 `own` 当「回的是云小助」，发送键写着「发出 · 交
+   * 给云小助」，服务端（`isAgentOutboundId`）却按普通消息发——键上的话没兑现（实测
+   * 2026-10-21，自聊里回自己的一句「完成了」）。
+   */
+  readonly agent: boolean
   readonly replyToSummary?: string
   /**
    * The root of the reply chain this message hangs on (itself when it starts
@@ -1074,6 +1083,8 @@ export class YzjTopicReader implements YzjTopics {
         ...(message.param.ext === undefined ? {} : { ext: message.param.ext }),
         ...(message.param.size === undefined ? {} : { size: message.param.size }),
       }
+    // 先认领指纹（`isOwnOutbound` 会把 msgId 记到那条出站上），再问那条出站是谁发的。
+    const own = this.state.isOwnOutbound(message.msgId, groupId, outboundFingerprint(groupId, message.content))
     return {
       ...(chainRootId === undefined ? {} : { chainRootId }),
       msgId: message.msgId,
@@ -1086,9 +1097,8 @@ export class YzjTopicReader implements YzjTopics {
       content: message.content,
       msgType: message.msgType,
       time: parseSendTime(message.sendTime),
-      own: this.state.isOwnOutbound(
-        message.msgId, groupId, outboundFingerprint(groupId, message.content),
-      ),
+      own,
+      agent: own && this.state.isAgentOutboundId(message.msgId),
       ...(message.param.replySummary === undefined
         ? {}
         : { replyToSummary: message.param.replySummary }),

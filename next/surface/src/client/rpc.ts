@@ -18,6 +18,8 @@ export interface TopicMessageWire {
   msgType: string
   time: number
   own: boolean
+  /** 是云小助说的（不是你从桌面发的）——回复它才是在叫云小助。 */
+  agent?: boolean
   replyToSummary?: string
   /** The message this replies to — what makes the quote line a door. */
   replyToId?: string

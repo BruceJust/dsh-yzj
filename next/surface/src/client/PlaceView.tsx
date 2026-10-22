@@ -768,7 +768,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                           msgId: row.message.msgId,
                           who: row.message.fromName,
                           text: clip(row.message.content),
-                          agent: row.message.own,
+                          agent: row.message.agent === true,
                         })
                         // 回复 = 挂链; ⚡ = 挂链 + 受话。明确选了前者，就把
                         // 后者那半摘掉——否则两个动词按下去没有区别，第二个
@@ -789,7 +789,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                           msgId: row.message.msgId,
                           who: row.message.fromName,
                           text: clip(row.message.content),
-                          agent: row.message.own,
+                          agent: row.message.agent === true,
                         })
                         const alias = view.aliases?.[0]
                         if (alias !== undefined) {
