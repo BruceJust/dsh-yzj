@@ -19,7 +19,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { asNumber, asRecord, asString, type GraphActor } from '@yzj-next/graph'
+import { asNumber, asRecord, asString, type GraphActor, type JsonValue } from '@yzj-next/graph'
 import { describeObject, ownsCommitment, processSummary, readSignature } from '@yzj-next/objects'
 import {
   accountKeyFor, conversationKindForGroup, groupIdFromPlaceKey, hasLeadingAlias,
@@ -171,6 +171,17 @@ export function unlinkPlan(input: {
 }): 'unlink' | 'not-mine' | 'nothing' {
   if (input.attached === undefined) return 'nothing'
   return ownsCommitment(input.fromOpenId, input.attached) ? 'unlink' : 'not-mine'
+}
+
+/**
+ * 话题里这类东西不止一条时，IM 动词不替人挑。私聊、自聊是一个活很久的话题，`.find` 挑中的
+ * 是查询顺序里的第一条，不是人心里那条；挂错、摘错的账要靠下一条更正才改得回来。
+ */
+function manyCommitments(commitments: readonly { id: string; state: JsonValue }[], verb: '挂' | '摘'): string {
+  return [
+    `这个话题里有 ${String(commitments.length)} 条承诺，不替你猜${verb}哪条——在工作台的承诺板上选中那条再${verb}：`,
+    ...commitments.map(object => `· ${asString(asRecord(object.state)?.what) ?? object.id}`),
+  ].join('\n')
 }
 
 export interface PollerConfig {
@@ -1328,9 +1339,17 @@ export class YzjPoller {
     actorOpenId: string,
   ): Promise<string> {
     const viewer = { kind: 'operator' as const, openId: route.accountOpenId }
-    const task = this.ctx.yzjGraph.query(viewer, { kind: 'task', status: ['terminal'] })
-      .find(object => asString(asRecord(object.state)?.topicKey) === route.topicKey)
+    const tasks = this.ctx.yzjGraph.query(viewer, { kind: 'task', status: ['terminal'] })
+      .filter(object => asString(asRecord(object.state)?.topicKey) === route.topicKey)
+    const task = tasks[0]
     if (task === undefined) return '这个话题里没有待验收的任务。'
+    // 私聊、自聊是一个长话题，等验收的可以不止一件。验收是吸收态，认错了收不回来——不猜。
+    if (tasks.length > 1) {
+      return [
+        `这个话题里有 ${String(tasks.length)} 件活等验收，不替你猜是哪件。回复那件活的交付消息说「验收」或「打回 <原因>」：`,
+        ...tasks.map(object => `· ${asString(asRecord(object.state)?.what) ?? object.id}`),
+      ].join('\n')
+    }
     if (verb === 'reject' && argument === '') return '请说明打回原因：/reject <原因>'
     const result = await this.ctx.yzjCards.act(
       { kind: 'task', id: task.id },
@@ -1350,12 +1369,14 @@ export class YzjPoller {
   private async linkGoal(route: YzjTopicRoute, argument: string): Promise<string> {
     if (argument === '') return '请给出目标引用：/link <目标文档链接或 ID>'
     const viewer = { kind: 'operator' as const, openId: route.accountOpenId }
-    const commitment = this.ctx.yzjGraph.query(viewer, { kind: 'commitment', status: ['open'] })
-      .find(object => {
+    const commitments = this.ctx.yzjGraph.query(viewer, { kind: 'commitment', status: ['open'] })
+      .filter(object => {
         const executor = asRecord(asRecord(object.state)?.executor)
         return asString(executor?.topicKey) === route.topicKey
       })
+    const commitment = commitments[0]
     if (commitment === undefined) return '这个话题里还没有可挂接的承诺。'
+    if (commitments.length > 1) return manyCommitments(commitments, '挂')
     await this.ctx.yzjGraph.append({
       type: 'commitment/updated',
       data: {
@@ -1385,8 +1406,8 @@ export class YzjPoller {
    */
   private async unlinkGoal(route: YzjTopicRoute, fromOpenId: string): Promise<string> {
     const viewer = { kind: 'operator' as const, openId: route.accountOpenId }
-    const commitment = this.ctx.yzjGraph.query(viewer, { kind: 'commitment', status: ['open'] })
-      .find(object => {
+    const attached = this.ctx.yzjGraph.query(viewer, { kind: 'commitment', status: ['open'] })
+      .filter(object => {
         const state = asRecord(object.state)
         const executor = asRecord(state?.executor)
         return (asString(executor?.topicKey) === route.topicKey
@@ -1394,6 +1415,8 @@ export class YzjPoller {
           && asString(state?.parentGoalRef) !== undefined
           && asString(state?.parentGoalRef) !== ''
       })
+    if (attached.length > 1) return manyCommitments(attached, '摘')
+    const commitment = attached[0]
     const state = asRecord(commitment?.state)
     const delegatedBy = asString(state?.delegatedBy)
     const plan = unlinkPlan({

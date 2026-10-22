@@ -273,6 +273,36 @@ describe('process summary', () => {
     })
     expect(processSummary(ctx, { topicKey: TOPIC, viewer: VIEWER })).toBeUndefined()
   })
+
+  it('摘的是这件活的那一段：私聊里更早那件活建的文档、开的等待都不算', async () => {
+    const produced = (uri: string, title?: string) => graph.append({
+      type: 'lineage/produced',
+      data: {
+        topicKey: TOPIC,
+        artifact: { uri, placeKey: 'yzj-kb-1', ...(title === undefined ? {} : { title }) },
+        action: '写入文档内容',
+      },
+      actor: { kind: 'agent' },
+    })
+    await produced('yzj://doc/old', '日程能力')
+    await graph.append({
+      type: 'waiting/opened',
+      data: { waitingId: 'wtg-old', kind: 'third-party', what: '等法务确认口径', openedAt: Date.now(), topicKey: TOPIC },
+      actor: { kind: 'agent' },
+    })
+    await new Promise(resolve => setTimeout(resolve, 5))
+    const since = Date.now()
+    expect(processSummary(ctx, { topicKey: TOPIC, viewer: VIEWER, since })).toBeUndefined()
+
+    await produced('yzj://doc/new')
+    await produced('yzj://doc/new')
+    await produced('yzj://doc/new')
+    const summary = processSummary(ctx, { topicKey: TOPIC, viewer: VIEWER, since })
+    // 同一份写了三遍是一行；没有标题就不把链接写两遍。
+    expect(summary).toBe('【过程摘要】\n产出：\n· 写入文档内容 ×3：yzj://doc/new')
+    // 不给 since 的（/status 那种拉取视图）照旧看整个话题。
+    expect(processSummary(ctx, { topicKey: TOPIC, viewer: VIEWER })).toContain('日程能力')
+  })
 })
 
 /**

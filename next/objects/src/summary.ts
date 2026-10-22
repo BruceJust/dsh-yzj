@@ -19,25 +19,40 @@ import {
 export interface ProcessSummaryInput {
   readonly topicKey: string
   readonly viewer: GraphViewer
+  /**
+   * Only what happened from this moment on (epoch ms) — the span of the task
+   * being delivered. A DM or self-chat is one long-lived topic; summarizing
+   * the whole topic made every delivery claim the documents, approvals and
+   * waits of every earlier task (实测 2026-10-21：一句「我有几个知识库」交回来，
+   * 摘要里写着三次「写入文档内容」和一条「顺延承诺期限 → 已放行」).
+   * Omit for the topic-wide pull view (`/status`).
+   */
+  readonly since?: number
   /** Cap on artifact lines; the rest are counted. */
   readonly maxArtifacts?: number
 }
 
 interface ArtifactLine {
   readonly action: string
-  readonly title: string
+  readonly title?: string
   readonly uri: string
+  times: number
 }
 
 function artifactOf(data: Record<string, JsonValue> | undefined): ArtifactLine | undefined {
   const artifact = asRecord(data?.artifact)
   const uri = asString(artifact?.uri)
   if (uri === undefined) return undefined
-  return {
-    action: asString(data?.action) ?? '产出',
-    title: asString(artifact?.title) ?? uri,
-    uri,
-  }
+  const title = asString(artifact?.title)
+  return { action: asString(data?.action) ?? '产出', ...(title === undefined ? {} : { title }), uri, times: 1 }
+}
+
+/** 同一份东西写了三遍是一行「×3」，不是三行；没有标题就不把链接写两遍。 */
+function renderArtifact(line: ArtifactLine): string {
+  const times = line.times > 1 ? ` ×${String(line.times)}` : ''
+  return line.title === undefined
+    ? `· ${line.action}${times}：${line.uri}`
+    : `· ${line.action}${times}：${line.title}\n  ${line.uri}`
 }
 
 /**
@@ -47,17 +62,23 @@ function artifactOf(data: Record<string, JsonValue> | undefined): ArtifactLine |
  */
 export function processSummary(ctx: Context, input: ProcessSummaryInput): string | undefined {
   const maxArtifacts = input.maxArtifacts ?? 8
+  const since = input.since ?? Number.NEGATIVE_INFINITY
 
   const produced: ArtifactLine[] = []
   for (const event of ctx.yzjGraph.rawEvents(['lineage/produced'])) {
+    if (event.time < since) continue
     const data = asRecord(event.data)
     if (asString(data?.topicKey) !== input.topicKey) continue
     const line = artifactOf(data)
-    if (line !== undefined) produced.push(line)
+    if (line === undefined) continue
+    const same = produced.find(seen => seen.action === line.action && seen.uri === line.uri)
+    if (same === undefined) produced.push(line)
+    else same.times += 1
   }
 
   const decisions: string[] = []
   for (const event of ctx.yzjGraph.rawEvents(['approval/decided', 'approval/expired'])) {
+    if (event.time < since) continue
     const data = asRecord(event.data)
     const approvalId = asString(data?.approvalId)
     if (approvalId === undefined) continue
@@ -71,12 +92,12 @@ export function processSummary(ctx: Context, input: ProcessSummaryInput): string
 
   const waits = ctx.yzjGraph.query(input.viewer, { kind: 'waiting', status: ['open', 'escalated'] })
     .filter(object => asString(asRecord(object.state)?.topicKey) === input.topicKey)
+    .filter(object => object.createdAt >= since)
     .map(object => asString(asRecord(object.state)?.what) ?? '未命名')
 
   if (produced.length === 0 && decisions.length === 0 && waits.length === 0) return undefined
 
-  const artifactLines = produced.slice(0, maxArtifacts)
-    .map(line => `· ${line.action}：${line.title}\n  ${line.uri}`)
+  const artifactLines = produced.slice(0, maxArtifacts).map(renderArtifact)
   const overflow = produced.length - artifactLines.length
 
   return [

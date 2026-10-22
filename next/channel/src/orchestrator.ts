@@ -651,7 +651,7 @@ export class YzjOrchestrator {
         return
       }
       await this.closeTask(taskId, trigger, route, summary.text, startedAt)
-      const replyId = await this.deliver(group, trigger, route, this.finalReply(summary.text, route, taskId))
+      const replyId = await this.deliver(group, trigger, route, this.finalReply(summary.text, route, taskId, startedAt))
       if (replyId !== undefined) await this.projectTask(taskId, replyId, route)
     } catch (error) {
       if (error instanceof DeliveryOutcomeUnknownError) {
@@ -858,11 +858,12 @@ export class YzjOrchestrator {
    * plus the free projection of what actually happened, and the words that
    * accept or reject it.
    */
-  private finalReply(text: string, route: YzjTopicRoute, taskId: string): string {
+  private finalReply(text: string, route: YzjTopicRoute, taskId: string, since: number): string {
     const viewer = route.conversationKind === 'group'
       ? { kind: 'place' as const, placeKey: route.placeKey }
       : { kind: 'operator' as const, openId: route.accountOpenId }
-    const summary = processSummary(this.ctx, { topicKey: route.topicKey, viewer })
+    // 摘的是这一回合做了什么——私聊和自聊是一个活很久的话题，按话题摘会把以前每件活的产出都算进来。
+    const summary = processSummary(this.ctx, { topicKey: route.topicKey, viewer, since })
     const body = clipMessage(text, this.config.maxReplyChars)
     return [
       body,
