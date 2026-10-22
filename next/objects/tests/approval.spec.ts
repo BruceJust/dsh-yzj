@@ -345,7 +345,7 @@ describe('restart (§5.5 中断可恢复)', () => {
     await graph.append({
       type: 'approval/opened',
       data: {
-        approvalId, toolName: 'yzj_doc_create', reason: '新建知识库文档', level: 'standard',
+        approvalId, toolName: 'yzj_doc_create', reason: '云之家操作确认：新建知识库文档', level: 'standard',
         args: {}, argsDigest: 'cccccccccccccccc', decider: 'op-1',
         deadline: Date.now() - 61 * 24 * 60 * 60 * 1000, callId: 'c7', sessionAnchor: SESSION,
       },
@@ -360,6 +360,8 @@ describe('restart (§5.5 中断可恢复)', () => {
     expect(cards.pending(OPERATOR).map(object => object.id)).not.toContain(approvalId)
     expect(said).toHaveLength(1)
     expect(said[0]).toContain('新建知识库文档')
+    // 抬头只说一遍：守门层加在 reason 前的「云之家操作确认：」不再跟在「【云之家确认·…】」后面。
+    expect(said[0]).not.toContain('云之家操作确认')
 
     // 已经过期的不会每次重启再说一遍。
     const again = newAnswerer()

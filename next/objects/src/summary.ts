@@ -15,6 +15,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import {
   asRecord, asString, type GraphViewer, type JsonValue,
 } from '@yzj-next/graph'
+import { approvalWhat } from './approval/card.ts'
 
 export interface ProcessSummaryInput {
   readonly topicKey: string
@@ -86,7 +87,8 @@ export function processSummary(ctx: Context, input: ProcessSummaryInput): string
     const state = asRecord(approval?.state)
     if (asString(state?.topicKey) !== input.topicKey) continue
     const status = asString(state?.status) ?? '?'
-    const reason = asString(state?.reason) ?? asString(state?.toolName) ?? ''
+    const said = asString(state?.reason)
+    const reason = said === undefined ? asString(state?.toolName) ?? '' : approvalWhat(said)
     decisions.push(`${reason} → ${status === 'approved' ? '已放行' : status === 'rejected' ? '已拒绝' : '已超时'}`)
   }
 

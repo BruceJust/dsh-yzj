@@ -48,10 +48,14 @@ function statusLabel(status: ApprovalState['status']): string {
 }
 
 /**
- * 横条上的字面只说是哪一件：「云之家操作确认：」是守门那一层给云之家文本加的抬头，
- * 徽标已经说了「确认」，横条上再说一遍就把一行十来个字吃掉三分之一。
+ * 这一次确认是哪一件 —— 「云之家操作确认：」是守门那一层给 reason 加的抬头。
+ *
+ * 横条上徽标已经说了「确认」，再说一遍就把一行十来个字吃掉三分之一；卡头、终态回声写着
+ * 「【云之家确认】」，过程摘要列在「确认记录」底下——每一处都已经说过了。此前只有横条
+ * 剥掉了它，于是过期回声读作「【云之家确认·已超时自动拒绝】云之家操作确认：新建知识库
+ * 文档」（实测 2026-10-22）。
  */
-function chipLabel(reason: string): string {
+export function approvalWhat(reason: string): string {
   return reason.replace(/^云之家操作确认[：:]\s*/u, '') || reason
 }
 
@@ -133,14 +137,15 @@ export const approvalCard: CardDefinition<ApprovalState> = {
    */
   demand: state => (
     state.status === 'pending'
-      ? { layer: 'blocking', mode: 'single-confirm', label: chipLabel(state.reason) }
+      ? { layer: 'blocking', mode: 'single-confirm', label: approvalWhat(state.reason) }
       : state.status === 'interrupted'
-        ? { layer: 'blocking', mode: 'single-confirm', label: chipLabel(state.reason), badge: '待重试', verb: '重试' }
+        ? { layer: 'blocking', mode: 'single-confirm', label: approvalWhat(state.reason), badge: '待重试', verb: '重试' }
         : undefined
   ),
 
   renderText: (state) => {
-    const head = `【云之家确认】${state.reason}`
+    // 抬头已经说了是「云之家确认」，守门那一层加在 reason 前面的同一句不再说第二遍。
+    const head = `【云之家确认】${approvalWhat(state.reason)}`
     const body = [
       head,
       // 「每次都问」是判据；「不可撤销」只是其中一种理由（另一种是改变触达面）。
@@ -172,7 +177,7 @@ export const approvalCard: CardDefinition<ApprovalState> = {
    */
   onResolved: state => ({
     echoText: [
-      `【云之家确认·${statusLabel(state.status)}】${state.reason}`,
+      `【云之家确认·${statusLabel(state.status)}】${approvalWhat(state.reason)}`,
       ...(state.note === undefined || state.note === '' ? [] : [`理由：${state.note}`]),
       `[card#approval:${state.approvalId}]`,
     ].join('\n'),
