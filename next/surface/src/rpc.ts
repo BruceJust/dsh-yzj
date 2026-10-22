@@ -15,7 +15,7 @@ import {
   asNumber, asRecord, asString, atomOf,
   type GraphObject, type GraphViewer, type JsonValue,
 } from '@yzj-next/graph'
-import { cardMoment, labelOf, type AnswerableDemand, type AnswerableMode, type CardRef } from '@yzj-next/cards'
+import { cardMoment, homeOf, labelOf, type AnswerableDemand, type AnswerableMode, type CardRef } from '@yzj-next/cards'
 import type { Strip } from '@yzj-next/pledger'
 import { registrationFrom } from './client/registration.ts'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS, listOf } from '@yzj-next/tools'
@@ -3453,17 +3453,18 @@ export function cardsFor(
   for (const kind of ctx.yzjCards.types()) {
     for (const object of ctx.yzjGraph.query(viewer, { kind })) {
       const state = asRecord(object.state)
-      const owner = asString(state?.topicKey)
-        ?? asString(asRecord(state?.executor)?.topicKey)
       /*
         属于这一屏的两种可能：它挂在这个话题上，或者它就是**在这个会话里升起来的**。
 
         第二条只在没有话题键时才当数——一张挂在别的话题上的卡不该因为碰巧是同一次
-        会话开的就跑到这儿来。
+        会话开的就跑到这儿来。住在哪由卡片服务一处说了算（`homeOf`），「要你」落脚读的是
+        同一份：此前这里只认 `sessionAnchor`，本地会话里递上的提案「要你」报得出、点进来
+        却没有卡。
       */
-      const mine = owner === undefined
-        ? sessionId !== undefined && asString(state?.sessionAnchor) === sessionId
-        : owner === topic?.topicKey
+      const home = homeOf(object.state)
+      const mine = home.topicKey === undefined
+        ? sessionId !== undefined && home.sessionAnchor === sessionId
+        : home.topicKey === topic?.topicKey
       if (!mine) continue
       const definition = ctx.yzjCards.definitionOf(kind)
       if (definition === undefined) continue

@@ -20,11 +20,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { YzjGraph } from '@yzj-next/graph'
 import { YzjCards } from '@yzj-next/cards'
 import {
-  approvalCard, approvalFamily, createCommitmentCard, commitmentFamily, taskCard, taskFamily,
-  waitingCard, waitingFamily, SIGNATURE_AGENT,
+  approvalCard, approvalFamily, createCommitmentCard, commitmentFamily, createProposalCard, proposalFamily,
+  taskCard, taskFamily, waitingCard, waitingFamily, SIGNATURE_AGENT,
 } from '@yzj-next/objects'
 import type { TopicDescriptor } from '@yzj-next/channel'
-import { inboxView } from '../src/rpc.ts'
+import { boardFrame, cardsFor, inboxView } from '../src/rpc.ts'
 import { YzjSidebar } from '../src/client/Sidebar.tsx'
 import type { InboxView, SurfaceInject } from '../src/client/rpc.ts'
 import { AGENT, plainError, turnErrorLine, waitLine } from '../src/client/words.ts'
@@ -42,13 +42,14 @@ let graph: YzjGraph
 beforeEach(async () => {
   ctx = new Context()
   graph = new YzjGraph(ctx, { root: await mkdtemp(join(tmpdir(), 'yzj-next-needs-')) })
-  for (const family of [approvalFamily, taskFamily, waitingFamily, commitmentFamily]) graph.defineFamily(family)
+  for (const family of [approvalFamily, taskFamily, waitingFamily, commitmentFamily, proposalFamily]) graph.defineFamily(family)
   await graph.selectAccount('acct-1')
   const cards = new YzjCards(ctx)
   cards.register(approvalCard)
   cards.register(taskCard)
   cards.register(waitingCard)
   cards.register(createCommitmentCard(ctx))
+  cards.register(createProposalCard(ctx))
   ctx.provide('yzjTopics', {
     topicOf: (id: string) => (id === TOPIC.sessionId ? TOPIC : undefined),
     tree: () => [{ place: { placeKey: TOPIC.placeKey, groupName: TOPIC.groupName }, topics: [TOPIC] }],
@@ -173,6 +174,38 @@ describe('「要你」逐条：服务端投影', () => {
     const need = inboxView(ctx).needs[0]
     expect(need).toMatchObject({ ref: { kind: 'commitment', id: 'cm-desk' }, verb: '验收', where: '承诺', waiting: '张锐' })
     expect(need?.sessionId).toBeUndefined()
+  })
+
+  /*
+    「要你」里的每一条，点下去那一屏真有它 (状态矩阵 2026-10-22).
+
+    「住在哪」此前算了三份：收件箱、会话流各认各的。本地会话里递上的目标提案，修完收件箱
+    那一份之后「要你」报得出了，点进会话却写着「那张卡不在这个话题里了」——线上三件就是这么
+    挂了 57–62 天没人答。这一条不看哪个家族、哪种出身：报出来的每一条，落点那一屏都得有它。
+  */
+  it('报得出就落得到：每一条点下去，那一屏里都有这张卡', async () => {
+    await approval('ap-topic')
+    await approval('ap-local', 'session-local')
+    await humanDelivery('cm-topic')
+    await topiclessDelivery('cm-local', 'session:session-local')
+    await topiclessDelivery('cm-desk', 'yzj:m-desk')
+    await graph.append({
+      type: 'proposal/opened',
+      data: {
+        proposalId: 'prp-local', kind: 'goal', title: '真身正文写入闭环', items: [{ what: '真身正文写入闭环' }],
+        sourceAnchor: 'session:session-local', goalRef: 'https://www.yunzhijia.com/knowledge/d/1', decider: 'op-1',
+      },
+      actor: { kind: 'agent' },
+    })
+    const needs = inboxView(ctx).needs
+    expect(needs.map(need => need.ref.id).sort()).toEqual(['ap-local', 'ap-topic', 'cm-desk', 'cm-local', 'cm-topic', 'prp-local'])
+    const board = boardFrame(ctx)
+    const stranded = needs.filter((need) => {
+      if (need.sessionId === undefined) return !board.rows.some(row => row.id === need.ref.id)
+      const topic = need.sessionId === TOPIC.sessionId ? TOPIC : undefined
+      return !cardsFor(ctx, topic, need.sessionId).some(card => card.kind === need.ref.kind && card.id === need.ref.id)
+    })
+    expect(stranded.map(need => `${need.ref.kind}:${need.ref.id} → ${need.sessionId ?? '承诺板'}`)).toEqual([])
   })
 
   it('别的家族落不了脚的照旧不列——板上没有它', async () => {

@@ -424,8 +424,7 @@ export class YzjCards extends Service {
     for (const object of this.pending(viewer)) {
       const demand = this.demandOf(object)
       if (demand === undefined) continue
-      const topicKey = contextOf(object)
-      const sessionAnchor = sessionOf(object)
+      const { topicKey, sessionAnchor } = homeOf(object.state)
       out.push({
         ref: { kind: object.kind, id: object.id },
         demand,
@@ -671,26 +670,27 @@ function normalize(text: string): string {
  * `executor` 里）而不是类型判断——所以新家族只要照写这个字段就归位了，决断条
  * 「只收本语境直属」的那条空间规则也就自动对它成立。
  */
-function contextOf(object: GraphObject): string | undefined {
-  const state = asRecord(object.state)
-  return asString(state?.topicKey) ?? asString(asRecord(state?.executor)?.topicKey)
-}
-
 /**
- * 没有话题的对象落在哪个会话。
+ * 一个对象住在哪 —— 「要你」落脚、会话流收卡，问的是同一件事，答案只能有一份。
  *
- * 写确认自己记着 `sessionAnchor`；本地会话里登记的承诺不记，可它的出生锚就是
- * `session:<会话>`——此前没人读它，于是这种承诺一交付，「要你」就把它当成落不了脚的丢掉
- * （状态矩阵 2026-10-22：线上两件这么交的，各等了 2 分钟、10 分钟，「要你」里一直没有）。
+ * 话题优先（它自己的，或执行者的）；没有话题的落在会话：写确认自己记着 `sessionAnchor`，
+ * 本地会话里登记的承诺、递的提案、写的简报不记，可它们的出生锚就是 `session:<会话>`。
+ *
+ * 此前这件事算了三份：收件箱只认 `sessionAnchor`，会话流也只认它，于是本地会话里递上的
+ * 提案「要你」里没有、会话里也没有卡——线上三件就这么挂了 57–62 天（状态矩阵 2026-10-22）。
  */
-function sessionOf(object: GraphObject): string | undefined {
-  const state = asRecord(object.state)
-  const said = asString(state?.sessionAnchor)
-  if (said !== undefined) return said
-  const born = asString(state?.sourceAnchor)
-  if (born?.startsWith('session:') !== true) return undefined
-  const session = born.slice('session:'.length)
-  return session === '' || session === 'unknown' ? undefined : session
+export function homeOf(state: unknown): { readonly topicKey?: string; readonly sessionAnchor?: string } {
+  const record = asRecord(state as JsonValue)
+  const topicKey = asString(record?.topicKey) ?? asString(asRecord(record?.executor)?.topicKey)
+  const born = asString(record?.sourceAnchor)
+  const bornIn = born?.startsWith('session:') === true ? born.slice('session:'.length) : undefined
+  // 两样都给：话题认不出来（换代、没进树）的时候，会话是退路。
+  const sessionAnchor = asString(record?.sessionAnchor)
+    ?? (bornIn === undefined || bornIn === '' || bornIn === 'unknown' ? undefined : bornIn)
+  return {
+    ...(topicKey === undefined ? {} : { topicKey }),
+    ...(sessionAnchor === undefined ? {} : { sessionAnchor }),
+  }
 }
 
 /** 文本投影的第一行，短到能当 chip。没声明 `demand` 的家族靠它说话。 */
