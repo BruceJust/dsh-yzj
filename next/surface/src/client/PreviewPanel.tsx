@@ -117,13 +117,34 @@ function Body(props: {
   target: PreviewTarget
   body: AttachmentBodyWire
   ext: string | undefined
+  onDownload: () => void
 }): ReactNode {
-  const { target, body, ext } = props
+  const { target, body, ext, onDownload } = props
   const pdfUrl = usePdfUrl(body.kind === 'pdf' ? body.base64 : undefined)
   const dark = useHostDark()
+  /*
+    截图上的字常常比并排那一栏小得多：缩进框里看得见版式、读不出字。点一下看原大
+    （滚着读），再点缩回。原图本来就不比框大时不给这个手势——点了没反应的东西不该
+    长得像能点。
+  */
+  const [actual, setActual] = useState(false)
+  const [zoomable, setZoomable] = useState(false)
+  useEffect(() => { setActual(false); setZoomable(false) }, [target.key])
 
   if (body.kind === 'image') {
-    return <img className={css.image} src={`data:${body.mime};base64,${body.base64}`} alt={target.title} />
+    return (
+      <img
+        className={`${css.image} ${actual ? css.actual : zoomable ? css.zoomable : ''}`}
+        src={`data:${body.mime};base64,${body.base64}`}
+        alt={target.title}
+        title={zoomable || actual ? (actual ? '再点一下缩回' : '点一下看原大') : undefined}
+        onLoad={(event) => {
+          const image = event.currentTarget
+          setZoomable(image.naturalWidth > image.clientWidth + 1 || image.naturalHeight > image.clientHeight + 1)
+        }}
+        onClick={() => { if (zoomable || actual) setActual(value => !value) }}
+      />
+    )
   }
   if (body.kind === 'pdf') {
     /*
@@ -146,39 +167,54 @@ function Body(props: {
       : <iframe className={css.frame} src={pdfUrl} title={target.title} />
   }
   if (body.kind === 'binary') {
+    /* 画不了就说为什么，门就在这句话下面——不让人回头去找头上那个按钮。 */
     return (
       <div className={css.note}>
-        {body.why}。已经取到本地：
-        <code className={css.path}>{body.savedTo}</code>
-        <div className={css.noteFoot}>用上面的「下载」把它放进「下载」文件夹，或者到云之家里打开。</div>
+        {body.why}。
+        <div className={css.retryRow}>
+          <button type="button" className={css.act} onClick={onDownload}>下载到本机</button>
+        </div>
+        <div className={css.noteFoot}>会放进「下载」文件夹，用本机的应用打开。</div>
       </div>
     )
   }
 
+  const clipped = body.clipped && (
+    <div className={css.note}>太长了，只显示了前面一段——完整的一份请下载。</div>
+  )
   const shape = textShape(ext)
-  if (shape === 'table') return <TablePreview text={body.text} ext={ext} />
+  if (shape === 'table') return <><TablePreview text={body.text} ext={ext} />{clipped}</>
   if (shape === 'markdown' || shape === 'html') {
     /*
       md 是我们排的版，跟着明暗走；html 是别人的一页纸，按它作者的设想画在白纸上——
       暗色下透明底会把它没写底色的黑字直接压在黑底上。
     */
     return (
-      <iframe
-        className={shape === 'markdown' ? css.frame : `${css.frame} ${css.sheet}`}
-        sandbox=""
-        title={target.title}
-        srcDoc={shape === 'markdown' ? previewDocument(markdownToHtml(body.text), dark) : body.text}
-      />
+      <>
+        {/* 沙箱不跑脚本：带脚本的页面画出来只是静态的样子，按钮点不动。先说，免得人以为原件坏了。 */}
+        {shape === 'html' && body.scripted === true && (
+          <div className={css.lead}>这页带脚本，这里只画出静态的样子；要点得动，下载后用浏览器打开。</div>
+        )}
+        <iframe
+          className={shape === 'markdown' ? css.frame : `${css.frame} ${css.sheet}`}
+          sandbox=""
+          title={target.title}
+          srcDoc={shape === 'markdown' ? previewDocument(markdownToHtml(body.text), dark) : body.text}
+        />
+        {clipped}
+      </>
     )
   }
-  return (
-    <>
-      <pre className={css.plain}>{body.text}</pre>
-      {body.clipped && (
-        <div className={css.note}>太长了，只显示了前面一段——完整的一份请下载。</div>
-      )}
-    </>
-  )
+  return <><pre className={css.plain}>{body.text}</pre>{clipped}</>
+}
+
+/** 沉浸时按阅读宽收窄的只有字：图、网页、表格、PDF 本来就按自己的宽度画。 */
+function wideShape(body: AttachmentBodyWire | undefined, ext: string | undefined): boolean {
+  if (body === undefined) return false
+  if (body.kind === 'image' || body.kind === 'pdf') return true
+  if (body.kind !== 'text') return false
+  const shape = textShape(ext)
+  return shape === 'html' || shape === 'table'
 }
 
 export interface ArtifactPreviewProps {
@@ -201,7 +237,7 @@ export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
     if (target.fileId === undefined) return
     setSaved('正在取…')
     void inject.saveAttachment(target.fileId, target.title).then((result) => {
-      setSaved(result.error ?? `已下载到：${result.savedTo ?? '(未知路径)'}`)
+      setSaved(result.error ?? (result.savedTo === undefined ? '已放进「下载」文件夹' : `已下载到：${result.savedTo}`))
     })
   }, [inject, target.fileId, target.title])
 
@@ -251,7 +287,7 @@ export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
           title={stage === 'aside' ? '沉浸阅读（Esc 返回并排）' : '退出沉浸（回到并排，对话不离场）'}
           onClick={() => { if (stage === 'aside') setPreviewStage('immersive'); else leaveImmersive() }}
         >
-          {stage === 'aside' ? '⤢' : '⤡'}
+          <Icon name={stage === 'aside' ? 'expand' : 'shrink'} size={14} />
         </button>
         <button type="button" className={css.act} aria-label="关闭预览" onClick={closePreview}><Icon name="x" size={14} /></button>
       </div>
@@ -263,7 +299,7 @@ export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
       )}
       {saved !== '' && <div className={css.saved}>{saved}</div>}
 
-      <div className={css.body}>
+      <div className={wideShape(read.body, ext) ? `${css.body} ${css.wide}` : css.body}>
         {read.busy
           ? <div className={css.note}>正在从云之家取这个文件…</div>
           : read.missing || read.body === undefined
@@ -279,7 +315,7 @@ export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
                 </div>
               </div>
             )
-            : <Body target={target} body={read.body} ext={ext} />}
+            : <Body target={target} body={read.body} ext={ext} onDownload={download} />}
       </div>
     </div>
   )

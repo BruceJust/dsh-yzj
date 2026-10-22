@@ -123,6 +123,9 @@
   padding: 18px 24px 32px;
 }
 
+/* 阅读宽只管字：图、网页、表格、PDF 按自己的宽度画，沉浸就给它整个框。 */
+.immersive .body.wide { max-width: none; }
+
 /* 渲染 md / html:沙箱 iframe。没有脚本、没有同源、没有导航。 */
 .frame {
   flex: 1;
@@ -146,6 +149,29 @@
   align-self: center;
   border-radius:var(--yzj-r-md);
   display: block;
+}
+
+/* 沉浸时整张图放进一屏：高也不超出框。 */
+.immersive .image { max-height: 100%; object-fit: contain; }
+
+.zoomable { cursor: zoom-in; }
+
+/* 原大：不缩，滚着读。 */
+.actual,
+.immersive .actual {
+  max-width: none;
+  max-height: none;
+  align-self: flex-start;
+  cursor: zoom-out;
+}
+
+/* 内容上方的一句前提（例如网页的脚本没跑），读之前先看到。 */
+.lead {
+  flex: none;
+  margin-bottom: 8px;
+  font-size:var(--yzj-fs-xs);
+  line-height: 1.55;
+  color: var(--yzj-ink-3);
 }
 
 .plain {
@@ -197,11 +223,3 @@
 
 .retryRow { margin-top: 8px; }
 
-.path {
-  display: block;
-  margin-top: 4px;
-  font-family: var(--yzj-mono);
-  font-size:var(--yzj-fs-xs);
-  color: var(--yzj-ink-3);
-  overflow-wrap: anywhere;
-}

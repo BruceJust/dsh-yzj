@@ -214,8 +214,8 @@ export interface ServeOutcomeWire {
 export type AttachmentBodyWire =
   | { kind: 'image'; mime: string; base64: string; size: number }
   | { kind: 'pdf'; base64: string; size: number }
-  | { kind: 'text'; text: string; size: number; clipped: boolean }
-  | { kind: 'binary'; size: number; savedTo: string; why: string }
+  | { kind: 'text'; text: string; size: number; clipped: boolean; scripted?: boolean }
+  | { kind: 'binary'; why: string; size?: number }
 
 /** 通讯录里的一个人。`openId` 是它唯一能跨面用的身份。 */
 export interface PersonWire {

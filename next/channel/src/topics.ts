@@ -125,6 +125,36 @@ const RESOLVE_ONE_BY_ONE_MAX = 12
 /** Extensions that are pictures whatever the platform labelled them. */
 const PICTURE = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'heic', 'svg'])
 
+/** Text-ish extensions worth showing as words rather than offering as a download. */
+const READABLE_EXT = new Set([
+  'md', 'markdown', 'txt', 'log', 'json', 'csv', 'tsv', 'yml', 'yaml', 'xml', 'html', 'htm',
+  'ts', 'tsx', 'js', 'jsx', 'py', 'sh', 'sql', 'ini', 'conf', 'toml', 'diff', 'patch',
+])
+
+function extensionOf(name: string | undefined): string {
+  return (name?.includes('.') === true ? name.split('.').pop() ?? '' : '').toLowerCase()
+}
+
+/** 这里画得出来的：读得出的文本、图片、PDF。 */
+function previewable(ext: string): boolean {
+  return ext === 'pdf' || PICTURE.has(ext) || READABLE_EXT.has(ext)
+}
+
+/** 画不了的东西叫什么——人认得的叫法，不是后缀。 */
+const KIND_NAMES: Readonly<Record<string, string>> = {
+  xlsx: 'Excel 表格', xls: 'Excel 表格', et: 'Excel 表格', numbers: '表格',
+  docx: 'Word 文档', doc: 'Word 文档', wps: 'Word 文档', pages: '文稿',
+  pptx: '演示文稿', ppt: '演示文稿', dps: '演示文稿', key: '演示文稿',
+  zip: '压缩包', rar: '压缩包', '7z': '压缩包', tar: '压缩包', gz: '压缩包', tgz: '压缩包',
+  apk: '安装包', ipa: '安装包', dmg: '安装包', exe: '安装包', msi: '安装包', pkg: '安装包',
+  mp4: '视频', mov: '视频', avi: '视频', mkv: '视频', webm: '视频',
+  mp3: '音频', wav: '音频', m4a: '音频', aac: '音频', amr: '语音',
+}
+
+function kindName(ext: string): string {
+  return KIND_NAMES[ext] ?? (ext === '' ? '这个文件' : `${ext.toUpperCase()} 文件`)
+}
+
 /**
  * What the FIRST BYTES say a file is.
  *
@@ -367,8 +397,16 @@ export interface YzjTopics {
 export type AttachmentBody =
   | { readonly kind: 'image'; readonly mime: string; readonly base64: string; readonly size: number }
   | { readonly kind: 'pdf'; readonly base64: string; readonly size: number }
-  | { readonly kind: 'text'; readonly text: string; readonly size: number; readonly clipped: boolean }
-  | { readonly kind: 'binary'; readonly size: number; readonly savedTo: string; readonly why: string }
+  | {
+    readonly kind: 'text'; readonly text: string; readonly size: number; readonly clipped: boolean
+    /** 网页里带脚本：沙箱不跑它，画出来的只是静态的样子，得说一声。 */
+    readonly scripted?: boolean
+  }
+  /*
+    画不了的只说一句为什么。不带缓存路径：那是一串 fileId 拼成的内部目录，人拿着它
+    什么也做不了——能做的是「下载」，按钮就在预览头上。
+  */
+  | { readonly kind: 'binary'; readonly why: string; readonly size?: number }
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -457,15 +495,17 @@ export class YzjTopicReader implements YzjTopics {
   ) {}
 
   /** Text-ish extensions worth showing as words rather than offering as a download. */
-  private static readonly READABLE = new Set([
-    'md', 'txt', 'log', 'json', 'csv', 'tsv', 'yml', 'yaml', 'xml', 'html', 'htm',
-    'ts', 'tsx', 'js', 'jsx', 'py', 'sh', 'sql', 'ini', 'conf', 'toml', 'diff', 'patch',
-  ])
+  private static readonly READABLE = READABLE_EXT
 
   /** Above this the browser should not be holding it as base64. */
   private static readonly INLINE_MAX = 6 * 1024 * 1024
   /** A preview is for reading, not for loading a whole log into the DOM. */
   private static readonly TEXT_MAX = 200 * 1024
+  /**
+   * 网页不能截：截一半的 html 画出来是一张缺胳膊少腿的页面，看着像原件坏了。
+   * 所以网页要么整份交出去（和 PDF 同一条内联上限），要么说画不全。
+   */
+  private static readonly PAGE_MAX = YzjTopicReader.INLINE_MAX
 
   /** Fetch once, keep by id. Attachment ids are immutable, so this never staless. */
   private async cacheAttachment(
@@ -501,6 +541,15 @@ export class YzjTopicReader implements YzjTopics {
 
   async readAttachment(fileId: string, name?: string): Promise<AttachmentBody> {
     /*
+      看名字就知道这里画不了的，不去取字节。
+
+      过去一个 46 MB 的安装包点开预览，要先整个拉到本地，然后说一句「没法预览」——
+      等了半分钟、占了 46 MB，换来的结论在点之前就知道。没有后缀的照旧取回来嗅：
+      图片和 PDF 常常不带后缀。
+    */
+    const named = extensionOf(name)
+    if (named !== '' && !previewable(named)) return { kind: 'binary', why: `${kindName(named)}这里看不了` }
+    /*
       Cached by file id under the workspace.
 
       Attachment ids are immutable, so a file fetched once never needs fetching
@@ -512,13 +561,13 @@ export class YzjTopicReader implements YzjTopics {
 
     if (mime === 'application/pdf') {
       if (size > YzjTopicReader.INLINE_MAX) {
-        return { kind: 'binary', size, savedTo: path, why: 'PDF 太大，没有内联' }
+        return { kind: 'binary', size, why: '这份 PDF 太大，这里不直接打开' }
       }
       return { kind: 'pdf', base64: (await readFile(path)).toString('base64'), size }
     }
     if (mime?.startsWith('image/') === true) {
       if (size > YzjTopicReader.INLINE_MAX) {
-        return { kind: 'binary', size, savedTo: path, why: '图片太大，没有内联' }
+        return { kind: 'binary', size, why: '这张图太大，这里不直接打开' }
       }
       return { kind: 'image', mime, base64: (await readFile(path)).toString('base64'), size }
     }
@@ -541,7 +590,15 @@ export class YzjTopicReader implements YzjTopics {
       说「打不开」并给出它在哪儿,比一个假的图片框诚实。
     */
     if (PICTURE.has(ext)) {
-      return { kind: 'binary', size, savedTo: path, why: `这个图片格式浏览器打不开（${ext.toUpperCase()}）` }
+      return { kind: 'binary', size, why: `浏览器打不开 ${ext.toUpperCase()} 格式的图片` }
+    }
+    if (ext === 'html' || ext === 'htm') {
+      if (size > YzjTopicReader.PAGE_MAX) return { kind: 'binary', size, why: '这个网页太大，这里画不全' }
+      const text = (await readFile(path)).toString('utf8')
+      return {
+        kind: 'text', text, size, clipped: false,
+        ...(/<script\b/iu.test(text) ? { scripted: true } : {}),
+      }
     }
     if (YzjTopicReader.READABLE.has(ext)) {
       const bytes = await readFile(path)
@@ -553,7 +610,7 @@ export class YzjTopicReader implements YzjTopics {
         clipped,
       }
     }
-    return { kind: 'binary', size, savedTo: path, why: '这个类型没法在这里预览' }
+    return { kind: 'binary', size, why: `${kindName(ext)}这里看不了` }
   }
 
   async saveAttachment(fileId: string, name?: string): Promise<{ savedTo: string; size: number }> {

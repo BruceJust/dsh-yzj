@@ -100,13 +100,10 @@ describe('取回来之后走哪一路', () => {
     名字说是图片,字节不认识——最典型的是 iPhone 的 HEIC。过去会当作 png 发出去,
     浏览器画出一张破图,看起来像网络抖了一下。
   */
-  it('浏览器打不开的图片格式,说打不开并给出它在哪儿', async () => {
+  it('浏览器打不开的图片格式,说打不开——不把缓存路径当答案', async () => {
     const topics = await reader([{ id: 'h1', ext: 'heic', body: 'not really an image' }])
     const body = await topics.readAttachment('h1', 'a.heic')
-    expect(body.kind).toBe('binary')
-    if (body.kind !== 'binary') return
-    expect(body.why).toContain('HEIC')
-    expect(body.savedTo).toContain('h1.heic')
+    expect(body).toEqual({ kind: 'binary', size: 19, why: '浏览器打不开 HEIC 格式的图片' })
   })
 
   it('读得懂的文本原样交出去,由前端按后缀决定怎么渲染', async () => {
@@ -116,11 +113,39 @@ describe('取回来之后走哪一路', () => {
     })
   })
 
-  it('不能投影的就不硬造 viewer——说清是什么、落在哪', async () => {
-    const topics = await reader([{ id: 'z1', ext: 'zip', body: 'PKrest' }])
-    const body = await topics.readAttachment('z1', 'a.zip')
-    expect(body.kind).toBe('binary')
-    if (body.kind !== 'binary') return
-    expect(body.savedTo).toContain('z1.zip')
+  /*
+    看名字就知道画不了的，不去取字节：一个 46 MB 的安装包，过去要先整个拉下来，
+    才说一句「没法预览」。缓存里没有这几个文件、取一次就抛——取了就红。
+  */
+  it('不能投影的就不硬造 viewer，也不为一句「看不了」把字节取回来', async () => {
+    const topics = await reader([])
+    expect(await topics.readAttachment('z1', '代码.zip')).toEqual({ kind: 'binary', why: '压缩包这里看不了' })
+    expect(await topics.readAttachment('x1', '模板.XLSX')).toEqual({ kind: 'binary', why: 'Excel 表格这里看不了' })
+    expect(await topics.readAttachment('a1', 'cmfa.apk')).toEqual({ kind: 'binary', why: '安装包这里看不了' })
+    expect(await topics.readAttachment('q1', '数据.parquet')).toEqual({ kind: 'binary', why: 'PARQUET 文件这里看不了' })
+  })
+
+  it('长文本截在 200 KB，并说截了', async () => {
+    const topics = await reader([{ id: 'l1', ext: 'md', body: 'x'.repeat(300 * 1024) }])
+    const body = await topics.readAttachment('l1', 'a.md')
+    expect(body).toMatchObject({ kind: 'text', clipped: true, size: 300 * 1024 })
+    if (body.kind === 'text') expect(body.text).toHaveLength(200 * 1024)
+  })
+
+  /* 网页不能截：截一半的 html 画出来像原件坏了。要么整份，要么说画不全。 */
+  it('网页整份交出去，超过 200 KB 也不截；带脚本的说一声', async () => {
+    const page = `<html><body>${'<p>段落</p>'.repeat(30_000)}<script>boot()</script></body></html>`
+    const topics = await reader([{ id: 'w1', ext: 'html', body: page }, { id: 'w2', ext: 'htm', body: '<p>静态</p>' }])
+    const scripted = await topics.readAttachment('w1', 'proto.html')
+    expect(scripted).toMatchObject({ kind: 'text', clipped: false, scripted: true })
+    if (scripted.kind === 'text') expect(scripted.text).toBe(page)
+    expect(await topics.readAttachment('w2', 'a.htm')).not.toHaveProperty('scripted')
+  })
+
+  it('大到不能内联的网页说画不全，不交半页', async () => {
+    const topics = await reader([{ id: 'w3', ext: 'html', body: 'x'.repeat(6 * 1024 * 1024 + 1) }])
+    expect(await topics.readAttachment('w3', 'big.html')).toEqual({
+      kind: 'binary', size: 6 * 1024 * 1024 + 1, why: '这个网页太大，这里画不全',
+    })
   })
 })
