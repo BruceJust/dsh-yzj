@@ -105,11 +105,14 @@ export function paletteItems(data: PaletteData): readonly PaletteItem[] {
       target: { kind: 'place', placeKey: row.placeKey, groupName: row.name },
     })
   }
+  const selfChats = new Set(conversations.filter(row => row.selfChat === true).map(row => row.placeKey))
   for (const place of data.inbox?.places ?? []) {
+    // 自聊里的话题和自聊本身一样：演示时搜不到。
+    if (stealth && selfChats.has(place.placeKey)) continue
     for (const topic of place.topics) {
       add({
         key: `topic:${topic.sessionId}`, group: '话题', icon: 'steps',
-        label: topic.title, sub: place.conversationKind === 'direct' ? `和${place.groupName}的私聊` : place.groupName,
+        label: topic.title, sub: topicPlaceLabel(place, topic.placeName, selfChats),
         target: { kind: 'topic', sessionId: topic.sessionId },
       })
     }
@@ -141,6 +144,22 @@ export function paletteItems(data: PaletteData): readonly PaletteItem[] {
     })
   }
   return items
+}
+
+/**
+ * 话题在哪：和左栏同一个叫法。
+ *
+ * 本地会话那一组在收件箱里也挂着「私聊」的形状（没有群可归），按私聊去拼就成了
+ * 「和本地会话的私聊」；自聊的对方是自己，拼出来是「和代少兵的私聊」。两处都只说它是哪儿。
+ */
+function topicPlaceLabel(
+  place: { readonly placeKey: string; readonly groupName: string; readonly conversationKind: string },
+  placeName: string,
+  selfChats: ReadonlySet<string>,
+): string {
+  if (place.placeKey === 'local') return '本地'
+  if (selfChats.has(place.placeKey)) return '我 · 审批通道'
+  return place.conversationKind === 'direct' ? `和${place.groupName}的私聊` : placeName || place.groupName
 }
 
 /**

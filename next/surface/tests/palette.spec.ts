@@ -78,6 +78,28 @@ describe('⌘K：到已有地方的捷径', () => {
     expect(hidden.some(item => item.key === 'place:self')).toBe(false)
     expect(hidden.some(item => item.key === 'go:auto')).toBe(false)
   })
+
+  /* 实测：⌘K 里一个本地会话写着「和本地会话的私聊」。 */
+  it('话题说它在哪：本地会话写「本地」，自聊写「我 · 审批通道」，私聊写「和谁的私聊」', () => {
+    const topic = (sessionId: string, placeKey: string, placeName: string): unknown => (
+      { sessionId, placeKey, title: `话题${sessionId}`, placeName, preview: '', tone: 'idle', badge: '' }
+    )
+    const places = [
+      { placeKey: 'local', groupName: '本地会话', conversationKind: 'direct', topics: [topic('l', 'local', '本地会话')] },
+      { placeKey: 'self', groupName: '代少兵', conversationKind: 'direct', topics: [topic('s', 'self', '我 · 审批通道')] },
+      { placeKey: 'yzj-dm-u2', groupName: '李婷', conversationKind: 'direct', topics: [topic('d', 'yzj-dm-u2', '李婷')] },
+    ]
+    const conversations = [{ placeKey: 'self', name: '代少兵', kind: 'direct', selfChat: true, onDuty: true, unread: 0, lastMsgTime: 0, preview: '' }]
+    const shown = paletteItems({ inbox: { places, conversations } as never })
+    const subOf = (key: string): string | undefined => shown.find(item => item.key === key)?.sub
+    expect(subOf('topic:l')).toBe('本地')
+    expect(subOf('topic:s')).toBe('我 · 审批通道')
+    expect(subOf('topic:d')).toBe('和李婷的私聊')
+
+    const hidden = paletteItems({ inbox: { places, conversations, stealth: true } as never })
+    expect(hidden.some(item => item.key === 'topic:s')).toBe(false)
+    expect(hidden.some(item => item.key === 'topic:l')).toBe(true)
+  })
 })
 
 describe('Esc 链：一下只做一件事', () => {
