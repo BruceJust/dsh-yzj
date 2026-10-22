@@ -615,18 +615,21 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
               ? '系统号'
               : `${String(view.topics.length)} 个话题${hot > 0 ? ` · ${String(hot)} 个在办` : ''}`}
         </span>
-        <span className={css.filters}>
-          {(['all', 'topics'] as const).map(value => (
-            <button
-              type="button"
-              key={value}
-              className={`${css.filter} ${filter === value ? css.filterOn : ''}`}
-              onClick={() => { setFilter(value) }}
-            >
-              {value === 'all' ? '全部' : '只看话题'}
-            </button>
-          ))}
-        </span>
+        {/* 系统号没有话题：「只看话题」在那里只会筛出一片空白。 */}
+        {!feed && (
+          <span className={css.filters}>
+            {(['all', 'topics'] as const).map(value => (
+              <button
+                type="button"
+                key={value}
+                className={`${css.filter} ${filter === value ? css.filterOn : ''}`}
+                onClick={() => { setFilter(value) }}
+              >
+                {value === 'all' ? '全部' : '只看话题'}
+              </button>
+            ))}
+          </span>
+        )}
         {/*
           云小助在这里能做什么——这个问题随时会冒出来，所以门常驻在屋子自己的头上。
           系统号除外：那里没人说话，也没有可接的单，一个「没接这个群」只会招人去点。
@@ -884,7 +887,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
       {view.kind === 'assistant' && (
         <div className={css.feedNote}>
           <b>这是一个系统号。</b>
-          它只推送，回复没有人会读到。
+          另一头没有人读，所以这里没有输入框。
         </div>
       )}
 
