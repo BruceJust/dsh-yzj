@@ -15,7 +15,7 @@ import {
   asNumber, asRecord, asString, atomOf,
   type GraphObject, type GraphViewer, type JsonValue,
 } from '@yzj-next/graph'
-import { cardMoment, type AnswerableDemand, type AnswerableMode, type CardRef } from '@yzj-next/cards'
+import { cardMoment, labelOf, type AnswerableDemand, type AnswerableMode, type CardRef } from '@yzj-next/cards'
 import type { Strip } from '@yzj-next/pledger'
 import { registrationFrom } from './client/registration.ts'
 import { GATEWAY_ESCAPE_TOOLS, WRITE_SPECS, listOf } from '@yzj-next/tools'
@@ -3478,6 +3478,7 @@ export function cardsFor(
           via: applied.via,
           at: applied.time,
           actionId: applied.actionId,
+          // 定义里的字，不是此刻的字：状态已经因为这一下变了，按此刻去叫会叫错（从「已交付」收的会被叫成「就这样收了」）。
           label: definition.actions.find(action => action.id === applied.actionId)?.label ?? applied.actionId,
           mine: me !== undefined && applied.actor === me,
           ...(() => {
@@ -3517,7 +3518,7 @@ export function cardsFor(
           const n = numbered.indexOf(action.id) + 1
           return {
             id: action.id,
-            label: action.label,
+            label: labelOf(action, object.state),
             ...(action.style === undefined ? {} : { style: action.style }),
             needsInput: action.needsInput === true,
             available: action.available === undefined

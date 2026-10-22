@@ -59,6 +59,19 @@ const isDecider = (openId: string | undefined, state: ApprovalState): boolean =>
   openId !== undefined && openId === state.decider
 )
 
+/**
+ * 按下去的是什么——「确认写入」「先不发」，不只一个「确认」(界面重设计 律二).
+ *
+ * 桌面按钮和云之家里的「回 1 确认写入 · 2 先不写」读的都是这里；桌面那一份
+ * （`surface/src/client/words.ts`，浏览器包引不到这个包）有测试钉着和它一致。
+ */
+export function approvalVerbs(toolName: string): { readonly yes: string; readonly no: string; readonly act: string } {
+  if (toolName === '/handoff') return { yes: '确认移交', no: '先不移交', act: '移交' }
+  if (/_send$|_reply$|_post$/u.test(toolName)) return { yes: '确认发出', no: '先不发', act: '发' }
+  if (/_delete$|_remove$/u.test(toolName)) return { yes: '确认删除', no: '先不删', act: '删' }
+  return { yes: '确认写入', no: '先不写', act: '写' }
+}
+
 export const approvalCard: CardDefinition<ApprovalState> = {
   type: 'approval',
 
@@ -72,6 +85,7 @@ export const approvalCard: CardDefinition<ApprovalState> = {
     {
       id: 'approve',
       label: '确认',
+      labelFor: state => approvalVerbs(state.toolName).yes,
       style: 'primary',
       keywords: ['确认', '同意', '批准', '放行', 'ok', 'y', 'yes'],
       /*
@@ -89,6 +103,7 @@ export const approvalCard: CardDefinition<ApprovalState> = {
     {
       id: 'reject',
       label: '取消',
+      labelFor: state => approvalVerbs(state.toolName).no,
       style: 'danger',
       keywords: ['取消', '拒绝', '不要', 'no', 'n'],
       needsInput: true,

@@ -212,7 +212,7 @@ describe('every answerable object has a working IM exit', () => {
   it('approval: 投出去的卡报号，回「1」就是确认', async () => {
     const id = await open('approval')
     const projection = await delivery.deliverToPlace({ kind: 'approval', id }, PLACE)
-    expect(outbound.at(-1)?.content).toContain('（回 1 确认 · 2 取消；')
+    expect(outbound.at(-1)?.content).toContain('（回 1 确认写入 · 2 先不写；')
     const outcome = triage({
       group: GROUP,
       message: replyTo(projection?.msgAnchors[0] ?? '', '1'),

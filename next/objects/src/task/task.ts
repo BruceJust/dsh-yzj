@@ -233,7 +233,9 @@ export const taskCard: CardDefinition<TaskState> = {
   actions: [
     {
       id: 'accept',
-      label: '验收',
+      label: '通过验收',
+      // 打回之后再收：收的不是一份新交付，是「不用再改了」。
+      labelFor: state => (state.status === 'terminal' ? '通过验收' : '就这样收了'),
       style: 'primary',
       /*
         人对着交付说「完成了」，就是在收口——此前这句话不在词表里，落到云小助那儿，它答
@@ -277,8 +279,10 @@ export const taskCard: CardDefinition<TaskState> = {
       */
       id: 'resume',
       label: '继续',
+      // 打回过的活停了，继续 = 按打回的话接着改。
+      labelFor: state => (sentBack(state) ? '接着改' : '继续'),
       style: 'primary',
-      keywords: ['继续', '接着做', '重试'],
+      keywords: ['继续', '接着做', '接着改', '重试'],
       allowedActors: (actor, state) => mayJudge(actor.openId, state),
       available: state => state.status === 'interrupted',
     },
@@ -358,7 +362,7 @@ export const taskCard: CardDefinition<TaskState> = {
     replyHints: state.status === 'terminal'
       ? ['验收', '打回 <原因>', '作废 <原因>']
       : state.status === 'interrupted'
-        ? sentBack(state) ? ['继续', '就这样收了', '作废 <原因>'] : ['继续', '作废 <原因>']
+        ? sentBack(state) ? ['接着改', '就这样收了', '作废 <原因>'] : ['继续', '作废 <原因>']
         : state.status === 'rework' ? ['就这样收了', '作废 <原因>'] : [],
   }),
 

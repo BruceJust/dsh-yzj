@@ -12,6 +12,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type { GraphObject, JsonValue } from '@yzj-next/graph'
+import { labelOf } from './service.ts'
 import type { CardRef } from './types.ts'
 
 /** Wire shape of one card handed to the browser. */
@@ -57,7 +58,7 @@ export function projectCard(ctx: Context, object: GraphObject): CardWire | undef
     resolved: definition.isResolved(state),
     actions: definition.actions.map(action => ({
       id: action.id,
-      label: action.label,
+      label: labelOf(action, state),
       ...(action.style === undefined ? {} : { style: action.style }),
       needsInput: action.needsInput === true,
       available: action.available === undefined ? true : action.available(state),

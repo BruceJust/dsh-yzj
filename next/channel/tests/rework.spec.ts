@@ -151,8 +151,11 @@ describe('打回之后', () => {
     await run({ taskId: TASK, round: 1, reason: '口径不对' })
     expect(task()?.status).toBe('interrupted')
     expect(state.resumable(TASK)?.redo).toEqual({ taskId: TASK, round: 1, reason: '口径不对' })
-    // 卡上：继续、就这样收了、作废——没有一条死路。
-    expect(cards.renderText({ kind: 'task', id: TASK })?.replyHints).toEqual(['继续', '就这样收了', '作废 <原因>'])
+    // 卡上：接着改、就这样收了、作废——没有一条死路。云之家里的号和桌面按钮同一个字。
+    const text = cards.renderText({ kind: 'task', id: TASK })
+    expect(text?.replyHints).toEqual(['接着改', '就这样收了', '作废 <原因>'])
+    expect(text?.numbered).toEqual(['就这样收了', '接着改'])
+    expect(cards.resolveKeyword({ kind: 'task', id: TASK }, '接着改')).toEqual({ actionId: 'resume' })
   })
 
   it('继续：带着打回的原话接着改', async () => {

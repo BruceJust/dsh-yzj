@@ -27,7 +27,7 @@ export * as objGoal from './goal/index.ts'
 export * as objLease from './lease/index.ts'
 export * as objMinutes from './minutes/index.ts'
 export * as objTask from './task/index.ts'
-export { approvalCard } from './approval/card.ts'
+export { approvalCard, approvalVerbs } from './approval/card.ts'
 export {
   approvalFamily, approvalIdFor, digestArgs, isTerminal, retryIdemKeyFor,
   type ApprovalState, type ApprovalStatus,

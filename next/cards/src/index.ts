@@ -13,7 +13,7 @@ import { YzjCards } from './service.ts'
 import { applyCardRpc } from './rpc.ts'
 
 export { applyCardRpc, projectCard, type CardWire } from './rpc.ts'
-export { cardMoment, YzjCards, type PendingDemand } from './service.ts'
+export { cardMoment, labelOf, YzjCards, type PendingDemand } from './service.ts'
 export {
   CARD_TEXT_MAX_CHARS, MODE_BADGE, MODE_VERB,
   type AnswerableDemand, type AnswerableLayer, type AnswerableMode,

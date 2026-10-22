@@ -148,20 +148,6 @@ function filesOf(card: StreamCard): { readonly targets: PreviewTarget[]; readonl
   return { targets, links }
 }
 
-/** 按钮上的字：说清按下去的是什么（「确认写入」「通过验收」），不只一个「确认」。 */
-function labelOf(card: StreamCard, action: Action): string {
-  if (card.kind === 'approval' && (action.id === 'approve' || action.id === 'reject')) {
-    const verbs = approvalVerbs(text(record(card.state).toolName))
-    return action.id === 'approve' ? verbs.yes : verbs.no
-  }
-  if (card.kind === 'task' && action.id === 'accept') {
-    // 打回之后再收：收的不是一份新交付，是「不用再改了」。
-    return text(record(card.state).status) === 'terminal' ? '通过验收' : '就这样收了'
-  }
-  if (card.kind === 'commitment' && action.id === 'accept') return '通过验收'
-  if (card.kind === 'task' && action.id === 'resume' && typeof record(card.state).round === 'number') return '接着改'
-  return action.label
-}
 
 /**
  * 话说成了裁决的样子，门在卡上 (返工闭环实测 2026-10-21).
@@ -178,7 +164,7 @@ export function verdictDoor(draft: string, cards: readonly StreamCard[]): string
     if (card.kind !== 'task' || card.resolved) continue
     const accept = card.actions.find(action => action.id === 'accept' && action.available)
     if (accept === undefined) continue
-    const label = labelOf(card, accept)
+    const label = accept.label
     return `要把这件活收口，按卡上的${accept.n === undefined ? '' : ` ${String(accept.n)}`}「${label}」——${AGENT}改不了任务的状态，说给它不算数。`
   }
   return undefined
@@ -383,7 +369,8 @@ function OpenCard(props: CardRowProps): ReactNode {
   const files = filesOf(card)
   const title = titleOf(card)
 
-  const available = card.actions.filter(action => action.available).map(action => ({ ...action, label: labelOf(card, action) }))
+  // 按钮上的字由家族按此刻的状态定好（`CardAction.labelFor`），服务端编进线上——云之家里的「回 1 / 2」读的是同一个。
+  const available = card.actions.filter(action => action.available)
   const numbered = available.filter(action => action.n !== undefined).sort((a, b) => (a.n ?? 0) - (b.n ?? 0))
   const secondary = available.filter(action => action.n === undefined && action.secondary === true)
 

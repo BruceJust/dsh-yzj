@@ -101,11 +101,11 @@ const streamCard = (id: string): StreamCard => (
 )
 
 describe('号：桌面按 1 = 云之家里回 1', () => {
-  it('确认卡：1 确认、2 取消；号由服务端编', async () => {
+  it('确认卡：1 确认写入、2 先不写；号和字都由服务端编', async () => {
     const id = await ask()
     const card = streamCard(id)
     const numbered = card.actions.filter(action => action.n !== undefined).map(action => [action.n, action.label])
-    expect(numbered).toEqual([[1, '确认'], [2, '取消']])
+    expect(numbered).toEqual([[1, '确认写入'], [2, '先不写']])
   })
 
   it('作废不占号——按错一个数字就作废一件事，不是键盘该有的代价', async () => {
@@ -125,7 +125,11 @@ describe('号：桌面按 1 = 云之家里回 1', () => {
     expect(cards.resolveKeyword({ kind: 'approval', id }, '2 价格没定')).toEqual({ actionId: 'reject', input: '价格没定' })
     expect(cards.resolveKeyword({ kind: 'approval', id }, '1')).toEqual({ actionId: 'approve' })
     const text = cards.renderText({ kind: 'approval', id })
-    expect(text?.numbered).toEqual(['确认', '取消'])
+    // 云之家里的号和桌面按钮同一个字：同一扇门不在两处叫两个名字。
+    expect(text?.numbered).toEqual(['确认写入', '先不写'])
+    // 卡上写什么，回什么就算什么。
+    expect(cards.resolveKeyword({ kind: 'approval', id }, '确认写入')).toEqual({ actionId: 'approve' })
+    expect(cards.resolveKeyword({ kind: 'approval', id }, '先不写 价格没定')).toEqual({ actionId: 'reject', input: '价格没定' })
   })
 })
 

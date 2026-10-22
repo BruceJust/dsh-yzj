@@ -255,8 +255,11 @@ export class YzjCards extends Service {
         「打回：口径不对」。「不行就算了」「不要紧」不是在答卡。
     */
     const normalized = normalize(trimmed)
+    const state = this.ctx.yzjGraph.rawObject(cardRef.kind, cardRef.id)?.state
     for (const action of definition.actions) {
-      for (const keyword of action.keywords) {
+      // 卡上此刻写的那几个字排在最前：「打回重做 口径不对」要认成打回，不是「打回」+「重做…」。
+      const words = [...new Set([labelOf(action, state), action.label, ...action.keywords])]
+      for (const keyword of words) {
         const target = normalize(keyword)
         if (target === '' || !normalized.startsWith(target)) continue
         const tail = tailAfter(trimmed, keyword)
@@ -288,7 +291,7 @@ export class YzjCards extends Service {
       object.state as never,
       placeKey === undefined ? undefined : { placeKey },
     )
-    const numbered = this.numberedActions(cardRef.kind, object.state).map(action => action.label)
+    const numbered = this.numberedActions(cardRef.kind, object.state).map(action => labelOf(action, object.state))
     const extra = numbered.length === 0 ? {} : { numbered }
     if (rendered.body.length <= CARD_TEXT_MAX_CHARS) {
       return { body: rendered.body, replyHints: rendered.replyHints, degraded: false, ...extra }
@@ -503,7 +506,7 @@ export class YzjCards extends Service {
       await this.recordAnswer(cardRef, actionId, actor, via, 'superseded')
       return {
         outcome: 'superseded',
-        receipt: `这张卡当前状态不接受「${action.label}」，本次应答已记录但未生效。`,
+        receipt: `这张卡当前状态不接受「${labelOf(action, state)}」，本次应答已记录但未生效。`,
       }
     }
 
@@ -633,6 +636,12 @@ function actorKey(actor: GraphActor): string {
  * it; walk the original text until as many non-space characters as the keyword
  * has have been consumed.
  */
+/** 这个动作此刻在卡上叫什么——桌面按钮、云之家里的号、回执，读的都是它。 */
+export function labelOf<S>(action: CardAction<S>, state: unknown): string {
+  if (action.labelFor === undefined || state === undefined) return action.label
+  return action.labelFor(state as S)
+}
+
 /** 关键词之后原样剩下的那段（关键词按去空白后的字数吃掉）。 */
 function tailAfter(text: string, keyword: string): string {
   const wanted = normalize(keyword).length

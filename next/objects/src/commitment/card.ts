@@ -144,7 +144,7 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
         不存在的产出（此前修过的僵尸问题）。
       */
       id: 'accept',
-      label: '验收',
+      label: '通过验收',
       style: 'primary',
       keywords: ['验收', '收下了', '可以', 'accept'],
       /*

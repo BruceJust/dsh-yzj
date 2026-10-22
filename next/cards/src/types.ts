@@ -24,6 +24,16 @@ export const CARD_TEXT_MAX_CHARS = 3_800
 export interface CardAction<S = JsonValue> {
   readonly id: string
   readonly label: string
+  /**
+   * 按钮上的字随状态变时，家族自己说 (家族即接口).
+   *
+   * 打回过的活再收，收的不是一份新交付，是「不用再改了」——同一个 `accept`，此刻该叫
+   * 「就这样收了」。此前这句话只长在桌面的按钮上，云之家里的「回 1 验收 · 2 继续」还是
+   * 定义里的老字：同一扇门，两个名字。缺省是 `label`。
+   *
+   * 卡上写什么，回什么就算什么：此刻的字也是这个动作的关键词。
+   */
+  labelFor?(state: S): string
   readonly style?: 'primary' | 'danger' | 'neutral'
   /**
    * Text-channel keywords that resolve to this action. THE single source of
