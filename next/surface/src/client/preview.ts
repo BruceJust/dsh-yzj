@@ -312,6 +312,8 @@ export function useAttachmentBody(
   fileId: string | undefined,
   name: string | undefined,
   inject: SurfaceInject,
+  /** 消息上写着的大小：太大画不了的，宿主不取就能说。 */
+  size?: number,
 ): AttachmentRead {
   /*
     `attempt` 既是重试的开关,也是「这一次读」的身份。
@@ -326,7 +328,7 @@ export function useAttachmentBody(
     let alive = true
     let pending = inflight.get(fileId)
     if (pending === undefined) {
-      pending = inject.attachment(fileId, name).then(
+      pending = inject.attachment(fileId, name, size).then(
         (body) => { rememberAttachment(fileId, body) },
         () => { rememberAttachment(fileId, undefined) },
       ).finally(() => { inflight.delete(fileId) })
@@ -334,7 +336,7 @@ export function useAttachmentBody(
     }
     void pending.then(() => { if (alive) bump(tick => tick + 1) })
     return () => { alive = false }
-  }, [fileId, name, inject, attempt])
+  }, [fileId, name, inject, attempt, size])
 
   const retry = useCallback((): void => {
     if (fileId === undefined) return

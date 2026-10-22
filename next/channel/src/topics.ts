@@ -374,7 +374,7 @@ export interface YzjTopics {
    * JSON: over the cap the caller is told the size and where it was saved
    * rather than handed something the browser should not be holding.
    */
-  readAttachment(fileId: string, name?: string): Promise<AttachmentBody>
+  readAttachment(fileId: string, name?: string, sizeHint?: number): Promise<AttachmentBody>
   /**
    * Put the attachment where a person can find it — 预览不等于拿到手。
    *
@@ -539,7 +539,7 @@ export class YzjTopicReader implements YzjTopics {
     }
   }
 
-  async readAttachment(fileId: string, name?: string): Promise<AttachmentBody> {
+  async readAttachment(fileId: string, name?: string, sizeHint?: number): Promise<AttachmentBody> {
     /*
       看名字就知道这里画不了的，不去取字节。
 
@@ -549,6 +549,16 @@ export class YzjTopicReader implements YzjTopics {
     */
     const named = extensionOf(name)
     if (named !== '' && !previewable(named)) return { kind: 'binary', why: `${kindName(named)}这里看不了` }
+    /*
+      消息上本来写着多大。网页、PDF、图超过内联上限就画不了——结论在取之前就有了，
+      不为它把 14 MB 拉下来（实测：一份 14 MB 的原型 html）。文本照取：截前 200 KB 还能读。
+    */
+    if (sizeHint !== undefined && sizeHint > YzjTopicReader.INLINE_MAX) {
+      const size = sizeHint
+      if (named === 'html' || named === 'htm') return { kind: 'binary', size, why: '这个网页太大，这里画不全' }
+      if (named === 'pdf') return { kind: 'binary', size, why: '这份 PDF 太大，这里不直接打开' }
+      if (PICTURE.has(named)) return { kind: 'binary', size, why: '这张图太大，这里不直接打开' }
+    }
     /*
       Cached by file id under the workspace.
 

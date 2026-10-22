@@ -142,6 +142,14 @@ describe('取回来之后走哪一路', () => {
     expect(await topics.readAttachment('w2', 'a.htm')).not.toHaveProperty('scripted')
   })
 
+  it('消息上写着太大的网页、PDF、图，不取就说——缓存里没有、取一次就抛', async () => {
+    const topics = await reader([])
+    const big = 14 * 1024 * 1024
+    expect(await topics.readAttachment('w9', 'proto.html', big)).toEqual({ kind: 'binary', size: big, why: '这个网页太大，这里画不全' })
+    expect(await topics.readAttachment('p9', '年报.pdf', big)).toEqual({ kind: 'binary', size: big, why: '这份 PDF 太大，这里不直接打开' })
+    expect(await topics.readAttachment('i9', '截图.png', big)).toEqual({ kind: 'binary', size: big, why: '这张图太大，这里不直接打开' })
+  })
+
   it('大到不能内联的网页说画不全，不交半页', async () => {
     const topics = await reader([{ id: 'w3', ext: 'html', body: 'x'.repeat(6 * 1024 * 1024 + 1) }])
     expect(await topics.readAttachment('w3', 'big.html')).toEqual({

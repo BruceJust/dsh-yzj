@@ -230,7 +230,7 @@ export interface ArtifactPreviewProps {
 export function ArtifactPreview(props: ArtifactPreviewProps): ReactNode {
   const { target, stage, inject } = props
   const ext = target.ext ?? extensionOf(target.title)
-  const read = useAttachmentBody(target.fileId, target.title, inject)
+  const read = useAttachmentBody(target.fileId, target.title, inject, target.size)
   const [saved, setSaved] = useState('')
 
   const download = useCallback((): void => {

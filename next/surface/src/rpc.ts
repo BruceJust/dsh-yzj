@@ -4588,7 +4588,7 @@ export function applySurfaceRpc(ctx: Context, windowSize: number, stealth = fals
             try {
               return {
                 ok: true,
-                value: await topics.readAttachment(fileId, stringField(payload, 'name')),
+                value: await topics.readAttachment(fileId, stringField(payload, 'name'), numberField(payload, 'size')),
               }
             } catch (error) {
               return failure(error instanceof Error ? error.message : String(error))

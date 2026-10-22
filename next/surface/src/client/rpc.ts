@@ -840,7 +840,7 @@ export interface SurfaceInject {
     handoff?: HandoffPrior,
   ): Promise<SentInPlace & { placeKey?: string }>
   /** 附件真身：字节走宿主取（没有公开地址），按 fileId 缓存。 */
-  attachment(fileId: string, name?: string): Promise<AttachmentBodyWire | undefined>
+  attachment(fileId: string, name?: string, size?: number): Promise<AttachmentBodyWire | undefined>
   /** 下载：宿主放进「下载」文件夹，回真实路径——预览不等于拿到手。 */
   saveAttachment(
     fileId: string, name?: string,
@@ -1303,8 +1303,8 @@ export function createSurfaceInject(connection: ConnectionHandle | undefined): S
       const { error } = await write<unknown>('pledger-destroy', { confirm })
       return error === undefined ? {} : { error }
     },
-    attachment: (fileId, name) => call<AttachmentBodyWire>(
-      'attachment', { fileId, ...(name === undefined ? {} : { name }) },
+    attachment: (fileId, name, size) => call<AttachmentBodyWire>(
+      'attachment', { fileId, ...(name === undefined ? {} : { name }), ...(size === undefined ? {} : { size }) },
     ),
     async saveAttachment(fileId, name) {
       const { value, error } = await write<{ savedTo: string; size: number }>(
