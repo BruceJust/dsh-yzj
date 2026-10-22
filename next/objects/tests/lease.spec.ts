@@ -45,6 +45,8 @@ describe('租约的一生', () => {
     expect(acted.outcome).toBe('applied')
     expect(asString(asRecord(graph.rawObject('lease', leaseId)?.state)?.status)).toBe('active')
     expect(activeLeases(ctx, 2_000).map(one => one.leaseId)).toEqual([leaseId])
+    // 生效中的规矩不问你什么：卡头是「规矩 · 生效中」，不是「要你答」。
+    expect(cards.demandOf(graph.rawObject('lease', leaseId) as never)).toBeUndefined()
 
     // 到期：一条追加的 `lease/expired`，不是状态悄悄变。
     const expired = await sweepExpired(ctx, 1_000 + 8 * 24 * 60 * 60 * 1000)

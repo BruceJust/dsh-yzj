@@ -461,6 +461,16 @@ describe('返工闭环：打回之后人还能定', () => {
     expect(cards.renderText({ kind: 'task', id })?.replyHints).toEqual(['就这样收了', '作废 <原因>'])
   })
 
+  it('云小助在改的时候，卡上不写「要你答」——这会儿什么都不问你', async () => {
+    const id = await openTerminalTask()
+    await cards.act({ kind: 'task', id }, 'reject', OPERATOR, 'yzj-text', '口径不对')
+    expect(cards.demandOf(graph.rawObject('task', id) as never)).toBeUndefined()
+    await graph.append({
+      type: 'task/opened', data: { taskId: 'tsk-run', what: '在做的', topicKey: TOPIC, sourceAnchor: 'yzj:m8' }, actor: OPERATOR,
+    })
+    expect(cards.demandOf(graph.rawObject('task', 'tsk-run') as never)).toBeUndefined()
+  })
+
   it('派活的人说不用再改，就是收口', async () => {
     const id = await openTerminalTask()
     await cards.act({ kind: 'task', id }, 'reject', OPERATOR, 'yzj-text', '口径不对')

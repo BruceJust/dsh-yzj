@@ -207,6 +207,9 @@ export interface CardDefinition<S = JsonValue> {
    *
    * 反过来，`signal` 与 `default-effective` 必须**显式**说出来：把一条逾期承诺
    * 或一次可纠的默认值塞进决断条，用户就得为每个默认值签一次字。
+   *
+   * 声明了却答 `undefined`，意思是「此刻什么都不问」（在做的活、返工中的活、生效中
+   * 的规矩），不会再被收编成 `blocking`。
    */
   demand?(state: S): AnswerableDemand | undefined
   /** Terminal states take no further action; a late answer gets a receipt. */

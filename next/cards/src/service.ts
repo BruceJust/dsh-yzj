@@ -363,7 +363,14 @@ export class YzjCards extends Service {
     const definition = this.definitions.get(object.kind)
     if (definition === undefined) return undefined
     if (definition.isResolved(object.state as never)) return undefined
-    const declared = definition.demand?.(object.state as never) ?? {
+    /*
+      收编只兜「没声明」的家族。声明了、此刻答 undefined，说的是「这会儿什么都不问」——
+      在做的活、返工中的活、生效中的规矩。此前这一句也被兜成 blocking，于是打回之后
+      云小助正在改，卡头却写着「要你答」（实测 2026-10-21）。
+    */
+    const said = definition.demand?.(object.state as never)
+    if (definition.demand !== undefined && said === undefined) return undefined
+    const declared = said ?? {
       layer: 'blocking' as const,
       mode: 'open-question' as const,
       label: headlineOf(definition.renderText(object.state as never).body),
