@@ -33,7 +33,7 @@ import { YzjContractPanel } from './ContractPanel.tsx'
 import { CopyButton, EmojiButton, ForwardPicker } from './Compose.tsx'
 import { Composer, registrationLine, type Hint } from './Composer.tsx'
 import { Icon } from './icons.tsx'
-import { AGENT, plainError } from './words.ts'
+import { AGENT, SELF_CHAT, plainError } from './words.ts'
 import { NeedMark } from './NeedMark.tsx'
 import composerCss from './composer.module.css'
 import { Attachments, isPlaceholderOnly, withoutImageMarks } from './Attachments.tsx'
@@ -435,7 +435,9 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     || (replyTo !== undefined && replyTo.agent === true && !mentionsPeople)
   /** 私聊：听众是一个人。图标、听众标签、发送键都说「发给李婷」，不说「发到群里」。 */
   const direct = newDm !== undefined || view.kind === 'direct'
-  const roomName = newDm?.name ?? (view.groupName || groupName)
+  /** 自聊：屋子叫「我 · 审批通道」，听众只有你自己——不是一间叫你名字的私聊。 */
+  const self = newDm === undefined && view.selfChat === true
+  const roomName = self ? SELF_CHAT : newDm?.name ?? (view.groupName || groupName)
   /** 本实例不在岗时，观察到的对群在岗的同侪实例——锚定条与发送键都按它说话。 */
   const peerOnDuty = view.presence?.peers[0]
 
@@ -514,7 +516,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           ? '转好了：新的一条从这句话算起。'
           : result.ignited === true
             ? '已发出，正在长出一个话题。'
-            : direct ? `已发给${roomName}。` : '已发到群里。'))
+            : self ? '已发出。' : direct ? `已发给${roomName}。` : '已发到群里。'))
       })
     }
     setBusy(false)
@@ -602,7 +604,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
         </button>
         <span className={css.headRule} />
         <span className={css.icon}><Icon name={newDm !== undefined || view.kind === 'direct' ? 'user' : 'hash'} size={16} /></span>
-        <span className={css.title}>{view.groupName || groupName}</span>
+        <span className={css.title}>{self ? SELF_CHAT : view.groupName || groupName}</span>
         <span className={css.sub}>
           {newDm === undefined
             ? `${String(view.topics.length)} 个话题${hot > 0 ? ` · ${String(hot)} 个在办` : ''}`
@@ -916,13 +918,16 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           setVoice={() => undefined}
           placeName={roomName}
           direct={direct}
+          selfChat={self}
           draft={draft}
           setDraft={setDraft}
           busy={busy}
           send={send}
           boxRef={boxRef}
           hint={hint}
-          sendLabel={direct
+          sendLabel={self
+            ? addressed && view.onDuty !== false ? `发出 · 交给${AGENT}` : '发出'
+            : direct
             ? addressed && view.onDuty !== false ? `发给${roomName} · 交给${AGENT}` : `发给${roomName}`
             : addressed && view.onDuty !== false
               ? `发到群里 · 交给${AGENT}`
@@ -930,7 +935,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                 ? `发到群里 · 由 ${peerOnDuty.name} 接`
                 : '发到群里'}
           placeholder={replyTo === undefined
-            ? direct ? `发给${roomName}…` : `发到「${roomName}」…`
+            ? direct && !self ? `发给${roomName}…` : `发到「${roomName}」…`
             : `回复 ${replyTo.who}…`}
           tools={(
             <>

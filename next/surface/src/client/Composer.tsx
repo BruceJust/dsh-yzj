@@ -40,6 +40,8 @@ export interface ComposerProps {
   placeName?: string | undefined
   /** 这是一间私聊：听众是一个人，不是一个群。标签、图标、说明都跟着变。 */
   direct?: boolean | undefined
+  /** 自聊：听众只有你自己。 */
+  selfChat?: boolean | undefined
   draft: string
   setDraft(draft: string): void
   busy: boolean
@@ -63,17 +65,19 @@ const VOICE_LABEL: Record<Voice, string> = {
 
 export function Composer(props: ComposerProps): ReactNode {
   const {
-    voice, voices, setVoice, placeName, direct = false, draft, setDraft, busy, blocked, send, boxRef,
+    voice, voices, setVoice, placeName, direct = false, selfChat = false, draft, setDraft, busy, blocked, send, boxRef,
     hint, sendLabel, placeholder, tools,
   } = props
-  /** 听众标签上的字：群写「发到群里 · 群名」，私聊写「李婷 · 私聊」。 */
+  /** 听众标签上的字：群写「发到群里 · 群名」，私聊写「李婷 · 私聊」，自聊写「只有你看得见」。 */
   const labelOf = (option: Voice): string => (
-    option === 'place' && placeName !== undefined
-      ? direct ? `${placeName} · 私聊` : `发到群里 · ${placeName}`
-      : VOICE_LABEL[option]
+    option === 'place' && selfChat
+      ? '只有你看得见'
+      : option === 'place' && placeName !== undefined
+        ? direct ? `${placeName} · 私聊` : `发到群里 · ${placeName}`
+        : VOICE_LABEL[option]
   )
   const iconOf = (option: Voice): 'user' | 'users' | 'bolt' | 'lock' => (
-    option === 'place' ? direct ? 'user' : 'users' : option === 'ask' ? 'bolt' : 'lock'
+    option === 'place' ? selfChat ? 'lock' : direct ? 'user' : 'users' : option === 'ask' ? 'bolt' : 'lock'
   )
   const [menu, setMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -177,7 +181,8 @@ export function Composer(props: ComposerProps): ReactNode {
                       {option === 'private'
                         ? direct ? `${placeName ?? '对方'}看不见。${AGENT}照常干活。` : `群里的人看不见。${AGENT}照常干活。`
                         : option === 'place'
-                          ? direct ? `以你本人的名义发，${placeName ?? '对方'}看得见。` : '以你本人的名义发，群里所有人看得见。'
+                          ? selfChat ? '发在你自己的审批通道里，别人看不见。'
+                            : direct ? `以你本人的名义发，${placeName ?? '对方'}看得见。` : '以你本人的名义发，群里所有人看得见。'
                           : '问一个数得一个数：不开任务，不写任何东西。'}
                     </span>
                   </span>

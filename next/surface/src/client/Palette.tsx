@@ -18,7 +18,7 @@ import { KEYMAP, onGlobalKey, openPalette, paletteMode, startOfToday, subscribeP
 import { AutoHandledSheet } from './AutoHandled.tsx'
 import { goalTitleOf } from './ledger.ts'
 import { AgentFace, Icon, type IconName } from './icons.tsx'
-import { AGENT } from './words.ts'
+import { AGENT, SELF_CHAT } from './words.ts'
 import { NeedMark } from './NeedMark.tsx'
 import tokens from './tokens.module.css'
 import css from './palette.module.css'
@@ -100,7 +100,7 @@ export function paletteItems(data: PaletteData): readonly PaletteItem[] {
     const direct = row.kind !== 'group'
     add({
       key: `place:${row.placeKey}`, group: '地方', icon: direct ? 'user' : 'hash',
-      label: row.selfChat ? '我 · 审批通道' : row.name,
+      label: row.selfChat ? SELF_CHAT : row.name,
       sub: row.selfChat ? '和云小助的私聊' : direct ? '私聊' : row.onDuty ? '群' : `群 · ${AGENT}没在这里接单`,
       target: { kind: 'place', placeKey: row.placeKey, groupName: row.name },
     })
@@ -158,7 +158,7 @@ function topicPlaceLabel(
   selfChats: ReadonlySet<string>,
 ): string {
   if (place.placeKey === 'local') return '本地'
-  if (selfChats.has(place.placeKey)) return '我 · 审批通道'
+  if (selfChats.has(place.placeKey)) return SELF_CHAT
   return place.conversationKind === 'direct' ? `和${place.groupName}的私聊` : placeName || place.groupName
 }
 

@@ -15,6 +15,12 @@
  */
 export const AGENT = '云小助'
 
+/**
+ * 自聊（和自己的私聊）在屏上的名字。私聊的「群名」是对方的名字，自聊的对方是自己——
+ * 照搬就成了一间叫「代少兵」的屋子、一句「发给代少兵」。服务端同名常量是 `SELF_CHAT_NAME`。
+ */
+export const SELF_CHAT = '我 · 审批通道'
+
 const MIN = 60_000
 const HOUR = 60 * MIN
 const DAY = 24 * HOUR

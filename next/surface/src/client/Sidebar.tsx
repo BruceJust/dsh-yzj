@@ -39,7 +39,7 @@ import { commandKey, openPalette, startOfToday } from './keys.ts'
 import { usePoll } from './poll.ts'
 import { YzjDirectoryPicker, type DirectoryLevel } from './DirectoryPicker.tsx'
 import { Icon } from './icons.tsx'
-import { AGENT, plainError, span, waitLine } from './words.ts'
+import { AGENT, SELF_CHAT, plainError, span, waitLine } from './words.ts'
 import { Skeleton, UnreadLine } from './Unread.tsx'
 import { STALL_MS } from './StreamView.tsx'
 import { NeedMark } from './NeedMark.tsx'
@@ -569,7 +569,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
         >
           <span className={css.lead}>{lead(row)}</span>
           {/* 自聊是审批与私语通道：它的名字就是你自己，说它是什么比说它叫什么有用。 */}
-          <span className={css.title}>{stealth ? '一个会话' : row.selfChat ? '我 · 审批通道' : row.name}</span>
+          <span className={css.title}>{stealth ? '一个会话' : row.selfChat ? SELF_CHAT : row.name}</span>
           {signal !== undefined
             ? <Signal kind={signal} />
             : unread > 0 && <span className={css.unread}>{unread > 99 ? '99+' : unread}</span>}
