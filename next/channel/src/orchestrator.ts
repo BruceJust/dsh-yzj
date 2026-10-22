@@ -524,7 +524,7 @@ export class YzjOrchestrator {
         **认领 = 既有 ack**（ack-before-work 是既有时序，零新消息）。携句柄：卡片三定律②
         「消息载句柄」至此成为跨实例协议——同侪从这条 ack 物化镜像行。
       */
-      const ackId = await this.deliver(group, trigger, route, ackText(taskId))
+      const ackId = await this.deliver(group, trigger, route, ackText(taskId, redo))
       if (ackId !== undefined) active.ackId = ackId
       let settled: Settled = provisional
       if (contested) {

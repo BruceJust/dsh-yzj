@@ -20,6 +20,7 @@ import { taskCard, taskFamily } from '@yzj-next/objects'
 import { YzjChannelClient } from '../src/client.ts'
 import { CHANNEL_PROMPT, YzjOrchestrator, redoNote } from '../src/orchestrator.ts'
 import { outboundFamily } from '../src/outbound.ts'
+import { ACK_PREFIX, ackText } from '../src/presence.ts'
 import type { YzjGroup, YzjMessage, YzjTopicRoute } from '../src/protocol.ts'
 import { ChannelState, type Redo } from '../src/state.ts'
 
@@ -41,6 +42,8 @@ let cards: YzjCards
 let state: ChannelState
 let orchestrator: YzjOrchestrator
 let prompts: string[]
+/** 发进云之家的每一条（命令行拼起来）。 */
+let posted: string[]
 /** 下一个回合怎么收：说一句话，还是以错误结束。 */
 let nextTurn: { text: string } | { error: string }
 
@@ -68,8 +71,10 @@ beforeEach(async () => {
   cards = new YzjCards(ctx)
   cards.register(taskCard)
   let sent = 0
+  posted = []
   ctx.provide('yzjBridge', {
-    run: async (): Promise<YzjRunResult> => {
+    run: async (command: readonly string[]): Promise<YzjRunResult> => {
+      posted.push(command.join(' '))
       sent += 1
       return { ok: true, exitCode: 0, stdout: '', stderr: '', json: { msgId: `sent-${String(sent)}`, groupId: 'g-1' }, truncated: false, timedOut: false, durationMs: 1 }
     },
@@ -129,6 +134,8 @@ describe('打回之后', () => {
     expect(graph.query({ kind: 'operator', openId: 'op-1' }, { kind: 'task' }).map(object => object.id)).toEqual([TASK])
     expect(task()).toMatchObject({ status: 'terminal', summary: '现在能看到 108 个知识库。', round: 1 })
     expect(cards.pending({ kind: 'operator', openId: 'op-1' }).map(object => object.id)).toEqual([TASK])
+    // 群里看得出这是一次返工、照着哪句改——不是又一件新活的「已接收，正在处理」。
+    expect(posted[0]).toContain('【Agent】已接收打回（第 1 轮）：「口径不对，要按可编辑权限重新数」——按这句改，改完交回这张卡。[card#task:tsk-kb]')
   })
 
   it('同一句话再跑一回：没人要的是重放（拦），人要的是重做（放）', async () => {
@@ -190,5 +197,12 @@ describe('云小助说话算话', () => {
     expect(redoNote({ taskId: TASK, round: 2, reason: '未说明原因' })).toContain('先问清楚哪里不对')
     expect(redoNote({ taskId: TASK })).toContain('【继续】')
     expect(redoNote(undefined)).toBe('')
+  })
+
+  it('回执和吩咐说的是同一件事：继续是继续，没说原因的打回先问', () => {
+    expect(ackText(TASK, { taskId: TASK })).toBe('【Agent】已接收「继续」，接着做。[card#task:tsk-kb]')
+    expect(ackText(TASK, { taskId: TASK, round: 2, reason: '未说明原因' })).toContain('没说哪里不对——先问清楚再改')
+    // 前缀不变：同侪仍认得出这是一条 ack。
+    expect(ackText(TASK, { taskId: TASK, round: 1, reason: 'x' }).startsWith(ACK_PREFIX)).toBe(true)
   })
 })

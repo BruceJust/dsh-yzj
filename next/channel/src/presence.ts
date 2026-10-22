@@ -47,8 +47,19 @@ export function yieldNotice(peerName: string): string {
 /** 认领 = 既有 ack（ack-before-work 是既有时序）。携句柄：卡片三定律②成为跨实例协议。 */
 export const ACK_PREFIX = '【Agent】已接收'
 
-export function ackText(taskId: string): string {
-  return `${ACK_PREFIX}，正在处理。[card#task:${taskId}]`
+/**
+ * 返工、继续也是这一条 ack，但得说清接的是什么：此前打回之后群里只多一句「已接收，正在
+ * 处理」，和一件新活长得一模一样——旁人看不出它被退回过、退回的原话是什么，而桌面上
+ * 那句原因说的是「会以你的名义发出」（实测 2026-10-21）。
+ */
+export function ackText(taskId: string, redo?: { readonly round?: number; readonly reason?: string }): string {
+  const handle = `[card#task:${taskId}]`
+  if (redo === undefined) return `${ACK_PREFIX}，正在处理。${handle}`
+  if (redo.round === undefined) return `${ACK_PREFIX}「继续」，接着做。${handle}`
+  const said = redo.reason === undefined || redo.reason === '未说明原因'
+    ? '，没说哪里不对——先问清楚再改。'
+    : `：「${redo.reason}」——按这句改，改完交回这张卡。`
+  return `${ACK_PREFIX}打回（第 ${String(redo.round)} 轮）${said}${handle}`
 }
 
 /**
