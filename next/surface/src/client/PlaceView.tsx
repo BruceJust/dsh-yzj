@@ -435,6 +435,8 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
     || (replyTo !== undefined && replyTo.agent === true && !mentionsPeople)
   /** 私聊：听众是一个人。图标、听众标签、发送键都说「发给李婷」，不说「发到群里」。 */
   const direct = newDm !== undefined || view.kind === 'direct'
+  /** 助手 / 系统号：只推送的订阅，不是群也不是人。 */
+  const feed = view.kind === 'assistant'
   /** 自聊：屋子叫「我 · 审批通道」，听众只有你自己——不是一间叫你名字的私聊。 */
   const self = newDm === undefined && view.selfChat === true
   const roomName = self ? SELF_CHAT : newDm?.name ?? (view.groupName || groupName)
@@ -591,7 +593,7 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
                 // 点火预告——和它的反面。没接单的群里同一个手势结果相反，得在按下之前说。
                 ? view.onDuty === false
                   ? peerOnDuty === undefined
-                    ? { kind: 'note', warn: true, text: `${AGENT}没接这个群，@ 它不会有人应。` }
+                    ? { kind: 'note', warn: true, text: `${AGENT}没接${direct ? '这个私聊' : '这个群'}，@ 它不会有人应。` }
                     : { kind: 'note', text: `这个群在岗的是 ${peerOnDuty.name}，这句会由它接。` }
                   : { kind: 'note', text: replyTo === undefined ? '发出去会长出一个新话题。' : '这一串会收成一个话题。' }
                 : undefined
@@ -603,12 +605,15 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
           <Icon name="chevL" size={14} />{backLabel(backTarget() ?? { kind: 'session' })}
         </button>
         <span className={css.headRule} />
-        <span className={css.icon}><Icon name={newDm !== undefined || view.kind === 'direct' ? 'user' : 'hash'} size={16} /></span>
+        {/* 系统号不是群：一对一的号，用一个人的图标；它没有话题可数，只说它是什么。 */}
+        <span className={css.icon}><Icon name={newDm !== undefined || view.kind === 'direct' || feed ? 'user' : 'hash'} size={16} /></span>
         <span className={css.title}>{self ? SELF_CHAT : view.groupName || groupName}</span>
         <span className={css.sub}>
-          {newDm === undefined
-            ? `${String(view.topics.length)} 个话题${hot > 0 ? ` · ${String(hot)} 个在办` : ''}`
-            : '还没有过私聊'}
+          {newDm !== undefined
+            ? '还没有过私聊'
+            : feed
+              ? '系统号'
+              : `${String(view.topics.length)} 个话题${hot > 0 ? ` · ${String(hot)} 个在办` : ''}`}
         </span>
         <span className={css.filters}>
           {(['all', 'topics'] as const).map(value => (
@@ -622,14 +627,19 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
             </button>
           ))}
         </span>
-        {/* 云小助在这里能做什么——这个问题随时会冒出来，所以门常驻在屋子自己的头上。 */}
-        <button
-          type="button"
-          className={`${css.rules} ${view.onDuty === false ? css.rulesOff : ''}`}
-          onClick={() => { setContractOpen(true) }}
-        >
-          {view.onDuty === false ? `${AGENT}没接这个群` : `${AGENT}在这里的规则`}
-        </button>
+        {/*
+          云小助在这里能做什么——这个问题随时会冒出来，所以门常驻在屋子自己的头上。
+          系统号除外：那里没人说话，也没有可接的单，一个「没接这个群」只会招人去点。
+        */}
+        {!feed && (
+          <button
+            type="button"
+            className={`${css.rules} ${view.onDuty === false ? css.rulesOff : ''}`}
+            onClick={() => { setContractOpen(true) }}
+          >
+            {view.onDuty === false ? `${AGENT}没接${direct ? '这个私聊' : '这个群'}` : `${AGENT}在这里的规则`}
+          </button>
+        )}
       </header>
 
       {unread && <UnreadLine had={view.placeKey === placeKey} className={css.stale} />}
@@ -873,8 +883,8 @@ export function YzjPlaceView(props: PlaceViewProps): ReactNode {
 
       {view.kind === 'assistant' && (
         <div className={css.feedNote}>
-          <b>这是一个助手/系统号的推送。</b>
-          这是订阅号，回复没有人会读到。
+          <b>这是一个系统号。</b>
+          它只推送，回复没有人会读到。
         </div>
       )}
 
