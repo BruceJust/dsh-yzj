@@ -136,12 +136,17 @@ export const taskFamily: GraphFamily = {
         status: z.literal('interrupted').default('interrupted'),
       }),
     },
-    /** 继续 — the intent picks up where the carrier dropped it. */
+    /**
+     * 继续 — the intent picks up where the carrier dropped it.
+     *
+     * 打回过的活继续，回到的是「返工中」而不是「进行中」：它在改的是被退回的那一版，
+     * 卡上「就这样收了」那扇门不该因为一次续跑就消失。
+     */
     'task/resumed': {
       schema: z.object({
         taskId: z.string().min(1),
         resumedBy: z.string().min(1),
-        status: z.literal('open').default('open'),
+        status: z.enum(['open', 'rework']).default('open'),
       }),
     },
     'task/voided': {
@@ -205,6 +210,16 @@ function statusLabel(status: TaskStatus): string {
  * 两个字段都没记的老任务退回旧行为:**一张没人能答的卡本身就是一种失败**,而它
  * 会发生在那些正等着被验收的历史任务上。
  */
+/**
+ * 交过、又被打回过 —— 「上一版」真的存在。
+ *
+ * 只有这样的活才谈得上「就这样收了」：从没交付过的活（开着、或载体死在第一轮）收下来，
+ * 是在验收一份不存在的产出——此前修过的僵尸问题。
+ */
+function sentBack(state: TaskState): boolean {
+  return state.round !== undefined
+}
+
 function mayJudge(openId: string | undefined, state: TaskState): boolean {
   if (openId === undefined) return false
   if (state.delegatedBy === undefined && state.operator === undefined) return true
@@ -220,11 +235,22 @@ export const taskCard: CardDefinition<TaskState> = {
       id: 'accept',
       label: '验收',
       style: 'primary',
-      keywords: ['验收', '收了', '可以', '通过', 'done'],
+      keywords: ['验收', '收了', '就这样收了', '可以', '通过', 'done'],
       // 验收是人签发的裁决终态：如实声明（家族即接口），判据留给听的人（私账侧的比值分子）。
       verdict: 'acceptance',
       allowedActors: (actor, state) => mayJudge(actor.openId, state),
-      available: state => state.status === 'terminal',
+      /*
+        打回之后人可以改主意 (返工闭环)。
+
+        打回的那一刻起，此前这张卡上没有任何一个动词可按：返工中既不能收、也不能作废，
+        唯一的出口是云小助重交——而它要是没重交（载体死了、旧版本根本没接返工），这件活
+        就永远挂在「运行中」。实测一件 8/18 打回的活挂了两个月；人在话题里说「完成了」，
+        云小助答「好，这件事就算完成了」，图上什么都没动。
+
+        所以返工中、返工停了，都能「就这样收了」——派活的人说不用再改，就是收口。
+      */
+      available: state => state.status === 'terminal'
+        || (sentBack(state) && (state.status === 'rework' || state.status === 'interrupted')),
     },
     {
       id: 'reject',
@@ -263,8 +289,9 @@ export const taskCard: CardDefinition<TaskState> = {
       allowedActors: (actor, state) => mayJudge(actor.openId, state),
       // Interrupted too: 「不做了」 must be reachable from the state that is
       // waiting to be resumed, or 继续 becomes the only door out of it.
+      // Rework too: 打回之后「算了，不要了」也是人的权利。
       available: state => state.status === 'open' || state.status === 'terminal'
-        || state.status === 'interrupted',
+        || state.status === 'interrupted' || state.status === 'rework',
     },
   ],
 
@@ -318,7 +345,9 @@ export const taskCard: CardDefinition<TaskState> = {
     ].join('\n'),
     replyHints: state.status === 'terminal'
       ? ['验收', '打回 <原因>', '作废 <原因>']
-      : state.status === 'interrupted' ? ['继续', '作废 <原因>'] : [],
+      : state.status === 'interrupted'
+        ? sentBack(state) ? ['继续', '就这样收了', '作废 <原因>'] : ['继续', '作废 <原因>']
+        : state.status === 'rework' ? ['就这样收了', '作废 <原因>'] : [],
   }),
 
   onResolved: state => ({
@@ -332,7 +361,11 @@ export const taskCard: CardDefinition<TaskState> = {
       return {
         events: [{
           type: 'task/resumed',
-          data: { taskId: state.taskId, resumedBy: actor.openId ?? actor.kind },
+          data: {
+            taskId: state.taskId,
+            resumedBy: actor.openId ?? actor.kind,
+            ...(sentBack(state) ? { status: 'rework' } : {}),
+          },
           actor,
         }],
       }

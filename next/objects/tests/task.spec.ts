@@ -413,6 +413,54 @@ describe('中断：载体断了，意图没断（实测缺陷）', () => {
 })
 
 /**
+ * 返工闭环：打回不是死胡同 (实测 2026-10-21).
+ *
+ * 一件 8/18 打回的活挂了两个月：返工中这张卡上一个动词都没有，云小助也没被叫回去重做。
+ * 人在话题里说「完成了」，云小助答「好，这件事就算完成了」，图上什么都没动。
+ */
+describe('返工闭环：打回之后人还能定', () => {
+  const action = (id: string) => taskCard.actions.find(candidate => candidate.id === id)
+  const doors = (id: string): string[] => taskCard.actions
+    .filter(candidate => candidate.available?.(taskState(id) as never) ?? true)
+    .map(candidate => candidate.id)
+
+  it('返工中：就这样收了、作废；不再打回、也不必继续', async () => {
+    const id = await openTerminalTask()
+    await cards.act({ kind: 'task', id }, 'reject', OPERATOR, 'yzj-text', '口径不对')
+    expect(doors(id)).toEqual(['accept', 'void'])
+    expect(cards.renderText({ kind: 'task', id })?.replyHints).toEqual(['就这样收了', '作废 <原因>'])
+  })
+
+  it('派活的人说不用再改，就是收口', async () => {
+    const id = await openTerminalTask()
+    await cards.act({ kind: 'task', id }, 'reject', OPERATOR, 'yzj-text', '口径不对')
+    expect(cards.resolveKeyword({ kind: 'task', id }, '就这样收了')?.actionId).toBe('accept')
+    await cards.act({ kind: 'task', id }, 'accept', OPERATOR, 'desktop')
+    expect(taskState(id)).toMatchObject({ status: 'accepted', round: 1 })
+    expect(cards.pending(VIEWER)).toEqual([])
+  })
+
+  it('返工停了：继续、就这样收了、作废；继续之后还是「返工中」', async () => {
+    const id = await openTerminalTask()
+    await cards.act({ kind: 'task', id }, 'reject', OPERATOR, 'yzj-text', '口径不对')
+    await graph.append({ type: 'task/interrupted', data: { taskId: id, reason: '返工没跑起来' }, actor: { kind: 'system' } })
+    expect(doors(id)).toEqual(['accept', 'resume', 'void'])
+    await cards.act({ kind: 'task', id }, 'resume', OPERATOR, 'desktop')
+    expect(taskState(id)?.status).toBe('rework')
+  })
+
+  it('从没交付过的活停了，不给「收」——收下来就是验收一份不存在的产出', async () => {
+    await graph.append({
+      type: 'task/opened', data: { taskId: 'tsk-new', what: '查一下', topicKey: TOPIC, sourceAnchor: 'yzj:m9' }, actor: OPERATOR,
+    })
+    await graph.append({ type: 'task/interrupted', data: { taskId: 'tsk-new', reason: '502' }, actor: { kind: 'system' } })
+    expect(action('accept')?.available?.(taskState('tsk-new') as never)).toBe(false)
+    await cards.act({ kind: 'task', id: 'tsk-new' }, 'resume', OPERATOR, 'desktop')
+    expect(taskState('tsk-new')?.status).toBe('open')
+  })
+})
+
+/**
  * 验收卡 —— 可应答对象家族第六员 (v4.14 交付即出卡；v3.8r 三条收紧)。
  *
  * 「找不到验收项」的病根不是它滚走了，是**它长得不像一个等你的东西**。可应答检验
