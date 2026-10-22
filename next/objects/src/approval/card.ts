@@ -149,7 +149,8 @@ export const approvalCard: CardDefinition<ApprovalState> = {
     ]
     if (state.status === 'interrupted') {
       return {
-        body: [...body, '', `状态：${statusLabel(state.status)}`, RETRY_HINT].join('\n'),
+        // 中断不给这道题续命：重试也只在原来的期限之内（过了就自动过期）。
+        body: [...body, '', `状态：${statusLabel(state.status)}`, `${RETRY_HINT}；${formatDeadline(state.deadline)} 前有效。`].join('\n'),
         replyHints: ['重试'],
       }
     }

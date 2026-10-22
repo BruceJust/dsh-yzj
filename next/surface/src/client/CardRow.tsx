@@ -600,8 +600,14 @@ function quietHeadOf(card: StreamCard, state: Record<string, unknown>): string {
 function whyOf(card: StreamCard, state: Record<string, unknown>): string[] {
   const status = text(state.status)
   if (card.kind === 'approval') {
-    if (status === 'interrupted') return [`${AGENT}重启过，这一步断在半路了。重试会照原样再做一遍。`]
     const deadline = clock(state.deadline)
+    if (status === 'interrupted') {
+      return [
+        `${AGENT}重启过，这一步断在半路了。重试会照原样再做一遍。`,
+        // 中断不给这道题续命：过了原来的期限就自动过期。
+        ...(deadline === undefined ? [] : [`${deadline} 前没重试就自动过期。`]),
+      ]
+    }
     return [
       text(state.level) === 'strong'
         ? '这类操作收不回，或者会改变谁看得到——每次都问你。'

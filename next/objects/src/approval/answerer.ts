@@ -60,6 +60,8 @@ const askKey = (sessionAnchor: string, callId: string): string => `${sessionAnch
 export class ApprovalAnswerer {
   private readonly asks = new Map<string, PendingAsk>()
   private readonly waiters = new Map<string, Waiter>()
+  /** 中断的卡到点就过期——它们的回合已经死了，没有 `awaitDecision` 替它们看钟。 */
+  private readonly expiries = new Map<string, ReturnType<typeof setTimeout>>()
   private disposed = false
 
   constructor(
@@ -81,6 +83,8 @@ export class ApprovalAnswerer {
     }
     this.waiters.clear()
     this.asks.clear()
+    for (const [, timer] of this.expiries) clearTimeout(timer)
+    this.expiries.clear()
   }
 
   /** The `approval/request` waterfall listener. */
@@ -122,6 +126,11 @@ export class ApprovalAnswerer {
    * something a stale answer could still execute. TTL wins over interruption:
    * a card that timed out while the process was down was already answered by
    * the clock.
+   *
+   * **每一次重启都是，不只第一次**——此前这条只看 `pending`：卡一旦中断，期限就再也没人
+   * 看了，每次重启都跳过它，「重试」永远开着。实测一张 8/21 01:20 到期、01:12 被重启
+   * 打断的写入确认，在「要你」里挂了 61 天。中断杀死的是载体，可这道题问的是「现在
+   * 能不能写」，「现在」有期限；中断不给它续命。
    */
   async recoverPending(binding: TurnBinding | undefined): Promise<void> {
     if (binding === undefined) return
@@ -130,11 +139,14 @@ export class ApprovalAnswerer {
       .filter(object => object.kind === 'approval')
     for (const object of pending) {
       const state = object.state as unknown as ApprovalState
-      if (state.status === 'pending' && now > state.deadline) {
+      const cardRef: CardRef = { kind: 'approval', id: state.approvalId }
+      if (now > state.deadline) {
         await this.expire(state.approvalId)
+        // 中断的那条消息还写着「回复重试」：卡从「要你」里走了，那里欠一句为什么。
+        if (state.status === 'interrupted') this.echoResolved(cardRef)
         continue
       }
-      const cardRef: CardRef = { kind: 'approval', id: state.approvalId }
+      this.expireAt(state.approvalId, state.deadline)
       const justNow = state.status === 'pending'
       if (justNow) {
         await this.ctx.yzjGraph.append({
@@ -244,6 +256,32 @@ export class ApprovalAnswerer {
       // live, and channel health is its own visible object (§5.4).
       console.error('[yzj-next-approval] failed to deliver the confirmation card', error)
     }
+  }
+
+  /** 中断的卡还在期限内：到点还没人按重试，就过期，并在它投过的地方说一句。 */
+  private expireAt(approvalId: string, deadline: number): void {
+    if (this.expiries.has(approvalId)) return
+    const timer = setTimeout(() => {
+      this.expiries.delete(approvalId)
+      if (this.stateOf(approvalId)?.status !== 'interrupted') return
+      void this.expire(approvalId)
+        .then(() => { this.echoResolved({ kind: 'approval', id: approvalId }) })
+        .catch((error: unknown) => {
+          console.error('[yzj-next-approval] failed to expire an interrupted card', error)
+        })
+    }, Math.max(0, deadline - Date.now()))
+    timer.unref?.()
+    this.expiries.set(approvalId, timer)
+  }
+
+  /** 终态回声，走和答卡同一条路（按面去重、贴在原来那条消息上）。 */
+  private echoResolved(cardRef: CardRef): void {
+    const state = this.ctx.yzjGraph.rawObject(cardRef.kind, cardRef.id)?.state
+    const echo = this.ctx.yzjCards.definition(cardRef.kind)?.onResolved?.(state as never)
+    if (echo === undefined) return
+    this.ctx.emit('yzj-cards/resolved', {
+      cardRef, echoText: echo.echoText, projections: this.ctx.yzjCards.projectionsOf(cardRef),
+    })
   }
 
   private async expire(approvalId: string): Promise<void> {

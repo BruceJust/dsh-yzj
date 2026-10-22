@@ -336,6 +336,57 @@ describe('restart (§5.5 中断可恢复)', () => {
     expect(stateOf(approvalId)).toMatchObject({ status: 'expired' })
   })
 
+  /*
+    中断不给这道题续命 (实测 2026-10-22)：一张 8/21 01:20 到期、01:12 被重启打断的写入确认，
+    在「要你」里挂了 61 天——过期只看 pending，卡一中断，期限就再也没人看了。
+  */
+  it('an interrupted card past its deadline expires on the next restart, and says so once', async () => {
+    const approvalId = 'apv-stale'
+    await graph.append({
+      type: 'approval/opened',
+      data: {
+        approvalId, toolName: 'yzj_doc_create', reason: '新建知识库文档', level: 'standard',
+        args: {}, argsDigest: 'cccccccccccccccc', decider: 'op-1',
+        deadline: Date.now() - 61 * 24 * 60 * 60 * 1000, callId: 'c7', sessionAnchor: SESSION,
+      },
+      actor: { kind: 'agent' },
+    })
+    await graph.append({ type: 'approval/interrupted', data: { approvalId }, actor: { kind: 'system' } })
+    const said: string[] = []
+    ctx.on('yzj-cards/resolved', (payload) => { said.push(payload.echoText) })
+
+    await answerer.recoverPending(BINDING)
+    expect(stateOf(approvalId)?.status).toBe('expired')
+    expect(cards.pending(OPERATOR).map(object => object.id)).not.toContain(approvalId)
+    expect(said).toHaveLength(1)
+    expect(said[0]).toContain('新建知识库文档')
+
+    // 已经过期的不会每次重启再说一遍。
+    const again = newAnswerer()
+    await again.recoverPending(BINDING)
+    again.dispose()
+    expect(said).toHaveLength(1)
+  })
+
+  it('an interrupted card still in time expires on its own when its deadline comes', async () => {
+    const approvalId = 'apv-soon'
+    await graph.append({
+      type: 'approval/opened',
+      data: {
+        approvalId, toolName: 'yzj_doc_create', reason: '新建知识库文档', level: 'standard',
+        args: {}, argsDigest: 'dddddddddddddddd', decider: 'op-1',
+        deadline: Date.now() + 60, callId: 'c6', sessionAnchor: SESSION,
+      },
+      actor: { kind: 'agent' },
+    })
+    await answerer.recoverPending(BINDING)
+    expect(stateOf(approvalId)?.status).toBe('interrupted')
+    // IM 里那张卡也说了期限。
+    expect(cards.renderText({ kind: 'approval', id: approvalId })?.body).toContain('前有效')
+    await new Promise(resolve => setTimeout(resolve, 150))
+    expect(stateOf(approvalId)?.status).toBe('expired')
+  })
+
   it('back-fills a card whose graph event landed but whose DM never went out', async () => {
     const approvalId = 'apv-unprojected'
     await graph.append({
