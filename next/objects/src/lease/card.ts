@@ -6,12 +6,20 @@
  */
 
 import type { CardDefinition } from '@yzj-next/cards'
-import type { LeaseState } from './family.ts'
+import type { LeaseState, LeaseStatus } from './family.ts'
 
 const isDecider = (openId: string | undefined, state: LeaseState): boolean => openId !== undefined && openId === state.decider
 
 /** 卡上说「文档」不说 `doc`：这张卡会原样投进云之家。 */
 const CLASS_LABEL: Readonly<Record<string, string>> = { doc: '文档', sheet: '表格', calendar: '日程', im: '群消息', file: '文件', drive: '网盘' }
+
+/**
+ * 卡头跟着此刻走 (实测 2026-10-22)。此前卡头一律是「等你签」：签完生效了、收回了、到期了，
+ * 卡上照样写着等你签——而且这张卡生效之后还在被投（它的「收回」就长在上面）。
+ */
+const STATUS_WORD: Readonly<Record<LeaseStatus, string>> = {
+  proposed: '等你签', active: '生效中', declined: '没签', revoked: '已收回', expired: '已到期',
+}
 
 const when = (at: number): string => new Date(at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour12: false })
 
@@ -57,17 +65,17 @@ export const leaseCard: CardDefinition<LeaseState> = {
   ),
   renderText: state => ({
     body: [
-      `【规矩 · 等你签】${state.reason}`,
+      `【规矩 · ${STATUS_WORD[state.status]}】${state.reason}`,
       `范围：往${CLASS_LABEL[state.scope.toolClass] ?? state.scope.toolClass}里新加东西${state.scope.placeKey === undefined ? '（不限群）' : '（只在这一个群）'}`,
       `期间：${state.periodText}（${when(state.period.from)} – ${when(state.period.to)}）`,
-      state.status === 'proposed'
-        ? '签了之后，这段时间里这类新加不再每次问你；随时可收回，到期自动失效。改已有的、删除、建群照旧每次都问。'
-        : state.status === 'active' ? '生效中。回复「收回」即撤销。' : `状态：${state.status}`,
+      ...(state.status === 'proposed'
+        ? ['签了之后，这段时间里这类新加不再每次问你；随时可收回，到期自动失效。改已有的、删除、建群照旧每次都问。']
+        : state.status === 'active' ? ['回复「收回」即撤销。'] : []),
       `[card#lease:${state.leaseId}]`,
     ].join('\n'),
     replyHints: state.status === 'proposed' ? ['签发', '不签'] : state.status === 'active' ? ['收回 <原因>'] : [],
   }),
-  onResolved: state => ({ echoText: `【规矩 · ${state.status === 'revoked' ? '已收回' : state.status === 'expired' ? '已到期' : '没签'}】${state.reason}` }),
+  onResolved: state => ({ echoText: `【规矩 · ${STATUS_WORD[state.status]}】${state.reason}` }),
   apply: (state, action, actor, input) => {
     if (action.id === 'grant') {
       return {

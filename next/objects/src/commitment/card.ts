@@ -13,6 +13,7 @@ import type { CardDefinition } from '@yzj-next/cards'
 import { asRecord, asString, type GraphViewer } from '@yzj-next/graph'
 import { goalTitleVisible } from '../goal/audience.ts'
 import { goalCommitmentIdFor } from '../goal/family.ts'
+import { SIGNATURE_AGENT } from '../signature.ts'
 import { isSettled, ownsCommitment, type CommitmentState } from './family.ts'
 
 /**
@@ -44,9 +45,26 @@ export function claimIsAcceptance(openId: string | undefined, state: CommitmentS
 }
 
 function executorLabel(state: CommitmentState): string {
+  // 这一行会原样投进群：执行者种类是内部的码，群里认得的是它落款的那个名字。
   return state.executor.kind === 'agent'
-    ? 'agent'
+    ? SIGNATURE_AGENT
     : state.executor.name ?? state.executor.openId
+}
+
+/**
+ * 收口的原因，落进群里是给人读的 (实测 2026-10-22).
+ *
+ * 同一个 `cause` 字段装着两种东西：完成时是三个码（accepted / done / receipt），作废时是人
+ * 说的原话。码原样贴进群，就是「【承诺·已完成】出周报（accepted）」。
+ */
+function causeWords(state: CommitmentState): string | undefined {
+  if (state.status !== 'closed') return state.cause
+  switch (state.cause) {
+    case 'accepted': return '验收通过'
+    case 'receipt': return '回执为证'
+    // 自报完成：说完成的就是验收的人（或家族工具替它收口），「已完成」已经说全了。
+    default: return undefined
+  }
 }
 
 function statusLabel(status: CommitmentState['status']): string {
@@ -308,9 +326,10 @@ export function createCommitmentCard(ctx: Context): CardDefinition<CommitmentSta
         : ['完成', '作废 <原因>'],
   }),
 
-  onResolved: state => ({
-    echoText: `【承诺·${statusLabel(state.status)}】${state.what}${state.cause === undefined ? '' : `（${state.cause}）`}`,
-  }),
+  onResolved: (state) => {
+    const why = causeWords(state)
+    return { echoText: `【承诺·${statusLabel(state.status)}】${state.what}${why === undefined || why === '' ? '' : `（${why}）`}` }
+  },
 
   // 打回不是终态，但要带句柄回声：同侪实例的镜像行靠它前进（#63 镜像行 · 设计册 v1.3 ②）。
   onUpdated: (state, action) => action.id !== 'reject'
