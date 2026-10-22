@@ -324,6 +324,13 @@ export const taskCard: CardDefinition<TaskState> = {
       }
     }
     if (state.status === 'interrupted') {
+      /*
+        打回过的活停了，人要答的不是「继续不继续」，是「收了，还是接着改」——两扇门
+        一样大，徽标不该替人先挑一扇。和「定 拆解：…」同一个动词。
+      */
+      if (sentBack(state)) {
+        return { layer: 'blocking', mode: 'open-question', label: state.what, badge: '待定', verb: '定' }
+      }
       return {
         layer: 'blocking',
         mode: 'open-question',

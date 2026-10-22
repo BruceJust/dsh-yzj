@@ -445,6 +445,8 @@ describe('返工闭环：打回之后人还能定', () => {
     await cards.act({ kind: 'task', id }, 'reject', OPERATOR, 'yzj-text', '口径不对')
     await graph.append({ type: 'task/interrupted', data: { taskId: id, reason: '返工没跑起来' }, actor: { kind: 'system' } })
     expect(doors(id)).toEqual(['accept', 'resume', 'void'])
+    // 要答的是「收了，还是接着改」：动词不替人先挑一扇门。
+    expect(taskCard.demand?.(taskState(id) as never)).toMatchObject({ verb: '定', badge: '待定' })
     await cards.act({ kind: 'task', id }, 'resume', OPERATOR, 'desktop')
     expect(taskState(id)?.status).toBe('rework')
   })
