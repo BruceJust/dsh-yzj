@@ -1071,7 +1071,7 @@ export interface InboxNeed {
   /** 人要做的动作，家族自己说（`demand.verb`）。 */
   readonly verb: string
   readonly label: string
-  /** 话题名，或「本地会话」。 */
+  /** 话题名，或「本地」。 */
   readonly where: string
   readonly placeName?: string
   /** 它开口问你的那一刻——「等了多久」从这里算。 */
@@ -3039,7 +3039,8 @@ export function inboxView(ctx: Context): InboxView {
       sessionId,
       verb: pending.demand.verb ?? '答',
       label: pending.demand.label,
-      where: topic === undefined ? '本地会话' : (topic.label || placeNameOfTopic(topic)),
+      // 本地会话和左栏「运行中」、⌘K 的话题同一个叫法：「本地」。
+      where: topic === undefined ? '本地' : (topic.label || placeNameOfTopic(topic)),
       ...(topic === undefined ? {} : { placeName: placeNameOfTopic(topic) }),
       since: pending.at,
       waiting: human ? (asString(executor?.name) ?? '对方') : SIGNATURE_AGENT,
@@ -3095,7 +3096,7 @@ export function inboxView(ctx: Context): InboxView {
     sessionId,
     placeKey: 'local',
     title: item.label,
-    placeName: '本地会话',
+    placeName: '本地',
     preview: clip(item.label),
     tone: item.tone,
     live: false,

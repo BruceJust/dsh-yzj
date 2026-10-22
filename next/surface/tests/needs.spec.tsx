@@ -138,7 +138,7 @@ describe('「要你」逐条：服务端投影', () => {
 
   it('本地会话里升起的确认也在，落点是那个会话', async () => {
     await approval('ap-local', 'session-local')
-    expect(inboxView(ctx).needs[0]).toMatchObject({ sessionId: 'session-local', where: '本地会话' })
+    expect(inboxView(ctx).needs[0]).toMatchObject({ sessionId: 'session-local', where: '本地' })
   })
 })
 
