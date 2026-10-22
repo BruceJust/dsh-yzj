@@ -298,6 +298,28 @@ describe('restart (§5.5 中断可恢复)', () => {
     expect(delivered).toHaveLength(1)
   })
 
+  it('an old interruption is not re-announced on every later restart', async () => {
+    recordAsk()
+    const abandoned = answerer.handle(fakeRequest(), async () => 'unavailable')
+    await untilDelivered()
+    answerer.dispose()
+    await abandoned
+
+    const first = newAnswerer()
+    await first.recoverPending(BINDING)
+    expect(echoed).toHaveLength(1)
+    first.dispose()
+
+    // 再重启两次：卡还是中断态、还能重试，但自聊里不该再多一条一模一样的回显。
+    for (let restart = 0; restart < 2; restart += 1) {
+      const again = newAnswerer()
+      await again.recoverPending(BINDING)
+      again.dispose()
+    }
+    expect(echoed).toHaveLength(1)
+    expect(delivered).toHaveLength(1)
+  })
+
   it('lets TTL win over interruption for a card that timed out while down', async () => {
     const approvalId = 'apv-timedout'
     await graph.append({

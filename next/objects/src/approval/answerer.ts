@@ -134,17 +134,29 @@ export class ApprovalAnswerer {
         await this.expire(state.approvalId)
         continue
       }
-      if (state.status === 'pending') {
+      const cardRef: CardRef = { kind: 'approval', id: state.approvalId }
+      const justNow = state.status === 'pending'
+      if (justNow) {
         await this.ctx.yzjGraph.append({
           type: 'approval/interrupted',
           data: { approvalId: state.approvalId },
           actor: { kind: 'system' },
         })
       }
-      // Whether it was interrupted just now or in an earlier crashed run, an
-      // interrupted card owes the operator a line — and a card whose DM never
-      // made it out owes them the whole card (差额补投).
-      await this.deliver({ kind: 'approval', id: state.approvalId })
+      /*
+        中断欠操作者一行字，只欠一次。
+
+        刚被这次重启打断的，回显「因重启中断」；DM 从没发出去的，补投整张卡（差额补投）。
+        **早就中断、也早就投出去过的不再回显**——它仍在 pendingAnswerables 里（中断态
+        故意算待答，好让人还能按「重试」），于是此前每重启一次，自聊里就多一条一字不差的
+        整卡回显：实测 61 天前中断的一张卡，一天里重复了十几遍。
+
+        代价写明：如果上一次进程恰好死在「记下中断」和「回显」之间，那一行就不补了。
+        卡本身还在桌面的「要你」里、还能按重试——少一行提醒，好过每次重启刷一遍屏。
+      */
+      const projected = this.ctx.yzjCards.projectionsOf(cardRef)
+        .some((projection: CardProjection) => projection.surface === YZJ_TEXT_SURFACE)
+      if (justNow || !projected) await this.deliver(cardRef)
     }
   }
 
