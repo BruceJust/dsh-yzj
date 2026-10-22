@@ -9,7 +9,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { CardProjection, CardRef, CardTextProjection, YzjCardChannel } from '@yzj-next/cards'
+import type { CardActResult, CardProjection, CardRef, CardTextProjection, YzjCardChannel } from '@yzj-next/cards'
 import { YZJ_TEXT_SURFACE } from '@yzj-next/objects'
 import { groupIdFromPlaceKey, placeKeyFor } from './protocol.ts'
 import type { YzjChannelClient } from './client.ts'
@@ -76,6 +76,19 @@ export class YzjCardDelivery implements YzjCardChannel {
     if (groupId === undefined) return
     await this.client.send({ groupId }, text, projection.msgAnchors[0])
   }
+}
+
+/**
+ * 答了卡之后，还欠不欠答的人一句回执。
+ *
+ * 卡因为这一下到了终态，终态回声会贴到它到过的每一个面上——答的人就在其中一个面里。再回
+ * 一句「已记录。」是同一件事说两遍，还说得更含糊（实测 2026-10-21：回「完成了」，下面
+ * 一句「✅ 已验收」、一句「已记录。」）。没到终态、没生效、或这一面不在回声里，回执照发：
+ * 那是答的人唯一能看见「生效了没有」的地方。
+ */
+export function owesReceipt(result: CardActResult, placeKey: string | undefined): boolean {
+  if (result.outcome !== 'applied' || result.echoText === undefined) return true
+  return !(result.projections ?? []).some(projection => projection.placeKey === placeKey)
 }
 
 /**

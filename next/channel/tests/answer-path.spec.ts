@@ -25,7 +25,7 @@ import {
   conflictCard, taskCard, taskFamily, waitingCard, waitingFamily,
 } from '@yzj-next/objects'
 import type { YzjRunResult } from '@yzj-next/bridge'
-import { YzjCardDelivery } from '../src/delivery.ts'
+import { YzjCardDelivery, owesReceipt } from '../src/delivery.ts'
 import { YzjChannelClient } from '../src/client.ts'
 import { ChannelState } from '../src/state.ts'
 import { triage } from '../src/triage.ts'
@@ -227,6 +227,29 @@ describe('every answerable object has a working IM exit', () => {
     expect(outcome.kind).toBe('card-action')
     if (outcome.kind !== 'card-action') return
     expect(outcome.actionId).toBe('approve')
+  })
+
+  /*
+    一个动作一句话 (实测 2026-10-21)：回「完成了」，下面一句「✅ 已验收」、一句「已记录。」。
+    到了终态的，回声就是回执；没到终态的（打回），回执是答的人唯一能看见生效了没有的地方。
+  */
+  it('收口的那一下只说一句：回声在这一面，就不再回「已记录。」', async () => {
+    const id = await open('task')
+    const projection = await delivery.deliverToPlace({ kind: 'task', id }, PLACE)
+    const accepted = await cards.act({ kind: 'task', id }, 'accept', { kind: 'operator', openId: 'op-1' }, 'yzj-text')
+    expect(accepted.echoText).toContain('已验收')
+    expect(owesReceipt(accepted, projection?.placeKey)).toBe(false)
+    // 回声不到的那一面（别处答的），回执照发。
+    expect(owesReceipt(accepted, 'yzj-group-elsewhere')).toBe(true)
+
+    await graph.append({
+      type: 'task/opened', data: { taskId: 'task-2', what: '拉竞品', topicKey: 't-1', sourceAnchor: 'yzj:m-2' }, actor: { kind: 'agent' },
+    })
+    await graph.append({ type: 'task/terminal', data: { taskId: 'task-2', summary: '拉好了', artifacts: [] }, actor: { kind: 'agent' } })
+    await delivery.deliverToPlace({ kind: 'task', id: 'task-2' }, PLACE)
+    const sentBack = await cards.act({ kind: 'task', id: 'task-2' }, 'reject', { kind: 'operator', openId: 'op-1' }, 'yzj-text', '口径不对')
+    expect(sentBack.outcome).toBe('applied')
+    expect(owesReceipt(sentBack, projection?.placeKey)).toBe(true)
   })
 
   it('covers every registered card type — a new card cannot ship without an exit', () => {

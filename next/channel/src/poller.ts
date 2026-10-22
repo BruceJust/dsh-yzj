@@ -30,6 +30,7 @@ import {
 import { triage, triageOutbound, type TriageOutcome } from './triage.ts'
 import { parseSendTime, type DeskSend, type PresenceView } from './topics.ts'
 import { applyMirror, readMirror } from './mirror.ts'
+import { owesReceipt } from './delivery.ts'
 import {
   classifyPeerOutbound, looksLikeInstanceOutbound, presenceDeclaration, presenceWithdrawal,
   resolveAddressee, resolveCommand, type ClaimTier, type PeerSignal, type YieldReason,
@@ -553,7 +554,9 @@ export class YzjPoller {
         const result = await this.ctx.yzjCards.act(
           outcome.projection.cardRef, outcome.actionId, actor, 'yzj-text', outcome.input,
         )
-        await this.client.send({ groupId: group.groupId }, result.receipt, message.msgId)
+        if (owesReceipt(result, outcome.projection.placeKey)) {
+          await this.client.send({ groupId: group.groupId }, result.receipt, message.msgId)
+        }
         return
       }
       case 'trigger':
@@ -1183,7 +1186,9 @@ export class YzjPoller {
       群里看得见的是那句「确认」，看不见的是它到底生效了没有。入站路径一直把回执贴
       回去；桌面这一路不贴，同一个动作在两个入口就有两种可见后果。
     */
-    await this.client.send({ groupId }, result.receipt, message.msgId)
+    if (owesReceipt(result, answer.projection.placeKey)) {
+      await this.client.send({ groupId }, result.receipt, message.msgId)
+    }
     return true
   }
 
