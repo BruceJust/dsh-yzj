@@ -300,6 +300,15 @@ export class YzjGraph extends Service {
     return this.store.rawEvents(types)
   }
 
+  /**
+   * Unfiltered: every event appended at or after `since` (epoch ms), in order.
+   * For kernel-internal questions about a span of time that must not miss a
+   * family nobody thought to list — 「这一回合留下了什么」.
+   */
+  rawEventsSince(since: number): readonly GraphEvent[] {
+    return this.store.rawEventsSince(since)
+  }
+
   /** Objects still awaiting an answer — the restart-recovery entry point (§5.5). */
   pendingAnswerables(viewer: GraphViewer): readonly GraphObject[] {
     return this.store.pendingAnswerables(viewer)

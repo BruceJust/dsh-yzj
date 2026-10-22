@@ -448,6 +448,21 @@ describe('中断：载体断了，意图没断（实测缺陷）', () => {
  * 一件 8/18 打回的活挂了两个月：返工中这张卡上一个动词都没有，云小助也没被叫回去重做。
  * 人在话题里说「完成了」，云小助答「好，这件事就算完成了」，图上什么都没动。
  */
+describe('轻问律：答复不是一件等验收的活', () => {
+  it('已答复：不进「要你」、不出 demand；能收下、能打回，打回之后要验收', async () => {
+    await graph.append({
+      type: 'task/opened', data: { taskId: 'tsk-q', what: '今天星期几？', topicKey: TOPIC, sourceAnchor: 'yzj:mq' }, actor: OPERATOR,
+    })
+    await graph.append({ type: 'task/answered', data: { taskId: 'tsk-q', summary: '星期四。' }, actor: { kind: 'agent' } })
+    expect(taskState('tsk-q')?.status).toBe('answered')
+    expect(cards.pending(VIEWER)).toEqual([])
+    expect(cards.demandOf(graph.rawObject('task', 'tsk-q') as never)).toBeUndefined()
+    expect(cards.renderText({ kind: 'task', id: 'tsk-q' })).toMatchObject({ numbered: ['收下', '打回重做'], replyHints: ['打回 <原因>'] })
+    await cards.act({ kind: 'task', id: 'tsk-q' }, 'reject', OPERATOR, 'yzj-text', '是周三')
+    expect(taskState('tsk-q')).toMatchObject({ status: 'rework', round: 1 })
+  })
+})
+
 describe('返工闭环：打回之后人还能定', () => {
   const action = (id: string) => taskCard.actions.find(candidate => candidate.id === id)
   const doors = (id: string): string[] => taskCard.actions

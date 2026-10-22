@@ -66,6 +66,13 @@ describe('打回之后的卡', () => {
     expect(view.textContent).toContain('改到一半停了')
   })
 
+  it('答复：卡头说「云小助答了」，不说「要你验收」，也不说「在做」', () => {
+    const view = mount(task({ status: 'answered', summary: '星期四。' }))
+    expect(view.textContent).toContain('云小助答了')
+    expect(view.textContent).not.toContain('要你')
+    expect(buttons(view)).toEqual(expect.arrayContaining(['1收下', '2打回重做…']))
+  })
+
   it('刚交付的照旧是「通过验收」', () => {
     expect(buttons(mount(task({ status: 'terminal', summary: '40 个知识库' })))).toContain('1通过验收')
   })
@@ -87,6 +94,8 @@ describe('话说成了裁决的样子', () => {
 
   it('没有等着收口的活，不指', () => {
     expect(verdictDoor('完成了', [])).toBeUndefined()
+    // 答复不等人收口。
+    expect(verdictDoor('完成了', [task({ status: 'answered', summary: '星期四。' })])).toBeUndefined()
     expect(verdictDoor('完成了', [task({ status: 'open' })])).toBeUndefined()
   })
 })

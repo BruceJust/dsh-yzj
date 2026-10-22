@@ -13,7 +13,7 @@ import { artifactRef, z, type GraphFamily } from '@yzj-next/graph'
 import { asRecord, asString } from '@yzj-next/graph'
 import type { CardDefinition } from '@yzj-next/cards'
 
-export type TaskStatus = 'open' | 'terminal' | 'accepted' | 'rework' | 'voided' | 'interrupted'
+export type TaskStatus = 'open' | 'terminal' | 'answered' | 'accepted' | 'rework' | 'voided' | 'interrupted'
 
 export interface TaskArtifact {
   readonly uri: string
@@ -87,6 +87,26 @@ export const taskFamily: GraphFamily = {
         summary: z.string(),
         artifacts: z.array(artifactRef).default([]),
         status: z.literal('terminal').default('terminal'),
+      }),
+    },
+    /**
+     * 问一句、答一句 —— 轻问不产生任务生命周期（设计 §F-read：「问一个数得一个数」）.
+     *
+     * 云之家里没有「轻问」这一格可选：每句 @ 都要先 ack 认领（多实例协议靠它），所以活是
+     * 先开的。可答完一看，这一回合在世界上什么都没动——没写、没发、没登记、没请示——那就
+     * 没有东西可验收：答复本身就是交付，读到就是终点。此前每一句都出一张验收卡：3090 上
+     * 38 次验收里 35 次是纯问答（「你好」「今天星期几」），中位数等了 17 天才被成批按掉
+     * ——签字成了盖章，「要你」成了噪音，两个月前那件「帮我看下我有哪些知识库」就是这么
+     * 挂住的。
+     *
+     * 不进「要你」（不在 pendingStatuses），也不是终局：答错了照样能打回，打回之后就是
+     * 一件要验收的活。
+     */
+    'task/answered': {
+      schema: z.object({
+        taskId: z.string().min(1),
+        summary: z.string(),
+        status: z.literal('answered').default('answered'),
       }),
     },
     'task/accepted': {
@@ -194,6 +214,7 @@ function statusLabel(status: TaskStatus): string {
   switch (status) {
     case 'interrupted': return '中断·可继续'
     case 'terminal': return '待验收'
+    case 'answered': return '已答复'
     case 'accepted': return '已验收'
     case 'voided': return '已作废'
     case 'rework': return '返工中'
@@ -235,7 +256,7 @@ export const taskCard: CardDefinition<TaskState> = {
       id: 'accept',
       label: '通过验收',
       // 打回之后再收：收的不是一份新交付，是「不用再改了」。
-      labelFor: state => (state.status === 'terminal' ? '通过验收' : '就这样收了'),
+      labelFor: state => (state.status === 'terminal' ? '通过验收' : state.status === 'answered' ? '收下' : '就这样收了'),
       style: 'primary',
       /*
         人对着交付说「完成了」，就是在收口——此前这句话不在词表里，落到云小助那儿，它答
@@ -256,7 +277,7 @@ export const taskCard: CardDefinition<TaskState> = {
 
         所以返工中、返工停了，都能「就这样收了」——派活的人说不用再改，就是收口。
       */
-      available: state => state.status === 'terminal'
+      available: state => state.status === 'terminal' || state.status === 'answered'
         || (sentBack(state) && (state.status === 'rework' || state.status === 'interrupted')),
     },
     {
@@ -267,7 +288,8 @@ export const taskCard: CardDefinition<TaskState> = {
       needsInput: true,
       verdict: 'rework',
       allowedActors: (actor, state) => mayJudge(actor.openId, state),
-      available: state => state.status === 'terminal',
+      // 答错了也能打回：打回之后它就是一件要验收的活。
+      available: state => state.status === 'terminal' || state.status === 'answered',
     },
     {
       /*
@@ -361,6 +383,8 @@ export const taskCard: CardDefinition<TaskState> = {
     ].join('\n'),
     replyHints: state.status === 'terminal'
       ? ['验收', '打回 <原因>', '作废 <原因>']
+      : state.status === 'answered'
+        ? ['打回 <原因>']
       : state.status === 'interrupted'
         ? sentBack(state) ? ['接着改', '就这样收了', '作废 <原因>'] : ['继续', '作废 <原因>']
         : state.status === 'rework' ? ['就这样收了', '作废 <原因>'] : [],

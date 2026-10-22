@@ -161,7 +161,8 @@ const VERDICT = /^(?:完成了?|做完了|好了|可以了?|行了?|没问题了
 export function verdictDoor(draft: string, cards: readonly StreamCard[]): string | undefined {
   if (!VERDICT.test(draft.trim())) return undefined
   for (const card of cards) {
-    if (card.kind !== 'task' || card.resolved) continue
+    // 答复不等人收口：「完成了」对着它说，就是一句话。
+    if (card.kind !== 'task' || card.resolved || record(card.state).status === 'answered') continue
     const accept = card.actions.find(action => action.id === 'accept' && action.available)
     if (accept === undefined) continue
     const label = accept.label
@@ -589,7 +590,8 @@ function quietHeadOf(card: StreamCard, state: Record<string, unknown>): string {
     return `承诺 · ${who}负责`
   }
   if (card.kind === 'lease') return '规矩 · 生效中'
-  if (card.kind === 'task') return `${AGENT}在做`
+  // 答完了、什么都没动的那种：不等你，也不是还在做。
+  if (card.kind === 'task') return text(state.status) === 'answered' ? `${AGENT}答了` : `${AGENT}在做`
   if (card.kind === 'waiting') return `${AGENT}在等`
   return ''
 }

@@ -186,7 +186,8 @@ describe('中断后的「继续」', () => {
     expect(await orchestrator.resumeTask(id)).toBe(true)
     await settled()
     expect(prompts.at(-1)).toContain('【继续】')
-    expect(asRecord(graph.rawObject('task', id)?.state)).toMatchObject({ status: 'terminal', summary: '回款整理好了。' })
+    // 这一回合没动世界：续上之后也是一句答复，不出验收卡（轻问律）。
+    expect(asRecord(graph.rawObject('task', id)?.state)).toMatchObject({ status: 'answered', summary: '回款整理好了。' })
   })
 })
 
@@ -194,6 +195,8 @@ describe('云小助说话算话', () => {
   it('它知道收不收口不归它定，人说「完成了」时指向卡', () => {
     expect(CHANNEL_PROMPT).toContain('你改不了任务的状态')
     expect(CHANNEL_PROMPT).toContain('就这样收了')
+    // 轻问答完就是「已答复」：别叫人去按一个没人等着的验收。
+    expect(CHANNEL_PROMPT).toContain('不等人验收')
   })
 
   it('打回没说原因：先问清哪里不对', () => {

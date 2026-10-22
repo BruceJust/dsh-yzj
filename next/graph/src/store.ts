@@ -310,6 +310,11 @@ export class GraphStore {
     return this.events.filter(event => wanted.has(event.type) && !this.tombstoned.has(event.seq))
   }
 
+  rawEventsSince(since: number): readonly GraphEvent[] {
+    // 整条扫：墙钟会回拨，「遇到更早的就停」会悄悄漏掉回拨之后的那几条。
+    return this.events.filter(event => event.time >= since && !this.tombstoned.has(event.seq))
+  }
+
   topicHandle(topicKey: string): TopicHandle | undefined {
     const record = this.objects.get(refKey({ kind: 'topic', id: topicKey }))
     if (record === undefined || !isRecord(record.state)) return undefined
