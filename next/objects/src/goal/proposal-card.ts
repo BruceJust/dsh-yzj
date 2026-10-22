@@ -314,6 +314,16 @@ export function createProposalCard(ctx: Context): CardDefinition<ProposalState> 
     }
     const decisions = state.decisions ?? {}
     const left = state.items.filter((_item, index) => decisions[String(index)] === undefined).length
+    /*
+      剩下的全挂起了：人已经说过「先不定」(实测 2026-10-22，状态矩阵)。
+
+      还没收口（挂起不是终裁），可再把它摆进「要你」、写着「0 条未裁」，挂起这个动词就白说
+      了——它和没答一模一样。所以退到信号层：卡还在原处，每条照旧能确认、驳回、转办、收起。
+    */
+    if (left === 0) {
+      const held = state.items.filter((_item, index) => decisions[String(index)] === 'held').length
+      return { layer: 'signal', mode: 'per-item-verdict', label: `${state.title} · ${String(held)} 条挂起` }
+    }
     return {
       layer: 'blocking',
       mode: 'per-item-verdict',
