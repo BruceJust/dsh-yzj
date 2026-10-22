@@ -28,7 +28,7 @@ import { inboxView } from '../src/rpc.ts'
 import { YzjSidebar } from '../src/client/Sidebar.tsx'
 import type { InboxView, SurfaceInject } from '../src/client/rpc.ts'
 import { AGENT, plainError, turnErrorLine, waitLine } from '../src/client/words.ts'
-import { currentLanding, landOn, setAnswering } from '../src/client/store.ts'
+import { currentFrame, currentLanding, currentSpotlight, landOn, setAnswering, setFrame, setSpotlight } from '../src/client/store.ts'
 
 const TOPIC: TopicDescriptor = {
   topicKey: 'yzj-topic-a', sessionId: 'session-a', placeKey: 'yzj-group-g1', groupId: 'g1',
@@ -139,6 +139,52 @@ describe('「要你」逐条：服务端投影', () => {
   it('本地会话里升起的确认也在，落点是那个会话', async () => {
     await approval('ap-local', 'session-local')
     expect(inboxView(ctx).needs[0]).toMatchObject({ sessionId: 'session-local', where: '本地' })
+  })
+
+  /*
+    没有话题的交付 (状态矩阵 2026-10-22)。
+
+    线上 62 条人执行的承诺里 45 条不带话题：本地会话里登记的、桌面上派给人而话发进群里
+    没开话题的。它们一交，此前整件从「要你」里消失——在等你验收，「要你」却说没事。
+  */
+  const topiclessDelivery = async (id: string, sourceAnchor: string): Promise<void> => {
+    await graph.append({
+      type: 'commitment/opened',
+      data: {
+        commitmentId: id, what: '竞品价格表', sourceAnchor, audience: [TOPIC.placeKey],
+        executor: { kind: 'human', openId: 'p-9', name: '张锐' },
+      },
+      actor: { kind: 'agent' },
+    })
+    await graph.append({
+      type: 'commitment/delivered',
+      data: { commitmentId: id, delivery: { claim: '价格表发了', at: Date.now() } },
+      actor: { kind: 'agent' },
+    })
+  }
+
+  it('本地会话里登记的承诺交了：落在登记它的那个会话', async () => {
+    await topiclessDelivery('cm-local', 'session:session-local')
+    expect(inboxView(ctx).needs[0]).toMatchObject({ ref: { id: 'cm-local' }, sessionId: 'session-local', where: '本地', waiting: '张锐' })
+  })
+
+  it('派出去、话发进群却没开话题的承诺交了：落在承诺板它那一行', async () => {
+    await topiclessDelivery('cm-desk', 'yzj:m-desk')
+    const need = inboxView(ctx).needs[0]
+    expect(need).toMatchObject({ ref: { kind: 'commitment', id: 'cm-desk' }, verb: '验收', where: '承诺', waiting: '张锐' })
+    expect(need?.sessionId).toBeUndefined()
+  })
+
+  it('别的家族落不了脚的照旧不列——板上没有它', async () => {
+    await graph.append({
+      type: 'approval/opened',
+      data: {
+        approvalId: 'ap-nowhere', toolName: 'yzj_sheet_record_create', reason: '写入', level: 'standard',
+        args: {}, argsDigest: 'd', decider: 'op-1', deadline: Date.now() + 600_000,
+      },
+      actor: { kind: 'agent' },
+    })
+    expect(inboxView(ctx).needs).toEqual([])
   })
 })
 
@@ -259,6 +305,23 @@ describe('左栏「要你」', () => {
     act(() => { (row as HTMLButtonElement).click() })
     expect(opened).toEqual(['session-a'])
     expect(currentLanding()).toEqual({ sessionId: 'session-a', kind: 'approval', id: 'ap-1' })
+  })
+
+  it('落在板上的那一件：点下去是承诺板，右栏摆的就是它', async () => {
+    const onBoard: InboxView = {
+      ...VIEW,
+      needs: [{
+        ref: { kind: 'commitment', id: 'cm-desk' }, verb: '验收', label: '价格表发了',
+        where: '承诺', since: NOW - 60_000, waiting: '张锐',
+      }],
+    }
+    await mount(undefined, onBoard)
+    const row = host.querySelector('section[aria-label="要你"] button')
+    act(() => { (row as HTMLButtonElement).click() })
+    expect(opened).toEqual([])
+    expect(currentFrame()).toEqual({ kind: 'board' })
+    expect(currentSpotlight()).toEqual({ kind: 'commitment', id: 'cm-desk', title: '价格表发了' })
+    act(() => { setSpotlight(undefined); setFrame({ kind: 'session' }) })
   })
 
   it('N 跨群跳到下一件——连按是一件件往下走', async () => {

@@ -425,7 +425,7 @@ export class YzjCards extends Service {
       const demand = this.demandOf(object)
       if (demand === undefined) continue
       const topicKey = contextOf(object)
-      const sessionAnchor = asString(asRecord(object.state)?.sessionAnchor)
+      const sessionAnchor = sessionOf(object)
       out.push({
         ref: { kind: object.kind, id: object.id },
         demand,
@@ -674,6 +674,23 @@ function normalize(text: string): string {
 function contextOf(object: GraphObject): string | undefined {
   const state = asRecord(object.state)
   return asString(state?.topicKey) ?? asString(asRecord(state?.executor)?.topicKey)
+}
+
+/**
+ * 没有话题的对象落在哪个会话。
+ *
+ * 写确认自己记着 `sessionAnchor`；本地会话里登记的承诺不记，可它的出生锚就是
+ * `session:<会话>`——此前没人读它，于是这种承诺一交付，「要你」就把它当成落不了脚的丢掉
+ * （状态矩阵 2026-10-22：线上两件这么交的，各等了 2 分钟、10 分钟，「要你」里一直没有）。
+ */
+function sessionOf(object: GraphObject): string | undefined {
+  const state = asRecord(object.state)
+  const said = asString(state?.sessionAnchor)
+  if (said !== undefined) return said
+  const born = asString(state?.sourceAnchor)
+  if (born?.startsWith('session:') !== true) return undefined
+  const session = born.slice('session:'.length)
+  return session === '' || session === 'unknown' ? undefined : session
 }
 
 /** 文本投影的第一行，短到能当 chip。没声明 `demand` 的家族靠它说话。 */

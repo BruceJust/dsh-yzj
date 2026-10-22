@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { BoardRowWire, GoalPageWire, SurfaceInject } from './rpc.ts'
-import { FRAME_SCROLL, backLabel, backTarget, landOn, onPortalRequest, sendErrand, subscribeLedger } from './store.ts'
+import { FRAME_SCROLL, backLabel, backTarget, jumpToNeed, landOn, onPortalRequest, sendErrand, subscribeLedger } from './store.ts'
 import { useRestoreScroll } from './scroll.ts'
 import { RoomPicker, landPortal, type Portal } from './RoomPicker.tsx'
 import {
@@ -464,6 +464,8 @@ export function YzjGoalPage(props: GoalPageProps): ReactNode {
                     className={css.pointer}
                     key={`${need.ref.kind}:${need.ref.id}`}
                     onClick={() => {
+                      // 没有会话可落的子承诺落在板上它那一行——和左栏同一只手。
+                      if (need.sessionId === undefined) { jumpToNeed(need); return }
                       landOn({ sessionId: need.sessionId, ...need.ref })
                       openSession(need.sessionId)
                     }}

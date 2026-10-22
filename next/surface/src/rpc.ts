@@ -1066,8 +1066,12 @@ export interface InboxConversation {
  */
 export interface InboxNeed {
   readonly ref: CardRef
-  /** 点下去落在哪个会话——落点是对象（`ref`），会话只是它所在的地方。 */
-  readonly sessionId: string
+  /**
+   * 点下去落在哪个会话——落点是对象（`ref`），会话只是它所在的地方。
+   *
+   * 不带的只有一种：没有会话可落的承诺，落在承诺板上它那一行（行上就有「验收」「打回…」）。
+   */
+  readonly sessionId?: string
   /** 人要做的动作，家族自己说（`demand.verb`）。 */
   readonly verb: string
   readonly label: string
@@ -2326,7 +2330,11 @@ export function goalPageFrame(ctx: Context, goalRef: string): GoalPageView | und
     没人会想起来回这里补一个词,而漏掉的后果是一件等着人答的事在目标页上消失。
   */
   // 和左栏「要你」同一份逐条（带谁在等、等了多久）——不是按话题只取最响的那一件。
-  const decisions = inboxView(ctx).needs.filter(need => sessions.has(need.sessionId))
+  // 落在板上的（没有会话可落的子承诺）按行认：它就是这个目标底下的一行。
+  const rows = new Set([goal.row?.id, ...goal.children.map(child => child.id)])
+  const decisions = inboxView(ctx).needs.filter(need => (
+    need.sessionId === undefined ? need.ref.kind === 'commitment' && rows.has(need.ref.id) : sessions.has(need.sessionId)
+  ))
 
   /*
     我的切片 = 我执行的 ∪ 我委派的。
@@ -3027,8 +3035,15 @@ export function inboxView(ctx: Context): InboxView {
     if (pending.demand.layer !== 'blocking') continue
     const topic = pending.topicKey === undefined ? undefined : topicByKey.get(pending.topicKey)
     const sessionId = topic?.sessionId ?? pending.sessionAnchor
-    // 落不了脚的不列：一条点下去没有去处的「要你」，是 UI 自己开的幽灵信号。
-    if (sessionId === undefined) continue
+    /*
+      落不了脚的不列：一条点下去没有去处的「要你」，是 UI 自己开的幽灵信号。
+
+      可承诺另有一处一定有它：承诺板。在桌面上派给人、话发进了群却没开话题的那种，交了
+      之后此前就整件从「要你」里消失——它在等你验收，验收的门在板上，「要你」却说没事
+      （状态矩阵 2026-10-22）。没有会话可落的承诺，落在板上它那一行。
+    */
+    const onBoard = sessionId === undefined && pending.ref.kind === 'commitment'
+    if (sessionId === undefined && !onBoard) continue
     const object = ctx.yzjGraph.object(viewer, pending.ref.kind, pending.ref.id)
     const data = asRecord(object?.state)
     const executor = asRecord(data?.executor)
@@ -3036,11 +3051,11 @@ export function inboxView(ctx: Context): InboxView {
     const due = asString(data?.due)
     needs.push({
       ref: pending.ref,
-      sessionId,
+      ...(sessionId === undefined ? {} : { sessionId }),
       verb: pending.demand.verb ?? '答',
       label: pending.demand.label,
-      // 本地会话和左栏「运行中」、⌘K 的话题同一个叫法：「本地」。
-      where: topic === undefined ? '本地' : (topic.label || placeNameOfTopic(topic)),
+      // 本地会话和左栏「运行中」、⌘K 的话题同一个叫法：「本地」；落在板上的，和 ⌘K 里那一格同名。
+      where: onBoard ? '承诺' : topic === undefined ? '本地' : (topic.label || placeNameOfTopic(topic)),
       ...(topic === undefined ? {} : { placeName: placeNameOfTopic(topic) }),
       since: pending.at,
       waiting: human ? (asString(executor?.name) ?? '对方') : SIGNATURE_AGENT,

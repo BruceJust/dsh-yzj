@@ -394,7 +394,8 @@ export interface InboxConversationWire {
 /** 「要你」的一条：一个此刻被你卡住的人或事（界面重设计 律二）。 */
 export interface NeedWire {
   ref: CardRefWire
-  sessionId: string
+  /** 不带 = 没有会话可落的承诺，落在承诺板上它那一行。 */
+  sessionId?: string
   verb: string
   label: string
   where: string

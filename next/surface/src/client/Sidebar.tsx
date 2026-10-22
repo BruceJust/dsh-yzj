@@ -33,7 +33,7 @@ import type {
 } from './rpc.ts'
 import { avatarOf } from './stream.ts'
 import {
-  answeringNow, currentFrame, landOn, publishNeeds, setFrame, setNeedJumper, subscribeAnswering, subscribeFrame,
+  answeringNow, currentFrame, landOn, publishNeeds, setFrame, setNeedJumper, setSpotlight, subscribeAnswering, subscribeFrame,
 } from './store.ts'
 import { commandKey, openPalette, startOfToday } from './keys.ts'
 import { usePoll } from './poll.ts'
@@ -278,9 +278,22 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
   const lastJump = useRef<NeedWire | undefined>(undefined)
   /** 刚跳去的那一件——人站在它所在的会话里时，这一行亮着（落点本身是一次性的）。 */
   const [jumped, setJumped] = useState<CardRefWire | undefined>(undefined)
+  /** 人此刻是不是就站在这一件所在的地方：会话里的看会话，板上的看板。 */
+  const standingOn = useCallback((need: NeedWire): boolean => (
+    need.sessionId === undefined
+      ? frame.kind === 'board'
+      : frame.kind === 'session' && need.sessionId === currentSessionId
+  ), [frame.kind, currentSessionId])
   const jumpTo = useCallback((need: NeedWire): void => {
     lastJump.current = need
     setJumped(need.ref)
+    if (need.sessionId === undefined) {
+      // 没有会话可落的承诺：板上它那一行，右栏摆它的来龙去脉和「验收」「打回…」。
+      landOn(undefined)
+      setFrame({ kind: 'board' })
+      setSpotlight({ kind: 'commitment', id: need.ref.id, title: need.label })
+      return
+    }
     go(need.sessionId, need.ref)
   }, [go])
   // 把这只手借给中栏的「下一件」：连着处理时不必回左栏找。
@@ -294,7 +307,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
       if (!commandKey(event)) return
       if (needs.length === 0) return
       const here = lastJump.current
-      const at = here === undefined || here.sessionId !== currentSessionId
+      const at = here === undefined || !standingOn(here)
         ? -1
         : needs.findIndex(need => sameRef(need.ref, here.ref))
       const next = at < 0 ? needs[0] : needs[(at + 1) % needs.length]
@@ -304,7 +317,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
     }
     window.addEventListener('keydown', onKey)
     return () => { window.removeEventListener('keydown', onKey) }
-  }, [needs, currentSessionId, jumpTo])
+  }, [needs, standingOn, jumpTo])
 
   /** Register a picked directory and land in a session there. */
   const adopt = useCallback(async (path: string): Promise<void> => {
@@ -363,7 +376,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
   /* ——— 1 · 要你 ——— */
 
   const needRow = (need: NeedWire): ReactNode => {
-    const active = frame.kind === 'session' && need.sessionId === currentSessionId && sameRef(jumped, need.ref)
+    const active = standingOn(need) && sameRef(jumped, need.ref)
     const overdue = need.due?.ts !== undefined && need.due.ts < now
     return (
       <button
@@ -869,7 +882,7 @@ export function YzjSidebar(props: SidebarProps): ReactNode {
           disabled={first === undefined}
           title={first === undefined ? '没有要你的事' : `要你 ${String(needs.length)} —— 去第一件`}
           aria-label={`要你 ${String(needs.length)}`}
-          onClick={() => { if (first !== undefined) go(first.sessionId, first.ref) }}
+          onClick={() => { if (first !== undefined) jumpTo(first) }}
         >
           {needs.length > 0 ? <span className={css.needCount}>{needs.length}</span> : <Icon name="check" />}
         </button>
