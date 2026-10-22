@@ -41,6 +41,7 @@ import { UnreadLine } from './Unread.tsx'
 import { AgentFace, Icon } from './icons.tsx'
 import { AGENT, plainError, receiptLine } from './words.ts'
 import type { FusedWindowWire, StreamCard, SurfaceInject } from './rpc.ts'
+import { verdictDoor } from './CardRow.tsx'
 import tokens from './tokens.module.css'
 import css from './column.module.css'
 import composerCss from './composer.module.css'
@@ -753,6 +754,7 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
   /* ——— 输入框上方那一格：同一时刻只说一件事 ——— */
   const people = [...new Set(window_.messages.filter(message => !message.own).map(message => message.fromName))]
   const unheard = topic === undefined ? undefined : audienceRiskOf(draft, voice, people)
+  const door = verdictDoor(draft, window_.cards)
   const hint: Hint | undefined = pendingNudge !== undefined
     ? { kind: 'draft', about: pendingNudge, drop: () => { setPendingNudge(undefined) } }
     : audienceRisk !== ''
@@ -764,6 +766,8 @@ export function YzjConversationColumn(props: ConversationColumnProps): ReactNode
           text: `${unheard}听不见这句——只有你和${AGENT}看得见，这件事不会算到${unheard}头上。`,
           fix: { label: direct ? `改为发给${topic?.groupName ?? '对方'}` : '改为发到群里', run: () => { setVoice('place'); boxRef.current?.focus() } },
         }
+        : door !== undefined
+          ? { kind: 'note', warn: true, text: door }
         : pendingRegister !== undefined && voice === 'place'
           ? { kind: 'register', ...registrationLine(draft, pendingRegister), drop: () => { setPendingRegister(undefined) } }
           : pendingHandoff !== undefined && voice === 'place'

@@ -154,8 +154,34 @@ function labelOf(card: StreamCard, action: Action): string {
     const verbs = approvalVerbs(text(record(card.state).toolName))
     return action.id === 'approve' ? verbs.yes : verbs.no
   }
-  if ((card.kind === 'task' || card.kind === 'commitment') && action.id === 'accept') return '通过验收'
+  if (card.kind === 'task' && action.id === 'accept') {
+    // 打回之后再收：收的不是一份新交付，是「不用再改了」。
+    return text(record(card.state).status) === 'terminal' ? '通过验收' : '就这样收了'
+  }
+  if (card.kind === 'commitment' && action.id === 'accept') return '通过验收'
+  if (card.kind === 'task' && action.id === 'resume' && typeof record(card.state).round === 'number') return '接着改'
   return action.label
+}
+
+/**
+ * 话说成了裁决的样子，门在卡上 (返工闭环实测 2026-10-21).
+ *
+ * 人对着云小助说「完成了」，云小助答「好，这件事就算完成了」——它改不了任务的状态，图上
+ * 什么都没动。收口是人签的字，签字的地方是卡：所以在发出之前就指向那扇真的门，而不是
+ * 把一句话悄悄当成签字（「可以再加一列吗」也以「可以」开头）。只认整句就是一个裁决词的。
+ */
+const VERDICT = /^(?:完成了?|做完了|好了|可以了?|行了?|没问题了?|就这样吧?|收了|通过|验收|ok|done)[。！!.~～\s]*$/iu
+
+export function verdictDoor(draft: string, cards: readonly StreamCard[]): string | undefined {
+  if (!VERDICT.test(draft.trim())) return undefined
+  for (const card of cards) {
+    if (card.kind !== 'task' || card.resolved) continue
+    const accept = card.actions.find(action => action.id === 'accept' && action.available)
+    if (accept === undefined) continue
+    const label = labelOf(card, accept)
+    return `要把这件活收口，按卡上的${accept.n === undefined ? '' : ` ${String(accept.n)}`}「${label}」——${AGENT}改不了任务的状态，说给它不算数。`
+  }
+  return undefined
 }
 
 /** 这一笔要不要先写一句原因。打回、作废要；写确认的「取消」不必（原因可选，快路优先）。 */
@@ -596,7 +622,13 @@ function whyOf(card: StreamCard, state: Record<string, unknown>): string[] {
   }
   if (card.kind === 'task') {
     const round = typeof state.round === 'number' ? state.round : 0
+    if (status === 'interrupted' && round > 0) {
+      return [`打回过 ${String(round)} 次，改到一半停了。接着改会按你打回的话再改一版；不用再改了，就「就这样收了」。`]
+    }
     if (status === 'interrupted') return ['断在半路了。继续会接着做，结果仍然发回原来那个会话。']
+    if (status === 'rework') {
+      return [`打回过 ${String(round)} 次${text(state.reason) === '' || text(state.reason) === '未说明原因' ? '' : `：${text(state.reason)}`}。${AGENT}在按这个改，改完回到这张卡上。`]
+    }
     return [
       ...(text(state.summary) === '' ? [] : [flatten(state.summary, 160)]),
       ...(round > 0 ? [`已经打回过 ${String(round)} 次${text(state.reason) === '' ? '' : `：${text(state.reason)}`}。`] : []),
